@@ -1,0 +1,141 @@
+\name{vimp}
+\alias{vimp}
+\alias{vimp.rfsrc}
+\title{VIMP for Single or Grouped Variables}
+\description{
+  Calculate variable importance (VIMP) for a single variable or group of
+  variables for training or test data from a RF-SRC analysis.
+}
+\usage{\method{vimp}{rfsrc}(object, xvar.names,
+  importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
+  joint = FALSE, newdata, subset, na.action = c("na.omit", "na.impute"),
+  seed = NULL, do.trace = FALSE, num.threads = -1,
+  papply = if (require("multicore")) mclapply else lapply, ...)
+}
+\arguments{
+  \item{object}{An object of class \code{(rfsrc, grow)} or
+    \code{(rfsrc, forest)}. Requires \option{forest=TRUE} in the
+    original \command{rfsrc} call.}
+  \item{xvar.names}{Names of the x-variables to be used.  If not
+    specified all variables are used.}
+  \item{importance}{Type of VIMP.}
+  \item{joint}{Individual or joint VIMP?}
+  \item{newdata}{Test data.  Default is to use the original grow
+    (training) data.}
+  \item{subset}{Vector indicating which rows of the data to use.  If no
+    test data is supplied, applies to the rows of \code{object$xvar}.
+    Otherwise, it applies to the rows of \code{newdata}.  All rows are
+    used if not specified.}
+  \item{na.action}{Action to be taken if the data contains \code{NA} values.}
+  \item{seed}{Negative integer specifying seed for the random number
+      generator.} 
+  \item{do.trace}{Logical. Should trace output be enabled? Default is
+    \code{FALSE}. Integer values can also be passed.  A positive value
+      causes output to be printed each \code{do.trace} iteration.}
+    \item{num.threads}{Number of threads to spawn. Setting the number to
+      a negative integer will force the program to spawn the maximum
+      number of threads allowable on the architecture.}
+  \item{papply}{(parallel) apply function. In the presence of package
+          \pkg{multicore} parallel computations via \command{mclapply} are
+          performed in place of \command{lapply}.}
+  \item{...}{Further arguments passed to or from other methods.}
+}
+\details{
+    Using a previously grown forest, calculate the VIMP for variables
+    \code{xvar.names}.  By default, VIMP is calculated for the original
+    data, but the user can specify a new test data for the VIMP
+    calculation using \code{newdata}.  Depending upon the option
+    \code{importance}, VIMP is calculated either by random daughter
+    assignment or by random permutation of the variable(s).  The default
+    is Breiman-Cutler permutation VIMP.  See \command{rfsrc} for more
+    details.
+
+    Joint VIMP is requested using \option{joint}.  The joint VIMP is the
+    importance for a group of variables when the group is perturbed
+    simultaneously.
+}
+\value{
+   An object of class \code{(rfsrc, predict)}, which is a list with
+   the following key components:
+    \item{err.rate}{OOB error rate for the ensemble restricted to the
+      subsetted data.}
+    \item{importance}{Variable importance (VIMP).}
+}
+\author{
+    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
+    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+}
+\references{
+    Ishwaran H. (2007).  Variable importance in binary regression
+    trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
+}
+\seealso{
+  \command{\link{rfsrc}}
+}
+\examples{
+\dontrun{
+### showcase different vimp
+### classification example
+
+iris.obj <- rfsrc(Species ~ ., data = iris)
+
+# Breiman-Cutler permutation vimp
+vimp(iris.obj)$importance
+
+# Breiman-Cutler random daughter vimp
+vimp(iris.obj, importance = "random")$importance
+
+# Breiman-Cutler joint permutation vimp 
+vimp(iris.obj, joint = TRUE)$importance
+
+# Breiman-Cuter paired vimp
+vimp(iris.obj, c("Petal.Length", "Petal.Width"), joint = TRUE)$importance
+vimp(iris.obj, c("Sepal.Length", "Petal.Width"), joint = TRUE)$importance
+
+### compare Breiman-Cutler vimp to ensemble based vimp
+### regression example
+
+airq.obj <- rfsrc(Ozone ~ ., airquality)
+vimp.all <- cbind(
+     ensemble = vimp(airq.obj, importance = "permute.ensemble")$importance,
+     breimanCutler = vimp(airq.obj, importance = "permute")$importance)
+print(vimp.all)
+
+### calculate VIMP on test data
+
+set.seed(100080)
+train <- sample(1:nrow(airquality), size = 80)
+airq.obj <- rfsrc(Ozone~., airquality[train, ])
+
+#training data vimp
+airq.obj$importance
+vimp(airq.obj)$importance
+
+#test data vimp
+vimp(airq.obj, newdata = airquality[-train, ])$importance
+
+
+### survival example
+### study how vimp depends on tree imputation
+### makes use of the subset option
+
+data(pbc, package = "randomForestSRC")
+
+#determine which records have missing values
+which.na <- apply(pbc, 1, function(x){any(is.na(x))})
+
+#impute the data using na.action = "na.impute"
+pbc.obj <- rfsrc(Surv(days,status) ~ ., pbc, nsplit = 3,
+        na.action = "na.impute", nimpute = 1)
+
+#compare vimp based on records with no missing values
+#to those that have missing values
+#note the option na.action="na.impute" in the vimp() call
+vimp.not.na <- vimp(pbc.obj, subset = !which.na, na.action = "na.impute")$importance
+vimp.na <- vimp(pbc.obj, subset = which.na, na.action = "na.impute")$importance
+data.frame(vimp.not.na, vimp.na)
+}
+}
+\keyword{variable selection}
+\keyword{predict}
+
