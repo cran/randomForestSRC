@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -155,6 +155,18 @@ avector <- function(x, name = FALSE) {
   }
   else {
     x
+  }
+}
+
+available <- function (package, lib.loc = NULL, quietly = TRUE) 
+{
+  package <- as.character(substitute(package))
+  installed <- package %in% installed.packages()
+  if (installed) {
+    require(package, quietly = TRUE, character.only = TRUE)
+  }
+  else {
+    return(invisible(FALSE))
   }
 }
 

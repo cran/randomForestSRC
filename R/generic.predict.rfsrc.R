@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -72,9 +72,7 @@ generic.predict.rfsrc <-
     split.depth = c(FALSE, "all.trees", "by.tree"),
     seed = NULL,
     do.trace = FALSE,
-    num.threads = -1,
     membership = TRUE,
-    papply = if (require("multicore")) mclapply else lapply,
     restore.only = FALSE,
     ...)
 {
@@ -155,7 +153,7 @@ generic.predict.rfsrc <-
   ## First convert object$yvar to a data frame which is required for factor processing
   object$yvar <- as.data.frame(object$yvar)
   colnames(object$yvar) <- object$yvar.names
-  yfactor <- extract.factor(object$yvar, papply = papply)
+  yfactor <- extract.factor(object$yvar)
 
   ## Get event information for survival families
   event.info <- get.event.info(object)
@@ -167,7 +165,7 @@ generic.predict.rfsrc <-
   cr.bits <- get.cr.bits(object$family)
  
   ## Determine the immutable xvar factor map.
-  xfactor <- extract.factor(object$xvar, papply = papply)
+  xfactor <- extract.factor(object$xvar)
 
   ## Coherence check for test data
   ## Use the training data when test data is not present
@@ -203,8 +201,8 @@ generic.predict.rfsrc <-
 
       ## Check that test/train factors are the same.  If factor has an
       ## NA in its levels, remove it.  Confirm factor labels overlap.
-      newdata <- rm.na.levels(newdata, object$xvar.names, papply)
-      newdata.xfactor <- extract.factor(newdata, object$xvar.names, papply)
+      newdata <- rm.na.levels(newdata, object$xvar.names)
+      newdata.xfactor <- extract.factor(newdata, object$xvar.names)
       
       if (!setequal(xfactor$factor, newdata.xfactor$factor)) {
         stop("x-variable factors from test data do not match original training data")
@@ -216,8 +214,8 @@ generic.predict.rfsrc <-
       # In classification we need to check that train/test y-outcomes are compatible.
       if (object$family == "class") {    
         if (sum(is.element(names(newdata), object$yvar.names)) > 0) {
-          newdata <- rm.na.levels(newdata, object$yvar.names, papply)
-          newdata.yfactor <- extract.factor(newdata, object$yvar.names, papply)
+          newdata <- rm.na.levels(newdata, object$yvar.names)
+          newdata.yfactor <- extract.factor(newdata, object$yvar.names)
 
           if (!setequal(yfactor$factor, newdata.yfactor$factor)) {
             stop("class outcome from test data does not match original training data")
@@ -235,12 +233,12 @@ generic.predict.rfsrc <-
 
       ## Force test factor levels to equal grow factor levels (this last step
       ## is crucial to ensuring an immutable map).
-      newdata <- check.factor(object$xvar, newdata, xfactor, papply)
+      newdata <- check.factor(object$xvar, newdata, xfactor)
 
       # In classification we need to check y-outcome factor coherence. 
       if (object$family == "class") {
           if (sum(is.element(object$yvar.names, names(newdata))) == length(object$yvar.names)) {
-          newdata <- check.factor(object$yvar, newdata, yfactor, papply)
+          newdata <- check.factor(object$yvar, newdata, yfactor)
         }
       }
 
@@ -447,7 +445,7 @@ generic.predict.rfsrc <-
                         as.integer(object$seed),
                         as.integer(length(importance.xvar.idx)),
                         as.integer(importance.xvar.idx),
-                        as.integer(num.threads))
+                        as.integer(get.rf.cores()))
 
   ## Check for error return condition in the native code.
   if(is.null(nativeOutput)) {
@@ -491,7 +489,7 @@ generic.predict.rfsrc <-
     colnames(xvar.newdata) <- object$xvar.names
 
     ## Map xvar factors back to original values
-    xvar.newdata <- map.factor(xvar.newdata, xfactor, papply)
+    xvar.newdata <- map.factor(xvar.newdata, xfactor)
 
     if (perf.flag) {
 
@@ -500,7 +498,7 @@ generic.predict.rfsrc <-
       colnames(yvar.newdata) <- object$yvar.names
 
       ## Map response factors back to original values
-      yvar.newdata <- map.factor(yvar.newdata, yfactor, papply)
+      yvar.newdata <- map.factor(yvar.newdata, yfactor)
 
     }
     
@@ -510,10 +508,10 @@ generic.predict.rfsrc <-
   ## Map imputed data factors back to original values
   if (n.miss > 0) {
 
-    imputed.data <- map.factor(imputed.data, xfactor, papply)
+    imputed.data <- map.factor(imputed.data, xfactor)
     
     if (perf.flag) {
-      imputed.data <- map.factor(imputed.data, yfactor, papply)
+      imputed.data <- map.factor(imputed.data, yfactor)
     }
     
   }

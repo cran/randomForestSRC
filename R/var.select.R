@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -479,6 +479,7 @@ var.select.rfsrc <-
       cat("depth threshold    :", round(threshold, 4), "\n")
       if (!prefit.flag) {
         cat("PE (true OOB)      :", round(pe, 4), "\n")
+
       }
       else {
         cat("PE (biased)        :", round(pe, 4), "\n")

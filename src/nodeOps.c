@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.0
+////  Version 1.0.1
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -138,21 +138,18 @@ Node *makeNode(unsigned int xSize) {
   parent -> CIF                  = NULL;
   parent -> survival             = NULL;
   parent -> nelsonAalen          = NULL;
+  parent -> rfCount              = 0;
+  parent -> rfSize               = NULL;
   parent -> multiClassProb       = NULL;
   parent -> membrCount           = 0;
+  parent -> mvSize               = 0;
+  parent -> fmvSize              = 0;
   parent -> mvSign               = NULL;
   parent -> fmvSign              = NULL;
   return parent;
 }
-void freeNode(Node        *parent, 
-              unsigned int  globalEventTypeSize, 
-              unsigned int  sortedTimeInterestSize,
-              unsigned int  masterTimeSize,
-              unsigned int  rfCount, 
-              unsigned int *rfSize, 
-              char          dFlag,  
-              unsigned int  mvSize, 
-              unsigned int  fmvSize 
+void freeNode(Node         *parent, 
+              char          dFlag    
               ) {
   if (parent -> permissibleSplit != NULL) {
     free_cvector(parent -> permissibleSplit, 1, parent -> xSize);
@@ -173,36 +170,15 @@ void freeNode(Node        *parent,
     }
   }
   if (dFlag) {
-    if (mvSize > 0) {
-      if (parent -> mvSign != NULL) {
-        free_ivector(parent -> mvSign, 1, mvSize);
-        parent -> mvSign = NULL;
-      }
-    }
-    if (fmvSize > 0) {
-      if (parent -> fmvSign != NULL) {
-        free_ivector(parent -> fmvSign, 1, fmvSize);
-        parent -> fmvSign = NULL;
-      }
-    }
+    unstackMVSign(parent);
+    unstackFMVSign(parent);
   }
   if ((parent -> splitParameter) == 0) {
-    freeTerminalNodeStructures(parent, 
-                               globalEventTypeSize, 
-                               sortedTimeInterestSize,
-                               masterTimeSize,
-                               rfCount,
-                               rfSize);
+    freeTerminalNodeStructures(parent);
   }
   free_gblock(parent, sizeof(Node));
 }
-void freeTerminalNodeStructures(Node         *terminalNode, 
-                                unsigned int  globalEventTypeSize, 
-                                unsigned int  sortedTimeInterestSize,
-                                unsigned int  masterTimeSize,
-                                unsigned int  rfCount,
-                                unsigned int *rfSize) {
-  unsigned int j;
+void freeTerminalNodeStructures(Node *terminalNode) {
   unstackAtRisk(terminalNode);
   unstackLocalRatio(terminalNode);
   unstackLocalSurvival(terminalNode);
@@ -217,14 +193,8 @@ void freeTerminalNodeStructures(Node         *terminalNode,
     unstackCSH(terminalNode);
     unstackCIF(terminalNode);
   }
-  if (rfCount > 0) {
-    if (terminalNode -> multiClassProb != NULL) {
-      for (j = 1; j <= rfCount; j++) {
-        free_uivector(terminalNode -> multiClassProb[j], 1, rfSize[j]);
-      }
-      free_vvector(terminalNode -> multiClassProb, 1, rfCount);
-      terminalNode -> multiClassProb = NULL;
-    }
+  if (terminalNode -> rfCount > 0) {
+    unstackMultiClassProb(terminalNode);
   }
 }
 void getNodeInfo(Node *leaf) {
@@ -608,6 +578,89 @@ void unstackCIF(Node *tNode) {
       free_dmatrix(tNode -> CIF, 1, tNode -> eTypeSize, 1, tNode -> sTimeSize);
       tNode -> CIF = NULL;
     }
+  }
+}
+void stackMVSign(Node *node, unsigned int mvSize) {
+  if (node -> mvSize > 0) {
+    if (node -> mvSize != mvSize) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  mvSize has been previously defined:  %10d vs %10d", node -> mvSize, mvSize);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
+  else {
+    node -> mvSize = mvSize;
+  }
+  node -> mvSign = ivector(1, node -> mvSize);
+}
+void unstackMVSign(Node *node) {
+  if(node -> mvSize > 0) {
+    if (node -> mvSign != NULL) {
+      free_ivector(node -> mvSign, 1, node -> mvSize);
+      node -> mvSign = NULL;
+    }
+  }
+}
+void stackFMVSign(Node *node, unsigned int fmvSize) {
+  if (node -> fmvSize > 0) {
+    if (node -> fmvSize != fmvSize) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  fmvSize has been previously defined:  %10d vs %10d", node -> fmvSize, fmvSize);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
+  else {
+    node -> fmvSize = fmvSize;
+  }
+  node -> fmvSign = ivector(1, node -> fmvSize);
+}
+void unstackFMVSign(Node *node) {
+  if(node -> fmvSize > 0) {
+    if (node -> fmvSign != NULL) {
+      free_ivector(node -> fmvSign, 1, node -> fmvSize);
+      node -> fmvSign = NULL;
+    }
+  }
+}
+void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize) {
+  unsigned int j;
+  if (tNode -> rfCount > 0) {
+    if (tNode -> rfCount != rfCount) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  rfCount has been previously defined:  %10d vs %10d", tNode -> rfCount, rfCount);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
+  else {
+    tNode -> rfCount = rfCount;
+  }
+  tNode -> rfSize = uivector(1, tNode -> rfCount);
+  tNode -> multiClassProb = (unsigned int **) vvector(1, tNode -> rfCount);
+  for (j = 1; j <= tNode -> rfCount; j++) {
+    (tNode -> rfSize)[j] = rfSize[j];
+    (tNode -> multiClassProb)[j] = uivector(1, (tNode -> rfSize)[j]);
+  }
+}
+void unstackMultiClassProb(Node *tNode) { 
+  unsigned int j;
+  if (tNode -> rfCount > 0) {
+    if (tNode -> rfSize != NULL) {
+      if (tNode -> multiClassProb != NULL) {
+        for (j = 1; j <= tNode -> rfCount; j++) {
+          if (tNode -> multiClassProb[j] != NULL) {
+            free_uivector(tNode -> multiClassProb[j], 1, tNode -> rfSize[j]);
+            tNode -> multiClassProb[j] = NULL;
+          }
+        }
+        free_vvector(tNode -> multiClassProb, 1, tNode -> rfCount);
+        tNode -> multiClassProb = NULL;
+      }
+    }
+    free_uivector(tNode -> rfSize, 1, tNode -> rfCount);
+    tNode -> rfSize = NULL;
   }
 }
 void checkEventType(Node *tNode) {

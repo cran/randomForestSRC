@@ -11,33 +11,96 @@
   \pkg{randomSurvivalForest} package (Ishwaran and Kogalur 2007), and
   has been significantly refactored for improved computational speed.  }
 \details{
-  Implements Breiman's random forests for a variety of data settings.
-  Numeric or categorical (factor) responses yield regression and
-  classification forests.  Survival and competing risk forests are grown
-  when the response is right-censored (Ishwaran et al. 2008, 2012).
-  Different splitting rules invoked under deterministic or random
-  splitting are available for all families.  Variable predictiveness can
-  be assessed using variable importance (VIMP) measures for single, as
-  well as grouped variables.  Variable selection is implemented using
-  minimal depth variable selection (Ishwaran et al. 2010). Missing data
-  (for x-variables and y-outcomes) can be imputed on both training and
-  test data.
+  The package implements Breiman's random forests for a variety of data
+  settings.  Regression and classification forests are grown when the
+  response is numeric or categorical (factor) while survival and
+  competing risk forests (Ishwaran et al. 2008, 2012) are grown when the
+  response is right-censored.  Different splitting rules invoked under
+  deterministic or random splitting are available for all families.
+  Variable predictiveness can be assessed using variable importance
+  (VIMP) measures for single, as well as grouped variables.  Variable
+  selection is implemented using minimal depth variable selection
+  (Ishwaran et al. 2010). Missing data (for x-variables and y-outcomes)
+  can be imputed on both training and test data.
 
   This package implements OpenMP shared-memory parallel programming.
   However, the default installation will only execute serially.  To
-  utilize OpenMP, the target system must first support it.  To install
-  the package with OpenMP compiler options turned on:
+  utilize OpenMP, the target architecture and operating system must
+  first support it.  
+
+  To install the package with OpenMP parallel processing enabled, on most
+  non-Windows systems, do the following:
   
   \enumerate{
-    \item Download the source code for the package.
+    \item Download the package source code from CRAN.
 
-    \item From the root directory of the package source run the command
-    \option{autoconf}.
+    \item Open a console, navigate to the directory containing the
+    tarball, and untar it using the command \command{tar -xvf
+    randomForestSRC_X.x.x.tar.gz} where \command{X.x.x} is the version of the
+    package you have downloaded.
 
-    \item Run \option{R CMD INSTALL randomForestSRC} on the modified
-    package directory.
+    \item This will create a directory structure with the root directory
+    of the package named \command{randomForestSRC}.  Change into the root
+    directory of the package using the command \command{cd randomForestSRC}
+
+    \item Run autoconf using the command \command{autoconf}
+
+    \item Change back to your working directory using the command
+    \command{cd ..}
+
+    \item Run \command{R CMD INSTALL randomForestSRC} on the modified
+    package.  Ensure that you do not target the unmodified tarball, but
+    instead act on the directory structure you just modified.
   }
+
+  To install the package with OpenMP parallel processing enabled, on
+  most Windows systems, do the following:
   
+  \enumerate{
+    \item Download the Windows specific custom binary build from
+    \url{http://www.ccs.miami.edu/~hishwaran/rfsrc.html}
+
+    \item If you are using the R GUI, start the GUI.  From the menu
+    click on \emph{Packages > Install package(s) from local zip files}.
+    Then navigate to the directory where you downloaded the zip file and
+    click on \emph{randomForestSRC_X.x.x.zip}.  Alternatively, you can
+    manually open a console, navigate to the zip file, and install the
+    package by using the command \command{R CMD INSTALL
+    randomForestSRC_X.x.x.zip}
+  }
+
+  There are several ways to control the number of CPU cores that the
+  package accesses during OpenMP parallel execution.  First, you will
+  need to determine the number of cores on your local machine.  Do this
+  by starting an R session and issuing the command
+  \command{detectCores()}.
+
+  Then you can do the following:
+
+  At the start of every R session, you can set the number of cores
+  accessed during OpenMP parallel execution by issuing the command
+  \command{options(rf.cores = x)}, where \command{x} is the number of
+  cores.  If \command{x} is a negative number, the package will access
+  the maximum number of cores on your machine.  The options command can
+  also be placed in the users .Rprofile file for convenience.  You can,
+  alternatively, initialize the environment variable \command{RF_CORES}
+  in your shell environment.
+
+  The default value for rf.cores is two (2L), if left unspecified.
+  
+  This package also implements R-side parallel processing by replacing
+  the R function \command{lapply} with \command{mclapply} found in the
+  \pkg{parallel} package.  You can set the number of cores accessed by
+  \command{mclapply} by issuing the command \command{options(mc.cores = x)}, where
+  \command{x} is the number of cores.  The options command can also be
+  placed in the users .Rprofile file for convenience.  You can,
+  alternatively, initialize the environment variable \command{MC_CORES}
+  in your shell environment.  See the help files in \pkg{parallel} for
+  more information.
+
+  The default value for \command{mclapply} on non-Windows systems is
+  two (2L) cores.  On Windows systems, the default value is one (1L) core.
+    
   This package contains many useful functions and users should read the
   help file in its entirety for details.  However, we briefly mention
   several key functions that may make it easier to navigate and

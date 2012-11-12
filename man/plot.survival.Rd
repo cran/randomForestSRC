@@ -7,8 +7,7 @@
   }
 \usage{\method{plot.survival}{rfsrc}(x, plots.one.page = TRUE, plot.it = TRUE,
   subset, collapse = FALSE, haz.model = c("spline", "ggamma", "nonpar"),
-  k = 25, span = "cv", cens.model = c("km", "rfsrc"),
-  papply = if (require("multicore")) mclapply else lapply, ...)
+  k = 25, span = "cv", cens.model = c("km", "rfsrc"), ...)
 }
 \arguments{
   \item{x}{An object of class \code{(rfsrc, grow)} or
@@ -37,9 +36,6 @@
       \item{\code{rfscr}:}{Uses random survival forests.}
     }
   }
-  \item{papply}{(parallel) apply function. In the presence of package
-    \pkg{multicore} parallel computations via \command{mclapply} are
-    performed in place of \command{lapply}.}
   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{

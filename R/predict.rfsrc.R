@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -71,9 +71,7 @@ predict.rfsrc <-
            split.depth = c(FALSE, "all.trees", "by.tree"),
            seed = NULL,
            do.trace = FALSE,
-           num.threads = -1,
            membership = TRUE,
-           papply = if (require("multicore")) mclapply else lapply,
            ...)
 {
 
@@ -87,9 +85,7 @@ predict.rfsrc <-
                                           split.depth = split.depth,
                                           seed = seed,
                                           do.trace = do.trace,
-                                          num.threads = num.threads,
                                           membership = membership,
-                                          papply = papply,
                                           ...)
 
   return(result.predict)

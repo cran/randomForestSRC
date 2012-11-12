@@ -9,8 +9,7 @@
 \usage{\method{vimp}{rfsrc}(object, xvar.names,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
   joint = FALSE, newdata, subset, na.action = c("na.omit", "na.impute"),
-  seed = NULL, do.trace = FALSE, num.threads = -1,
-  papply = if (require("multicore")) mclapply else lapply, ...)
+  seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
   \item{object}{An object of class \code{(rfsrc, grow)} or
@@ -32,12 +31,6 @@
   \item{do.trace}{Logical. Should trace output be enabled? Default is
     \code{FALSE}. Integer values can also be passed.  A positive value
       causes output to be printed each \code{do.trace} iteration.}
-    \item{num.threads}{Number of threads to spawn. Setting the number to
-      a negative integer will force the program to spawn the maximum
-      number of threads allowable on the architecture.}
-  \item{papply}{(parallel) apply function. In the presence of package
-          \pkg{multicore} parallel computations via \command{mclapply} are
-          performed in place of \command{lapply}.}
   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{

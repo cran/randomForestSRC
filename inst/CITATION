@@ -11,8 +11,8 @@ citEntry(entry="Manual",
 	 publisher = "manual",
          year         = year,
          note         = vers,
-         url          = "http://cran.r-project.org/web/packages/randomSurvivalForest/",
-         pdf          = "http://cran.r-project.org/web/packages/randomSurvivalForest/randomSurvivalForest.pdf",
+         url          = "http://cran.r-project.org/web/packages/randomForestSRC/",
+         pdf          = "http://cran.r-project.org/web/packages/randomForestSRC/randomForestSRC.pdf",
          textVersion = 
          paste("Ishwaran H. and Kogalur U.B. (",year ,"). ", 
                titl, ", ", vers, ".", sep=""))

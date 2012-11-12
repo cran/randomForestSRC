@@ -1,10 +1,17 @@
 Package: randomForestSRC
-Version: 1.0.0
-BUILD: bld20121031
+Version: 1.0.1
+BUILD: bra20121031.bld20121112
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.0.0
+CHANGES TO RELEASE 1.0.1
 
+RELEASE 1.0.1
+Replaced 'suggests multicore' with 'depends parallel'.  Followed
+protocol in parallel package for controlling number of cores, via
+options(), and environment variables.  Reduced [S] memory footprint by
+prematurely de-allocating terminal node information.
+ 
+---------------------------------------------------------------------------------
 RELEASE 1.0.0 represents the first release of the
 package.  Please report bugs to kogalurshear@gmail.com
  

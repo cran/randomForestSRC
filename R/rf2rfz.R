@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -62,7 +62,6 @@
 
 rf2rfz <- function(object,
                    forestName = NULL,
-                   papply = if (require("multicore")) mclapply else lapply,
                    ...)
 {
 
@@ -89,7 +88,7 @@ rf2rfz <- function(object,
 
   ## Extract the xvar types.
 
-  get.factor <- extract.factor(rfsrcForest$xvar, xvar.names, papply)
+  get.factor <- extract.factor(rfsrcForest$xvar, xvar.names)
   xvar.type <- get.factor$generic.types
 
   ## This may be null in the absence of factors.
