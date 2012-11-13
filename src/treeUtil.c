@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.0
+////  Version 1.0.1
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -272,7 +272,7 @@ char growTree (char     rootFlag,
   uint     splitValueMaxFactSize;
   uint    *splitValueMaxFactPtr;
   Node *reversePtr;
-  uint i, j, p;
+  uint i, p;
   parent -> depth = depth;
   bootResult = iamnsResult = TRUE;
   tnUpdateFlag = TRUE;
@@ -483,10 +483,7 @@ char growTree (char     rootFlag,
     }
     if (!(RF_opt & OPT_IMPU_ONLY)) {
       if (RF_rFactorCount > 0) {
-        parent -> multiClassProb = (uint **) vvector(1, RF_rFactorCount);
-        for (j = 1; j <= RF_rFactorCount; j++) {
-          ( parent -> multiClassProb)[j] = uivector(1, RF_rFactorSize[j]);
-        }
+        stackMultiClassProb(parent, RF_rFactorCount, RF_rFactorSize);
       }
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
         if (depth > 0) {
@@ -683,15 +680,7 @@ void freeTree(uint treeID, Node *parent, char rootFlag) {
     freeTree(treeID, parent -> right, FALSE);
   }
   dFlag = rootFlag | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE);
-  freeNode(parent, 
-           RF_eventTypeSize, 
-           RF_sortedTimeInterestSize, 
-           RF_masterTimeSize, 
-           RF_rFactorCount, 
-           RF_rFactorSize, 
-           dFlag, 
-           RF_mvSize,  
-           RF_fmvSize); 
+  freeNode(parent, dFlag);
 }
 void freeSplitDepth(uint treeID) {
   Node  *terminalNode;

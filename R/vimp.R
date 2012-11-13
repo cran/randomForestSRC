@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -69,8 +69,6 @@ vimp.rfsrc <- function(object,
                  na.action = c("na.omit", "na.impute"),
                  seed = NULL,
                  do.trace = FALSE,
-                 num.threads = -1,
-                 papply = if (require("multicore")) mclapply else lapply,
                  ...)
 
 {
@@ -180,9 +178,7 @@ vimp.rfsrc <- function(object,
                                   perf = TRUE,
                                   seed = seed,
                                   do.trace = do.trace,
-                                  num.threads = num.threads,
                                   membership = FALSE,
-                                  papply = papply,
                                   restore.only = FALSE,
                                   ...)
 

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.0
+////  Version 1.0.1
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,22 +67,10 @@
 Terminal *makeTerminal();
 void freeTerminal(Terminal *parent);
 Node *makeNode(unsigned int xSize);
-void freeNode(Node         *parent, 
-              unsigned int  eventTypeSize, 
-              unsigned int  sortedTimeInterestSize,
-              unsigned int  masterTimeSize,
-              unsigned int  rfCount,
-              unsigned int *rfSize,
-              char          mvFlag,
-              unsigned int  mvSize,
-              unsigned int  fmvSize
+void freeNode(Node *parent,
+              char  dFlag
 );
-void freeTerminalNodeStructures(Node         *terminalNode, 
-                                unsigned int  globalEventTypeSize, 
-                                unsigned int  sortedTimeInterestSize,
-                                unsigned int  masterTimeSize,
-                                unsigned int  rfCount,
-                                unsigned int *rfSize);
+void freeTerminalNodeStructures(Node *terminalNode);
 void getNodeInfo(Node *leaf);
 void setParent(
   Node *daughter,
@@ -121,4 +109,10 @@ void stackCSH(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize);
 void unstackCSH(Node *tNode);
 void stackCIF(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize);
 void unstackCIF(Node *tNode);
+void stackMVSign(Node *node, unsigned int mvSize);
+void unstackMVSign(Node *node);
+void stackFMVSign(Node *node, unsigned int fmvSize);
+void unstackFMVSign(Node *node);
+void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize);
+void unstackMultiClassProb(Node *tNode);
 #endif

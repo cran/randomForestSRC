@@ -9,8 +9,7 @@
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
   proximity = FALSE, var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL, do.trace = FALSE,
-  num.threads = -1, membership = FALSE,
-  papply = if (require("multicore")) mclapply else lapply, ...)
+  membership = FALSE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
@@ -26,14 +25,8 @@
     \item{do.trace}{Should trace output be enabled? Default is
       \code{FALSE}. Integer values can also be passed.  A positive value
       causes output to be printed each \code{do.trace} iteration.}
-    \item{num.threads}{Number of threads to spawn. Setting the number to
-      a negative integer will force the program to spawn the maximum
-      number of threads allowable on the architecture.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
-    \item{papply}{(parallel) apply function. In the presence of package
-      \pkg{multicore} parallel computations via \command{mclapply} are
-      performed in place of \command{lapply}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -51,11 +44,8 @@
   \command{\link{rfsrc}}
 }
 \examples{
-### Note that we have turned off multicore via the option
-### 'papply=lapply' though users would not normally do this.
-
-airq.obj <- rfsrc(Ozone ~ ., data = airquality, na.action = "na.impute", ntree=100, papply=lapply)
-restore(airq.obj, papply=lapply)
+airq.obj <- rfsrc(Ozone ~ ., data = airquality, na.action = "na.impute", ntree=100)
+restore(airq.obj)
 print(airq.obj)
 }
 \keyword{predict}

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.0
+////  Version 1.0.1
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,6 +67,7 @@
 #include          "extern.h"
 #include           "trace.h"
 #include          "nrutil.h"
+#include         "nodeOps.h"
 #include        "treeUtil.h"
 #include          "impute.h"
 #include      "importance.h"
@@ -88,6 +89,8 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
                                  Node     *rootPtr,
                                  uint      b,
                                  uint      serialID) {
+  uint j;
+  Node *terminalNode;
   uint      obsSize;
   double ***ensemblePtr;
   uint     *ensembleDenPtr;
@@ -237,6 +240,10 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       copyDenominator(mode, denominatorCopy);
     }
   } 
+  for (j = 1; j <= RF_leafCount[b]; j++) {
+    terminalNode = RF_terminalNode[b][j];
+    freeTerminalNodeStructures(terminalNode);
+  }
   if (RF_opt & OPT_VIMP) {
     unstackVimpMembership(mode, vimpMembership);
     if (RF_opt & OPT_VIMP_LEOB) {

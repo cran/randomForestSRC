@@ -7,34 +7,30 @@
     variable selection and identifying interactions between variables.
 }
 \usage{\method{max.subtree}{rfsrc}(object,
-  max.order = 2, sub.order = FALSE, conservative = FALSE,
-  papply = if (require("multicore")) mclapply else lapply, ...)
+  max.order = 2, sub.order = FALSE, conservative = FALSE, ...)
 }
 \arguments{
    \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
 	forest)}. Requires \option{forest=TRUE} in the
         original \command{rfsrc} call.}
-    \item{max.order}{Non-negative integer specifying the target number
+   \item{max.order}{Non-negative integer specifying the target number
       of order depths.  Default is to return the first and second order
       depths.  Used to identify predictive variables.  Setting
       \option{max.order=0} returns the first order depth for each
       variable by tree.  A side effect is that \option{conservative} is
       automatically set to \code{FALSE}.}
-    \item{sub.order}{Set this value to \code{TRUE} to return the
+   \item{sub.order}{Set this value to \code{TRUE} to return the
       minimal depth of each variable relative to another variable.
       Used to identify interrelationship between variables.  See
       details below.}
-    \item{conservative}{If \code{TRUE}, the threshold value for selecting
+   \item{conservative}{If \code{TRUE}, the threshold value for selecting
       variables is calculated using a conservative marginal
       approximation to the minimal depth distribution (the method used
       in Ishwaran et al. 2010).  Otherwise, the minimal depth
       distribution is the tree-averaged distribution.  The latter method
       tends to give larger threshold values and discovers more
       variables, especially in high-dimensions.}
-    \item{papply}{(parallel) apply function. In the presence of package
-      \pkg{multicore} parallel computations via \command{mclapply} are
-      performed in place of \command{lapply}.}
-    \item{...}{Further arguments passed to or from other methods.}
+   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
     The maximal subtree for a variable \emph{x} is the largest subtree

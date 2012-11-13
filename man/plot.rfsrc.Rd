@@ -1,6 +1,5 @@
 \name{plot.rfsrc}
 \alias{plot.rfsrc}
-\alias{plot}
 \title{Plot Error Rate and Variable Importance from a RF-SRC analysis}
 \description{
   Plot out-of-bag (OOB) error rates and variable importance (VIMP)

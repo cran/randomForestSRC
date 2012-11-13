@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -81,9 +81,7 @@ rfsrc <- function(formula,
                   split.depth = c(FALSE, "all.trees", "by.tree"),
                   seed = NULL,
                   do.trace = FALSE,
-                  num.threads = -1,
                   membership = TRUE,
-                  papply = if (require("multicore")) mclapply else lapply,
                   ...)
 {
 
@@ -131,14 +129,14 @@ rfsrc <- function(formula,
   }
 
   ## Mark missing factor levels as NA.
-  data <- rm.na.levels(data, xvar.names, papply)
-  data <- rm.na.levels(data, yvar.names, papply)
+  data <- rm.na.levels(data, xvar.names)
+  data <- rm.na.levels(data, yvar.names)
 
   ## Determine the immutable yvar factor map.
-  yfactor <- extract.factor(data, yvar.names, papply)
+  yfactor <- extract.factor(data, yvar.names)
 
   ## Determine the immutable xvar factor map.
-  xfactor <- extract.factor(data, xvar.names, papply)
+  xfactor <- extract.factor(data, xvar.names)
 
   ## Convert the data to numeric mode, apply the na.action protocol.
   data <- finalizeData(c(yvar.names, xvar.names), data, na.action)
@@ -287,8 +285,7 @@ rfsrc <- function(formula,
                         as.integer(length(event.info$time.interest)),
                         as.double(event.info$time.interest),
                         as.integer(nimpute),
-                        as.integer(num.threads))
-
+                        as.integer(get.rf.cores()))
 
   ## check for error return condition in the native code
   if(is.null(nativeOutput)) {
@@ -360,19 +357,19 @@ rfsrc <- function(formula,
   colnames(xvar) <- xvar.names
 
   ## Map xvar factors back to original values
-  xvar <- map.factor(xvar, xfactor, papply)
+  xvar <- map.factor(xvar, xfactor)
 
   ## Add column names to response matrix
   yvar <- as.data.frame(yvar)
   colnames(yvar) <- yvar.names
   
   ## Map response factors back to original values
-  yvar <- amatrix.remove.names(map.factor(yvar, yfactor, papply))
+  yvar <- amatrix.remove.names(map.factor(yvar, yfactor))
 
   ## Map imputed data factors back to original values
   if ((n.miss > 0) & (nimpute < 2)) {
-    imputed.data <- map.factor(imputed.data, xfactor, papply)
-    imputed.data <- map.factor(imputed.data, yfactor, papply)
+    imputed.data <- map.factor(imputed.data, xfactor)
+    imputed.data <- map.factor(imputed.data, yfactor)
   }
   
   ## variables used

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -71,7 +71,6 @@ find.interaction.rfsrc <- function (
     subset,                              
     seed = NULL,
     do.trace = FALSE,
-    num.threads = -1,
     ...)
 {
  
@@ -151,10 +150,10 @@ find.interaction.rfsrc <- function (
             for (m in 1:nrep) {
               imp.indv.m <- c(cbind(vimp(object, cov.names[c(k,l)], importance=importance,
                                subset=subset, joint=FALSE, seed=seed,
-                               do.trace=do.trace, num.threads=num.threads)$importance)[, target.dim])
+                               do.trace=do.trace)$importance)[, target.dim])
               imp.joint.m <- vimp(object, cov.names[c(k,l)], importance=importance,
                                subset=subset, joint=TRUE, seed=seed,
-                               do.trace=do.trace, num.threads=num.threads)$importance[target.dim]
+                               do.trace=do.trace)$importance[target.dim]
               imp[1] <- imp[1] + imp.indv.m[1]
               imp[l-k+1] <- imp[l-k+1] + imp.indv.m[2]
               imp.joint[l-k] <- imp.joint[l-k] + imp.joint.m

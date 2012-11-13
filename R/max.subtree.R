@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -72,7 +72,6 @@ max.subtree.rfsrc <- function(object,
                         max.order = 2,
                         sub.order = FALSE,
                         conservative = FALSE,
-                        papply = if (require("multicore")) mclapply else lapply,                        
                         ...)
 {
 
@@ -209,7 +208,7 @@ max.subtree.rfsrc <- function(object,
   ################################################################
 
 
-  subtree.obj <- papply(1:numTree, function(b) {
+  subtree.obj <- mclapply(1:numTree, function(b) {
    
     ## Create the (local) subtree object for recursion.  This is NOT the
     ## output object, but is closely related to it.

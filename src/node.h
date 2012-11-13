@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.0
+////  Version 1.0.1
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -95,8 +95,12 @@ struct node {
   double **CIF;
   double *survival;
   double *nelsonAalen;
+  unsigned int   rfCount;
+  unsigned int  *rfSize;
   unsigned int **multiClassProb;
   unsigned int membrCount;
+  unsigned int mvSize;
+  unsigned int fmvSize;
   int *mvSign;
   int *fmvSign;
 };

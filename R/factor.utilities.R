@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -60,16 +60,16 @@
 ####**********************************************************************
 
 
-rm.na.levels <- function(dat, xvar.names=NULL, papply) {
-  factor.names <- names(dat)[unlist(papply(1:ncol(dat), function(k) {is.factor(dat[ , k])}))]
+rm.na.levels <- function(dat, xvar.names=NULL) {
+  factor.names <- names(dat)[unlist(mclapply(1:ncol(dat), function(k) {is.factor(dat[ , k])}))]
   if (!is.null(xvar.names)) factor.names <- intersect(factor.names , xvar.names)
   if (length(factor.names) > 0) {
-    levels.na.pt <- unlist(papply(1:length(factor.names), function(k) {
+    levels.na.pt <- unlist(mclapply(1:length(factor.names), function(k) {
         any(levels(dat[ , names(dat) == factor.names[k]]) == "NA")
     }))
     if (any(levels.na.pt)) {
       factor.names <- factor.names[levels.na.pt]
-      dat[, is.element(names(dat), factor.names)] <- data.frame(papply(1:length(factor.names),
+      dat[, is.element(names(dat), factor.names)] <- data.frame(mclapply(1:length(factor.names),
        function(k) {
          x <- dat[ , names(dat) == factor.names[k]]
          levels(x)[levels(x) == "NA"]  <- NA
@@ -80,7 +80,7 @@ rm.na.levels <- function(dat, xvar.names=NULL, papply) {
   dat
 }
 
-extract.factor <- function (dat, generic.names=NULL, papply) {
+extract.factor <- function (dat, generic.names=NULL) {
   generic.types  <- gfactor <- gfactor.order <- gfactor.levels <- gfactor.order.levels <- NULL
   if (is.null(generic.names)) {
     target.names <- names(dat)
@@ -89,12 +89,12 @@ extract.factor <- function (dat, generic.names=NULL, papply) {
     target.names <- generic.names
   }
   nlevels <- rep(0, length(target.names))
-  gfactor <- names(dat)[unlist(papply(1:ncol(dat), function(k) {is.factor(dat[ , k]) && !is.ordered(dat[ , k])}))]
-  gfactor.order <- names(dat)[unlist(papply(1:ncol(dat), function(k) {is.ordered(dat[ , k])}))]
+  gfactor <- names(dat)[unlist(mclapply(1:ncol(dat), function(k) {is.factor(dat[ , k]) && !is.ordered(dat[ , k])}))]
+  gfactor.order <- names(dat)[unlist(mclapply(1:ncol(dat), function(k) {is.ordered(dat[ , k])}))]
   if (!is.null(generic.names)) gfactor <- intersect(gfactor , generic.names)
   if (!is.null(generic.names)) gfactor.order <- intersect(gfactor.order , generic.names)
   if (length(gfactor) > 0) {
-    gfactor.levels <- papply(cbind(1:(1+length(gfactor))), function(k) {
+    gfactor.levels <- mclapply(cbind(1:(1+length(gfactor))), function(k) {
         if (k <= length(gfactor)) {
           levels(dat[ , names(dat) == gfactor[k]])
         }
@@ -103,10 +103,10 @@ extract.factor <- function (dat, generic.names=NULL, papply) {
         }
     })
     gfactor.levels <- gfactor.levels[-(1+length(gfactor))]
-    nlevels[match(gfactor, target.names)] <- unlist(papply(gfactor.levels, function(g){length(g)}))
+    nlevels[match(gfactor, target.names)] <- unlist(mclapply(gfactor.levels, function(g){length(g)}))
   }
   if (length(gfactor.order) > 0 ) {
-    gfactor.order.levels <- papply(1:(1+length(gfactor.order)), function(k) {
+    gfactor.order.levels <- mclapply(1:(1+length(gfactor.order)), function(k) {
         if (k <= length(gfactor.order)) {
           levels(dat[ , names(dat) == gfactor.order[k]])
         }
@@ -115,7 +115,7 @@ extract.factor <- function (dat, generic.names=NULL, papply) {
         }
     })
     gfactor.order.levels <- gfactor.order.levels[-(1+length(gfactor.order))]
-    nlevels[match(gfactor.order, target.names)] <- unlist(papply(gfactor.order.levels, function(g){length(g)}))
+    nlevels[match(gfactor.order, target.names)] <- unlist(mclapply(gfactor.order.levels, function(g){length(g)}))
   }
   if (!is.null(generic.names)) {
     generic.types <- rep("R", length(generic.names))
@@ -150,12 +150,12 @@ extract.factor <- function (dat, generic.names=NULL, papply) {
 
 
 
-map.factor <- function (gvar, gfactor, papply) {
+map.factor <- function (gvar, gfactor) {
   if (!is.null(gfactor)) {
     ## Map predictor factors back to original values
     if (length(gfactor$factor) > 0) {
       gvar[, is.element(colnames(gvar), gfactor$factor)] <- data.frame(
-        papply(1:length(gfactor$factor),
+        mclapply(1:length(gfactor$factor),
           function(k) {            
             ptk <- (colnames(gvar) == gfactor$factor[k])
             factor.k <- gfactor$levels[[k]][gvar[ , ptk ]]
@@ -169,7 +169,7 @@ map.factor <- function (gvar, gfactor, papply) {
     }
     if (length(gfactor$order) > 0) {
       gvar[, is.element(colnames(gvar), gfactor$order)] <- data.frame(
-        papply(1:length(gfactor$order),
+        mclapply(1:length(gfactor$order),
           function(k) {
             ptk <- (colnames(gvar) == gfactor$order[k])
             factor.k <- gfactor$order.levels[[k]][gvar[ , ptk ]]
@@ -186,11 +186,11 @@ map.factor <- function (gvar, gfactor, papply) {
   return (gvar)
 }
 
-check.factor <- function(train, test, gfactor, papply) {
+check.factor <- function(train, test, gfactor) {
   if (!is.null(gfactor)) {
     if (length(gfactor$factor) > 0) {
       test[, is.element(colnames(test), gfactor$factor)] <- data.frame(
-        papply(1:length(gfactor$factor),
+        mclapply(1:length(gfactor$factor),
           function(k) {
             fk.train <- train[, colnames(train) == gfactor$factor[k]]
             fk.test <- test[ , colnames(test) == gfactor$factor[k]]
@@ -202,7 +202,7 @@ check.factor <- function(train, test, gfactor, papply) {
     }
     if (length(gfactor$order) > 0) {
       test[, is.element(colnames(test), gfactor$order)] <- data.frame(
-        papply(1:length(gfactor$order),
+        mclapply(1:length(gfactor$order),
           function(k) {
             fk.train <- train[, colnames(train) == gfactor$order[k]]
             fk.test <- test[ , colnames(test) == gfactor$order[k]]

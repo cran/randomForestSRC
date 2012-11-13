@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.0
+////  Version 1.0.1
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,6 +65,7 @@
 #include         "trace.h"
 #include        "nrutil.h"
 #include        "random.h"
+#include       "nodeOps.h"
 #include        "impute.h"
 #include     "bootstrap.h"
 char bootstrap (uint     mode,
@@ -107,14 +108,14 @@ char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint rep
   switch (mode) {
   case RF_PRED:
     if (RF_mRecordSize > 0) {
-      nodePtr -> mvSign = ivector(1, RF_mvSize);
+      stackMVSign(nodePtr, RF_mvSize);
       mvNSptr = nodePtr -> mvSign;
     }
     else {
       mvNSptr = NULL;
     }
     if (RF_fmRecordSize > 0) {
-      nodePtr -> fmvSign = ivector(1, RF_fmvSize);
+      stackFMVSign(nodePtr, RF_fmvSize);
       fmvNSptr = nodePtr -> fmvSign;
     }
     else {
@@ -123,7 +124,7 @@ char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint rep
     break;
   default:
     if (RF_mRecordSize > 0) {
-      nodePtr -> mvSign = ivector(1, RF_mvSize);
+      stackMVSign(nodePtr, RF_mvSize);
       mvNSptr = nodePtr -> mvSign;
     }
     else {

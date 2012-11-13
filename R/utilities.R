@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -402,5 +402,12 @@ get.vimp.only <-  function (vimp.only) {
   else {
     stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
   }
+}
+
+get.rf.cores <- function() {
+  if(!is.na(as.numeric(Sys.getenv("RF_CORES")))) {
+    options(rf.cores = as.integer(Sys.getenv("RF_CORES")))
+  }
+  return (getOption("rf.cores", 2L))
 }
 

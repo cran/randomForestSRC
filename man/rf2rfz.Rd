@@ -8,17 +8,13 @@
    
 }
 \usage{
-rf2rfz(object, forestName = NULL,
-  papply = if (require("multicore")) mclapply else lapply, ...)
+rf2rfz(object, forestName = NULL, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
 	forest)}. Requires \option{forest=TRUE} in the
     original \command{rfsrc} call.}
     \item{forestName}{The desired prefix name for forest as a string.}
-    \item{papply}{(parallel) apply function. In the presence of package
-          \pkg{multicore} parallel computations via \command{mclapply} are
-          performed in place of \command{lapply}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{

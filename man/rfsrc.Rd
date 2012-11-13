@@ -29,8 +29,7 @@ rfsrc(formula, data, ntree = 1000,
   cause, xvar.wt = NULL, forest = TRUE, proximity = FALSE,
   var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
-  do.trace = FALSE, num.threads = -1, membership = TRUE,
-  papply = if (require("multicore")) mclapply else lapply, ...)
+  do.trace = FALSE, membership = TRUE, ...)
 }
 \arguments{
     \item{formula}{A symbolic description of the model to be fit.}
@@ -126,14 +125,8 @@ rfsrc(formula, data, ntree = 1000,
     \item{do.trace}{Should trace output be enabled? Default is
         \code{FALSE}. Integer values can also be passed.  A positive value
 	causes output to be printed each \code{do.trace} iteration.}
-    \item{num.threads}{Number of threads to spawn. Setting the number to
-      a negative integer will force the program to spawn the maximum
-      number of threads allowable on the architecture.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
-    \item{papply}{(parallel) apply function. In the presence of package
-          \pkg{multicore} parallel computations via \command{mclapply} are
-          performed in place of \command{lapply}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -517,11 +510,8 @@ rfsrc(formula, data, ntree = 1000,
 ### Veteran data
 ### Randomized trial of two treatment regimens for lung cancer
 
-### Note that we have turned off multicore via the option
-### 'papply=lapply' though users would not normally do this.
-
 data(veteran, package = "randomForestSRC")
-v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran, ntree=100, papply=lapply)
+v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran, ntree = 100)
 
 # print and plot the grow object
 print(v.obj)
@@ -534,12 +524,6 @@ matplot(v.obj$time.interest, 100 * t(v.obj$survival[1:10, ]),
 # plot survival curves for first 10 individuals
 # indirect way: using plot.survival (also generates hazard plots)
 plot.survival(v.obj, subset = 1:10, haz.model = "ggamma")
-
-# more detailed call
-v2.obj <- rfsrc(Surv(time, status) ~ ., veteran, 
-       ntree = 100, nsplit = 3, var.used = "by.tree", papply=lapply)
-
-v2.obj
 
 \dontrun{
 ### Primary biliary cirrhosis (PBC) of the liver

@@ -1,6 +1,5 @@
 \name{predict.rfsrc}
 \alias{predict.rfsrc}
-\alias{predict}
 \title{Prediction for Random Forests for Survival, Regression, and Classification}
 \description{
     Prediction on test data using a fitted RF-SRC object.
@@ -10,8 +9,7 @@
   na.action = c("na.omit", "na.impute"), outcome = c("train", "test"),
   proximity = FALSE, var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
-  do.trace = FALSE, num.threads = -1, membership = TRUE,
-  papply = if (require("multicore")) mclapply else lapply, ...)
+  do.trace = FALSE, membership = TRUE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
@@ -38,14 +36,8 @@
     \item{do.trace}{Should trace output be enabled? 
         Integer values can also be passed.  A positive value
 	causes output to be printed each \code{do.trace} iteration.}
-    \item{num.threads}{Number of threads to spawn. Setting the number to
-      a negative integer will force the program to spawn the maximum
-      number of threads allowable on the architecture.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
-    \item{papply}{(parallel) apply function. In the presence of package
-          \pkg{multicore} parallel computations via \command{mclapply} are
-          performed in place of \command{lapply}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -153,16 +145,15 @@
 \examples{
 ### typical train/testing scenario
 
-### Note that we have turned off multicore via the option
-### 'papply=lapply' though users would not normally do this.
-
 data(veteran, package = "randomForestSRC")
 train <- sample(1:nrow(veteran), round(nrow(veteran) * 0.80))
-veteran.grow <- rfsrc(Surv(time, status) ~ ., veteran[train, ], ntree=100, papply=lapply) 
-veteran.pred <- predict(veteran.grow, veteran[-train , ], papply=lapply)
+veteran.grow <- rfsrc(Surv(time, status) ~ ., veteran[train, ], ntree = 100) 
+veteran.pred <- predict(veteran.grow, veteran[-train , ])
 print(veteran.grow)
 print(veteran.pred)
 
+
+\dontrun{
 ### unique feature of rfsrc
 ### cross-validation can be used when factor labels differ over
 ### training and test data
@@ -179,19 +170,18 @@ summary(veteran.factor[train,])
 summary(veteran.factor[-train,])
 
 # grow the forest on the training data and predict on the test data
-veteran.f.grow <- rfsrc(Surv(time, status) ~ ., veteran.factor[train, ], ntree=100, papply=lapply) 
-veteran.f.pred <- predict(veteran.f.grow, veteran.factor[-train , ], papply=lapply)
+veteran.f.grow <- rfsrc(Surv(time, status) ~ ., veteran.factor[train, ]) 
+veteran.f.pred <- predict(veteran.f.grow, veteran.factor[-train , ])
 print(veteran.f.grow)
 print(veteran.f.pred)
 
 
-\dontrun{
 ### example illustrating the flexibility of outcome = "test"
 ### use this to get the out-of-bag error rate
 
 # first, we make the grow call
 data(pbc, package = "randomForestSRC")
-pbc.grow <- rfsrc(Surv(days, status) ~ ., pbc, nsplit=10)
+pbc.grow <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
 
 # now use predict with outcome = TEST
 pbc.pred <- predict(pbc.grow, pbc, outcome = "test")
@@ -219,7 +209,7 @@ set.seed(542899)
 data(pbc, package = "randomForestSRC")
 train <- sample(1:nrow(pbc), round(nrow(pbc) * 0.50))
 pbc.out <- rfsrc(Surv(days, status) ~ .,  data=pbc[train, ],
-        nsplit=10)
+        nsplit = 10)
 
 # standard predict call
 pbc.train <- predict(pbc.out, pbc[-train, ], outcome = "train")

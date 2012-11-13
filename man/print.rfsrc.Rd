@@ -1,5 +1,4 @@
 \name{print.rfsrc}
-\alias{print}
 \alias{print.rfsrc}
 \title{Print Summary Output of a RF-SRC Analysis}
 \description{
@@ -25,10 +24,7 @@
   \command{\link{predict.rfsrc}}
 }
 \examples{
-### Note that we have turned off multicore via the option
-### 'papply=lapply' though users would not normally do this.
-
-  iris.obj <- rfsrc(Species ~., data = iris, ntree=100, papply=lapply)
+  iris.obj <- rfsrc(Species ~., data = iris, ntree=100)
   print(iris.obj)
 }
 \keyword{print}

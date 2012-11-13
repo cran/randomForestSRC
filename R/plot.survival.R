@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.0
+####  Version 1.0.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -68,7 +68,6 @@ plot.survival.rfsrc <- function (x,
                           k = 25,
                           span = "cv",
                           cens.model = c("km", "rfsrc"),
-                          papply = if (require("multicore")) mclapply else lapply,
                           ...)
 {
 
@@ -107,11 +106,9 @@ plot.survival.rfsrc <- function (x,
   haz.model <- match.arg(haz.model, c("spline", "ggamma", "nonpar"))
   ##ensure that the glmnet package is available when splines are selected
   if (!missing(subset) && haz.model == "spline") {
-    if (!("glmnet" %in% installed.packages())) {
-      stop("the glmnet package is required for this option")
-    }
-    else {
-      require("glmnet", quietly = TRUE)
+    if (!available(glmnet)) {#loads the package, otherwise sets haz.model to "ggamma"
+      warning("the 'glmnet' package is required for this option: reverting to 'ggamma' method instead")
+      haz.model <- "ggamma"
     }
   }
   
@@ -187,7 +184,7 @@ plot.survival.rfsrc <- function (x,
   if (!rfsrcPred && !subsetProvided) {
       
     ## KM estimator
-    km.obj <- matrix(unlist(papply(1:length(event.info$time.interest),
+    km.obj <- matrix(unlist(mclapply(1:length(event.info$time.interest),
           function(j) {
            c(sum(event.info$time >= event.info$time.interest[j], na.rm = TRUE),
            sum(event.info$time[event.info$cens != 0] == event.info$time.interest[j], na.rm = TRUE))
@@ -207,7 +204,7 @@ plot.survival.rfsrc <- function (x,
       
       ## KM estimator for the censoring distribution
       if (cens.model == "km") {
-        censModel.obj <- matrix(unlist(papply(1:length(censTime),
+        censModel.obj <- matrix(unlist(mclapply(1:length(censTime),
               function(j) {
                 c(sum(event.info$time >= censTime[j], na.rm = TRUE),
                   sum(event.info$time[event.info$cens == 0] == censTime[j], na.rm = TRUE))
@@ -234,7 +231,7 @@ plot.survival.rfsrc <- function (x,
 
     ##-------------------brier calculations------------------------
     ## Brier object
-    brier.obj <- matrix(unlist(papply(1:x$n, function(i)
+    brier.obj <- matrix(unlist(mclapply(1:x$n, function(i)
       {
         tau <-  event.info$time
         event <- event.info$cens
@@ -312,7 +309,7 @@ plot.survival.rfsrc <- function (x,
                               mu = mu, sigma = sigma, Q = Q)
       }
     
-    haz.list <- papply(1:nrow(chf.ensb), function(i) { 
+    haz.list <- mclapply(1:nrow(chf.ensb), function(i) { 
 
       ## method (1)
       ## fit a 3-parameter generalized gamma model
@@ -382,7 +379,7 @@ plot.survival.rfsrc <- function (x,
         if (m < 2) {
           stop("not enough knots (confirm that the number of unique event times > 2")
         }
-        x <- do.call(cbind, papply(1:(m+1), function(j) {
+        x <- do.call(cbind, mclapply(1:(m+1), function(j) {
           if (j == 1) {
             log.tm
           }
@@ -402,7 +399,7 @@ plot.survival.rfsrc <- function (x,
         sfn <- coeff[1] + x %*% coeff[-1]
 
         ## theoretical s'(x, gamma)
-        x.deriv <- do.call(cbind, papply(1:m, function(j) {
+        x.deriv <- do.call(cbind, mclapply(1:m, function(j) {
           lj <- (kmax - knots[j]) / (kmax - kmin)
           3 * (pmax(log.tm - knots[j], 0)^2 - lj * pmax(log.tm - kmin, 0)^2
                             - (1 - lj) * pmax(log.tm - kmax, 0)^2)
@@ -511,7 +508,7 @@ plot.survival.rfsrc <- function (x,
               col = 1,
               lty = 3, ...)
       matlines(haz.list[[1]]$x,
-               do.call(cbind, papply(haz.list, function(ll){cumsum(ll$y * c(0, diff(ll$x)))})),
+               do.call(cbind, mclapply(haz.list, function(ll){cumsum(ll$y * c(0, diff(ll$x)))})),
                type = "l",
                col = 4,
                lty = 3, ...)
@@ -524,7 +521,7 @@ plot.survival.rfsrc <- function (x,
     ###----hazard plot----
     if (subsetProvided) {
       plot(range(haz.list[[1]]$x, na.rm = TRUE),
-           range(unlist(papply(haz.list, function(ll) {ll$y})), na.rm = TRUE),
+           range(unlist(mclapply(haz.list, function(ll) {ll$y})), na.rm = TRUE),
            type = "n",
            xlab = "Time",
            ylab = title.3, ...)
@@ -604,7 +601,7 @@ plot.survival.rfsrc <- function (x,
     invisible(cbind(
        time = event.info$time.interest,
        brier.score,
-       integrate = unlist(papply(1:length(event.info$time.interest),
+       integrate = unlist(mclapply(1:length(event.info$time.interest),
          function(j) {
            Dint(f = brier.score[1:j, 4],
                 range = quantile(event.info$time.interest, probs = c(0.05, 0.95), na.rm = TRUE),
