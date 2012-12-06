@@ -6,8 +6,8 @@
   missing data.  No ensemble estimates or error rates are calculated.
 }
 \usage{\method{impute}{rfsrc}(formula, data, ntree = 1000, mtry = NULL,
-  nodesize = NULL, splitrule = NULL, nsplit = 0, big.data = FALSE,
-  nimpute = 1, xvar.wt = NULL, seed = NULL, do.trace = FALSE, ...)
+  nodesize = NULL, splitrule = NULL, nsplit = 0, nimpute = 1,
+  xvar.wt = NULL, seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
   \item{formula}{A symbolic description of the model to be fit.  Can be
@@ -19,7 +19,6 @@
     \item{nodesize}{Minimum terminal node size.}
     \item{splitrule}{Splitting rule used to grow trees.}
     \item{nsplit}{Non-negative integer value used to specify random splitting.}
-    \item{big.data}{Set this value to \code{TRUE} for large sample sizes.}
     \item{nimpute}{Number of iterations of missing data algorithm.}
     \item{xvar.wt}{Weights for selecting variables for splitting on.}
     \item{seed}{Seed for random number generator.}

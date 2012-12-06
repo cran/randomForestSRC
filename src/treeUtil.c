@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.1
+////  Version 1.0.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -53,7 +53,7 @@
 ////    Clemmons, NC 27012
 ////
 ////    email:  kogalurshear@gmail.com
-////    URL:    http://www.kogalur-shear.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -251,7 +251,6 @@ char growTree (char     rootFlag,
                uint    *maximumDepth,
                uint    *bootMembrIndxIter) {
   char  bootResult;
-  char  iamnsResult;
   char  splitResult;
   char  forkResult;
   char leftResult, rghtResult;
@@ -274,7 +273,7 @@ char growTree (char     rootFlag,
   Node *reversePtr;
   uint i, p;
   parent -> depth = depth;
-  bootResult = iamnsResult = TRUE;
+  bootResult = TRUE;
   tnUpdateFlag = TRUE;
   bsUpdateFlag = FALSE;
   if (rootFlag | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
@@ -314,40 +313,25 @@ char growTree (char     rootFlag,
   if (bootResult) {
     if (multImpFlag == FALSE) {
       if (RF_mRecordSize > 0) {
-        if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-          if  (rootFlag) {
-            iamnsResult = TRUE;
+        imputeNode(RF_GROW,
+                   TRUE,
+                   treeID,
+                   parent,
+                   bootMembrIndx, 
+                   bootMembrSize, 
+                   allMembrIndx,
+                   allMembrSize);
+        if (RF_timeIndex > 0) {
+          if (RF_mTimeFlag == TRUE) {
+            updateTimeIndexArray(treeID, 
+                                 parent, 
+                                 allMembrIndx, 
+                                 allMembrSize, 
+                                 RF_time[treeID], 
+                                 FALSE, 
+                                 FALSE, 
+                                 RF_masterTimeIndex[treeID]);
           }
-          else {
-          }
-          iamnsResult = TRUE;
-        }
-        else {
-          iamnsResult = TRUE;
-        }
-        if (iamnsResult) {
-          imputeNode(RF_GROW,
-                     TRUE,
-                     treeID,
-                     parent,
-                     bootMembrIndx, 
-                     bootMembrSize, 
-                     allMembrIndx,
-                     allMembrSize);
-          if (RF_timeIndex > 0) {
-            if (RF_mTimeFlag == TRUE) {
-              updateTimeIndexArray(treeID, 
-                                   parent, 
-                                   allMembrIndx, 
-                                   allMembrSize, 
-                                   RF_time[treeID], 
-                                   FALSE, 
-                                   FALSE, 
-                                   RF_masterTimeIndex[treeID]);
-            }
-          }
-        }
-        else {
         }
       }
     }  
@@ -360,108 +344,103 @@ char growTree (char     rootFlag,
         }
         RF_leafCount[treeID] = 1;
       }
-      if (iamnsResult) {
-        splitResult = getBestSplit(treeID, 
-                                   parent, 
-                                   bootMembrIndx, 
-                                   bootMembrSize, 
+      splitResult = getBestSplit(treeID, 
+                                 parent, 
+                                 bootMembrIndx, 
+                                 bootMembrSize, 
+                                 allMembrIndx,
+                                 allMembrSize,
+                                 & splitParameterMax,
+                                 & splitValueMaxCont,
+                                 & splitValueMaxFactSize,
+                                 & splitValueMaxFactPtr);
+      if (splitResult == TRUE) {
+        tnUpdateFlag = FALSE;
+        uint *membershipIndicator = uivector(1, RF_observationSize);
+        forkResult = forkAndUpdate(treeID,
+                                   parent,
                                    allMembrIndx,
                                    allMembrSize,
-                                   & splitParameterMax,
-                                   & splitValueMaxCont,
-                                   & splitValueMaxFactSize,
-                                   & splitValueMaxFactPtr);
-        if (splitResult == TRUE) {
-          tnUpdateFlag = FALSE;
-          uint *membershipIndicator = uivector(1, RF_observationSize);
-          forkResult = forkAndUpdate(treeID,
-                                     parent,
-                                     allMembrIndx,
-                                     allMembrSize,
-                                     splitParameterMax,
-                                     splitValueMaxCont,
-                                     splitValueMaxFactSize, 
-                                     splitValueMaxFactPtr,
-                                     membershipIndicator,
-                                     &leftAllMembrSize,
-                                     &rghtAllMembrSize);
-          if (forkResult == TRUE) {
-            leftAllMembrIndx  = uivector(1, leftAllMembrSize);
-            rghtAllMembrIndx  = uivector(1, rghtAllMembrSize);
-            jLeft = jRght = 0;
-            for (i = 1; i <= allMembrSize; i++) {
-              if (membershipIndicator[allMembrIndx[i]] == LEFT) {
-                leftAllMembrIndx[++jLeft] = allMembrIndx[i];
-              }
-              else {
-                rghtAllMembrIndx[++jRght] = allMembrIndx[i];
-              }
-            }
-            if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-              leftRepMembrIndx = leftAllMembrIndx;
-              leftRepMembrSize = leftAllMembrSize;
-              rghtRepMembrIndx = rghtAllMembrIndx;
-              rghtRepMembrSize = rghtAllMembrSize;
+                                   splitParameterMax,
+                                   splitValueMaxCont,
+                                   splitValueMaxFactSize, 
+                                   splitValueMaxFactPtr,
+                                   membershipIndicator,
+                                   &leftAllMembrSize,
+                                   &rghtAllMembrSize);
+        if (forkResult == TRUE) {
+          leftAllMembrIndx  = uivector(1, leftAllMembrSize);
+          rghtAllMembrIndx  = uivector(1, rghtAllMembrSize);
+          jLeft = jRght = 0;
+          for (i = 1; i <= allMembrSize; i++) {
+            if (membershipIndicator[allMembrIndx[i]] == LEFT) {
+              leftAllMembrIndx[++jLeft] = allMembrIndx[i];
             }
             else {
-              leftRepMembrIndx  = uivector(1, bootMembrSize);
-              rghtRepMembrIndx  = uivector(1, bootMembrSize);
-              leftRepMembrSize = rghtRepMembrSize = 0;
-              for (i = 1; i <= bootMembrSize; i++) {
-                if (membershipIndicator[bootMembrIndx[i]] == LEFT) {
-                  leftRepMembrIndx[++leftRepMembrSize] = bootMembrIndx[i];
-                }
-                else {
-                  rghtRepMembrIndx[++rghtRepMembrSize] = bootMembrIndx[i];
-                }
-              }
+              rghtAllMembrIndx[++jRght] = allMembrIndx[i];
             }
-            leftResult = growTree (FALSE,
-                                   multImpFlag,
-                                   treeID,
-                                   parent -> left,
-                                   leftRepMembrIndx,
-                                   leftRepMembrSize,
-                                   leftAllMembrIndx,
-                                   leftAllMembrSize,
-                                   depth + 1,
-                                   maximumDepth,
-                                   bootMembrIndxIter);
-            if(!leftResult) {
-            }
-            rghtResult = growTree (FALSE,
-                                   multImpFlag,
-                                   treeID,
-                                   parent -> right,
-                                   rghtRepMembrIndx,
-                                   rghtRepMembrSize,
-                                   rghtAllMembrIndx,
-                                   rghtAllMembrSize,
-                                   depth + 1,
-                                   maximumDepth,
-                                   bootMembrIndxIter);
-            if(!rghtResult) {
-            }
-            free_uivector(leftAllMembrIndx, 1, leftAllMembrSize);
-            free_uivector(rghtAllMembrIndx, 1, rghtAllMembrSize);
-            if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-            }
-            else {
-              free_uivector(leftRepMembrIndx, 1, bootMembrSize);
-              free_uivector(rghtRepMembrIndx, 1, bootMembrSize);
-            }
+          }
+          if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+            leftRepMembrIndx = leftAllMembrIndx;
+            leftRepMembrSize = leftAllMembrSize;
+            rghtRepMembrIndx = rghtAllMembrIndx;
+            rghtRepMembrSize = rghtAllMembrSize;
           }
           else {
-            Rprintf("\nRF-SRC:  *** ERROR *** ");
-            Rprintf("\nRF-SRC:  forkAndUpdate(%10d) failed.", treeID);
-            Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-            error("\nRF-SRC:  The application will now exit.\n");
+            leftRepMembrIndx  = uivector(1, bootMembrSize);
+            rghtRepMembrIndx  = uivector(1, bootMembrSize);
+            leftRepMembrSize = rghtRepMembrSize = 0;
+            for (i = 1; i <= bootMembrSize; i++) {
+              if (membershipIndicator[bootMembrIndx[i]] == LEFT) {
+                leftRepMembrIndx[++leftRepMembrSize] = bootMembrIndx[i];
+              }
+              else {
+                rghtRepMembrIndx[++rghtRepMembrSize] = bootMembrIndx[i];
+              }
+            }
           }
-          free_uivector(membershipIndicator, 1, RF_observationSize);
-        }  
-        else {
-          parent -> splitFlag = FALSE;
+          leftResult = growTree (FALSE,
+                                 multImpFlag,
+                                 treeID,
+                                 parent -> left,
+                                 leftRepMembrIndx,
+                                 leftRepMembrSize,
+                                 leftAllMembrIndx,
+                                 leftAllMembrSize,
+                                 depth + 1,
+                                 maximumDepth,
+                                 bootMembrIndxIter);
+          if(!leftResult) {
+          }
+          rghtResult = growTree (FALSE,
+                                 multImpFlag,
+                                 treeID,
+                                 parent -> right,
+                                 rghtRepMembrIndx,
+                                 rghtRepMembrSize,
+                                 rghtAllMembrIndx,
+                                 rghtAllMembrSize,
+                                 depth + 1,
+                                 maximumDepth,
+                                 bootMembrIndxIter);
+          if(!rghtResult) {
+          }
+          free_uivector(leftAllMembrIndx, 1, leftAllMembrSize);
+          free_uivector(rghtAllMembrIndx, 1, rghtAllMembrSize);
+          if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+          }
+          else {
+            free_uivector(leftRepMembrIndx, 1, bootMembrSize);
+            free_uivector(rghtRepMembrIndx, 1, bootMembrSize);
+          }
         }
+        else {
+          Rprintf("\nRF-SRC:  *** ERROR *** ");
+          Rprintf("\nRF-SRC:  forkAndUpdate(%10d) failed.", treeID);
+          Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+          error("\nRF-SRC:  The application will now exit.\n");
+        }
+        free_uivector(membershipIndicator, 1, RF_observationSize);
       }  
       else {
         parent -> splitFlag = FALSE;
@@ -482,9 +461,6 @@ char growTree (char     rootFlag,
       bsUpdateFlag = TRUE;
     }
     if (!(RF_opt & OPT_IMPU_ONLY)) {
-      if (RF_rFactorCount > 0) {
-        stackMultiClassProb(parent, RF_rFactorCount, RF_rFactorSize);
-      }
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
         if (depth > 0) {
           *maximumDepth = ((depth > *maximumDepth) ? parent -> depth : *maximumDepth);
@@ -529,7 +505,7 @@ char restoreTree(uint    b,
                  uint   *maximumDepth) {
   char result;
   Node *reversePtr;
-  uint i, j;
+  uint i;
   if (b != treeID[*offset]) {
     Rprintf("\nDiagnostic Trace of Tree Record:  \n");
     Rprintf("\n    treeID     nodeID     parmID       spltPT     mwcpSZ \n");
@@ -609,12 +585,6 @@ char restoreTree(uint    b,
       RF_mTerminalInfo[b][parent -> leafCount] = makeTerminal();
     }
     if (!(RF_opt & OPT_IMPU_ONLY)) {
-      if (RF_rFactorCount > 0) {
-        parent -> multiClassProb = (uint **) vvector(1, RF_rFactorCount);
-        for (j = 1; j <= RF_rFactorCount; j++) {
-          ( parent -> multiClassProb)[j] = uivector(1, RF_rFactorSize[j]);
-        }
-      }
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
         if (depth > 0) {
           *maximumDepth = ((depth > *maximumDepth) ? parent -> depth : *maximumDepth);

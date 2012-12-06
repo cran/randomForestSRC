@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.1
+####  Version 1.0.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -53,7 +53,7 @@
 ####    Clemmons, NC 27012
 ####
 ####    email:  kogalurshear@gmail.com
-####    URL:    http://www.kogalur-shear.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -70,9 +70,9 @@ rfsrc <- function(formula,
                   nsplit = 0,
                   split.fast = FALSE,
                   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-                  big.data = FALSE,
                   na.action = c("na.omit", "na.impute"),
                   nimpute = 1,
+                  ntime,
                   cause,
                   xvar.wt = NULL,
                   forest = TRUE,
@@ -107,7 +107,7 @@ rfsrc <- function(formula,
   data <- parseMissingData(formulaPrelim, data)
 
   ## Finalize the formula based on the pre-processed data.
-  formulaDetail = finalizeFormula(formulaPrelim, data)
+  formulaDetail <- finalizeFormula(formulaPrelim, data)
 
   ## Coherence checks on option parameters
   ntree <- round(ntree)
@@ -142,7 +142,7 @@ rfsrc <- function(formula,
   data <- finalizeData(c(yvar.names, xvar.names), data, na.action)
 
   ## Finalize the xvar matrix.
-  xvar <- as.matrix(data[, is.element(names(data), xvar.names)])
+  xvar <- as.matrix(data[, xvar.names])
   rownames(xvar) <- colnames(xvar) <- NULL
   
   ## Retain the final ordering of variables and responses
@@ -168,8 +168,12 @@ rfsrc <- function(formula,
   ## Get the y-outcome type
   yvar.types <- get.yvar.type(formulaDetail$family)
 
+  ## memory management option
+  ## not currently implemented: TBD TBD TBD TBD
+  big.data <- FALSE
+  
   ## Get event information for survival families
-  event.info <- get.grow.event.info(yvar, formulaDetail$family, big.data = big.data)
+  event.info <- get.grow.event.info(yvar, formulaDetail$family, ntime = ntime)
  
   ## Initialize nsplit, noting that it may be been overridden.
   splitinfo <- get.grow.splitinfo(formulaDetail$family, splitrule, nsplit, event.info$event.type)
@@ -295,8 +299,8 @@ rfsrc <- function(formula,
   ## Check if there was missing data, and assign imputed data if so.
   if (n.miss > 0) {
     imputed.data <- matrix(nativeOutput$imputation, nrow = n.miss, byrow = FALSE)
-    imputed.indv <- imputed.data[,1]
-    imputed.data <- as.matrix(imputed.data[,-1])
+    imputed.indv <- imputed.data[, 1]
+    imputed.data <- as.matrix(imputed.data[, -1])
     if (n.miss == 1) imputed.data <- t(imputed.data)
     nativeOutput$imputation <- NULL
     
@@ -337,8 +341,8 @@ rfsrc <- function(formula,
         }
       }
       ## Remove the imputed data outputs.
-      imputed.indv    <- NULL
-      imputed.data    <- NULL
+      imputed.indv <- NULL
+      imputed.data <- NULL
       imputedOOBData <- NULL
       
     }  
@@ -346,9 +350,10 @@ rfsrc <- function(formula,
       ## Add column names to the imputed data outputs in the absence
       ## of multiple imputation.
       colnames(imputed.data) <- c(yvar.names, xvar.names)
-      imputed.data=as.data.frame(imputed.data)
+      imputed.data <- as.data.frame(imputed.data)
     }
     ## now map the imputed.data columns back to their original order
+    ## commented out due to difficulty in maintaining "data.names" in the different modes
     ## imputed.data <- imputed.data[, match(colnames(imputed.data), data.names)]
   }
 

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.1
+////  Version 1.0.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -53,7 +53,7 @@
 ////    Clemmons, NC 27012
 ////
 ////    email:  kogalurshear@gmail.com
-////    URL:    http://www.kogalur-shear.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -1033,7 +1033,8 @@ void imputeMultipleTime (char selectionFlag) {
         Rprintf("\nRF-SRC:  Please Contact Technical Support.");
         error("\nRF-SRC:  The application will now exit.\n");
       }
-      leftDistance = rightDistance = minimumIndex = 0;
+      leftDistance = rightDistance = 0;
+      minimumIndex = 0;
       for (j = 1; j <= RF_masterTimeSize; j++) {
         if (meanValue <= RF_masterTime[j]) {
           minimumIndex = j;
@@ -1046,12 +1047,12 @@ void imputeMultipleTime (char selectionFlag) {
         leftDistance = meanValue - RF_masterTime[minimumIndex-1];
         rightDistance = RF_masterTime[minimumIndex] - meanValue;
         if (leftDistance < rightDistance) {
-          minimumIndex = j-1;            
+          minimumIndex = minimumIndex - 1;            
         }
         else {
           if (fabs(leftDistance - rightDistance) < EPSILON) {
             if (ran2(1) <= 0.5) {
-              minimumIndex = j-1;
+              minimumIndex = minimumIndex - 1;
             }
           }
         }

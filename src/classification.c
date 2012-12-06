@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.1
+////  Version 1.0.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -53,7 +53,7 @@
 ////    Clemmons, NC 27012
 ////
 ////    email:  kogalurshear@gmail.com
-////    URL:    http://www.kogalur-shear.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -64,6 +64,7 @@
 #include          "extern.h"
 #include           "trace.h"
 #include          "nrutil.h"
+#include         "nodeOps.h"
 #include  "classification.h"
 void getMultiClassProb (uint mode, uint treeID) {
   Node *parent;
@@ -78,6 +79,7 @@ void getMultiClassProb (uint mode, uint treeID) {
   }
   for (leaf=1; leaf <= RF_leafCount[treeID]; leaf++) {
     parent = RF_terminalNode[treeID][leaf];
+    stackMultiClassProb(parent, RF_rFactorCount, RF_rFactorSize);
     for (j=1; j <= RF_rFactorCount; j++) {
       for (k=1; k <= RF_rFactorSize[j]; k++) {
         (parent -> multiClassProb)[j][k] = 0;

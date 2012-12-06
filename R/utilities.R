@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.1
+####  Version 1.0.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -53,7 +53,7 @@
 ####    Clemmons, NC 27012
 ####
 ####    email:  kogalurshear@gmail.com
-####    URL:    http://www.kogalur-shear.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -408,6 +408,6 @@ get.rf.cores <- function() {
   if(!is.na(as.numeric(Sys.getenv("RF_CORES")))) {
     options(rf.cores = as.integer(Sys.getenv("RF_CORES")))
   }
-  return (getOption("rf.cores", 2L))
+  return (getOption("rf.cores", -1L))
 }
 

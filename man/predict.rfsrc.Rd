@@ -40,16 +40,21 @@
       information be returned?}
     \item{...}{Further arguments passed to or from other methods.}
 }
-\details{
-   Predicted values are obtained by dropping test data down the grow
-   forest (the forest grown using the the training data).  If the test
-   data contains y-outcome values, the overall error rate and VIMP are
-   also returned.  Single as well as joint VIMP measures can be
-   requested.  Setting \option{na.action="na.impute"} imputes missing
-   test data (x-variables and/or y-outcomes).  Imputation uses the
-   grow-forest such that only training data is used when imputing test
-   data to avoid biasing error rates and VIMP (Ishwaran et al. 2008).
-
+\details{  
+  Predicted values are obtained by dropping test data down the grow
+  forest (the forest grown using the the training data).  If the test
+  data contains y-outcome values, the overall error rate and VIMP are
+  also returned.  Single as well as joint VIMP measures can be
+  requested.  Note that calculating VIMP can be computationally
+  expensive, especially when the dimension is high.  If VIMP is not
+  needed, computational times can be significantly improved by setting
+  \option{importance="none"} which turns VIMP calculations off entirely.
+  
+  Setting \option{na.action="na.impute"} imputes missing
+  test data (x-variables and/or y-outcomes).  Imputation uses the
+  grow-forest such that only training data is used when imputing test
+  data to avoid biasing error rates and VIMP (Ishwaran et al. 2008).
+   
   If \option{outcome="test"}, the predictor is calculated by using
   y-outcomes from the test data (outcome information must be present).
   In this case, the terminal nodes from the grow-forest are recalculated
@@ -124,6 +129,9 @@
   underlying family and whether y-outcomes are present in the test data.
   In particular, items related to performance will be \code{NULL} when
   y-outcomes are not present.
+
+  For detailed definitions of returned values (such as \code{predicted})
+  see the help file for \command{rfsrc}.
 }
 \author{
     Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
