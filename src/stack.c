@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.1
+////  Version 1.0.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -53,7 +53,7 @@
 ////    Clemmons, NC 27012
 ////
 ////    email:  kogalurshear@gmail.com
-////    URL:    http://www.kogalur-shear.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -530,7 +530,7 @@ char stackMissingArrays(char mode) {
       mFlag = FALSE;
       for (i = 1; i <= RF_observationSize; i++) {
         if (!ISNA(RF_responseIn[RF_statusIndex][i])) {
-          if (RF_responseIn[RF_statusIndex][i] > 0) {
+          if (RF_responseIn[RF_statusIndex][i] >= 0) {
             mFlag = TRUE;
             i = RF_observationSize;
           }

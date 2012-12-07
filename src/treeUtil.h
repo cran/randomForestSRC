@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.1
+////  Version 1.0.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -53,7 +53,7 @@
 ////    Clemmons, NC 27012
 ////
 ////    email:  kogalurshear@gmail.com
-////    URL:    http://www.kogalur-shear.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -115,5 +115,4 @@ void saveTree(uint    b,
               uint  **mwcpPtr);
 void freeTree(uint treeID, Node *parent, char rootFlag);
 void freeSplitDepth(uint treeID);
-void freeMultiClassProb(uint treeID);
 #endif

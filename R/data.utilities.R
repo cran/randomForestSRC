@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.1
+####  Version 1.0.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -53,7 +53,7 @@
 ####    Clemmons, NC 27012
 ####
 ####    email:  kogalurshear@gmail.com
-####    URL:    http://www.kogalur-shear.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -482,7 +482,7 @@ get.event.info <- function(obj, subset = NULL) {
   
 }
 
-get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, big.data = FALSE, max.dim = 250) {
+get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
 
   
   if (grepl("surv", fmly)) {
@@ -514,10 +514,10 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, big.data = FALSE
     nonMissingOutcome <- which(!is.na(cens) & !is.na(time))
     nonMissingDeathFlag <- (cens[nonMissingOutcome] != 0)
     time.interest <- sort(unique(time[nonMissingOutcome[nonMissingDeathFlag]]))
-    ## special treatment for big data
-    if (big.data == TRUE & length(time.interest) > max.dim) {
+    ## trim the time points if the user has requested it
+    if (!missing(ntime) && length(time.interest) > ntime) {
       time.interest <- time.interest[
-         unique(round(seq.int(1, length(time.interest), length.out = max.dim)))]
+         unique(round(seq.int(1, length(time.interest), length.out = ntime)))]
     }
     
   }

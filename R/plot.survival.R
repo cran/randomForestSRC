@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.1
+####  Version 1.0.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -53,7 +53,7 @@
 ####    Clemmons, NC 27012
 ####
 ####    email:  kogalurshear@gmail.com
-####    URL:    http://www.kogalur-shear.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -79,6 +79,9 @@ plot.survival.rfsrc <- function (x,
       sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
     stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, predict)'.")
   }
+  if (x$family != "surv") {
+    stop("this function only supports right-censored survival settings")
+  }
 
   ## predict object does not contain OOB values
   if (sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) == 2) {
@@ -94,14 +97,6 @@ plot.survival.rfsrc <- function (x,
     rfsrcPred <- TRUE
   }
     
-  ## null case can occur for '(rfsrc, predict)' objects, so check 
-  if (x$family != "surv") {
-    stop("this function only supports right-censored survival settings")
-  }
-  if (is.null(x$yvar)) {
-    stop("no survival outcomes are present")
-  }
-  
   ## verify the haz.model option
   haz.model <- match.arg(haz.model, c("spline", "ggamma", "nonpar"))
   ##ensure that the glmnet package is available when splines are selected
@@ -116,23 +111,18 @@ plot.survival.rfsrc <- function (x,
   cens.model <- match.arg(cens.model, c("km", "rfsrc"))
 
   ## use imputed missing time or censoring indicators
-  if (!is.null(x$imputed.indv)) {
-    x$yvar[x$imputed.indv, ]=x$imputed.data[,1:2]
+  if (!is.null(x$yvar) && !is.null(x$imputed.indv)) {
+    x$yvar[x$imputed.indv, ]=x$imputed.data[, 1:2]
   }
 
   ## get the event data
   event.info <- get.event.info(x)
     
-  ## no point in producing plots if sample size is too small
-  if (x$n < 2 | x$ndead < 1) {
-    stop("sample size or number of deaths is too small for meaningful analysis")
-  }
-
   ## Process the subsetted index
   ## Assumes the entire data set is to be used if not specified
   if (missing(subset)) {
-       subset <- 1:x$n
-       subsetProvided <- FALSE
+    subset <- 1:x$n
+    subsetProvided <- FALSE
   }
   else {
     ## convert the user specified subset into a usable form 
@@ -144,6 +134,10 @@ plot.survival.rfsrc <- function (x,
     }
   }
 
+  ## no point in producing plots if sample size is too small
+  if (!rfsrcPred && !subsetProvided && (x$n < 2 | x$ndead < 1)) {
+    stop("sample size or number of deaths is too small for meaningful analysis")
+  }
   
   ## use OOB values for grow forest
   if (rfsrcPred) {
@@ -392,8 +386,14 @@ plot.survival.rfsrc <- function (x,
         ## lasso estimation
         ## we use cross-validation with glmnet to estimate the gamma coefficients
         ## from s(x, gamma)
-        cv.obj <- cv.glmnet(x, y, alpha = 1)
-        coeff <- as.vector(predict(cv.obj, type = "coef", s = "lambda.1se"))
+        cv.obj <- tryCatch({cv.glmnet(x, y, alpha = 1)}, error = function(ex){NULL})
+        if (!is.null(cv.obj)) {
+          coeff <- as.vector(predict(cv.obj, type = "coef", s = "lambda.1se"))
+        }
+        else {
+          warning("glmnet did not converge: setting coefficients to zero")
+          coeff <- rep(0, 1+ ncol(x))
+        }
 
         ## calculate s(x, gamma)
         sfn <- coeff[1] + x %*% coeff[-1]
@@ -456,13 +456,18 @@ plot.survival.rfsrc <- function (x,
     old.par <- par(no.readonly = TRUE)
     if (plots.one.page) {
       if (rfsrcPred && !subsetProvided) {
-        par(mfrow = c(1,2))
+        if (!is.null(x$yvar)) {#survival/mortality only
+          par(mfrow = c(1,2))
+        }
+        else {#predict mode but no outcomes: survival only
+          par(mfrow = c(1,1))
+        }
       }
       else {
         par(mfrow = c(2,2))
       }
     }
-    else {
+    else {#plots on one page
       par(mfrow=c(1,1))
     }
     par(cex = 1.0)
@@ -553,7 +558,7 @@ plot.survival.rfsrc <- function (x,
     }
 
     ###----mortality plot----
-    if (!subsetProvided) {
+    if (!subsetProvided && !is.null(x$yvar)) {
       plot(event.info$time, mort, xlab = "Time", ylab = y.lab, type = "n", ...)
       if (plots.one.page) {
         title(title.4, cex.main = 1.25)

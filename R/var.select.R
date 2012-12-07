@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.1
+####  Version 1.0.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -53,7 +53,7 @@
 ####    Clemmons, NC 27012
 ####
 ####    email:  kogalurshear@gmail.com
-####    URL:    http://www.kogalur-shear.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -257,7 +257,7 @@ var.select.rfsrc <-
     rfsrc.all.f <- formula
   }
 
-  ## assign missing values to key options
+  ## assign key options
   if (missing(cause)) cause <- 1
   
   ## Verify key options
@@ -614,7 +614,7 @@ var.select.rfsrc <-
     }
 
     #RFSRC prediction
-    pred.out <- predict(rfsrc.obj,  data[test.id, ])
+    pred.out <- predict(rfsrc.obj,  data[test.id, ], importance = "none")
     pred.results[m] <- get.err(pred.out)[target.dim] 
     dim.results[m] <- length(sig.vars)
     var.signature <- c(var.signature, sig.vars)

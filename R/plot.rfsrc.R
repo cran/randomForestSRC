@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.1
+####  Version 1.0.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -53,7 +53,7 @@
 ####    Clemmons, NC 27012
 ####
 ####    email:  kogalurshear@gmail.com
-####    URL:    http://www.kogalur-shear.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -91,8 +91,8 @@ plot.rfsrc <- function (x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,
 
   ### decide what plots to generate
   if (all(is.na(x$importance))) {
-    if (x$ntree > 1 & !all(is.na(x$err.rate))) {
-      err <- rbind(x$err.rate)  
+    if (x$ntree > 1 && !all(is.na(x$err.rate))) {
+      err <- cbind(x$err.rate)  
       par(cex = cex, mfrow = c(1,1))
       plot.err(err)    
     }

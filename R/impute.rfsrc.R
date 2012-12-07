@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.1
+####  Version 1.0.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -53,7 +53,7 @@
 ####    Clemmons, NC 27012
 ####
 ####    email:  kogalurshear@gmail.com
-####    URL:    http://www.kogalur-shear.com
+####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
@@ -74,7 +74,6 @@ impute.rfsrc <- function(formula,
                          nodesize = NULL,
                          splitrule = NULL,
                          nsplit = 0,
-                         big.data = FALSE,
                          nimpute = 1,
                          xvar.wt = NULL,
                          seed = NULL,
@@ -121,7 +120,6 @@ impute.rfsrc <- function(formula,
                   nodesize = nodesize,
                   splitrule = splitrule,
                   nsplit = nsplit,
-                  big.data = big.data,
                   nimpute = nimpute,
                   xvar.wt = xvar.wt,
                   seed = seed,
@@ -136,21 +134,12 @@ impute.rfsrc <- function(formula,
                   impute.only = TRUE)
 
   
-  ## preliminary results of imputation.
-  if (inherits(object, "surv")) {
-    imputed.result <- cbind(object$yvar, object$xvar)
-    colnames(imputed.result) <- c(object$yvar.names, object$xvar.names)
-  }
-  else {
-    imputed.result <- cbind(object$yvar, object$xvar)
-    colnames(imputed.result) <- c(object$yvar.names, object$xvar.names)
-  }
+  ## preliminary results of imputation
+  imputed.result <- cbind(object$yvar, object$xvar)
+  colnames(imputed.result) <- c(object$yvar.names, object$xvar.names)
 
-  if (nimpute > 1) {
-    ## We do not need to overlay the data.  Do nothing.
-  }
-  else {
-    ## We need to overlay the data.
+  ##Overlay the data (only necessary when nimpute = 1)
+  if (nimpute == 1) {
     imputed.result[object$imputed.indv, ] <- object$imputed.data
   }
 

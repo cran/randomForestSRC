@@ -2,28 +2,27 @@
 \alias{randomForestSRC-package}
 \docType{package}
 \title{
-  Random Forests for Survival, Regression, and Classification (RF-SRC)
+  Random Forests for Survival, Regression and Classification (RF-SRC)
 }
 \description{
   This package provides a unified treatment of Breiman's random forests
-  (Breiman 2001) for survival, regression, and classification problems.
-  The underlying code is based on Ishwaran and Kogalur's now retired 
-  \pkg{randomSurvivalForest} package (Ishwaran and Kogalur 2007), and
-  has been significantly refactored for improved computational speed.  }
-\details{
-  The package implements Breiman's random forests for a variety of data
-  settings.  Regression and classification forests are grown when the
-  response is numeric or categorical (factor) while survival and
-  competing risk forests (Ishwaran et al. 2008, 2012) are grown when the
-  response is right-censored.  Different splitting rules invoked under
-  deterministic or random splitting are available for all families.
-  Variable predictiveness can be assessed using variable importance
-  (VIMP) measures for single, as well as grouped variables.  Variable
-  selection is implemented using minimal depth variable selection
-  (Ishwaran et al. 2010). Missing data (for x-variables and y-outcomes)
-  can be imputed on both training and test data.
-
-  This package implements OpenMP shared-memory parallel programming.
+  (Breiman 2001) for a variety of data settings.  Regression and
+  classification forests are grown when the response is numeric or
+  categorical (factor) while survival and competing risk forests
+  (Ishwaran et al. 2008, 2012) are grown for right-censored survival
+  data.  Different splitting rules invoked under deterministic or random
+  splitting are available for all families.  Variable predictiveness can
+  be assessed using variable importance (VIMP) measures for single, as
+  well as grouped variables.  Variable selection is implemented using
+  minimal depth variable selection (Ishwaran et al. 2010). Missing data
+  (for x-variables and y-outcomes) can be imputed on both training and
+  test data.  The underlying code is based on Ishwaran and Kogalur's now
+  retired \pkg{randomSurvivalForest} package (Ishwaran and Kogalur
+  2007), and has been significantly refactored for improved
+  computational speed.
+}
+\section{OpenMP Parallel Processing -- Installation}{
+ This package implements OpenMP shared-memory parallel programming.
   However, the default installation will only execute serially.  To
   utilize OpenMP, the target architecture and operating system must
   first support it.  
@@ -35,9 +34,8 @@
     \item Download the package source code from CRAN.
 
     \item Open a console, navigate to the directory containing the
-    tarball, and untar it using the command \command{tar -xvf
-    randomForestSRC_X.x.x.tar.gz} where \command{X.x.x} is the version of the
-    package you have downloaded.
+    tarball, and untar it using the command
+    \command{tar -xvf randomForestSRC_X.x.x.tar.gz}
 
     \item This will create a directory structure with the root directory
     of the package named \command{randomForestSRC}.  Change into the root
@@ -61,14 +59,15 @@
     \url{http://www.ccs.miami.edu/~hishwaran/rfsrc.html}
 
     \item If you are using the R GUI, start the GUI.  From the menu
-    click on \emph{Packages > Install package(s) from local zip files}.
-    Then navigate to the directory where you downloaded the zip file and
-    click on \emph{randomForestSRC_X.x.x.zip}.  Alternatively, you can
-    manually open a console, navigate to the zip file, and install the
-    package by using the command \command{R CMD INSTALL
-    randomForestSRC_X.x.x.zip}
-  }
+    click on
 
+    \code{Packages > Install package(s) from local zip files}
+
+    Then navigate to the directory where you downloaded the zip file and
+    click on it. 
+  }
+}
+\section{OpenMP Parallel Processing -- Setting the Number of CPUs}{
   There are several ways to control the number of CPU cores that the
   package accesses during OpenMP parallel execution.  First, you will
   need to determine the number of cores on your local machine.  Do this
@@ -86,21 +85,34 @@
   alternatively, initialize the environment variable \command{RF_CORES}
   in your shell environment.
 
-  The default value for rf.cores is two (2L), if left unspecified.
-  
-  This package also implements R-side parallel processing by replacing
+  The default value for rf.cores is -1 (-1L), if left unspecified, which
+  uses all but one available cores, with a minimum of two.
+}  
+\section{R-side Parallel Processing -- Setting the Number of CPUs}{
+  The package also implements R-side parallel processing by replacing
   the R function \command{lapply} with \command{mclapply} found in the
   \pkg{parallel} package.  You can set the number of cores accessed by
-  \command{mclapply} by issuing the command \command{options(mc.cores = x)}, where
-  \command{x} is the number of cores.  The options command can also be
-  placed in the users .Rprofile file for convenience.  You can,
-  alternatively, initialize the environment variable \command{MC_CORES}
-  in your shell environment.  See the help files in \pkg{parallel} for
-  more information.
+  \command{mclapply} by issuing the command \command{options(mc.cores =
+  x)}, where \command{x} is the number of cores.  The options command
+  can also be placed in the users .Rprofile file for convenience.  You
+  can, alternatively, initialize the environment variable
+  \command{MC_CORES} in your shell environment.  See the help files in
+  \pkg{parallel} for more information.
 
   The default value for \command{mclapply} on non-Windows systems is
-  two (2L) cores.  On Windows systems, the default value is one (1L) core.
-    
+  two (2L) cores.  On Windows systems, the default value is one (1L)
+  core.
+}
+\section{Example: Setting the Number of CPUs}{
+  As an example, issuing the following options command uses all
+  available cores minus one for both OpenMP and R-side processing:
+
+  \command{options(rf.cores=detectCores()-1, mc.cores=detectCores()-1)}
+
+  As stated above, this option command can be placed in the users
+  .Rprofile file.
+}
+\section{Package Overview}{
   This package contains many useful functions and users should read the
   help file in its entirety for details.  However, we briefly mention
   several key functions that may make it easier to navigate and

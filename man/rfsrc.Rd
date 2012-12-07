@@ -1,7 +1,7 @@
 \name{rfsrc}
 \alias{rfsrc}
 \alias{randomForestSRC}
-\title{Random Forests for Survival, Regression, and Classification (RF-SRC)}
+\title{Random Forests for Survival, Regression and Classification (RF-SRC)}
 \description{
   A random forest (Breiman, 2001) is grown using user supplied training
   data.  Applies when the response is numeric, categorical (factor), or
@@ -25,8 +25,8 @@ rfsrc(formula, data, ntree = 1000,
   bootstrap = c("by.root", "by.node", "none"), mtry = NULL, nodesize = NULL,
   splitrule = NULL, nsplit = 0, split.fast = FALSE,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-  big.data = FALSE, na.action = c("na.omit", "na.impute"), nimpute = 1,
-  cause, xvar.wt = NULL, forest = TRUE, proximity = FALSE,
+  na.action = c("na.omit", "na.impute"), nimpute = 1,
+  ntime, cause, xvar.wt = NULL, forest = TRUE, proximity = FALSE,
   var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
   do.trace = FALSE, membership = TRUE, ...)
@@ -46,7 +46,7 @@ rfsrc(formula, data, ntree = 1000,
     \item{mtry}{Number of variables randomly selected as candidates for
       each split. For survival and classification the default is
       sqrt(\code{p}), where \code{p} equals the number of variables.
-      For regression it is \code{p/3}.  Values are rounded up.}
+      For regression it is \code{p}/3.  Values are rounded up.}
     \item{nodesize}{Minimum number of unique cases (data points) in a
       terminal node.  The defaults are: survival (3), competing
       risk (6), regression (5), classification (1).}
@@ -74,8 +74,11 @@ rfsrc(formula, data, ntree = 1000,
       significantly increase speed.}
     \item{split.fast}{Set this value to TRUE when speed more than
       accuracy is important in growing a forest.}
-    \item{importance}{Method for computing variable importance (VIMP).}
-    \item{big.data}{Improved memory performance for large sample sizes.}
+    \item{importance}{Method for computing variable importance (VIMP).
+      Note that calculation of VIMP can be computationally expensive when the
+      number of variables is high.  If VIMP is not needed, consider
+      setting \code{importance="none"}.  See the details below for more
+      about VIMP.}
     \item{na.action}{Action to be taken if the data contains \code{NA}'s.
         Possible values are \code{na.omit} and \code{na.impute}.
         Default is \code{na.omit}, which removes the entire record if
@@ -86,6 +89,11 @@ rfsrc(formula, data, ntree = 1000,
     \item{nimpute}{Number of iterations of the missing data algorithm.
 	  Performance measures such as out-of-bag (OOB) error rates tend
 	  to become optimistic if \code{nimpute} is greater than 1.}
+    \item{ntime}{Integer value which for survival families
+      constrains ensemble calculations to a grid of time values of no
+      more than \code{ntime} time points.  The default is to use all
+      observed event times.  Use this option when the sample size is
+      large to improve computational efficiency.}
     \item{cause}{An integer value between 1 and \code{J} indicating
 	  the event of interest for competing risks, where \code{J} is
 	  the number of event types (this option applies only to
@@ -179,30 +187,30 @@ rfsrc(formula, data, ntree = 1000,
   the data set is considered to contain unique values along
   covariates. In such situations sorting/uniquifying becomes redundant.
 
-  \item \emph{Variable Importance}
+  \item \emph{Variable Importance (VIMP)}
 
   The option \option{importance} allows four distinct ways to calculate
-  variable importance (VIMP).  The default \code{permute} returns
-  Breiman-Cutler permutation VIMP as described in Breiman (2001).  For
-  each tree, the prediction error on the out-of-bag (OOB) data is
-  recorded.  Then for a given variable \emph{x}, out-of-bag (OOB) cases
-  are randomly permuted in \emph{x} and the prediction error is
-  recorded.  The VIMP for \emph{x} is defined as the difference between
-  the perturbed and unperturbed error rate averaged over all trees.  If
-  \code{random} is used, then \emph{x} is not permuted, but rather an
-  OOB case is assigned a daughter node randomly whenever a split on
-  \emph{x} is encountered in the in-bag tree.  The OOB error rate is
-  compared to the OOB error rate without randomly splitting on \emph{x}.
-  The VIMP is the difference averaged over the forest.  If the options
-  \code{permute.ensemble} or \code{random.ensemble} are used, then VIMP is
-  calculated by comparing the error rate for the perturbed OOB forest
-  ensemble to the unperturbed OOB forest ensemble where the perturbed
-  ensemble is obtained by either permuting \emph{x} or by random
-  daughter node assignments for splits on \emph{x}.  Thus, unlike the
-  Breiman-Cutler measure, here VIMP does not measure the tree average
-  effect of \emph{x}, but rather its overall forest effect.  See
-  Ishwaran et al. (2008) for further details.  Finally, the option
-  \code{none} turns VIMP off entirely.
+  VIMP.  The default \code{permute} returns Breiman-Cutler permutation
+  VIMP as described in Breiman (2001).  For each tree, the prediction
+  error on the out-of-bag (OOB) data is recorded.  Then for a given
+  variable \emph{x}, out-of-bag (OOB) cases are randomly permuted in
+  \emph{x} and the prediction error is recorded.  The VIMP for \emph{x}
+  is defined as the difference between the perturbed and unperturbed
+  error rate averaged over all trees.  If \code{random} is used, then
+  \emph{x} is not permuted, but rather an OOB case is assigned a
+  daughter node randomly whenever a split on \emph{x} is encountered in
+  the in-bag tree.  The OOB error rate is compared to the OOB error rate
+  without randomly splitting on \emph{x}.  The VIMP is the difference
+  averaged over the forest.  If the options \code{permute.ensemble} or
+  \code{random.ensemble} are used, then VIMP is calculated by comparing
+  the error rate for the perturbed OOB forest ensemble to the
+  unperturbed OOB forest ensemble where the perturbed ensemble is
+  obtained by either permuting \emph{x} or by random daughter node
+  assignments for splits on \emph{x}.  Thus, unlike the Breiman-Cutler
+  measure, here VIMP does not measure the tree average effect of
+  \emph{x}, but rather its overall forest effect.  See Ishwaran et
+  al. (2008) for further details.  Finally, the option \code{none} turns
+  VIMP off entirely.
 
   Note that the function \command{vimp} provides a friendly user
   interface for extracting VIMP.
@@ -284,14 +292,23 @@ rfsrc(formula, data, ntree = 1000,
 
   See the function \command{impute.rfsrc} for a fast impute interface.
 
-  \item \emph{Large n}
+  \item \emph{Large sample size}
 
-  For increased efficiency, users should consider setting
-  \option{big.data=TRUE} when the sample size (number of rows of the data)
-  is large.  This invokes efficient memory management.  For survival
-  families a side-effect is that survival functions are constrained to a
-  restricted grid of time points.
-  
+  For increased efficiency for survival families, users should consider
+  setting \option{ntime} to a relatively small value when the sample
+  size (number of rows of the data) is large.  This constrains ensemble
+  calculations such as survival functions to a restricted grid of time
+  points of length no more than \option{ntime} which can considerably
+  reduce computational times.
+
+  \item \emph{Large number of variables}
+
+  For increased efficiency when the number of variables are large,
+  set \code{importance="none"} which turns off VIMP
+  calculations and can considerably reduce computational times.  Note
+  that vimp calculations can always be recovered later from the grow
+  forest using the function \command{vimp}.
+
   \item \emph{Factors}
   
   Variables encoded as factors are treated as such.  If the factor is
@@ -397,35 +414,35 @@ rfsrc(formula, data, ntree = 1000,
 }
 \note{
   \enumerate{
-    \item The returned object depends heavily on the family:
+    \item The returned object depends heavily on the family.  In
+    particular, \code{predicted} and \code{predicted.oob} are the
+    following values calculated using in-bag and OOB data:
     \itemize{
-      \item For regression, the predicted value is the predicted
-      y-response.
+      \item For regression, a vector of predicted y-responses.
 
-      \item For classification, the predicted response is a matrix with
-      columns containing the estimated class probability for each class.
+      \item For classification, a matrix with columns containing the
+      estimated class probability for each class.
 
-      \item For survival, the predicted response is mortality (Ishwaran et
-      al., 2008), a value representing estimated risk calibrated to the
-      scale of the number of events.  As a specific example, if \emph{i} has
-      a mortality value of 100, then if all individuals had the same
-      x-values as \emph{i}, we expect an average of 100 events.  Also
-      included in the grow object are matrices containing the CHF and
-      survival function.  Each row corresponds to an individual's ensemble
-      CHF or survival function evaluated at each time point in
-      \code{time.interest}.
+      \item For survival, a vector of mortality values (Ishwaran et al.,
+      2008) representing estimated risk for each individual calibrated
+      to the scale of the number of events (as a specific example, if
+      \emph{i} has a mortality value of 100, then if all individuals had
+      the same x-values as \emph{i}, we would expect an average of 100
+      events).  Also included in the grow object are matrices containing
+      the CHF and survival function.  Each row corresponds to an
+      individual's ensemble CHF or survival function evaluated at each
+      time point in \code{time.interest}.
 
-      \item For competing risks, the predicted response is a matrix with
-      one column for each event recording the expected number of life
-      years lost due to that event specific cause (Ishwaran et al.,
+      \item For competing risks, a matrix with one column for each event
+      recording the expected number of life years lost due to the event
+      specific cause up to the maximum follow up (Ishwaran et al.,
       2012).  The grow object also contains the cause-specific
       cumulative hazard function (CSCHF) and the cumulative incidence
       function (CIF) for each event type.  These are encoded as a 3-d
       array, with the third dimension used for the event type, each time
       point in \code{time.interest} making up the second dimension
       (columns), and the case (individual) being the first dimension
-      (rows).
-    }
+      (rows).  }
   
     \item Different R-wrappers are provided to aid in parsing the grow
     object.
@@ -533,8 +550,8 @@ pbc.obj <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
 pbc.obj
 
 # imputation
-pbc.obj2 <- rfsrc(Surv(days, status)~., pbc, 
-                nsplit=10, na.action="na.impute")
+pbc.obj2 <- rfsrc(Surv(days, status) ~ ., pbc, 
+           nsplit = 10, na.action = "na.impute")
 pbc.obj2
 
 # here's a nice wrapper to combine original data + imputed data
@@ -552,7 +569,7 @@ pbc.imputed.data <- combine.impute(pbc.obj2)
 # iterate the missing data algorithm
 # compare to non-iterated algorithm
 pbc.obj3 <- rfsrc(Surv(days, status) ~ ., pbc, nsplit=10,  
-         na.action="na.impute", nimpute = 3)
+         na.action = "na.impute", nimpute = 3)
 pbc.iterate.imputed.data <- combine.impute(pbc.obj3)
 tail(pbc.imputed.data)
 tail(pbc.iterate.imputed.data)
@@ -608,7 +625,7 @@ if (library("survival", logical.return = TRUE)
 
   ## run cox/rfsrc models
   ## for illustration we use a small number of trees
-  cox.obj <- coxph(surv.f, data=pbc.na)
+  cox.obj <- coxph(surv.f, data = pbc.na)
   rfsrc.obj <- rfsrc(surv.f, pbc.na, nsplit = 10, ntree = 150)
 
   ## compute bootstrap cross-validation estimate of expected Brier score

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.1
+////  Version 1.0.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -53,7 +53,7 @@
 ////    Clemmons, NC 27012
 ////
 ////    email:  kogalurshear@gmail.com
-////    URL:    http://www.kogalur-shear.com
+////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
 ////**********************************************************************
@@ -324,7 +324,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   }
 #ifdef SUPPORT_OPENMP
   if (RF_numThreads < 0) {
-    RF_numThreads = omp_get_max_threads();
+    RF_numThreads = (omp_get_max_threads() > 2) ? (omp_get_max_threads() - 1) : (omp_get_max_threads());
   }
   else {
     RF_numThreads = (RF_numThreads < omp_get_max_threads()) ? (RF_numThreads) : (omp_get_max_threads());
@@ -532,6 +532,11 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         if (RF_imputeSize == 1) {
           if (RF_opt & OPT_MISS) {
             imputeSummary(RF_GROW, TRUE);
+            if (RF_timeIndex > 0) {
+              if (RF_mTimeFlag == TRUE) {
+                imputeMultipleTime(TRUE);
+              }
+            }
           }
         }  
         else {
@@ -542,6 +547,10 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       if (r == RF_imputeSize) {
         if (RF_opt & OPT_MISS) {
           imputeSummary(RF_PRED, ACTIVE);
+          if (RF_timeIndex > 0) {
+            if (RF_mTimeFlag == TRUE) {
+            }
+          }
         }
       }
     }
@@ -580,7 +589,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         for (j = 1; j <= RF_xSize; j++) {
           RF_varUsed_[j] = 0;
           for (i = 1; i <= RF_forestSize; i++) {
-            RF_varUsed_[j] += RF_varUsedPtr[i][j] = 0;
+            RF_varUsed_[j] += RF_varUsedPtr[i][j];
           }
         }
       }
