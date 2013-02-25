@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -65,12 +65,10 @@
 #include "node.h"
 void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
-                                 Node     *rootPtr,
-                                 uint      b,
-                                 uint      serialID);
+                                 uint      b);
 void copyDenominator(uint mode, uint *denominatorCopy);
 void copyEnsemble(uint mode, double **ensembleCopy);
-void getVariablesUsed(Node *rootPtr, uint *varUsedVector);
+void getVariablesUsed(uint treeID, Node *rootPtr, uint *varUsedVector);
 char stackAndImputePerfResponse(uint      mode, 
                                 char      multipleImputeFlag, 
                                 uint      treeID,

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -73,31 +73,30 @@
 #include     "rfsrcUtil.h"
 #include    "importance.h"
 Node *getProxyMember (Node    *parent, 
-                      double **predictor, 
+                      double **shadowVIMP,
                       uint     index) {
   char daughterFlag;
   Node *result = parent;
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     daughterFlag = RIGHT;
     if (strcmp(RF_xType[parent -> splitParameter], "C") == 0) {
-      daughterFlag = splitOnFactor((uint) predictor[parent -> splitParameter][index], parent -> splitValueFactPtr);
+      daughterFlag = splitOnFactor((uint) shadowVIMP[parent -> splitParameter][index], parent -> splitValueFactPtr);
     }
     else {
-      if (predictor[parent -> splitParameter][index] <= (parent -> splitValueCont)) {
+      if (shadowVIMP[parent -> splitParameter][index] <= (parent -> splitValueCont)) {
         daughterFlag = LEFT;
       }
     }
     if (daughterFlag == LEFT) {
-      result = getProxyMember(parent ->  left, predictor, index);
+      result = getProxyMember(parent ->  left, shadowVIMP, index);
     }
     else {
-      result = getProxyMember(parent -> right, predictor, index);
+      result = getProxyMember(parent -> right, shadowVIMP, index);
     }
   }
   return result;
 }
-Node *randomizeMembership(uint     treeID,
-                          Node    *parent, 
+Node *randomizeMembership(Node    *parent, 
                           double **predictor, 
                           uint     individual, 
                           uint     splitParameter) {
@@ -118,11 +117,11 @@ Node *randomizeMembership(uint     treeID,
       }
     }
     if(randomSplitFlag == TRUE) {
-      if (ran2(treeID) <= 0.5) {
-        result = randomizeMembership(treeID, parent ->  left, predictor, individual, splitParameter);
+      if (ran3(parent -> splitParameter) <= 0.5) {
+        result = randomizeMembership(parent ->  left, predictor, individual, splitParameter);
       }
       else {
-        result = randomizeMembership(treeID, parent -> right, predictor, individual, splitParameter);
+        result = randomizeMembership(parent -> right, predictor, individual, splitParameter);
       }
     }
     else {
@@ -136,22 +135,22 @@ Node *randomizeMembership(uint     treeID,
         }
       }
       if (daughterFlag == LEFT) {
-        result = randomizeMembership(treeID, parent ->  left, predictor, individual, splitParameter);
+        result = randomizeMembership(parent ->  left, predictor, individual, splitParameter);
       }
       else {
-        result = randomizeMembership(treeID, parent -> right, predictor, individual, splitParameter);
+        result = randomizeMembership(parent -> right, predictor, individual, splitParameter);
       }
     }
   }
   return result;
 }
-void permute(uint treeID, uint n, uint *indx) {
+void permute(uint p, uint n, uint *indx) {
   uint i,j,k;
   for (i=1; i<= n; i++) {
     indx[i] = 0;
   }
   for (i=n; i > 0; i--) {
-    k = (uint) ceil(ran2(treeID)*(i*1.0));
+    k = (uint) ceil(ran3(p)*(i*1.0));
     for (j = 1; k > 0; j++) {
       if (indx[j] == 0) {
         k--;
@@ -162,60 +161,44 @@ void permute(uint treeID, uint n, uint *indx) {
 }
 void getRandomMembership (uint      mode,
                           uint      treeID,
-                          Node   ***vimpMembership) {
+                          Node    **vimpMembership,
+                          uint      p) {
   Node    *rootPtr;
   uint     obsSize;
-  uint     varCount;
   double **predictorPtr;
   uint    *membershipFlag;
   char     selectionFlag;
-  uint     pOuterCount;
-  uint     i, p;
+  uint     i;
   rootPtr = RF_root[treeID];
   switch (mode) {
   case RF_PRED:
     obsSize = RF_fobservationSize;
-    varCount = RF_intrPredictorSize;
     predictorPtr = RF_fobservation[treeID];
     membershipFlag = RF_testMembershipFlag;
     selectionFlag = ACTIVE;
     break;
   default:
     obsSize = RF_observationSize;
-    varCount = RF_intrPredictorSize;
     predictorPtr = RF_observation[treeID];
     membershipFlag = RF_bootMembershipFlag[treeID];
     selectionFlag = FALSE;
     break;
   }
-  if (!(RF_opt & OPT_VIMP_JOIN)) {
-    pOuterCount = varCount;
-  }
-  else {
-    pOuterCount = 1;
-  }
-  for (p=1; p <= pOuterCount; p++) {
-    for (i=1; i <= obsSize; i++) {
-      if ((membershipFlag[i] == selectionFlag)) {
-        if (!(RF_opt & OPT_VIMP_JOIN)) {
-          vimpMembership[p][i] = randomizeMembership(treeID, rootPtr, predictorPtr, i, RF_intrPredictor[p]);
-        }
-        else {
-          vimpMembership[p][i] = randomizeMembership(treeID, rootPtr, predictorPtr, i, 0);
-        }
-      }
-      else {
-        vimpMembership[p][i] = NULL;
-      }
+  for (i=1; i <= obsSize; i++) {
+    if ((membershipFlag[i] == selectionFlag)) {
+      vimpMembership[i] = randomizeMembership(rootPtr, predictorPtr, i, p);
+    }
+    else {
+      vimpMembership[i] = NULL;
     }
   }
 }
 void getPermuteMembership (uint      mode,
                            uint      treeID,
-                           Node   ***vimpMembership) {
+                           Node    **vimpMembership,
+                           uint      p) {
   Node    *rootPtr;
   uint     obsSize;
-  uint     varCount;
   double **predictorPtr;
   uint    *membershipFlag;
   char     selectionFlag;
@@ -223,14 +206,13 @@ void getPermuteMembership (uint      mode,
   uint    *indexVIMP;
   uint    *permuteVIMP;
   double **originalVIMP;
+  double **shadowVIMP;
   uint     pInnerCount, pIn;
-  uint     pOuterCount, pOut;
-  uint     i, k, p;
+  uint     i, j, k, targetCov;
   rootPtr = RF_root[treeID];
   switch (mode) {
   case RF_PRED:
     obsSize = RF_fobservationSize;
-    varCount = RF_intrPredictorSize;
     predictorPtr = RF_fobservation[treeID];
     membershipFlag = RF_testMembershipFlag;
     selectionFlag = ACTIVE;
@@ -238,7 +220,6 @@ void getPermuteMembership (uint      mode,
     break;
   default:
     obsSize = RF_observationSize;
-    varCount = RF_intrPredictorSize;
     predictorPtr = RF_observation[treeID];
     membershipFlag = RF_bootMembershipFlag[treeID];
     selectionFlag = FALSE;
@@ -261,56 +242,64 @@ void getPermuteMembership (uint      mode,
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
-  if (!(RF_opt & OPT_VIMP_JOIN)) {
-    pOuterCount = varCount;
+  if (p > 0) {
     pInnerCount = 1;
   }
   else {
-    pOuterCount = 1;
-    pInnerCount = varCount;
+    pInnerCount = RF_intrPredictorSize;
   }
   originalVIMP = dmatrix(1, pInnerCount, 1, permuteObsSize);
-  for (pOut = 1; pOut <= pOuterCount; pOut++) {
-    for (pIn = 1; pIn <= pInnerCount; pIn++) {
-      if (!(RF_opt & OPT_VIMP_JOIN)) {
-        p = pOut;
+  shadowVIMP = (double**) vvector(1, RF_xSize);
+  for (j = 1; j <= RF_xSize; j++) {
+    shadowVIMP[j] = predictorPtr[j];
+  }
+  for (pIn = 1; pIn <= pInnerCount; pIn++) {
+    if (p > 0) {
+      targetCov = p;
+    }
+    else {
+      targetCov = RF_intrPredictor[pIn];
+    }
+    shadowVIMP[targetCov] = dvector(1, obsSize);
+    for (k=1; k<= permuteObsSize; k++) {
+      originalVIMP[pIn][k] = predictorPtr[targetCov][indexVIMP[k]];
+    }
+    permute(targetCov, permuteObsSize, permuteVIMP);
+    for (k=1; k <= obsSize; k++) {
+      shadowVIMP[targetCov][k] = predictorPtr[targetCov][k];
+    }
+    for (k=1; k <= permuteObsSize; k++) {
+      shadowVIMP[targetCov][indexVIMP[k]] = predictorPtr[targetCov][permuteVIMP[k]];
+    }
+  }
+  for (i=1; i <= obsSize; i++) {
+    if ((membershipFlag[i] == selectionFlag)) {
+      if (p > 0) {
+        vimpMembership[i] = getProxyMember(rootPtr, shadowVIMP, i);
       }
       else {
-        p = pIn;
-      }
-      for (k=1; k<= permuteObsSize; k++) {
-        originalVIMP[pIn][k] = predictorPtr[RF_intrPredictor[p]][indexVIMP[k]];
-      }
-      permute(treeID, permuteObsSize, permuteVIMP);
-      for (k=1; k <= permuteObsSize; k++) {
-        predictorPtr[RF_intrPredictor[p]][indexVIMP[k]] = originalVIMP[pIn][permuteVIMP[k]];
+        vimpMembership[i] = getProxyMember(rootPtr, shadowVIMP, i);
       }
     }
-    for (i=1; i <= obsSize; i++) {
-      if ((membershipFlag[i] == selectionFlag)) {
-        vimpMembership[pOut][i] = getProxyMember(rootPtr, predictorPtr, i);
-      }
-      else {
-        vimpMembership[pOut][i] = NULL;
-      }
+    else {
+      vimpMembership[i] = NULL;
     }
-    for (pIn = 1; pIn <= pInnerCount; pIn++) {
-      if (!(RF_opt & OPT_VIMP_JOIN)) {
-        p = pOut;
-      }
-      else {
-        p = pIn;
-      }
-      for (k=1; k <= permuteObsSize; k++) {
-        predictorPtr[RF_intrPredictor[p]][indexVIMP[k]] = originalVIMP[pIn][k];
-      }
+  }
+  for (pIn = 1; pIn <= pInnerCount; pIn++) {
+    if (p > 0) {
+      targetCov = p;
     }
-  }  
+    else {
+      targetCov = RF_intrPredictor[pIn];
+    }
+    free_dvector(shadowVIMP[targetCov], 1, obsSize);
+  }
   free_dmatrix(originalVIMP, 1, pInnerCount, 1, permuteObsSize);
+  free_vvector(shadowVIMP, 1, RF_xSize);
   free_uivector(indexVIMP, 1, permuteObsSize);
   free_uivector(permuteVIMP, 1, permuteObsSize);
 } 
-void getVIMPmembership (uint mode, uint treeID, Node ***vimpMembership) {
+ void getVIMPmembership (uint mode, uint treeID, Node **vimpMembership, uint p) {
   char result;
   if (!(RF_opt & OPT_VIMP)) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -331,10 +320,10 @@ void getVIMPmembership (uint mode, uint treeID, Node ***vimpMembership) {
   }
   if (result == TRUE) {
     if (RF_opt & OPT_VIMP_TYPE) {
-      getRandomMembership(mode, treeID, vimpMembership);
+      getRandomMembership(mode, treeID, vimpMembership, p);
     }
     else {
-      getPermuteMembership(mode, treeID, vimpMembership);
+      getPermuteMembership(mode, treeID, vimpMembership, p);
     }
   }
   else {
@@ -342,13 +331,12 @@ void getVIMPmembership (uint mode, uint treeID, Node ***vimpMembership) {
 }
 void updateVimpEnsemble (uint       mode,
                          uint       treeID,
-                         Node    ***vimpMembership) {
+                         Node     **vimpMembership,
+                         uint       p) {
   uint   obsSize;
-  uint   varCount;
   uint  *membershipFlag;
   char   selectionFlag;
   char   ensembleFlag;
-  uint   varLoopCount;
   selectionFlag = ACTIVE;  
   if (RF_opt & OPT_VIMP_LEOB) {
     ensembleFlag = FALSE;
@@ -359,121 +347,103 @@ void updateVimpEnsemble (uint       mode,
   switch (mode) {
   case RF_PRED:
     obsSize = RF_fobservationSize;
-    varCount = RF_intrPredictorSize;
     membershipFlag = RF_testMembershipFlag;
     selectionFlag = ACTIVE;
     break;
   default:
     obsSize = RF_observationSize;
-    varCount = RF_intrPredictorSize;
     membershipFlag = RF_bootMembershipFlag[treeID];
     selectionFlag = FALSE;
     break;
   }
-  if (!(RF_opt & OPT_VIMP_JOIN)) {
-    varLoopCount = varCount;
-  }
-  else {
-    varLoopCount = 1;
-  }
   updateGenericVimpEnsemble(treeID,
-                            0,
-                            varLoopCount,
+                            p,
                             obsSize,
                             selectionFlag,
                             membershipFlag,
                             vimpMembership,
                             ensembleFlag,
                             RF_vimpOutcome, 
-                            RF_sVimpEnsemble,   
+                            RF_sVimpOutcome,    
                             RF_cVimpEnsemble);  
 }
 void updateTreeEnsemble (uint       mode,
                          uint       treeID,
                          double   **treeOutcome,
-                         double ****chfTreeEnsemble,
+                         double  ***sTreeOutcome,
                          double  ***mcTreeEnsemble) {
   uint   obsSize;
-  uint   varCount;
   char   selectionFlag;
   char   ensembleFlag;
   uint      *membershipFlag;
-  Node    ***nodeMembership;
+  Node     **nodeMembership;
   selectionFlag = ACTIVE;  
   ensembleFlag = FALSE;
-  varCount = 1;
   switch (mode) {
   case RF_PRED:
     obsSize = RF_fobservationSize;
     membershipFlag = RF_testMembershipFlag;
-    nodeMembership = RF_fnodeMembership;
+    nodeMembership = RF_fnodeMembership[treeID];
     selectionFlag = ACTIVE;
     break;
   default:
     obsSize = RF_observationSize;
     membershipFlag = RF_bootMembershipFlag[treeID];
-    nodeMembership = RF_nodeMembership;
+    nodeMembership = RF_nodeMembership[treeID];
     selectionFlag = FALSE;
     break;
   }
   updateGenericVimpEnsemble(treeID,
-                            treeID - 1,
-                            varCount,
+                            1,
                             obsSize,
                             selectionFlag,
                             membershipFlag,
                             nodeMembership,
                             ensembleFlag,
                             treeOutcome,
-                            chfTreeEnsemble,
+                            sTreeOutcome,
                             mcTreeEnsemble);
 }
 void updateGenericVimpEnsemble (uint       treeID,
-                                uint       nodeOffset,
-                                uint       varLoopCount,
+                                uint       targetIndex,
                                 uint       obsSize,
                                 uint       selectionFlag,
                                 uint      *membershipFlag,
-                                Node    ***noiseMembership,
+                                Node     **noiseMembership,
                                 char       ensembleFlag,
                                 double   **genOutcome,
-                                double ****chfGenEnsemble,
+                                double  ***sGenOutcome,
                                 double  ***mcGenEnsemble) {
   Node  *terminalNode;
-  uint   i, j, k, p;
-  for (p=1; p <= varLoopCount; p++) {
+  uint   i, j;
     for (i=1; i <= obsSize; i++) {
       if ((membershipFlag[i] == selectionFlag)) {
-        terminalNode = noiseMembership[nodeOffset + p][i];
+        terminalNode = noiseMembership[i];
         if (!ISNA(terminalNode -> predictedOutcome)) {
           if (!ensembleFlag) {
-            genOutcome[p][i] = terminalNode -> predictedOutcome;
-            RF_vimpEnsembleDen[p][i] = 1;
+            genOutcome[targetIndex][i] = terminalNode -> predictedOutcome;
+            RF_vimpEnsembleDen[targetIndex][i] = 1;
           }
           else {
-            genOutcome[p][i] += terminalNode -> predictedOutcome;
-            RF_vimpEnsembleDen[p][i] ++;
+            genOutcome[targetIndex][i] += terminalNode -> predictedOutcome;
+            RF_vimpEnsembleDen[targetIndex][i] ++;
           }
           if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
             if (RF_eventTypeSize == 1) {
-              for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-                if (!ensembleFlag) {
-                  chfGenEnsemble[p][1][k][i] = (terminalNode -> nelsonAalen)[k]; 
-                }
-                else {
-                  chfGenEnsemble[p][1][k][i] += (terminalNode -> nelsonAalen)[k];   
-                }
+              if (!ensembleFlag) {
+                sGenOutcome[targetIndex][1][i] = terminalNode -> mortality[1];
+              }
+              else {
+                sGenOutcome[targetIndex][1][i] += terminalNode -> mortality[1];
               }
             }
             else {
               for (j=1; j <= RF_eventTypeSize; j++) {
-                for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-                  if (!ensembleFlag) {
-                    chfGenEnsemble[p][j][k][i] = (terminalNode -> CIF)[j][k]; 
-                  }
-                  else {
-                    chfGenEnsemble[p][j][k][i] += (terminalNode -> CIF)[j][k];                     
-                  }
+                if (!ensembleFlag) {
+                  sGenOutcome[targetIndex][j][i] = terminalNode -> mortality[j];
+                }
+                else {
+                  sGenOutcome[targetIndex][j][i] += terminalNode -> mortality[j];
                 }
               }
             }
@@ -482,10 +452,10 @@ void updateGenericVimpEnsemble (uint       treeID,
             if (RF_rFactorCount > 0) {
               for (j=1; j<= RF_rFactorSize[1]; j++) {
                 if (!ensembleFlag) {
-                  mcGenEnsemble[p][j][i] = (double) (terminalNode -> multiClassProb)[1][j] / (double) (terminalNode -> membrCount);
+                  mcGenEnsemble[targetIndex][j][i] = (double) (terminalNode -> multiClassProb)[1][j] / (double) (terminalNode -> membrCount);
                 }
                 else {
-                  mcGenEnsemble[p][j][i] += (double) (terminalNode -> multiClassProb)[1][j] / (double) (terminalNode -> membrCount);
+                  mcGenEnsemble[targetIndex][j][i] += (double) (terminalNode -> multiClassProb)[1][j] / (double) (terminalNode -> membrCount);
                 }
               }
             }
@@ -502,173 +472,82 @@ void updateGenericVimpEnsemble (uint       treeID,
       }
       else {
         if (!ensembleFlag) {
-          RF_vimpEnsembleDen[p][i] = 0;
+          RF_vimpEnsembleDen[targetIndex][i] = 0;
         }
       }
     }  
-  }  
 }
 void summarizeVimpPerformance(uint       mode,
-                              uint       treeID) {
+                              uint       treeID,
+                              uint       p) {
   uint      obsSize;
-  uint      varCount;
   double    **responsePtr;
   double    **importancePtr;
-  uint      *denomPtr;
   uint      *vimpDenomPtr;
-  double   ***crVimpMortality;
+  double     *vimpOutcomePtr;
   double    **subVimpOutcomePtr;
   char        responseImputeFlag;  
-  double    **treeOutcome;
-  double  ****chfTreeEnsemble;
-  double   ***mcTreeEnsemble;
-  double    **crTreeMortality;
-  double    **subTreeOutcomePtr;
   double    maxValue, maxClass;
   uint      normalizationFlag;
-  uint i, j, p;
+  uint i, j;
   if (!(RF_opt & OPT_VIMP)) {
     Rprintf("\nRF-SRC:  *** WARNING *** ");
     Rprintf("\nRF-SRC:  VIMP analysis requested while OPT bit not set.  \n");
     return;
   }
-  crVimpMortality    = NULL;  
-  crTreeMortality    = NULL;  
+  vimpOutcomePtr     = NULL;
   subVimpOutcomePtr  = NULL;
-  treeOutcome        = NULL;  
-  chfTreeEnsemble    = NULL;  
-  mcTreeEnsemble     = NULL;  
   responseImputeFlag = FALSE;
   switch (mode) {
   case RF_PRED:
     obsSize = RF_fobservationSize;
-    if (RF_opt & OPT_VIMP_JOIN) {
-      varCount = 1;
-    }
-    else {
-      varCount = RF_intrPredictorSize;
-    }
-    if (RF_opt & OPT_VIMP_LEOB) {
-      responsePtr = RF_fresponse[treeID];
-      denomPtr = RF_testMembershipFlag;
-    }
-    else {
-      responsePtr = RF_fresponseIn;
-      denomPtr = RF_fullEnsembleDen;
-      if (RF_fmRecordSize > 0) {
-        if(RF_fmResponseFlag == TRUE) {
-          responseImputeFlag = TRUE;
-        }
+    responsePtr = RF_fresponseIn;
+    if (RF_fmRecordSize > 0) {
+      if(RF_fmResponseFlag == TRUE) {
+        responseImputeFlag = TRUE;
       }
     }
     break;
   default:
     obsSize = RF_observationSize;
-    if (RF_opt & OPT_VIMP_JOIN) {
-      varCount = 1;
-    }
-    else {
-      varCount = RF_intrPredictorSize;
-    }
-    if (RF_opt & OPT_VIMP_LEOB) {
-      responsePtr = RF_response[treeID];
-      denomPtr = RF_oobMembershipFlag[treeID];
-    }
-    else {
-      responsePtr = RF_responseIn;
-      denomPtr = RF_oobEnsembleDen;
-      if (RF_mRecordSize > 0) {
-        if(RF_mResponseFlag == TRUE) {
-          responseImputeFlag = TRUE;
-        }
+    responsePtr = RF_responseIn;
+    if (RF_mRecordSize > 0) {
+      if(RF_mResponseFlag == TRUE) {
+        responseImputeFlag = TRUE;
       }
     }
     break;
   }
   responsePtr = stackAndImputeGenericResponse(responseImputeFlag, mode, RF_rSize, obsSize, 0, RF_forestSize, responsePtr);
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    if (RF_eventTypeSize > 1) {
-      crVimpMortality = dmatrix3(1, varCount, 1, RF_eventTypeSize, 1, obsSize);
-      if (RF_opt & OPT_VIMP_LEOB) {
-        crTreeMortality = dmatrix(1, RF_eventTypeSize, 1, obsSize);
-      }
+    vimpDenomPtr = RF_vimpEnsembleDen[p];
+    if (RF_eventTypeSize == 1) {
+      getEnsembleMortality(mode, treeID, obsSize, RF_sVimpOutcome[p], vimpDenomPtr, RF_sVimpOutcome[p][1]);
     }
-  }  
-  if (RF_opt & OPT_VIMP_LEOB) {
-    stackTreeEnsemble(mode, &treeOutcome, &chfTreeEnsemble, &mcTreeEnsemble);
-    updateTreeEnsemble(mode, treeID, treeOutcome, chfTreeEnsemble, mcTreeEnsemble);
-    importancePtr = RF_vimpLeo[treeID];
-  }
-  else {
-    importancePtr = RF_importancePtr;
-  }
-  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    for (p = 1; p <= varCount; p++) {
-      vimpDenomPtr = RF_vimpEnsembleDen[p];
-      if (RF_eventTypeSize == 1) {
-        getEnsembleMortality(mode, treeID, obsSize, RF_sVimpEnsemble[p], vimpDenomPtr, RF_vimpOutcome[p]);
-      }
-      else {
-        getEnsembleMortalityCR(mode, treeID, obsSize, RF_sVimpEnsemble[p], vimpDenomPtr, crVimpMortality[p]);
-      }
-    }  
-    if (RF_opt & OPT_VIMP_LEOB) {
-      if (RF_eventTypeSize == 1) {
-        getEnsembleMortality(mode, treeID, obsSize, chfTreeEnsemble[1], denomPtr, treeOutcome[1]);
-      }
-      else {
-        getEnsembleMortalityCR(mode, treeID, obsSize, chfTreeEnsemble[1], denomPtr, crTreeMortality);
-      }
+    else {
+      getEnsembleMortalityCR(mode, treeID, obsSize, RF_sVimpOutcome[p], vimpDenomPtr, RF_sVimpOutcome[p]);
     }
   }  
   else {
     if (RF_rFactorCount > 0) {
-      for (p=1; p <= varCount; p++) {
-        vimpDenomPtr = RF_vimpEnsembleDen[p];
-        for (i = 1; i <= obsSize; i++) {
-          if(vimpDenomPtr[i] > 0) {
-            maxValue = 0;
-            maxClass = 0;
-            for (j=1; j <= RF_rFactorSize[1]; j++) {
-              if (maxValue < RF_cVimpEnsemble[p][j][i]) {
-                maxValue = RF_cVimpEnsemble[p][j][i];
-                maxClass = (double) j;
-              }
+      vimpDenomPtr = RF_vimpEnsembleDen[p];
+      for (i = 1; i <= obsSize; i++) {
+        if(vimpDenomPtr[i] > 0) {
+          maxValue = 0;
+          maxClass = 0;
+          for (j=1; j <= RF_rFactorSize[1]; j++) {
+            if (maxValue < RF_cVimpEnsemble[p][j][i]) {
+              maxValue = RF_cVimpEnsemble[p][j][i];
+              maxClass = (double) j;
             }
-            RF_vimpOutcome[p][i] = maxClass;
           }
-          else {
-            RF_vimpOutcome[p][i] = NA_REAL;
-          }
-        }  
+          RF_vimpOutcome[p][i] = maxClass;
+        }
+        else {
+          RF_vimpOutcome[p][i] = NA_REAL;
+        }
       }  
     } 
-  }
-  if (RF_opt & OPT_VIMP_LEOB) {
-    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      if (RF_eventTypeSize > 1) {
-        subTreeOutcomePtr = crTreeMortality;
-      }
-      else {
-        subTreeOutcomePtr = NULL;
-      }
-    }
-    else {
-      if (RF_rFactorCount > 0) {
-        subTreeOutcomePtr = mcTreeEnsemble[1];
-      }
-      else {
-        subTreeOutcomePtr = NULL;
-      }
-    }
-    getPerformance(treeID,
-                   mode, 
-                   obsSize, 
-                   responsePtr, 
-                   treeOutcome[1],
-                   subTreeOutcomePtr,
-                   denomPtr,
-                   RF_perfLeo[treeID]);
   }
   if (RF_opt & OPT_VIMP_LEOB) {
     normalizationFlag = FALSE;
@@ -686,52 +565,48 @@ void summarizeVimpPerformance(uint       mode,
       }
     }
   }
-  for (p=1; p <= varCount; p++) {
-    vimpDenomPtr = RF_vimpEnsembleDen[p];
-    if (normalizationFlag == TRUE) {
-      for (i = 1; i <= obsSize; i++) {
-        if (vimpDenomPtr[i] != 0) {
-          RF_vimpOutcome[p][i] = RF_vimpOutcome[p][i] / vimpDenomPtr[i];
-        }
+  vimpDenomPtr = RF_vimpEnsembleDen[p];
+  if (normalizationFlag == TRUE) {
+    for (i = 1; i <= obsSize; i++) {
+      if (vimpDenomPtr[i] != 0) {
+        RF_vimpOutcome[p][i] = RF_vimpOutcome[p][i] / vimpDenomPtr[i];
       }
     }
-    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      if (RF_eventTypeSize > 1) {
-        subVimpOutcomePtr = crVimpMortality[p];
-      }
-      else {
-        subVimpOutcomePtr = NULL;
-      }
-    }
-    else {
-      if (RF_rFactorCount > 0) {
-        subVimpOutcomePtr = RF_cVimpEnsemble[p];
-      }
-      else {
-        subVimpOutcomePtr = NULL;
-      }
-    }
-    getPerformance(treeID,
-                   mode, 
-                   obsSize, 
-                   responsePtr, 
-                   RF_vimpOutcome[p],
-                   subVimpOutcomePtr,
-                   vimpDenomPtr,
-                   importancePtr[p]);
-  }  
-  unstackImputeResponse(responseImputeFlag, RF_rSize, obsSize, responsePtr);
+  }
+  vimpOutcomePtr = RF_vimpOutcome[p];
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
     if (RF_eventTypeSize > 1) {
-      free_dmatrix3(crVimpMortality, 1, varCount, 1, RF_eventTypeSize, 1, obsSize);
-      if (RF_opt & OPT_VIMP_LEOB) {
-        free_dmatrix(crTreeMortality, 1, RF_eventTypeSize, 1, obsSize);
-      }
+      vimpOutcomePtr = NULL;
+      subVimpOutcomePtr = RF_sVimpOutcome[p];
+    }
+    else {
+      subVimpOutcomePtr = NULL;
+      vimpOutcomePtr = RF_sVimpOutcome[p][1];
+    }
+  }
+  else {
+    if (RF_rFactorCount > 0) {
+      subVimpOutcomePtr = RF_cVimpEnsemble[p];
+    }
+    else {
+      subVimpOutcomePtr = NULL;
     }
   }
   if (RF_opt & OPT_VIMP_LEOB) {
-    unstackTreeEnsemble(mode, treeOutcome, chfTreeEnsemble, mcTreeEnsemble);
+    importancePtr = RF_vimpLeo[treeID];
   }
+  else {
+    importancePtr = RF_importancePtr;
+  }
+  getPerformance(treeID,
+                 mode, 
+                 obsSize, 
+                 responsePtr, 
+                 vimpOutcomePtr,
+                 subVimpOutcomePtr,
+                 vimpDenomPtr,
+                 importancePtr[p]);
+  unstackImputeResponse(responseImputeFlag, RF_rSize, obsSize, responsePtr);
 } 
 void finalizeVimpPerformance(uint       mode,
                              uint       rejectedTreeCount) {
@@ -804,73 +679,54 @@ void finalizeVimpPerformance(uint       mode,
     }
   }
 }
-Node ***stackVimpMembership(uint mode) {
-  Node ***membership;
+Node **stackVimpMembership(uint mode) {
+  Node **membership;
   uint obsSize;
-  uint varCount;
   membership = NULL;
   if (RF_opt & OPT_VIMP) {
     switch (mode) {
     case RF_PRED:
       obsSize = RF_fobservationSize;
-      if (RF_opt & OPT_VIMP_JOIN) {
-        varCount = 1;
-      }
-      else {
-        varCount = RF_intrPredictorSize;
-      }
       break;
     default:
       obsSize = RF_observationSize;
-      if (RF_opt & OPT_VIMP_JOIN) {
-        varCount = 1;
-      }
-      else {
-        varCount = RF_intrPredictorSize;
-      }
       break;
     }
-    membership = (Node ***) vmatrix(1, varCount, 1, obsSize);
+    membership = (Node **) vvector(1, obsSize);
   }
   return membership;
 }
-void unstackVimpMembership(uint mode, Node ***membership) {
+void unstackVimpMembership(uint mode, Node **membership) {
   uint obsSize;
-  uint varCount;
   if (RF_opt & OPT_VIMP) {
     switch (mode) {
     case RF_PRED:
       obsSize = RF_fobservationSize;
-      if (RF_opt & OPT_VIMP_JOIN) {
-        varCount = 1;
-      }
-      else {
-        varCount = RF_intrPredictorSize;
-      }
       break;
     default:
       obsSize = RF_observationSize;
-      if (RF_opt & OPT_VIMP_JOIN) {
-        varCount = 1;
-      }
-      else {
-        varCount = RF_intrPredictorSize;
-      }
       break;
     }
-    free_vmatrix((void **) membership, 1, varCount, 1, obsSize);
+    free_vvector(membership, 1, obsSize);
   }
 }
 void stackTreeEnsemble(uint         mode,
                        double    ***treeOutcome,
-                       double  *****chfTreeEnsemble,
+                       double   ****sTreeOutcome,
                        double   ****mcTreeEnsemble) {
   uint obsSize;
-  uint ensbDimTwo;
+  uint ensbDimOne, ensbDimTwo;
   uint i,j,k;
-  *chfTreeEnsemble  = NULL;
+  ensbDimOne = 0;  
+  *sTreeOutcome     = NULL;
   *mcTreeEnsemble   = NULL;
-  if (RF_timeIndex > 0) {
+  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+    if (RF_eventTypeSize == 1) {
+      ensbDimOne = 1;
+    }
+    else {
+      ensbDimOne = RF_eventTypeSize;
+    }
     ensbDimTwo = RF_sortedTimeInterestSize;
   }
   else {
@@ -894,12 +750,10 @@ void stackTreeEnsemble(uint         mode,
     (*treeOutcome)[1][i] = 0.0;
   }
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    *chfTreeEnsemble  = dmatrix4(1, 1, 1, RF_eventTypeSize, 1, ensbDimTwo, 1, obsSize);
-    for (j = 1; j <= RF_eventTypeSize; j++) {
+    *sTreeOutcome = dmatrix3(1, 1, 1, ensbDimOne, 1, obsSize);
+    for (j = 1; j <= ensbDimOne; j++) {
       for (i = 1; i <= obsSize; i++) {
-        for (k = 1; k <= ensbDimTwo; k++) {
-          (*chfTreeEnsemble)[1][j][k][i] = 0.0;
-        }
+        (*sTreeOutcome)[1][j][i] = 0.0;
       }
     }
   }
@@ -916,11 +770,18 @@ void stackTreeEnsemble(uint         mode,
 }
 void unstackTreeEnsemble(uint        mode,
                          double    **treeOutcome,
-                         double  ****chfTreeEnsemble,
+                         double   ***sTreeOutcome,
                          double   ***mcTreeEnsemble) {
   uint obsSize;
-  uint ensbDimTwo;
-  if (RF_timeIndex > 0) {
+  uint ensbDimOne, ensbDimTwo;
+  ensbDimOne = 0;  
+  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+    if (RF_eventTypeSize == 1) {
+      ensbDimOne = 1;
+    }
+    else {
+      ensbDimOne = RF_eventTypeSize;
+    }
     ensbDimTwo = RF_sortedTimeInterestSize;
   }
   else {
@@ -941,11 +802,105 @@ void unstackTreeEnsemble(uint        mode,
   }
   free_dmatrix(treeOutcome, 1, 1, 1, obsSize);
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    free_dmatrix4(chfTreeEnsemble, 1, 1, 1, RF_eventTypeSize, 1, ensbDimTwo, 1, obsSize);
+    free_dmatrix3(sTreeOutcome, 1, 1, 1, ensbDimOne, 1, obsSize);
   }
   else {
     if (RF_rFactorCount > 0) {
       free_dmatrix3(mcTreeEnsemble, 1, 1, 1, ensbDimTwo, 1, obsSize);
     }
   }
+}
+void updateVimpCalculations (uint mode, uint b, uint intrIndex) {
+  Node   **vimpMembership;
+  uint     p;
+  vimpMembership = NULL;  
+  if (RF_leafCount[b] == 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Attempt to compute importance on a rejected tree:  %10d", b);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  if (!(RF_opt & OPT_VIMP)) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Attempt to compute importance when the option is not active:  %10d", b);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  if (!(RF_opt & OPT_VIMP_JOIN)) {
+    p = RF_intrPredictor[intrIndex];
+  }
+  else {
+    p = 0;
+  }
+  vimpMembership = stackVimpMembership(mode);
+  getVIMPmembership(mode, b, vimpMembership, p);
+  updateVimpEnsemble(mode, b, vimpMembership, intrIndex);
+  if (RF_opt & OPT_VIMP_LEOB) {
+    summarizeVimpPerformance(mode, b, intrIndex);
+  }
+  unstackVimpMembership(mode, vimpMembership);
+}
+void summarizeTreePerformance(uint mode, uint treeID) {
+  uint i, j;
+  uint obsSize;
+  uint *denomPtr;
+  double    **responsePtr;
+  double    **treeOutcome;
+  double   ***sTreeOutcome;
+  double   ***mcTreeEnsemble;
+  double     *treeOutcomePtr;
+  double    **subTreeOutcomePtr;
+  switch (mode) {
+  case RF_PRED: 
+    obsSize = RF_fobservationSize;
+    responsePtr = RF_fresponse[treeID];
+    denomPtr = RF_testMembershipFlag;
+    break;     
+  default:
+    obsSize = RF_observationSize;
+    responsePtr = RF_response[treeID];
+    denomPtr = RF_oobMembershipFlag[treeID];
+    break;
+  }
+  stackTreeEnsemble(mode, &treeOutcome, &sTreeOutcome, &mcTreeEnsemble);
+  updateTreeEnsemble(mode, treeID, treeOutcome, sTreeOutcome, mcTreeEnsemble);
+  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+    for (j = 1; j <= RF_eventTypeSize; j ++) {
+      for (i = 1; i <= obsSize; i++) {
+        if (denomPtr[i] != 0) {
+        }
+        else {
+          sTreeOutcome[1][j][i] = NA_REAL;
+        }
+      }
+    }
+  }
+  treeOutcomePtr = treeOutcome[1];
+  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+    if (RF_eventTypeSize > 1) {
+      treeOutcomePtr = NULL;
+      subTreeOutcomePtr = sTreeOutcome[1];
+    }
+    else {
+      treeOutcomePtr = sTreeOutcome[1][1];
+      subTreeOutcomePtr = NULL;
+    }
+  }
+  else {
+    if (RF_rFactorCount > 0) {
+      subTreeOutcomePtr = mcTreeEnsemble[1];
+    }
+    else {
+      subTreeOutcomePtr = NULL;
+    }
+  }
+  getPerformance(treeID,
+                 mode, 
+                 obsSize, 
+                 responsePtr, 
+                 treeOutcomePtr,
+                 subTreeOutcomePtr,
+                 denomPtr,
+                 RF_perfLeo[treeID]);
+  unstackTreeEnsemble(mode, treeOutcome, sTreeOutcome, mcTreeEnsemble);
 }

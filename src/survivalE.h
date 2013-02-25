@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -67,13 +67,13 @@ void updateEnsembleSurvival(uint mode, uint treeID);
 void getEnsembleMortality(uint      mode, 
                           uint      treeID,
                           uint      obsSize,
-                          double ***ensemblePtr,
+                          double  **ensemblePtr,
                           uint     *ensembleDenPtr,
                           double   *mortality);
 void getEnsembleMortalityCR(uint      mode, 
                             uint      treeID,
                             uint      obsSize,
-                            double ***ensemblePtr,
+                            double  **ensemblePtr,
                             uint     *ensembleDenPtr,
                             double  **crMortality);
 void getConditionalConcordanceArrays(uint     j, 

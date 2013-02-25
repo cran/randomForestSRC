@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -109,10 +109,14 @@ void stackCSH(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize);
 void unstackCSH(Node *tNode);
 void stackCIF(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize);
 void unstackCIF(Node *tNode);
+void stackMortality(Node *tNode, unsigned int eTypeSize);
+void unstackMortality(Node *tNode);
 void stackMVSign(Node *node, unsigned int mvSize);
 void unstackMVSign(Node *node);
 void stackFMVSign(Node *node, unsigned int fmvSize);
 void unstackFMVSign(Node *node);
 void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize);
 void unstackMultiClassProb(Node *tNode);
+void stackSplitDepth(Node *tNode, unsigned int depth);
+void unstackSplitDepth(Node *tNode);
 #endif

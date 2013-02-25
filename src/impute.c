@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -759,7 +759,7 @@ void imputeUpdateShadow (uint      mode,
 void imputeSummary(uint      mode,
                    char      selectionFlag) {
   imputeCommon(mode,
-               RF_forestSize,
+               0,
                selectionFlag, 
                TRUE);
 }
@@ -781,7 +781,9 @@ void imputeCommon(uint      mode,
                   uint      serialTreeID,
                   char      selectionFlag,
                   char      predictorFlag) {
-  uint i,p,tree;
+  uint *localSerialIndex;
+  uint  localSerialCount;
+  uint *serialPtr;
   char mFlag;
   char outcomeFlag;
   uint     mRecordSize;
@@ -799,6 +801,7 @@ void imputeCommon(uint      mode,
   uint maxDistributionSize;
   uint rspSize;
   char result;
+  uint i,p,tree;
   valuePtr      = NULL;  
   naivePtr      = NULL;  
   unsignedIndex = 0;     
@@ -860,6 +863,18 @@ void imputeCommon(uint      mode,
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
+  if (serialTreeID == 0) {
+    localSerialIndex = uivector(1, RF_forestSize);
+    for (tree = 1; tree <= RF_forestSize; tree++) {
+      localSerialIndex[tree] = tree;
+    }
+    serialPtr = localSerialIndex;
+    localSerialCount = RF_forestSize;
+  }
+  else {
+    serialPtr = RF_serialTreeIndex;
+    localSerialCount = serialTreeID;
+  }
   imputedValue = 0.0;  
   double *localDistribution = dvector(1, maxDistributionSize);
   char  *naiveMvFlag = cvector(1, mvSize);
@@ -883,11 +898,11 @@ void imputeCommon(uint      mode,
       if (outcomeFlag || predictorFlag) {
         if (mvSign[unsignedIndex][i] == 1) {
           localDistributionSize = 0;
-          for (tree = 1; tree <= serialTreeID; tree++) {
-            if (RF_leafCount[RF_serialTreeIndex[tree]] > 0) {
-              if ((RF_dmRecordBootFlag[RF_serialTreeIndex[tree]][i] == selectionFlag) || (selectionFlag == ACTIVE)) {
-                if (!ISNA(RF_dmvImputation[RF_serialTreeIndex[tree]][i][p])) {
-                  localDistribution[++localDistributionSize] = RF_dmvImputation[RF_serialTreeIndex[tree]][i][p];
+          for (tree = 1; tree <= localSerialCount; tree++) {
+            if (RF_leafCount[serialPtr[tree]] > 0) {
+              if ((RF_dmRecordBootFlag[serialPtr[tree]][i] == selectionFlag) || (selectionFlag == ACTIVE)) {
+                if (!ISNA(RF_dmvImputation[serialPtr[tree]][i][p])) {
+                  localDistribution[++localDistributionSize] = RF_dmvImputation[serialPtr[tree]][i][p];
                 }
                 else {
                 }  
@@ -900,16 +915,16 @@ void imputeCommon(uint      mode,
                 imputedValue = getMeanValue(localDistribution, localDistributionSize);
               }
               else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "S") == 0) {
-                imputedValue = getMaximalValue(localDistribution, localDistributionSize, serialTreeID);
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
               else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "R") == 0) {
                 imputedValue = getMeanValue(localDistribution, localDistributionSize);
               }
               else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "I") == 0) {
-                imputedValue = getMaximalValue(localDistribution, localDistributionSize, serialTreeID);
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
               else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "C") == 0) {
-                imputedValue = getMaximalValue(localDistribution, localDistributionSize, serialTreeID);
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
               outResponse[(uint) abs(mvIndex[p])][i] = imputedValue;
             }  
@@ -918,7 +933,7 @@ void imputeCommon(uint      mode,
                 imputedValue = getMeanValue(localDistribution, localDistributionSize);
               }
               else {
-                imputedValue = getMaximalValue(localDistribution, localDistributionSize, serialTreeID);
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
               outPredictor[(uint) mvIndex[p]][i] = imputedValue;
             }
@@ -967,7 +982,7 @@ void imputeCommon(uint      mode,
         if (localDistributionSize > 0) {
           for (i=1; i <= mRecordSize; i++) {
             if (naiveSign[i][p] == TRUE) {
-              naivePtr[i] = getSampleValue(localDistribution, localDistributionSize, FALSE, serialTreeID);
+              naivePtr[i] = getSampleValue(localDistribution, localDistributionSize, FALSE, localSerialCount);
             }
           }
         }  
@@ -987,6 +1002,9 @@ void imputeCommon(uint      mode,
       p = mvSize;
     }
   }  
+  if (serialTreeID == 0) {
+    free_uivector(localSerialIndex, 1, RF_forestSize);
+  }
   free_dvector(localDistribution, 1, maxDistributionSize);
   free_cvector(naiveMvFlag, 1, mvSize);
   free_cmatrix(naiveSign, 1, mRecordSize, 1, mvSize);

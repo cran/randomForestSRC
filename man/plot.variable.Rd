@@ -11,7 +11,7 @@
 }
 \usage{\method{plot.variable}{rfsrc}(x, xvar.names, 
   surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
-  percentile, which.outcome, partial = FALSE, plots.per.page = 4, granule = 5,
+  time, which.outcome, partial = FALSE, plots.per.page = 4, granule = 5,
   sorted = TRUE, nvar, npts = 25, smooth.lines = FALSE, subset,
   ...)
 }
@@ -20,9 +20,8 @@
     \code{(rfsrc, predict)}.}
   \item{xvar.names}{Names of the x-variables to be used.} 
   \item{surv.type}{For survival families, specifies the predicted value.}
-  \item{percentile}{For survival families, the percentile of the follow
-    up time used for plotting predicted survival.  Default is the
-    median.}
+  \item{time}{For survival families, the value of time used for plotting
+    survival quantities.  Default is the median follow up time.}
   \item{which.outcome}{For classification families, an integer or
     character value specifying the class to focus on (defaults to the
     first class).  For competing risk families, an integer value between
@@ -58,9 +57,8 @@
 	\item  Mortality (\code{mort}).
 	\item  Relative frequency of mortality (\code{rel.freq}).
 	\item Predicted survival (\code{surv}), where the predicted
-              survival is for the time point specified using the
-              \code{percentile} of the follow up time (the default is
-              50, the median follow up time).
+        survival is for the time point specified using
+        \code{time} (the default is the median follow up time).
       }
       \item For competing risks, the choices are:
       \itemize{
@@ -71,7 +69,7 @@
       In all three cases, the predicted value is for the event type
       specified by \option{which.outcome}.  For \code{cif} and
       \code{chf} the quantity is evaluated at the time point specified
-      by \code{percentile}.
+      by \code{time}.
     }
     
     For partial plots use \option{partial=TRUE}.  Their interpretation are
@@ -130,7 +128,7 @@ data(veteran, package = "randomForestSRC")
 v.obj <- rfsrc(Surv(time,status)~., veteran, nsplit = 10, ntree = 100)
 plot.variable(v.obj, plots.per.page = 3)
 plot.variable(v.obj, plots.per.page = 2, xvar.names = c("trt", "karno", "age"))
-plot.variable(v.obj, surv.type = "surv", nvar = 1, percentile = 75)
+plot.variable(v.obj, surv.type = "surv", nvar = 1, time = 200)
 plot.variable(v.obj, surv.type = "surv", partial = TRUE, smooth.lines = TRUE)
 plot.variable(v.obj, surv.type = "rel.freq", partial = TRUE, nvar = 2)
 

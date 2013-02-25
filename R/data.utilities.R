@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.2
+####  Version 1.1.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  kogalurshear@gmail.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -196,7 +196,7 @@ data.matrix <- function(x) {
   }))
 }
 
-extract.pred <- function(obj, type, subset, percentile, which.outcome, oob = FALSE) {
+extract.pred <- function(obj, type, subset, time, which.outcome, oob = FALSE) {
   # first decide if OOB or in-bag values are requested
   if (oob == FALSE) {
     pred <- obj$predicted
@@ -215,8 +215,7 @@ extract.pred <- function(obj, type, subset, percentile, which.outcome, oob = FAL
     n <- length(pred)
     if (missing(subset)) subset <- 1:n
     surv.type <- match.arg(type, c("mort", "rel.freq", "surv"))
-    time.idx <-  max(which(obj$time.interest <=
-                quantile(obj$yvar[, 1], probs = percentile, na.rm = TRUE)))
+    time.idx <-  max(which(obj$time.interest <= time))
     return(switch(surv.type,
              "mort" = pred[subset],
              "rel.freq" = pred[subset]/max(n, na.omit(pred)),
@@ -229,8 +228,7 @@ extract.pred <- function(obj, type, subset, percentile, which.outcome, oob = FAL
     if (missing(subset)) subset <- 1:n
     if (missing(which.outcome)) which.outcome <- 1#default is first event type
     cr.type <- match.arg(type, c("years.lost", "cif", "chf"))
-    time.idx <-  max(which(obj$time.interest <=
-                quantile(obj$yvar[, 1], probs = percentile, na.rm = TRUE)))
+    time.idx <-  max(which(obj$time.interest <= time))
     return(switch(cr.type,
              "years.lost" = pred[subset, which.outcome],
              "cif" = cif[subset, time.idx, which.outcome],
@@ -692,7 +690,7 @@ parseFormula <- function (formula, data) {
     }
     yvar.names <- fNames[1]
     Y <- data[, yvar.names]
-    if ( !(is.factor(Y) | is.real(Y) | is.integer(Y))) {
+    if ( !(is.factor(Y) | is.double(Y) | is.integer(Y))) {
       stop("the y-outcome must be either real or a factor.")
     }
     if (is.factor(Y)) {

@@ -31,7 +31,8 @@
   non-Windows systems, do the following:
   
   \enumerate{
-    \item Download the package source code from CRAN.
+    \item Download the package source code randomForestSRC_X.x.x.tar.gz
+    from CRAN (do not download the binary).
 
     \item Open a console, navigate to the directory containing the
     tarball, and untar it using the command
@@ -55,8 +56,9 @@
   most Windows systems, do the following:
   
   \enumerate{
-    \item Download the Windows specific custom binary build from
+    \item Download the Windows binary file randomForestSRC_X.x.x.zip from
     \url{http://www.ccs.miami.edu/~hishwaran/rfsrc.html}
+    
 
     \item If you are using the R GUI, start the GUI.  From the menu
     click on
@@ -112,7 +114,39 @@
   As stated above, this option command can be placed in the users
   .Rprofile file.
 }
+\section{CAUTIONARY NOTE}{
+
+Regarding C-side threading (accessed via OpenMP compilation) versus
+R-side forking (accessed via \command{mclapply} in package
+\pkg{parallel}).
+
+\enumerate{
+  \item Once the package has been compiled with OpenMP enabled, trees
+        will be grown in parallel using the \command{rf.cores} option.  The
+        package lists \pkg{parallel} as a dependency because we utilize
+        \command{mclapply} and the \command{mc.cores} option to
+        parallelize loops in R-side pre-processing and post-processing
+        of the forest.  This is always available and independent of
+        whether the user chooses to compile the package with the OpenMP
+        option enabled.
+
+  \item It is important NOT to write programs that fork R processes
+        containing OpenMP threads.  That is, one should not use
+        \command{mclapply} around the functions \command{rfsrc},
+        \command{predict.rfsrc}, \command{restore.rfsrc},
+        \command{vimp.rfsc}, \command{var.select.rfsrc}, and
+        \command{find.interaction.rfsrc}.  In such a scenario, program
+        execution is not guaranteed.
+
+  \item Note that \command{options(rf.cores=0)} disables C-side
+         threading, and \command{options(mc.cores=1)} disables R-side
+         forking.  Therefore, setting \command{options(rf.cores=0)}, is
+         one means to wrap  \command{mclapply} around the functions
+	 listed above in 2.
+       }
+}
 \section{Package Overview}{
+
   This package contains many useful functions and users should read the
   help file in its entirety for details.  However, we briefly mention
   several key functions that may make it easier to navigate and

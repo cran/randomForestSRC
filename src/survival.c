@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -414,6 +414,29 @@ void getCIF(uint treeID) {
         }
       }
       priorTimePointIndex = currentTimePointIndex;
+    }
+  }  
+}
+void getMortality(uint treeID) {
+  Node *parent;
+  uint leaf, j, q;
+  for (leaf=1; leaf <= RF_leafCount[treeID]; leaf++) {
+    parent = RF_terminalNode[treeID][leaf];
+    stackMortality(parent, RF_eventTypeSize);
+    for (j=1; j <= RF_eventTypeSize; j++) {      
+      (parent -> mortality)[j] = 0.0;
+    }
+    if (RF_eventTypeSize == 1) {
+      for (q = 1; q <= RF_sortedTimeInterestSize; q++) {
+        (parent -> mortality)[1] += (parent -> nelsonAalen)[q];
+      }
+    }
+    else {
+      for (j = 1; j <= RF_eventTypeSize; j ++) {
+        for (q=1; q <= RF_sortedTimeInterestSize - 1; q++) {            
+          (parent -> mortality)[j] += (parent -> CIF)[j][q] * (RF_timeInterest[q+1] - RF_timeInterest[q]);
+        }
+      }
     }
   }  
 }

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -258,6 +258,7 @@ void stackPreDefinedCommonArrays() {
   RF_oobMembershipFlag = (uint **) vvector(1, RF_forestSize);
   RF_terminalNode = (Node ***) vvector(1, RF_forestSize);
   RF_oobSize = uivector(1, RF_forestSize);
+  RF_maxDepth = uivector(1, RF_forestSize);
   RF_serialTreeIndex = uivector(1, RF_forestSize);
   if (RF_timeIndex > 0) {
     RF_masterTime  = dvector(1, RF_observationSize);
@@ -278,6 +279,7 @@ void unstackPreDefinedCommonArrays() {
   free_vvector(RF_oobMembershipFlag, 1, RF_forestSize);
   free_vvector(RF_terminalNode, 1, RF_forestSize);
   free_uivector(RF_oobSize, 1, RF_forestSize);
+  free_uivector(RF_maxDepth, 1, RF_forestSize);
   free_uivector(RF_serialTreeIndex, 1, RF_forestSize);
   if (RF_timeIndex > 0) {
     free_dvector(RF_masterTime, 1, RF_observationSize);
@@ -299,11 +301,9 @@ void stackPreDefinedGrowthArrays() {
     for (i = 1; i <= RF_intrPredictorSize; i++) {
       RF_intrPredictor[i] = i;
     }
-    if (RF_opt & OPT_VIMP_TYPE) {
-      RF_importanceFlag = cvector(1, RF_xSize);
-      for (i = 1; i <= RF_xSize; i++) {
-        RF_importanceFlag[i] = TRUE;
-      }
+    RF_importanceFlag = cvector(1, RF_xSize);
+    for (i = 1; i <= RF_xSize; i++) {
+      RF_importanceFlag[i] = TRUE;
     }
   }
 }
@@ -314,9 +314,7 @@ void unstackPreDefinedGrowthArrays() {
   }
   if (RF_opt & OPT_VIMP) {
     free_uivector(RF_intrPredictor, 1, RF_intrPredictorSize);
-    if (RF_opt & OPT_VIMP_TYPE) {
-      free_cvector(RF_importanceFlag, 1, RF_xSize);
-    }
+    free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
 }
 void stackPreDefinedRestoreArrays() {
@@ -328,14 +326,12 @@ void stackPreDefinedRestoreArrays() {
   }
   if (RF_opt & OPT_VIMP) {
     checkInteraction();
-    if (RF_opt & OPT_VIMP_TYPE) {
-      RF_importanceFlag = cvector(1, RF_xSize);
-      for (i = 1; i <= RF_xSize; i++) {
-        RF_importanceFlag[i] = FALSE;
-      }
-      for (i = 1; i <= RF_intrPredictorSize; i++) {
-        RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
-      }
+    RF_importanceFlag = cvector(1, RF_xSize);
+    for (i = 1; i <= RF_xSize; i++) {
+      RF_importanceFlag[i] = FALSE;
+    }
+    for (i = 1; i <= RF_intrPredictorSize; i++) {
+      RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
     }
   }
 }
@@ -343,9 +339,7 @@ void unstackPreDefinedRestoreArrays() {
   free_uivector(RF_nodeCount, 1, RF_forestSize);
   free_uivector(RF_mwcpCount, 1, RF_forestSize);
   if (RF_opt & OPT_VIMP) {
-    if (RF_opt & OPT_VIMP_TYPE) {
-      free_cvector(RF_importanceFlag, 1, RF_xSize);
-    }
+    free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
 }
 void stackPreDefinedPredictArrays() {
@@ -362,14 +356,12 @@ void stackPreDefinedPredictArrays() {
   }
   if (RF_opt & OPT_VIMP) {
     checkInteraction();
-    if (RF_opt & OPT_VIMP_TYPE) {
-      RF_importanceFlag = cvector(1, RF_xSize);
-      for (i = 1; i <= RF_xSize; i++) {
-        RF_importanceFlag[i] = FALSE;
-      }
-      for (i = 1; i <= RF_intrPredictorSize; i++) {
-        RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
-      }
+    RF_importanceFlag = cvector(1, RF_xSize);
+    for (i = 1; i <= RF_xSize; i++) {
+      RF_importanceFlag[i] = FALSE;
+    }
+    for (i = 1; i <= RF_intrPredictorSize; i++) {
+      RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
     }
   }
 }
@@ -379,9 +371,7 @@ void unstackPreDefinedPredictArrays() {
   free_uivector(RF_nodeCount, 1, RF_forestSize);
   free_uivector(RF_mwcpCount, 1, RF_forestSize);
   if (RF_opt & OPT_VIMP) {
-    if (RF_opt & OPT_VIMP_TYPE) {
-      free_cvector(RF_importanceFlag, 1, RF_xSize);
-    }
+    free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
 }
 void initializeArrays(char mode) {
@@ -2126,21 +2116,19 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
     RF_vimpOutcome = dmatrix(1, xVimpSize, 1, obsSize);
-    for (k=1; k <= xVimpSize; k++) {
+    for (p=1; p <= xVimpSize; p++) {
       for (i = 1; i <= obsSize; i++) {
-        RF_vimpOutcome[k][i] = 0.0;
+        RF_vimpOutcome[p][i] = 0.0;
       }
     }
     RF_cVimpEnsemble  = NULL;
-    RF_sVimpEnsemble = NULL;
+    RF_sVimpOutcome   = NULL;
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      RF_sVimpEnsemble = dmatrix4(1, xVimpSize, 1, ensbDimOne, 1, ensbDimTwo, 1, obsSize);
-      for (p = 1; p <= xVimpSize; p++) {
+      RF_sVimpOutcome = dmatrix3(1, xVimpSize, 1, ensbDimOne, 1, obsSize);
+      for (p=1; p <= xVimpSize; p++) {
         for (j = 1; j <= ensbDimOne; j++) {
           for (i = 1; i <= obsSize; i++) {
-            for (k = 1; k <= ensbDimTwo; k++) {
-              RF_sVimpEnsemble[p][j][k][i] = 0.0;
-            }
+            RF_sVimpOutcome[p][j][i] = 0.0;
           }
         }
       }
@@ -2382,7 +2370,7 @@ void unstackDefinedOutputObjects(char      mode,
     }
     free_dmatrix(RF_vimpOutcome, 1, xVimpSize, 1, obsSize);
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      free_dmatrix4(RF_sVimpEnsemble, 1, xVimpSize, 1, ensbDimOne, 1, ensbDimTwo, 1, obsSize);
+      free_dmatrix3(RF_sVimpOutcome, 1, xVimpSize, 1, ensbDimOne, 1, obsSize);
     }
     else {
       if (RF_rFactorCount > 0) {

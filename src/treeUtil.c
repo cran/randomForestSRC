@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -270,7 +270,6 @@ char growTree (char     rootFlag,
   double   splitValueMaxCont;
   uint     splitValueMaxFactSize;
   uint    *splitValueMaxFactPtr;
-  Node *reversePtr;
   uint i, p;
   parent -> depth = depth;
   bootResult = TRUE;
@@ -407,7 +406,7 @@ char growTree (char     rootFlag,
                                  leftRepMembrSize,
                                  leftAllMembrIndx,
                                  leftAllMembrSize,
-                                 depth + 1,
+                                 (parent -> depth) + 1,
                                  maximumDepth,
                                  bootMembrIndxIter);
           if(!leftResult) {
@@ -420,7 +419,7 @@ char growTree (char     rootFlag,
                                  rghtRepMembrSize,
                                  rghtAllMembrIndx,
                                  rghtAllMembrSize,
-                                 depth + 1,
+                                 (parent -> depth) + 1,
                                  maximumDepth,
                                  bootMembrIndxIter);
           if(!rghtResult) {
@@ -462,21 +461,7 @@ char growTree (char     rootFlag,
     }
     if (!(RF_opt & OPT_IMPU_ONLY)) {
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
-        if (depth > 0) {
-          *maximumDepth = ((depth > *maximumDepth) ? parent -> depth : *maximumDepth);
-          parent -> splitDepth = uivector(1, parent -> depth);
-          reversePtr = parent;
-          for (i = 1; i <= depth; i++) {
-            if ((reversePtr -> parent) == NULL) {
-              Rprintf("\nRF-SRC:  *** ERROR *** ");
-              Rprintf("\nRF-SRC:  Reverse parsing of tree failed in forkAndUpdate(%10d).", treeID);
-              Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-              error("\nRF-SRC:  The application will now exit.\n");
-            }
-            (parent -> splitDepth)[depth - i + 1] = (reversePtr -> parent) -> splitParameter;
-            reversePtr = reversePtr -> parent;
-          }    
-        }
+        getSplitDepth(parent, maximumDepth);
       }
     }
   }  
@@ -504,7 +489,6 @@ char restoreTree(uint    b,
                  uint    depth,
                  uint   *maximumDepth) {
   char result;
-  Node *reversePtr;
   uint i;
   if (b != treeID[*offset]) {
     Rprintf("\nDiagnostic Trace of Tree Record:  \n");
@@ -560,7 +544,7 @@ char restoreTree(uint    b,
                 contPT,
                 mwcpSZ,
                 mwcpPtr,
-                depth + 1,
+                parent -> depth + 1,
                 maximumDepth);
     parent -> right = makeNode(parent -> xSize);
     setParent(parent -> right, parent);
@@ -573,7 +557,7 @@ char restoreTree(uint    b,
                 contPT,
                 mwcpSZ,
                 mwcpPtr,
-                depth + 1,
+                parent -> depth + 1,
                 maximumDepth);
   }
   else {
@@ -586,21 +570,7 @@ char restoreTree(uint    b,
     }
     if (!(RF_opt & OPT_IMPU_ONLY)) {
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
-        if (depth > 0) {
-          *maximumDepth = ((depth > *maximumDepth) ? parent -> depth : *maximumDepth);
-          parent -> splitDepth = uivector(1, parent -> depth);
-          reversePtr = parent;
-          for (i = 1; i <= depth; i++) {
-            if ((reversePtr -> parent) == NULL) {
-              Rprintf("\nRF-SRC:  *** ERROR *** ");
-              Rprintf("\nRF-SRC:  Reverse parsing of tree failed in restoreTree().");
-              Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-              error("\nRF-SRC:  The application will now exit.\n");
-            }
-            (parent -> splitDepth)[depth - i + 1] = (reversePtr -> parent) -> splitParameter;
-            reversePtr = reversePtr -> parent;
-          }    
-        }
+        getSplitDepth(parent, maximumDepth);
       }
     }
   }
@@ -652,14 +622,34 @@ void freeTree(uint treeID, Node *parent, char rootFlag) {
   dFlag = rootFlag | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE);
   freeNode(parent, dFlag);
 }
+void getSplitDepth(Node *parent, uint *maximumDepth) {
+  Node *reversePtr;
+  uint i;
+  if (!(RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T))) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Call to calculate split depth without the option being active.");
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  if (parent -> depth > 0) {
+    *maximumDepth = ((parent -> depth > *maximumDepth) ? parent -> depth : *maximumDepth);
+    stackSplitDepth(parent, parent -> depth);
+    reversePtr = parent;
+    for (i = 1; i <= parent -> depth; i++) {
+      if ((reversePtr -> parent) == NULL) {
+        Rprintf("\nRF-SRC:  *** ERROR *** ");
+        Rprintf("\nRF-SRC:  Reverse parsing of tree failed in restoreTree().");
+        Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+        error("\nRF-SRC:  The application will now exit.\n");
+      }
+      (parent -> splitDepth)[(parent -> depth) - i + 1] = (reversePtr -> parent) -> splitParameter;
+      reversePtr = reversePtr -> parent;
+    }    
+  }
+}
 void freeSplitDepth(uint treeID) {
-  Node  *terminalNode;
   uint j;
   for (j = 1; j <= RF_leafCount[treeID]; j++) {
-    terminalNode = RF_terminalNode[treeID][j];
-    if (terminalNode -> splitDepth != NULL) {
-      free_uivector(terminalNode -> splitDepth, 1, terminalNode -> depth);
-      terminalNode -> splitDepth = NULL;
-    }
+    unstackSplitDepth(RF_terminalNode[treeID][j]);
   }
 }

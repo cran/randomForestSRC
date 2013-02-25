@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -60,9 +60,6 @@
 ////**********************************************************************
 
 
-#ifdef SUPPORT_OPENMP
-#include             <omp.h>
-#endif
 #include          "global.h"
 #include          "extern.h"
 #include           "trace.h"
@@ -76,212 +73,183 @@
 #include  "classification.h"
 #include      "regression.h"
 #include       "rfsrcUtil.h"
-void getVariablesUsed(Node *parent, uint *varUsedVector) {
-  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
-    varUsedVector[parent -> splitParameter] ++;
-    getVariablesUsed(parent ->  left, varUsedVector);
-    getVariablesUsed(parent -> right, varUsedVector);
+void getVariablesUsed(uint treeID, Node *parent, uint *varUsedVector) {
+  if (RF_leafCount[treeID] > 0) {
+    if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
+      varUsedVector[parent -> splitParameter] ++;
+      getVariablesUsed(treeID, parent ->  left, varUsedVector);
+      getVariablesUsed(treeID, parent -> right, varUsedVector);
+    }
   }
   return;
 }
 void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
-                                 Node     *rootPtr,
-                                 uint      b,
-                                 uint      serialID) {
-  uint j;
-  Node *terminalNode;
+                                 uint      b) {
   uint      obsSize;
-  double ***ensemblePtr;
+  double  **ensemblePtr;
   uint     *ensembleDenPtr;
   double   *outcome;
   double  **conditionalOutcome;
   double  **responsePtr;
-  Node   ***vimpMembership;
-  double    **treeOutcome;
-  double  ****crTreeOutcome;
-  double   ***mcTreeOutcome;
   uint     *denominatorCopy;
   char      respImputeFlag;
-  responsePtr          = NULL;  
-  obsSize              = 0;     
-  vimpMembership       = NULL;  
-  outcome              = NULL;  
-  conditionalOutcome   = NULL;  
-  treeOutcome          = NULL;  
-  crTreeOutcome        = NULL;  
-  mcTreeOutcome        = NULL;  
-  denominatorCopy      = NULL;  
-  if (RF_leafCount[b] == 0) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  Attempt to compute performance on a rejected tree:  %10d", b);
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-    error("\nRF-SRC:  The application will now exit.\n");
-  }
-  switch (mode) {
-  case RF_PRED:
-    obsSize = RF_fobservationSize;
-    break;
-  default:
-    obsSize = RF_observationSize;
-    break;
-  }
-  outcome = dvector(1, obsSize);
-  if (RF_opt & OPT_PERF) {
-    denominatorCopy = uivector(1, obsSize);
-  }
-  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    getAtRiskAndEventCounts(b);
-    getLocalRatio(b);
-    getLocalSurvival(b);
-    if (RF_eventTypeSize == 1) {
-      getLocalNelsonAalen(b);
+  uint      thisSerialTreeCount;
+  uint      j;
+  thisSerialTreeCount = 0;  
+  if (RF_leafCount[b] > 0) {
+    responsePtr          = NULL;  
+    obsSize              = 0;     
+    outcome              = NULL;  
+    conditionalOutcome   = NULL;  
+    denominatorCopy      = NULL;  
+    switch (mode) {
+    case RF_PRED:
+      obsSize = RF_fobservationSize;
+      break;
+    default:
+      obsSize = RF_observationSize;
+      break;
     }
-    else {
-      getLocalCSH(b);
-      getLocalCIF(b);
-    }
-    getSurvival(b);
-    if (RF_eventTypeSize == 1) {
-      getNelsonAalen(b);
-    }
-    else {
-      getCSH(b);
-      getCIF(b);
-    }
+    outcome = dvector(1, obsSize);
     if (RF_opt & OPT_PERF) {
-      if (RF_eventTypeSize > 1) {
-        conditionalOutcome = dmatrix(1, RF_eventTypeSize, 1, obsSize);
-      }
+      denominatorCopy = uivector(1, obsSize);
     }
-  }
-  else {
-    if (RF_rFactorCount > 0) {
-      if (RF_opt & OPT_PERF_CALB) {
-        conditionalOutcome = dmatrix(1, RF_rFactorSize[1], 1, obsSize);
-      }
-      getMultiClassProb(mode, b);
-    }
-    else {
-      getMeanResponse(mode, b);
-    }
-  }
-  if (RF_opt & OPT_VIMP) {
-    vimpMembership = stackVimpMembership(mode);
-    if (RF_opt & OPT_VIMP_LEOB) {
-      stackTreeEnsemble(mode, &treeOutcome, &crTreeOutcome, &mcTreeOutcome);
-    }
-    getVIMPmembership(mode, b, vimpMembership);
-  }
-  respImputeFlag = FALSE; 
-  if (RF_opt & OPT_PERF) {
-    respImputeFlag = stackAndImputePerfResponse(mode, 
-                                                multipleImputeFlag, 
-                                                b, 
-                                                serialID, 
-                                                RF_rSize, 
-                                                &responsePtr);
-  }
-#ifdef SUPPORT_OPENMP
-#pragma omp critical (_update_ensemble_)
-#endif
-  { 
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      updateEnsembleSurvival(mode, b);
+      getAtRiskAndEventCounts(b);
+      getLocalRatio(b);
+      getLocalSurvival(b);
+      if (RF_eventTypeSize == 1) {
+        getLocalNelsonAalen(b);
+      }
+      else {
+        getLocalCSH(b);
+        getLocalCIF(b);
+      }
+      getSurvival(b);
+      if (RF_eventTypeSize == 1) {
+        getNelsonAalen(b);
+      }
+      else {
+        getCSH(b);
+        getCIF(b);
+      }
+      getMortality(b);
       if (RF_opt & OPT_PERF) {
-        switch (mode) {
-        case RF_PRED:
-          obsSize = RF_fobservationSize;
-          ensembleDenPtr = RF_fullEnsembleDen;
-          if (RF_eventTypeSize == 1) {
-            ensemblePtr = RF_fullEnsemblePtr;
-          }
-          else {
-            ensemblePtr = RF_fullCIFPtr;
-          }
-          break;
-        default:
-          obsSize = RF_observationSize;
-          ensembleDenPtr = RF_oobEnsembleDen;
-          if (RF_eventTypeSize == 1) {
-            ensemblePtr = RF_oobEnsemblePtr;
-          }
-          else {
-            ensemblePtr = RF_oobCIFPtr;
-          }
-          break;
+        if (RF_eventTypeSize > 1) {
+          conditionalOutcome = dmatrix(1, RF_eventTypeSize, 1, obsSize);
         }
-        if (RF_eventTypeSize == 1) {
-          getEnsembleMortality(mode, b, obsSize, ensemblePtr, ensembleDenPtr, outcome);
-        }
-        else {
-          getEnsembleMortalityCR(mode, b, obsSize, ensemblePtr, ensembleDenPtr, conditionalOutcome);
-        }
-      }  
-    }  
+      }
+    }
     else {
       if (RF_rFactorCount > 0) {
-        updateEnsembleMultiClass(mode, b, outcome);
         if (RF_opt & OPT_PERF_CALB) {
-          copyEnsemble(mode, conditionalOutcome);
+          conditionalOutcome = dmatrix(1, RF_rFactorSize[1], 1, obsSize);
+        }
+        getMultiClassProb(mode, b);
+      }
+      else {
+        getMeanResponse(mode, b);
+      }
+    }
+#ifdef SUPPORT_OPENMP
+#pragma omp critical (_update_ensemble_true)
+#endif
+    { 
+      RF_serialTreeIndex[++RF_serialTreeCount] = b;
+      thisSerialTreeCount = RF_serialTreeCount;
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        updateEnsembleSurvival(mode, b);
+        if (RF_opt & OPT_PERF) {
+          switch (mode) {
+          case RF_PRED:
+            obsSize = RF_fobservationSize;
+            ensembleDenPtr = RF_fullEnsembleDen;
+            ensemblePtr = RF_fullMRTPtr;
+            break;
+          default:
+            obsSize = RF_observationSize;
+            ensembleDenPtr = RF_oobEnsembleDen;
+            ensemblePtr = RF_oobMRTPtr;
+            break;
+          }
+          if (RF_eventTypeSize == 1) {
+            getEnsembleMortality(mode, b, obsSize, ensemblePtr, ensembleDenPtr, outcome);
+          }
+          else {
+            getEnsembleMortalityCR(mode, b, obsSize, ensemblePtr, ensembleDenPtr, conditionalOutcome);
+          }
+        }  
+      }  
+      else {
+        if (RF_rFactorCount > 0) {
+          updateEnsembleMultiClass(mode, b, outcome);
+          if (RF_opt & OPT_PERF_CALB) {
+            copyEnsemble(mode, conditionalOutcome);
+          }
+        }
+        else {
+          updateEnsembleMean(mode, b, outcome);
+        }
+      }
+      if (RF_opt & OPT_PERF) {
+        copyDenominator(mode, denominatorCopy);
+        respImputeFlag = stackAndImputePerfResponse(mode, 
+                                                    multipleImputeFlag, 
+                                                    b, 
+                                                    thisSerialTreeCount, 
+                                                    RF_rSize, 
+                                                    &responsePtr);
+      }
+      else {
+        respImputeFlag = FALSE;
+      }
+    }  
+    if (RF_opt & OPT_PERF) {
+      getPerformance(b,
+                     mode,
+                     obsSize,
+                     responsePtr,
+                     outcome,
+                     conditionalOutcome, 
+                     denominatorCopy,
+                     RF_performancePtr[thisSerialTreeCount]);
+      unstackImputeResponse(respImputeFlag, RF_rSize, obsSize, responsePtr);
+    }  
+    for (j = 1; j <= RF_leafCount[b]; j++) {
+      freeTerminalNodeStructures(RF_terminalNode[b][j]);
+    }
+    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+      if (RF_opt & OPT_PERF) {
+        if (RF_eventTypeSize > 1) {
+          free_dmatrix(conditionalOutcome, 1, RF_eventTypeSize, 1, obsSize);
+        }
+      }
+    }
+    else {
+      if (RF_rFactorCount > 0) {
+        if (RF_opt & OPT_PERF_CALB) {
+          free_dmatrix(conditionalOutcome, 1, RF_rFactorSize[1], 1, obsSize);
         }
       }
       else {
-        updateEnsembleMean(mode, b, outcome);
       }
     }
-    if (RF_opt & OPT_VIMP) {
-      updateVimpEnsemble(mode, b, vimpMembership);
-      if (RF_opt & OPT_VIMP_LEOB) {
-        summarizeVimpPerformance(mode, b);
-      }
-    }
+    free_dvector(outcome, 1, obsSize);
     if (RF_opt & OPT_PERF) {
-      copyDenominator(mode, denominatorCopy);
+      free_uivector(denominatorCopy, 1, obsSize);
     }
-  } 
-  for (j = 1; j <= RF_leafCount[b]; j++) {
-    terminalNode = RF_terminalNode[b][j];
-    freeTerminalNodeStructures(terminalNode);
-  }
-  if (RF_opt & OPT_VIMP) {
-    unstackVimpMembership(mode, vimpMembership);
     if (RF_opt & OPT_VIMP_LEOB) {
-      unstackTreeEnsemble(mode, treeOutcome, crTreeOutcome, mcTreeOutcome);
-    }
-  }
-  if (RF_opt & OPT_PERF) {
-    getPerformance(b,
-                   mode,
-                   obsSize,
-                   responsePtr,
-                   outcome,
-                   conditionalOutcome, 
-                   denominatorCopy,
-                   RF_performancePtr[serialID]);
-  }  
-  if (RF_opt & OPT_PERF) {
-    unstackImputeResponse(respImputeFlag, RF_rSize, obsSize, responsePtr);
-  }
-  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    if (RF_opt & OPT_PERF) {
-      if (RF_eventTypeSize > 1) {
-        free_dmatrix(conditionalOutcome, 1, RF_eventTypeSize, 1, obsSize);
-      }
+      summarizeTreePerformance(mode, b);
     }
   }
   else {
-    if (RF_rFactorCount > 0) {
-      if (RF_opt & OPT_PERF_CALB) {
-        free_dmatrix(conditionalOutcome, 1, RF_rFactorSize[1], 1, obsSize);
-      }
+#ifdef SUPPORT_OPENMP
+#pragma omp critical (_update_ensemble_false)
+#endif
+    { 
+      RF_serialTreeIndex[++RF_serialTreeCount] = b;
     }
-    else {
-    }
-  }
-  free_dvector(outcome, 1, obsSize);
-  if (RF_opt & OPT_PERF) {
-    free_uivector(denominatorCopy, 1, obsSize);
   }
 }
 void copyDenominator(uint mode, uint *denominatorCopy) {
@@ -580,22 +548,18 @@ void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount) {
         for (i = 1; i <= obsSize; i++) {
           if (ensembleDenPtr[i] != 0) {
             if (RF_eventTypeSize == 1) {
-              ensMRTPtr[1][i] = 0.0;
+              ensMRTPtr[1][i] = ensMRTPtr[1][i] / ensembleDenPtr[i];
               for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
                 ensemblePtr[1][k][i] = ensemblePtr[1][k][i] / ensembleDenPtr[i];
                 ensSRVPtr[k][i]  = ensSRVPtr[k][i] / ensembleDenPtr[i];   
-                ensMRTPtr[1][i] += ensemblePtr[1][k][i];
               }
             }
             else {
               for(j = 1; j <= RF_eventTypeSize; j ++) {
+                ensMRTPtr[j][i] = ensMRTPtr[j][i] / ensembleDenPtr[i];
                 for (k=1; k <= RF_sortedTimeInterestSize; k++) {
                   ensemblePtr[j][k][i] = ensemblePtr[j][k][i] / ensembleDenPtr[i];
                   ensCIFPtr[j][k][i] = ensCIFPtr[j][k][i] / ensembleDenPtr[i];
-                }
-                ensMRTPtr[j][i] = 0.0;
-                for (k=1; k <= RF_sortedTimeInterestSize - 1; k++) {
-                  ensMRTPtr[j][i] += ensCIFPtr[j][k][i] * (RF_timeInterest[k+1] - RF_timeInterest[k]);;
                 }
               }
             }
@@ -606,7 +570,6 @@ void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount) {
               for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
                 ensemblePtr[1][k][i] = NA_REAL;
                 ensSRVPtr[k][i]      = NA_REAL;   
-                ensMRTPtr[1][i]      = NA_REAL;   
               }
             }
             else {

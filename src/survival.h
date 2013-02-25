@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -69,8 +69,9 @@ void getLocalCSH(uint treeID);
 void getLocalCIF(uint treeID);
 void getLocalSurvival(uint treeID);
 void getLocalNelsonAalen(uint treeID);
-void getCSH(uint treeID);
-void getCIF(uint treeID);
 void getNelsonAalen(uint treeID);
 void getSurvival(uint treeID);
+void getCSH(uint treeID);
+void getCIF(uint treeID);
+void getMortality(uint treeID);
 #endif
