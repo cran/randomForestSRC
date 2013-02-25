@@ -1,10 +1,14 @@
 Package: randomForestSRC
-Version: 1.0.2
-BUILD: bra20121031.bld20121205
+Version: 1.1.0
+BUILD: bra20121031.bld20130219
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.0.2
+CHANGES TO RELEASE 1.1.0
 
+RELEASE 1.1.0
+OpenMP performance enhancements to ensemble and variable importance calculations.
+
+---------------------------------------------------------------------------------
 RELEASE 1.0.2
 Fix to [S] missingness check when all status are non-censored.
 Fix to [S] summary imputation of time.
@@ -22,6 +26,6 @@ prematurely de-allocating terminal node information.
  
 ---------------------------------------------------------------------------------
 RELEASE 1.0.0 represents the first release of the
-package.  Please report bugs to kogalurshear@gmail.com
+package.  Please report bugs to ubk@kogalur.com
  
 ---------------------------------------------------------------------------------

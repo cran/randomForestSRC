@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.2
+####  Version 1.1.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  kogalurshear@gmail.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -66,6 +66,7 @@ rfsrc <- function(formula,
                   bootstrap = c("by.root", "by.node", "none"),
                   mtry = NULL,
                   nodesize = NULL,
+                  nodedepth = NULL,
                   splitrule = NULL,
                   nsplit = 0,
                   split.fast = FALSE,
@@ -113,6 +114,9 @@ rfsrc <- function(formula,
   ntree <- round(ntree)
   if (ntree < 1) stop("Invalid choice of 'ntree'.  Cannot be less than 1.")
   if (!is.null(nodesize) && nodesize < 1) stop("Invalid choice of 'nodesize'. Cannot be less than 1.")
+
+  if (!is.null(nodedepth)) nodedepth = round(nodedepth) else nodedepth = -1
+
   nimpute <- round(nimpute)
   if (nimpute < 1) stop("Invalid choice of 'nimpute'.  Cannot be less than 1.")
   seed <- get.seed(seed)
@@ -274,6 +278,7 @@ rfsrc <- function(formula,
                         as.integer(splitinfo$nsplit),
                         as.integer(mtry),
                         as.integer(nodesize),
+                        as.integer(nodedepth),
                         as.double(cause.wt),
                         as.integer(ntree),
                         as.integer(n),
@@ -410,6 +415,7 @@ rfsrc <- function(formula,
                        nativeFactorArray = nativeFactorArray,
                        totalNodeCount = dim(nativeArray)[1],
                        nodesize = nodesize,
+                       nodedepth = nodedepth,
                        ntree = ntree,
                        family = formulaDetail$family,                         
                        yvar = yvar,
@@ -542,6 +548,7 @@ rfsrc <- function(formula,
     nimpute = nimpute,                      
     mtry = mtry,
     nodesize = nodesize,
+    nodedepth = nodedepth,
     splitrule = splitinfo$name,
     nsplit = splitinfo$nsplit,
     yvar = yvar,

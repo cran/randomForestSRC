@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -234,6 +234,17 @@ char randomNonSurvivalSplit(uint    treeID,
   else {
     result = FALSE;
   }
+  if (RF_maximumNodeDepth < 0) {
+    result = TRUE;
+  }
+  else {
+    if (parent -> depth < (uint) RF_maximumNodeDepth) {
+      result = TRUE;
+    }
+    else {
+      result = FALSE;
+    }
+  }
   if (result) {
     result = getStandardDeviation(repMembrSize, repMembrIndx, RF_response[treeID][1]);
   }
@@ -364,6 +375,17 @@ char regressionSplit (uint    treeID,
   }
   else {
     result = FALSE;
+  }
+  if (RF_maximumNodeDepth < 0) {
+    result = TRUE;
+  }
+  else {
+    if (parent -> depth < (uint) RF_maximumNodeDepth) {
+      result = TRUE;
+    }
+    else {
+      result = FALSE;
+    }
   }
   if (result) {
     result = getStandardDeviation(repMembrSize, repMembrIndx, RF_response[treeID][1]);
@@ -659,6 +681,17 @@ char classificationSplit (uint    treeID,
   }
   else {
     result = FALSE;
+  }
+  if (RF_maximumNodeDepth < 0) {
+    result = TRUE;
+  }
+  else {
+    if (parent -> depth < (uint) RF_maximumNodeDepth) {
+      result = TRUE;
+    }
+    else {
+      result = FALSE;
+    }
   }
   responseClassCount = RF_classLevelSize[1];
   parentClassProp = uivector(1, responseClassCount);

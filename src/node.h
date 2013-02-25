@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -95,6 +95,7 @@ struct node {
   double **CIF;
   double *survival;
   double *nelsonAalen;
+  double *mortality;
   unsigned int   rfCount;
   unsigned int  *rfSize;
   unsigned int **multiClassProb;

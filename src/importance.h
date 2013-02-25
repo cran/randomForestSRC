@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -64,53 +64,58 @@
 #define RSFIMPORTANCE_H
 #include "node.h"
 Node *getProxyMember(Node    *parent,
-                     double **predictor,
+                     double **shadowVIMP,
                      uint     index);
-Node *randomizeMembership(uint     treeID,
-                          Node    *parent, 
+Node *randomizeMembership(Node    *parent, 
                           double **predictor, 
                           uint     individual, 
                           uint     splitParameter);
 void permute(uint treeID, uint n, uint *indx);
 void getRandomMembership(uint      mode,
                          uint      treeID,
-                         Node   ***vimpMembership);
+                         Node    **vimpMembership,
+                         uint      p);
 void getPermuteMembership(uint      mode,
                           uint      treeID,
-                          Node   ***vimpMembership);
+                          Node    **vimpMembership,
+                          uint      p);
 void getVIMPmembership(uint      mode, 
                        uint      treeID,
-                       Node   ***vimpMembership);
+                       Node    **vimpMembership,
+                       uint      p);
 void updateGenericVimpEnsemble (uint       treeID,
-                                uint       offset,
-                                uint       varLoopCount,
+                                uint       targetIndex,
                                 uint       obsSize,
                                 uint       selectionFlag,
                                 uint      *membershipFlag,
-                                Node    ***noiseMembership,
+                                Node     **noiseMembership,
                                 char       ensembleFlag,
                                 double   **outcome,
-                                double ****crOutcome,
+                                double  ***sOutcome,
                                 double  ***mcOutcome);
 void updateTreeEnsemble (uint       mode,
                          uint       treeID,
                          double   **outcome,
-                         double ****crOutcome,
+                         double  ***sOutcome,
                          double  ***mcOutcome);
 void updateVimpEnsemble (uint       mode,
                          uint       treeID,
-                         Node    ***vimpMembership);
+                         Node     **vimpMembership,
+                         uint       p);
 void summarizeVimpPerformance(uint       mode,
-                           uint       treeID);
+                              uint       treeID,
+                              uint       p);
 void finalizeVimpPerformance(uint mode, uint rejectedTreeCount);
-Node  ***stackVimpMembership(uint mode);
-void     unstackVimpMembership(uint mode, Node ***membership);
+Node  **stackVimpMembership(uint mode);
+void    unstackVimpMembership(uint mode, Node **membership);
 void stackTreeEnsemble(uint        mode,
                       double    ***treeOutcome,
-                      double  *****crTreeOutcome,
+                      double   ****sTreeOutcome,
                       double   ****mcTreeOutcome);
 void unstackTreeEnsemble(uint       mode,
                         double    **treeOutcome,
-                        double  ****crTreeOutcome,
+                        double   ***sTreeOutcome,
                         double   ***mcTreeOutcome);
+void updateVimpCalculations (uint mode, uint b, uint intrIndex);
+void summarizeTreePerformance(uint mode, uint treeID);
 #endif

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -81,6 +81,7 @@ extern uint      RF_splitRandomRule;
 extern uint      RF_imputeSize;
 extern uint      RF_forestSize;
 extern uint      RF_minimumNodeSize;
+extern int       RF_maximumNodeDepth;
 extern double   *RF_crWeight;
 extern uint      RF_randomCovariateCount;
 extern double   *RF_randomCovariateWeight;
@@ -186,8 +187,8 @@ extern double  **RF_fullMRTPtr;
 extern uint     *RF_oobEnsembleDen;
 extern uint     *RF_fullEnsembleDen;
 extern uint     **RF_vimpEnsembleDen;
-extern double ****RF_sVimpEnsemble;
 extern double   **RF_vimpOutcome;
+extern double  ***RF_sVimpOutcome;
 extern double  ***RF_cVimpEnsemble;
 extern double  ***RF_vimpLeo;
 extern double   **RF_perfLeo;
@@ -204,6 +205,7 @@ extern uint    *RF_foobSize;
 extern uint    *RF_leafCount;
 extern uint    *RF_nodeCount;
 extern uint    *RF_mwcpCount;
+extern uint    *RF_maxDepth;
 extern double  **RF_status;
 extern double  **RF_time;
 extern double ***RF_response;
@@ -228,4 +230,7 @@ extern int   (*randomGetChain) (uint);
 extern float (*ran2) (uint);
 extern void  (*randomSetUChain) (uint, int);
 extern int   (*randomGetUChain) (uint);
+extern float (*ran3) (uint);
+extern void  (*randomSetUChainCov) (uint, int);
+extern int   (*randomGetUChainCov) (uint);
 #endif

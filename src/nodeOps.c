@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -192,9 +192,6 @@ void freeTerminalNodeStructures(Node *terminalNode) {
   if (terminalNode -> eTypeSize > 1) {
     unstackCSH(terminalNode);
     unstackCIF(terminalNode);
-  }
-  if (terminalNode -> rfCount > 0) {
-    unstackMultiClassProb(terminalNode);
   }
 }
 void getNodeInfo(Node *leaf) {
@@ -580,6 +577,28 @@ void unstackCIF(Node *tNode) {
     }
   }
 }
+void stackMortality(Node *tNode, unsigned int eTypeSize) {
+  if (tNode -> eTypeSize > 0) {
+    if (tNode -> eTypeSize != eTypeSize) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
+  else {
+    tNode -> eTypeSize = eTypeSize;
+  }
+  tNode -> mortality = dvector(1, eTypeSize);
+}
+void unstackMortality(Node *tNode) {
+  if(tNode -> eTypeSize > 0) {
+    if (tNode -> mortality != NULL) {
+      free_dvector(tNode -> mortality, 1, tNode -> eTypeSize);
+      tNode -> mortality = NULL;
+    }
+  }
+}
 void stackMVSign(Node *node, unsigned int mvSize) {
   if (node -> mvSize > 0) {
     if (node -> mvSize != mvSize) {
@@ -661,6 +680,26 @@ void unstackMultiClassProb(Node *tNode) {
     }
     free_uivector(tNode -> rfSize, 1, tNode -> rfCount);
     tNode -> rfSize = NULL;
+  }
+}
+void stackSplitDepth(Node *tNode, unsigned int depth) {
+  if (tNode -> depth > 0) {
+    if (tNode -> depth != depth) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  depth has been previously defined:  %10d vs %10d", tNode -> depth, depth);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
+  else {
+    tNode -> depth = depth;
+  }
+  tNode -> splitDepth = uivector(1, tNode -> depth);
+}
+void unstackSplitDepth(Node *tNode) {
+  if (tNode -> splitDepth != NULL) {
+    free_uivector(tNode -> splitDepth, 1, tNode -> depth);
+    tNode -> splitDepth = NULL;
   }
 }
 void checkEventType(Node *tNode) {

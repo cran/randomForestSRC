@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -62,20 +62,26 @@
 
 #ifndef RANDOM_H
 #define RANDOM_H
-void randomStack(uint valSize);
-void randomUnstack(uint valSize);
+void randomStack(uint bSize, uint xSize);
+void randomUnstack(uint bSize, uint xSize);
 void randomSetChainParallel(uint b, int value);
 void randomSetUChainParallel(uint b, int value);
+void randomSetUChainParallelCov(uint p, int value);
 void randomSetChainSerial(uint b, int value);
 void randomSetUChainSerial(uint b, int value);
+void randomSetUChainSerialCov(uint p, int value);
 int randomGetChainParallel(uint b);
 int randomGetUChainParallel(uint b);
+int randomGetUChainParallelCov(uint p);
 int randomGetChainSerial(uint b);
 int randomGetUChainSerial(uint b);
+int randomGetUChainSerialCov(uint p);
 float randomChainParallel(uint b);
 float randomUChainParallel(uint b);
+float randomUChainParallelCov(uint p);
 float randomChainSerial(uint b);
 float randomUChainSerial(uint b);
+float randomUChainSerialCov(uint p);
 float ran1_generic(int *iy, int *iv, int *idum);
 float ran1_original(int *idum);
 #endif

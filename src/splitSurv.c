@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -101,6 +101,17 @@ char randomSurvivalSplit(uint    treeID,
   }
   else {
     result = FALSE;
+  }
+  if (RF_maximumNodeDepth < 0) {
+    result = TRUE;
+  }
+  else {
+    if (parent -> depth < (uint) RF_maximumNodeDepth) {
+      result = TRUE;
+    }
+    else {
+      result = FALSE;
+    }
   }
   if (result) {
     stackSplitIndicator(repMembrSize, & localSplitIndicator);
@@ -233,6 +244,17 @@ char logRank (uint    treeID,
   }
   else {
     result = FALSE;
+  }
+  if (RF_maximumNodeDepth < 0) {
+    result = TRUE;
+  }
+  else {
+    if (parent -> depth < (uint) RF_maximumNodeDepth) {
+      result = TRUE;
+    }
+    else {
+      result = FALSE;
+    }
   }
   if (result) {
     censProp = evntProp = 0;
@@ -419,6 +441,17 @@ char logRankScore(uint    treeID,
   }
   else {
     result = FALSE;
+  }
+  if (RF_maximumNodeDepth < 0) {
+    result = TRUE;
+  }
+  else {
+    if (parent -> depth < (uint) RF_maximumNodeDepth) {
+      result = TRUE;
+    }
+    else {
+      result = FALSE;
+    }
   }
   if (result) {
     censProp = evntProp = 0;
@@ -610,6 +643,17 @@ char logRankLauCR (uint    treeID,
   }
   else {
     result = FALSE;
+  }
+  if (RF_maximumNodeDepth < 0) {
+    result = TRUE;
+  }
+  else {
+    if (parent -> depth < (uint) RF_maximumNodeDepth) {
+      result = TRUE;
+    }
+    else {
+      result = FALSE;
+    }
   }
   if (result) {
     evntProp = uivector(1, RF_eventTypeSize + 1);

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.0.2
+####  Version 1.1.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  kogalurshear@gmail.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -64,7 +64,7 @@ plot.variable.rfsrc <- function(
   x,
   xvar.names,
   surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
-  percentile,
+  time,
   which.outcome,
   partial = FALSE,
   plots.per.page = 4,
@@ -85,8 +85,6 @@ plot.variable.rfsrc <- function(
     stop("Function only works for objects of class `(rfsrc, grow)', '(rfsrc, predict)'.")
   }
     
-  # assign missing values to key options
-  if (missing(percentile)) percentile <- 50
 
   ## process the subsetted index 
   ## assumes the entire data set is to be used if not specified
@@ -109,12 +107,17 @@ plot.variable.rfsrc <- function(
 
   ##survival families
   if (grepl("surv", object$family)) {
+
+    ##extract event information
     event.info <- get.event.info(object, subset)
     yvar.dim <- event.info$r.dim
     cens <- event.info$cens
     event.type <- event.info$event.type
-    if (percentile > 1) percentile <- percentile / 100
-    if (percentile < 0 | percentile > 1) percentile <- 0.5
+
+    ## assign time if missing
+    if (missing(time)) {
+      time <- median(event.info$time.interest, na.rm = TRUE)
+    }
     
     ## special processing for  CR analysis
     if (object$family == "surv-CR") {
@@ -131,9 +134,10 @@ plot.variable.rfsrc <- function(
       pred.type <- match.arg(surv.type, c("years.lost", "cif", "chf"))
       ylabel <- switch(pred.type,
            "years.lost" = paste("Years lost for event ", which.outcome),
-           "cif" = paste("CIF for event ", which.outcome, " (", round(100 * percentile), "%)", sep = ""),
-           "chf" = paste("CHF for event ", which.outcome, " (", round(100 * percentile), "%)", sep = ""))
+           "cif" = paste("CIF for event ", which.outcome, " (time=", time, ")", sep = ""),
+           "chf" = paste("CHF for event ", which.outcome, " (time=", time, ")", sep = ""))
     }
+    ## usual right-censoring setup
     else {
       which.outcome <- 1
       VIMP <- object$importance
@@ -142,11 +146,17 @@ plot.variable.rfsrc <- function(
       ylabel <- switch(pred.type,
            "mort"      = "mortality",
            "rel.freq"  = "standardized mortality",
-           "surv"      = paste("predicted survival (", round(100 * percentile), "%)", sep = ""))      
+           "surv"      = paste("predicted survival (time=", time, ")", sep = ""))
     }
+    
   }
-  ## classification families
+  ## all other families
   else {
+
+    ## assign a null time value
+    time <- NULL
+
+    ## classification families
     if (object$family == "class") {
       if (missing(which.outcome)) {
         which.outcome <- 1
@@ -161,7 +171,7 @@ plot.variable.rfsrc <- function(
       }
       pred.type <- "prob"
       yvar.dim <- 1
-      VIMP <- object$importance[, which.outcome]
+      VIMP <- object$importance[, 1 + which.outcome]
       ylabel <- paste("probability", levels(object$yvar)[which.outcome])
     }
     ## regression families
@@ -171,6 +181,7 @@ plot.variable.rfsrc <- function(
       VIMP <- object$importance
       ylabel <- expression(hat(y))
     }
+    
   }
 
   ### get x-variable matrix (use imputed values if available)
@@ -212,7 +223,7 @@ plot.variable.rfsrc <- function(
     plots.per.page <- max(round(min(plots.per.page,nvar)), 1)
     granule <- max(round(granule),1)
     par(mfrow = c(min(plots.per.page, ceiling(nvar / plots.per.page)), plots.per.page))
-    yhat <- extract.pred(object, pred.type, subset, percentile, which.outcome)
+    yhat <- extract.pred(object, pred.type, subset, time, which.outcome)
     if (n > 500) cex.pt <- 0.5 else cex.pt <- 0.75
     for (k in 1:nvar) {
       x <- xvar[, object$xvar.names == xvar.names[k]]
@@ -281,7 +292,7 @@ plot.variable.rfsrc <- function(
       factor.x <- !(!is.factor(x) & (n.x > granule))
       for (l in 1:n.x) {        
         newdata.x[, object$xvar.names == xvar.names[k]] <- rep(x.uniq[l], n)
-        pred.temp <- extract.pred(predict.rfsrc(baseForest, newdata.x), pred.type, 1:n, percentile, which.outcome)
+        pred.temp <- extract.pred(predict.rfsrc(baseForest, newdata.x), pred.type, 1:n, time, which.outcome)
         mean.temp <- mean(pred.temp , na.rm = TRUE)
         if (!factor.x) {
           yhat <- c(yhat, mean.temp)

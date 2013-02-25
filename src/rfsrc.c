@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -71,12 +71,10 @@
 #include      "treeUtil.h"
 #include     "bootstrap.h"
 #include        "impute.h"
-#include    "importance.h"
 #include     "rfsrcUtil.h"
+#include      "survival.h"
+#include    "importance.h"
 #include         "rfsrc.h"
-#ifdef SUPPORT_OPENMP
-#include           <omp.h>
-#endif
 uint stackCount;
 char  *sexpString[RF_SEXP_CNT] = {
   "",              
@@ -140,6 +138,7 @@ uint      RF_splitRandomRule;
 uint      RF_imputeSize;
 uint      RF_forestSize;
 uint      RF_minimumNodeSize;
+int       RF_maximumNodeDepth;
 double    RF_crWeight;
 uint      RF_randomCovariateCount;
 double   *RF_randomCovariateWeight;
@@ -245,8 +244,8 @@ double  **RF_fullMRTPtr;
 uint     *RF_oobEnsembleDen;
 uint     *RF_fullEnsembleDen;
 uint     **RF_vimpEnsembleDen;
-double ****RF_sVimpEnsemble;
 double   **RF_vimpOutcome;
+double  ***RF_sVimpOutcome;
 double  ***RF_cVimpEnsemble;
 double  ***RF_vimpLeo;
 double   **RF_perfLeo;
@@ -263,6 +262,7 @@ uint    *RF_foobSize;
 uint    *RF_leafCount;
 uint    *RF_nodeCount;
 uint    *RF_mwcpCount;
+uint    *RF_maxDepth;
 double  **RF_status;
 double  **RF_time;
 double ***RF_response;
@@ -287,13 +287,16 @@ int   (*randomGetChain) (uint);
 float (*ran2) (uint);
 void  (*randomSetUChain) (uint, int);
 int   (*randomGetUChain) (uint);
+float (*ran3) (uint);
+void  (*randomSetUChainCov) (uint, int);
+int   (*randomGetUChainCov) (uint);
 SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   uint sexpIndex;
   uint **mwcpPtrPtr;
   uint  *mwcpPtr;
   uint   totalMWCPCount, rejectedTreeCount;  
   uint i, j, k, r;
-  int b;
+  int vimpCount, intrIndex, b, p;
   if (RF_imputeSize < 1) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
     Rprintf("\nRF-SRC:  Parameter verification failed.");
@@ -385,11 +388,14 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
 #ifdef SUPPORT_OPENMP
   ran1 = &randomChainParallel;
   ran2 = &randomUChainParallel;
+  ran3 = &randomUChainParallelCov;
   randomSetChain = &randomSetChainParallel;
   randomSetUChain = &randomSetUChainParallel;
+  randomSetUChainCov = &randomSetUChainParallelCov;
   randomGetChain = &randomGetChainParallel;
   randomGetUChain = &randomGetUChainParallel;
-  randomStack(RF_forestSize);
+  randomGetUChainCov = &randomGetUChainParallelCov;
+  randomStack(RF_forestSize, RF_xSize);
   if (mode == RF_GROW) {
     randomSetChain(1, seedValue);
     for (b = 1; b <= RF_forestSize; b++) {
@@ -405,14 +411,24 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     ran2(1);
   }
   randomSetUChain(1, -abs(randomGetUChain(1) * 251));
+  randomSetUChainCov(1, seedValue);
+  for (p = 1; p <= RF_xSize; p++) {
+    randomSetUChainCov(p, -abs(randomGetUChainCov(1) * 397));
+    ran3(1);
+    ran3(1);
+  }
+  randomSetUChainCov(1, -abs(randomGetUChainCov(1) * 397));
 #else
   ran1 = &randomChainSerial;
   ran2 = &randomUChainSerial;
+  ran3 = &randomUChainSerialCov;
   randomSetChain = &randomSetChainSerial;
   randomSetUChain = &randomSetUChainSerial;
+  randomSetUChainCov = &randomSetUChainSerialCov;
   randomGetChain = &randomGetChainSerial;
   randomGetUChain = &randomGetUChainSerial;
-  randomStack(1);
+  randomGetUChainCov = &randomGetUChainSerialCov;
+  randomStack(1, 1);
   if (mode == RF_GROW) {
     randomSetChain(1, seedValue);
     ran1(1);
@@ -422,6 +438,10 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   ran2(1);
   ran2(1);
   randomSetUChain(1, -abs(randomGetUChain(1)) * 251);
+  randomSetUChainCov(1, seedValue);
+  ran3(1);
+  ran3(1);
+  randomSetUChainCov(1, -abs(randomGetUChainCov(1)) * 397);
 #endif
   if (mode != RF_GROW) {
     for (b = 1; b <= RF_forestSize; b++) {
@@ -487,11 +507,73 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       RF_serialTreeIndex[k] = 0;
     }
     RF_serialTreeCount = 0;
+    if (RF_numThreads > 0) {
 #ifdef SUPPORT_OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
-    for (b = 1; b <= RF_forestSize; b++) {
-      acquireTree(mode, r, b);
+      for (b = 1; b <= RF_forestSize; b++) {
+        acquireTree(mode, r, b);
+      }
+    }
+    else {
+      for (b = 1; b <= RF_forestSize; b++) {
+        acquireTree(mode, r, b);
+      }
+    }
+    if (r == RF_imputeSize) {
+      if (RF_opt & OPT_PROX) {
+        for (b = 1; b <= RF_forestSize; b++) {
+          updateProximity(mode, b);
+        }
+      }
+      if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
+        for (b = 1; b <= RF_forestSize; b++) {
+          updateSplitDepth(b, RF_root[b], RF_maxDepth[b]);
+        }
+      }
+      if (RF_opt & OPT_VUSE) {
+        for (b = 1; b <= RF_forestSize; b++) {
+          getVariablesUsed(b, RF_root[b], RF_varUsedPtr[b]);
+        }
+      }
+    }
+    if (r == RF_imputeSize) {
+      if (!(RF_opt & OPT_IMPU_ONLY)) {
+        char multipleImputeFlag;
+        multipleImputeFlag = FALSE;
+        if (mode == RF_GROW) {
+          if (r > 1) {
+            multipleImputeFlag = TRUE;
+          } 
+        }
+        if (RF_numThreads > 0) {
+#ifdef SUPPORT_OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+          for (b = 1; b <= RF_forestSize; b++) {
+            updateEnsembleCalculations(multipleImputeFlag, mode, b);
+          }
+        }
+        else {
+          for (b = 1; b <= RF_forestSize; b++) {
+            updateEnsembleCalculations(multipleImputeFlag, mode, b);
+          }
+        }
+      }
+    }  
+    else {
+      for (b = 1; b <= RF_forestSize; b++) {
+        freeTree(b, RF_root[b], TRUE);
+        free_vvector(RF_nodeMembership[b], 1, RF_observationSize);
+        free_uivector(RF_bootMembershipIndex[b], 1, RF_observationSize);
+        free_uivector(RF_bootMembershipFlag[b], 1, RF_observationSize);
+        free_uivector(RF_oobMembershipFlag[b], 1, RF_observationSize);
+        free_vvector(RF_terminalNode[b], 1, RF_leafCount[b] + 1);
+        if (mode == RF_PRED) {
+          free_vvector((Node **) RF_fnodeMembership[b],  1, RF_fobservationSize);
+        }
+        unstackShadow(mode, b);
+      }
     }
     if (mode != RF_PRED) {
       if (r == 1) {
@@ -563,6 +645,59 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
     }
   }  
+  if (RF_opt & OPT_VIMP) {
+    if (RF_opt & OPT_VIMP_JOIN) {
+      vimpCount = 1;
+    }
+    else {
+      vimpCount = RF_intrPredictorSize;
+    }
+    if (RF_numThreads > 0) {
+#ifdef SUPPORT_OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+      for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
+        for (uint bb = 1; bb <= RF_forestSize; bb++) {
+          if (RF_leafCount[bb] > 0) {
+            updateVimpCalculations(mode, bb, intrIndex);
+          }
+        }
+      }
+    }
+    else {
+      for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
+        for (uint bb = 1; bb <= RF_forestSize; bb++) {
+          if (RF_leafCount[bb] > 0) {
+            updateVimpCalculations(mode, bb, intrIndex);
+          }
+        }
+      }
+    }
+  }
+  for (b = 1; b <= RF_forestSize; b++) {
+    for (j = 1; j <= RF_leafCount[b]; j++) {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        unstackMortality(RF_terminalNode[b][j]);
+      }
+      else {
+        if (RF_rFactorCount > 0) {
+          unstackMultiClassProb(RF_terminalNode[b][j]);
+        }
+      }
+    }
+    if (!(RF_opt & OPT_TREE)) {
+      freeTree(b, RF_root[b], TRUE);
+    }
+    free_vvector(RF_nodeMembership[b], 1, RF_observationSize);
+    free_uivector(RF_bootMembershipIndex[b], 1, RF_observationSize);
+    free_uivector(RF_bootMembershipFlag[b], 1, RF_observationSize);
+    free_uivector(RF_oobMembershipFlag[b], 1, RF_observationSize);
+    free_vvector(RF_terminalNode[b], 1, RF_leafCount[b] + 1);
+    if (mode == RF_PRED) {
+      free_vvector((Node **) RF_fnodeMembership[b],  1, RF_fobservationSize);
+    }
+    unstackShadow(mode, b);
+  }
   rejectedTreeCount = k = 0;
   for (b = 1; b <= RF_forestSize; b++) {
     if (RF_leafCount[b] == 0) {
@@ -574,10 +709,28 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   }
   if (rejectedTreeCount < RF_forestSize) {
     if (RF_opt & OPT_VIMP) {
+      if (RF_opt & OPT_VIMP_JOIN) {
+        vimpCount = 1;
+      }
+      else {
+        vimpCount = RF_intrPredictorSize;
+      }
       if (RF_opt & OPT_VIMP_LEOB) {
       }
       else {
-        summarizeVimpPerformance(mode, 0);
+        if (RF_numThreads > 0) {
+#ifdef SUPPORT_OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+          for (p = 1; p <= vimpCount; p++) {
+            summarizeVimpPerformance(mode, 0, p);
+          }
+        }
+        else {
+          for (p = 1; p <= vimpCount; p++) {
+            summarizeVimpPerformance(mode, 0, p);
+          }
+        }
       }
       finalizeVimpPerformance(mode, rejectedTreeCount);
     }
@@ -678,9 +831,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   unstackPreDefinedCommonArrays();
   unstackIncomingArrays(mode);
 #ifdef SUPPORT_OPENMP
-  randomUnstack(RF_forestSize);
+  randomUnstack(RF_forestSize, RF_xSize);
 #else
-  randomUnstack(1);
+  randomUnstack(1, 1);
 #endif
   UNPROTECT(stackCount + 2);
   return sexpVector[RF_OUTP_ID];

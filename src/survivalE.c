@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -73,6 +73,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
   double ***ensemblePtr;
   double  **ensSRVPtr;
   double ***ensCIFPtr;
+  double  **ensMRTPtr;
   Node   ***nodeMembershipPtr;
   uint     *ensembleDenPtr;
   uint i, j, k;
@@ -81,6 +82,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
   ensembleDenPtr    = NULL;  
   ensSRVPtr         = NULL;  
   ensCIFPtr         = NULL;  
+  ensMRTPtr         = NULL;  
   oobFlag = fullFlag = FALSE;
   switch (mode) {
   case RF_PRED:
@@ -108,6 +110,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     if (oobFlag == TRUE) {
       ensemblePtr    = RF_oobEnsemblePtr;
       ensembleDenPtr = RF_oobEnsembleDen;
+      ensMRTPtr = RF_oobMRTPtr;
       if (RF_eventTypeSize == 1) {
         ensSRVPtr = RF_oobSRVPtr;
       }
@@ -119,6 +122,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
       if (fullFlag == TRUE) {
         ensemblePtr    = RF_fullEnsemblePtr;
         ensembleDenPtr = RF_fullEnsembleDen;
+        ensMRTPtr = RF_fullMRTPtr;
         if (RF_eventTypeSize == 1) {
           ensSRVPtr = RF_fullSRVPtr;
         }
@@ -150,6 +154,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
       if (selectionFlag) {
         ensembleDenPtr[i] ++;
         if (RF_eventTypeSize == 1) {
+          ensMRTPtr[1][i] += parent -> mortality[1];
           for (k=1; k <= RF_sortedTimeInterestSize; k++) {
             ensemblePtr[1][k][i] += parent -> nelsonAalen[k];
             ensSRVPtr[k][i] += parent -> survival[k];
@@ -157,6 +162,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
         }
         else {
           for (j = 1; j <= RF_eventTypeSize; j++) {
+            ensMRTPtr[j][i] += parent -> mortality[j];
             for (k=1; k <= RF_sortedTimeInterestSize; k++) {
               ensemblePtr[j][k][i] += parent -> CSH[j][k];
               ensCIFPtr[j][k][i] += parent -> CIF[j][k];
@@ -178,18 +184,14 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
 void getEnsembleMortalityCR(uint      mode, 
                             uint      treeID,
                             uint      obsSize,
-                            double ***ensemblePtr,
+                            double  **ensemblePtr,
                             uint     *ensembleDenPtr,
                             double  **crMortality) {
-  uint i, j, k;
+  uint i, j;
   for (j = 1; j <= RF_eventTypeSize; j ++) {
     for (i = 1; i <= obsSize; i++) {
-      crMortality[j][i] = 0.0;
       if (ensembleDenPtr[i] != 0) {
-        for (k=1; k <= RF_sortedTimeInterestSize - 1; k++) {            
-          crMortality[j][i] += ensemblePtr[j][k][i] * (RF_timeInterest[k+1] - RF_timeInterest[k]);
-        }
-        crMortality[j][i] = crMortality[j][i] / ensembleDenPtr[i];
+        crMortality[j][i] = ensemblePtr[j][i] / ensembleDenPtr[i];
       }
       else {
         crMortality[j][i] = NA_REAL;
@@ -200,17 +202,13 @@ void getEnsembleMortalityCR(uint      mode,
 void getEnsembleMortality(uint      mode, 
                           uint      treeID,
                           uint      obsSize,
-                          double ***ensemblePtr,
+                          double  **ensemblePtr,
                           uint     *ensembleDenPtr,
                           double   *mortality) {
-  uint i, k;
+  uint i;
   for (i = 1; i <= obsSize; i++) {
-    mortality[i] = 0.0;
     if (ensembleDenPtr[i] != 0) {
-      for (k=1; k <= RF_sortedTimeInterestSize; k++) {            
-        mortality[i] += ensemblePtr[1][k][i];
-      }
-      mortality[i] = mortality[i] / ensembleDenPtr[i];
+      mortality[i] = ensemblePtr[1][i] / ensembleDenPtr[i];
     }
     else {
       mortality[i] = NA_REAL;

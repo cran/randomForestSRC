@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.0.2
+////  Version 1.1.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  kogalurshear@gmail.com
+////    email:  ubk@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -73,6 +73,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP splitRandomRule,  
                SEXP randomCovariateCount,  
                SEXP minimumNodeSize,
+               SEXP maximumNodeDepth,
                SEXP crWeight,
                SEXP forestSize,  
                SEXP observationSize,
@@ -96,6 +97,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_splitRandomRule      = INTEGER(splitRandomRule)[0];
   RF_randomCovariateCount = INTEGER(randomCovariateCount)[0];
   RF_minimumNodeSize      = INTEGER(minimumNodeSize)[0];
+  RF_maximumNodeDepth     = INTEGER(maximumNodeDepth)[0];
   RF_crWeight             = REAL(crWeight);  RF_crWeight--;
   RF_forestSize           = INTEGER(forestSize)[0];
   RF_observationSize      = INTEGER(observationSize)[0];

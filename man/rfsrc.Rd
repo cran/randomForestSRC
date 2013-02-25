@@ -22,7 +22,8 @@
 }
 \usage{
 rfsrc(formula, data, ntree = 1000,
-  bootstrap = c("by.root", "by.node", "none"), mtry = NULL, nodesize = NULL,
+  bootstrap = c("by.root", "by.node", "none"), mtry = NULL,
+  nodesize = NULL, nodedepth = NULL,
   splitrule = NULL, nsplit = 0, split.fast = FALSE,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
   na.action = c("na.omit", "na.impute"), nimpute = 1,
@@ -50,6 +51,8 @@ rfsrc(formula, data, ntree = 1000,
     \item{nodesize}{Minimum number of unique cases (data points) in a
       terminal node.  The defaults are: survival (3), competing
       risk (6), regression (5), classification (1).}
+    \item{nodedepth}{Maximum depth to which a tree should be grown.  The
+      default behaviour is that this parameter is ingored.}
     \item{splitrule}{Splitting rule used to grow trees.  Available rules
       are as follows:
       \describe{
