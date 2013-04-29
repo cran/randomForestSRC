@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -65,6 +65,7 @@
 #include         "trace.h"
 #include        "nrutil.h"
 #include     "factorOps.h"
+#include    "regression.h"
 #include     "splitUtil.h"
 void updateMaximumSplit(double  delta, 
                         uint    randomCovariate,
@@ -77,8 +78,20 @@ void updateMaximumSplit(double  delta,
                         uint   *splitValueMaxFactSize,
                         uint  **splitValueMaxFactPtr,
                         void   *permissibleSplitPtr) {
+  char flag;
   uint k;
-  if (delta > *deltaMax) {
+  if(ISNA(*deltaMax)) {
+    flag = TRUE;
+  }
+  else {
+    if (delta > *deltaMax) {
+      flag = TRUE;
+    }
+    else {
+      flag = FALSE;
+    }
+  }
+  if (flag) {
     *deltaMax = delta;
     *splitParameterMax = randomCovariate;
     if (factorFlag == TRUE) {
@@ -689,34 +702,19 @@ void convertRelToAbsBinaryPair(uint    treeID,
     relativePair = relativePair >> 1;
   }
 }
-char summarizeSplitResult(uint   splitParameterMax, 
-                          double splitValueMaxCont,
-                          uint   splitValueMaxFactSize,
-                          uint  *splitValueMaxFactPtr,
-                          double deltaMax) {
+char summarizeSplitResult(uint    splitParameterMax, 
+                          double  splitValueMaxCont,
+                          uint    splitValueMaxFactSize,
+                          uint   *splitValueMaxFactPtr,
+                          double *splitStatistic,
+                          double  deltaMax) {
   char result;
   if (splitParameterMax > 0) {
+    *splitStatistic = deltaMax;
     result = TRUE;
   }
   else {
     result = FALSE;
   }
   return result;
-}
-char getStandardDeviation(uint repSize, uint *repIndx, double *target) {
-  uint i;
-  double meanResult, sdResult;
-  char result;
-  meanResult = 0.0;
-  for (i=1; i <= repSize; i++) {
-      meanResult += target[repIndx[i]];
-    }
-    meanResult = meanResult / (double) repSize;
-    sdResult = 0.0;
-    for (i=1; i <= repSize; i++) {
-      sdResult += pow(meanResult - target[repIndx[i]], 2.0);
-    }
-    sdResult = sdResult / (double) repSize;
-    result = ((sdResult <= EPSILON) ? FALSE : TRUE);
-    return(result);
 }

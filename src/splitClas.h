@@ -60,18 +60,51 @@
 ////**********************************************************************
 
 
-#ifndef RSFSURV_H
-#define RSFSURV_H
+#ifndef RSFSPLITCLAS_H
+#define RSFSPLITCLAS_H
 #include "node.h"
-void getAtRiskAndEventCounts(uint treeID);
-void getLocalRatio(uint treeID);
-void getLocalCSH(uint treeID);
-void getLocalCIF(uint treeID);
-void getLocalSurvival(uint treeID);
-void getLocalNelsonAalen(uint treeID);
-void getNelsonAalen(uint treeID);
-void getSurvival(uint treeID);
-void getCSH(uint treeID);
-void getCIF(uint treeID);
-void getMortality(uint treeID);
+char classificationSplit(uint    treeID,
+                         Node   *parent, 
+                         uint   *repMembrIndx,
+                         uint    repMembrSize,
+                         uint   *allMembrIndx,
+                         uint    allMembrSize,
+                         uint   *splitParameterMax,
+                         double *splitValueMaxCont,
+                         uint   *splitValueMaxFactSize,
+                         uint  **splitValueMaxFactPtr,
+                         double *splitStatistic);
+char classificationHwghtSplit(uint    treeID,
+                              Node   *parent, 
+                              uint   *repMembrIndx,
+                              uint    repMembrSize,
+                              uint   *allMembrIndx,
+                              uint    allMembrSize,
+                              uint   *splitParameterMax,
+                              double *splitValueMaxCont,
+                              uint   *splitValueMaxFactSize,
+                              uint  **splitValueMaxFactPtr,
+                              double *splitStatistic);
+char classificationUwghtSplit(uint    treeID,
+                              Node   *parent, 
+                              uint   *repMembrIndx,
+                              uint    repMembrSize,
+                              uint   *allMembrIndx,
+                              uint    allMembrSize,
+                              uint   *splitParameterMax,
+                              double *splitValueMaxCont,
+                              uint   *splitValueMaxFactSize,
+                              uint  **splitValueMaxFactPtr,
+                              double *splitStatistic);
+char mvClassificationSplit(uint    treeID, 
+                           Node   *parent, 
+                           uint   *repMembrIndx,
+                           uint    repMembrSize,
+                           uint   *allMembrIndx,
+                           uint    allMembrSize,
+                           uint   *splitParameterMax, 
+                           double *splitValueMaxCont, 
+                           uint   *splitValueMaxFactSize, 
+                           uint  **splitValueMaxFactPtr,
+                           double *splitStatistic);
 #endif

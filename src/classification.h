@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -60,8 +60,8 @@
 ////**********************************************************************
 
 
-#ifndef RSFCLAS_H
-#define RSFCLAS_H
+#ifndef RSFCLASS_H
+#define RSFCLASS_H
 #include "node.h"
 void getMultiClassProb (uint mode, uint treeID);
 void updateMultiClassProb (uint mode, uint treeID, double *ensemblePredictor);

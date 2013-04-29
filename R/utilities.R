@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -65,13 +65,9 @@ get.seed <- function (seed) {
     seed <- runif(1,1,1e6)
   }
   seed <- -round(abs(seed))
-
   return (seed)
 }
-  
-
 get.trace <- function (do.trace) {
-  ## Convert trace into native code parameter.
   if (!is.logical(do.trace)) {
     if (do.trace >= 1) {
       do.trace <- 2^24 * round(do.trace) + 1
@@ -83,12 +79,9 @@ get.trace <- function (do.trace) {
   else {
     do.trace <- 1 * do.trace
   }
-
   return (do.trace)
 }
-
 get.importance <-  function (importance) {
-  ## Convert importance option into native code parameter.
   if (!is.null(importance)) {
     if (importance == "none") {
       importance <- 0
@@ -124,12 +117,9 @@ get.importance <-  function (importance) {
   else {
     stop("Invalid choice for 'importance' option:  ", importance)
   }
-
   return (importance)
 }
-
 get.bootstrap <- function (bootstrap) {
-  ## Convert bootstrap option into native code parameter.
   if (!is.null(bootstrap)) {
     if (bootstrap == "by.root") {
       bootstrap <- 0
@@ -147,14 +137,9 @@ get.bootstrap <- function (bootstrap) {
   else {
     stop("Invalid choice for 'var.used' option:  ", bootstrap)
   }
-
   return (bootstrap)
 }
-
-
-
 get.forest <- function (forest) {
-  ## Convert forest option into native code parameter.
   if (!is.null(forest)) {
     if (forest == TRUE) {
       forest <- 2^5
@@ -169,12 +154,9 @@ get.forest <- function (forest) {
   else {
     stop("Invalid choice for 'forest' option:  ", forest)
   }
-
   return (forest)
 }
-
 get.proximity <- function (proximity) {
-  ## Convert proximity option into native code parameter.
   if (!is.null(proximity)) {
     if (proximity == TRUE) {
       proximity <- 2^3
@@ -189,13 +171,9 @@ get.proximity <- function (proximity) {
   else {
     stop("Invalid choice for 'proximity' option:  ", proximity)
   }
-
   return (proximity)
 }
-
-
 get.split.fast <- function (split.fast) {
-  ## Convert split.fast option into native code parameter.
   if (!is.null(split.fast)) {
     if (split.fast == TRUE) {
       split.fast <- 2^1
@@ -210,13 +188,9 @@ get.split.fast <- function (split.fast) {
   else {
     stop("Invalid choice for 'split.fast' option:  ", split.fast)
   }
-
   return (split.fast)
 }
-
 get.outcome <- function (outcome) {
-  ## TBD TBD TBD ## Delete NULL option.  This will not be necessary after we merge vimp() with predict().
-  ## Convert outcome option into native code parameter.
   if (is.null(outcome)) {
     outcome <- 0
   }
@@ -229,12 +203,9 @@ get.outcome <- function (outcome) {
   else {
     stop("Invalid choice for 'outcome' option:  ", outcome)
   }
-
   return (outcome)
 }
-
 get.var.used <- function (var.used) {
-  ## Convert varUsed option into native code parameter.
   if (!is.null(var.used)) {
     if (var.used == "all.trees") {
       var.used <- 2^13 + 0
@@ -252,12 +223,9 @@ get.var.used <- function (var.used) {
   else {
     stop("Invalid choice for 'var.used' option:  ", var.used)
   }
-    
   return (var.used)
 }
-
 get.split.depth <- function (split.depth) {
-  ## Convert split.depth option into native code parameter.
   if (!is.null(split.depth)) {
     if (split.depth == "all.trees") {
       split.depth <- 2^22
@@ -275,11 +243,8 @@ get.split.depth <- function (split.depth) {
   else {
     stop("Invalid choice for 'split.depth' option:  ", split.depth)
   }
-
   return (split.depth)
 }
-
-
 get.perf <-  function (perf, impute.only, family) {
   if (impute.only != TRUE) {
     if (!is.null(perf)) {
@@ -301,7 +266,6 @@ get.perf <-  function (perf, impute.only, family) {
     return (FALSE)
   }
 }
-
 get.cr.bits <- function (fmly) {
   if (fmly == "surv-CR") {
     return(2^21)
@@ -309,7 +273,6 @@ get.cr.bits <- function (fmly) {
     return(0)
   }
 }
-
 get.perf.bits <- function (perf) {
   if (perf) {
     return (2^2)
@@ -318,10 +281,7 @@ get.perf.bits <- function (perf) {
     return (0)
   }
 }
-
-
 get.membership <- function (membership) {
-  ## Convert membership option into native code parameter.
   if (!is.null(membership)) {
     if (membership == TRUE) {
       membership <- 2^11
@@ -336,16 +296,10 @@ get.membership <- function (membership) {
   else {
     stop("Invalid choice for 'membership' option:  ", membership)
   }
-
   return (membership)
 }
-
-## HIDDEN VARIABLES FOLLOW:
-
 is.hidden.impute.only <-  function (user.option) {
-
   index = match("impute.only", names(user.option), 0)
-  
   if(index == 0) {
     return (FALSE)
   }
@@ -353,7 +307,6 @@ is.hidden.impute.only <-  function (user.option) {
     return (as.logical(as.character(user.option[index])))
   }
 }
-
 get.impute.only <-  function (impute.only, nMiss) {
   if (impute.only) {
     if (nMiss > 0) {
@@ -367,9 +320,7 @@ get.impute.only <-  function (impute.only, nMiss) {
     return (0)
   }
 }
-
 get.restore.only <-  function (restore.only) {
-  ## Convert restory.only option into native code parameter.
   if (!is.null(restore.only)) {
     if (restore.only) {
       return (2^14)
@@ -385,9 +336,7 @@ get.restore.only <-  function (restore.only) {
     stop("Invalid choice for 'restore.only' option:  ", restore.only)
   }
 }
-
 get.vimp.only <-  function (vimp.only) {
-  ## Convert vimp.only option into native code parameter.
   if (!is.null(vimp.only)) {
     if (vimp.only) {
       return (2^27)
@@ -403,7 +352,23 @@ get.vimp.only <-  function (vimp.only) {
     stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
   }
 }
-
+get.statistics <- function (statistics) {
+  if (!is.null(statistics)) {
+    if (statistics == TRUE) {
+      statistics <- 2^27
+    }
+    else if (statistics == FALSE) {
+      statistics <- 0
+    }
+    else {
+      stop("Invalid choice for 'statistics' option:  ", statistics)
+    }
+  }
+  else {
+    stop("Invalid choice for 'statistics' option:  ", statistics)
+  }
+  return (statistics)
+}
 get.rf.cores <- function() {
   if (is.null(getOption("rf.cores"))) {
     if(!is.na(as.numeric(Sys.getenv("RF_CORES")))) {
@@ -412,4 +377,3 @@ get.rf.cores <- function() {
   }
   return (getOption("rf.cores", -1L))
 }
-

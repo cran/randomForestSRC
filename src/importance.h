@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -63,9 +63,9 @@
 #ifndef RSFIMPORTANCE_H
 #define RSFIMPORTANCE_H
 #include "node.h"
-Node *getProxyMember(Node    *parent,
-                     double **shadowVIMP,
-                     uint     index);
+Node *getPerturbedMembership(Node    *parent,
+                             double **shadowVIMP,
+                             uint     index);
 Node *randomizeMembership(Node    *parent, 
                           double **predictor, 
                           uint     individual, 
@@ -118,4 +118,5 @@ void unstackTreeEnsemble(uint       mode,
                         double   ***mcTreeOutcome);
 void updateVimpCalculations (uint mode, uint b, uint intrIndex);
 void summarizeTreePerformance(uint mode, uint treeID);
+uint getEnsembleDim ();
 #endif

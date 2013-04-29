@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -75,8 +75,8 @@ Node *getTerminalNode(uint treeID, uint leaf) {
   Node *parent;
   parent = NULL;
   for (j = 1; j <= RF_observationSize; j++) {
-    if ((RF_nodeMembership[treeID][j] -> leafCount) == leaf) {
-      parent = RF_nodeMembership[treeID][j];
+    if ((RF_tNodeMembership[treeID][j] -> leafCount) == leaf) {
+      parent = RF_tNodeMembership[treeID][j];
       j = RF_observationSize;
     }
   }
@@ -85,8 +85,8 @@ Node *getTerminalNode(uint treeID, uint leaf) {
     Rprintf("\n        index         boot         node         leaf \n");
     for (i = 1; i <= RF_observationSize; i++) {
       Rprintf(" %12d %12d %12x %12d \n", i, 
-              RF_bootMembershipFlag[treeID][i], RF_nodeMembership[treeID][i], 
-              RF_nodeMembership[treeID][i] -> leafCount);
+              RF_bootMembershipFlag[treeID][i], RF_tNodeMembership[treeID][i], 
+              RF_tNodeMembership[treeID][i] -> leafCount);
     }
     Rprintf("\nDiagnostic State of TRAIN data:  ");
     Rprintf("\n       index       status         time   observations -> \n");
@@ -138,16 +138,16 @@ void getRawNodeSize(uint  type,
   switch (type) {
   case RF_PRED:
     obsSize = RF_fobservationSize;
-    nodeMembershipPtr = RF_fnodeMembership;
+    nodeMembershipPtr = RF_ftNodeMembership;
     break;
   default: 
     obsSize = RF_observationSize;
-    nodeMembershipPtr = RF_nodeMembership;
+    nodeMembershipPtr = RF_tNodeMembership;
     break;
   }
   *repMembrSize = 0;
   for (i=1; i <= RF_observationSize; i++) {
-    if (RF_nodeMembership[treeID][RF_bootMembershipIndex[treeID][i]] == parent) {
+    if (RF_tNodeMembership[treeID][RF_bootMembershipIndex[treeID][i]] == parent) {
       repMembrIndx[++(*repMembrSize)] = RF_bootMembershipIndex[treeID][i];
     }
   }
@@ -166,6 +166,7 @@ char forkAndUpdate(uint   treeID,
                    double splitValueMaxCont,
                    uint   splitValueMaxFactSize,
                    uint  *splitValueMaxFactPtr,
+                   double splitStatistic,
                    uint  *membershipIndicator,
                    uint  *leftDaughterSize,
                    uint  *rghtDaughterSize) {
@@ -182,7 +183,10 @@ char forkAndUpdate(uint   treeID,
     if (RF_opt & OPT_TREE) {    
       RF_nodeCount[treeID] += 2;
     }
-    RF_leafCount[treeID]++;
+    if (RF_opt & OPT_NODE_STAT) {
+      parent -> splitStatistic = splitStatistic;
+    }
+    RF_tLeafCount[treeID]++;
     factorFlag = FALSE;
     if (strcmp(RF_xType[splitParameterMax], "C") == 0) {
       factorFlag = TRUE;
@@ -220,14 +224,14 @@ char forkAndUpdate(uint   treeID,
       if (daughterFlag == LEFT) {
         membershipIndicator[allMembrIndx[i]] = LEFT;
         (*leftDaughterSize) ++;
-        RF_nodeMembership[treeID][allMembrIndx[i]] = parent -> left;
+        RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
         ((parent -> left) -> leafCount) = (parent -> leafCount);
       }
       else {
         membershipIndicator[allMembrIndx[i]] = RIGHT;
         (*rghtDaughterSize) ++;
-        RF_nodeMembership[treeID][allMembrIndx[i]] = parent -> right;
-        ((parent -> right) -> leafCount) = RF_leafCount[treeID];
+        RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
+        ((parent -> right) -> leafCount) = RF_tLeafCount[treeID];
       }
     }
   }
@@ -270,6 +274,7 @@ char growTree (char     rootFlag,
   double   splitValueMaxCont;
   uint     splitValueMaxFactSize;
   uint    *splitValueMaxFactPtr;
+  double   splitStatistic;
   uint i, p;
   parent -> depth = depth;
   bootResult = TRUE;
@@ -294,7 +299,7 @@ char growTree (char     rootFlag,
         bsUpdateFlag = TRUE;
       }
       if (RF_mRecordSize > 0) {
-        for (p = 1; p <= RF_mvSize; p++) {
+        for (p = 1; p <= RF_mvSignSize; p++) {
           if (RF_mvIndex[p] > 0) {
             if (parent -> mvSign[p] == -1) {
               (parent -> permissibleSplit)[RF_mvIndex[p]] = FALSE;
@@ -313,6 +318,7 @@ char growTree (char     rootFlag,
     if (multImpFlag == FALSE) {
       if (RF_mRecordSize > 0) {
         imputeNode(RF_GROW,
+                   TRUE,
                    TRUE,
                    treeID,
                    parent,
@@ -341,7 +347,7 @@ char growTree (char     rootFlag,
         if (RF_opt & OPT_TREE) {
           RF_nodeCount[treeID] = 1;
         }
-        RF_leafCount[treeID] = 1;
+        RF_tLeafCount[treeID] = 1;
       }
       splitResult = getBestSplit(treeID, 
                                  parent, 
@@ -352,7 +358,8 @@ char growTree (char     rootFlag,
                                  & splitParameterMax,
                                  & splitValueMaxCont,
                                  & splitValueMaxFactSize,
-                                 & splitValueMaxFactPtr);
+                                 & splitValueMaxFactPtr,
+                                 & splitStatistic);
       if (splitResult == TRUE) {
         tnUpdateFlag = FALSE;
         uint *membershipIndicator = uivector(1, RF_observationSize);
@@ -364,6 +371,7 @@ char growTree (char     rootFlag,
                                    splitValueMaxCont,
                                    splitValueMaxFactSize, 
                                    splitValueMaxFactPtr,
+                                   splitStatistic,
                                    membershipIndicator,
                                    &leftAllMembrSize,
                                    &rghtAllMembrSize);
@@ -456,6 +464,7 @@ char growTree (char     rootFlag,
     }
   }  
   if (tnUpdateFlag) {
+    parent -> pseudoTerminal = TRUE;
     if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
       bsUpdateFlag = TRUE;
     }
@@ -564,9 +573,12 @@ char restoreTree(uint    b,
     result = FALSE;
   }
   if (!result) {
-    RF_terminalNode[b][parent -> leafCount] = parent;
+    parent -> pseudoTerminal = TRUE;
+    RF_tNodeList[b][parent -> leafCount] = parent;
     if ((RF_opt & OPT_MISS) | (RF_opt & OPT_OMIS)) {
       RF_mTerminalInfo[b][parent -> leafCount] = makeTerminal();
+      RF_mTerminalInfo[b][parent -> leafCount] -> mate = RF_tNodeList[b][parent -> leafCount];
+      parent -> mate = RF_mTerminalInfo[b][parent -> leafCount];
     }
     if (!(RF_opt & OPT_IMPU_ONLY)) {
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
@@ -614,13 +626,11 @@ void saveTree(uint    b,
   }
 }
 void freeTree(uint treeID, Node *parent, char rootFlag) {
-  char dFlag;
   if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
     freeTree(treeID, parent -> left, FALSE);
     freeTree(treeID, parent -> right, FALSE);
   }
-  dFlag = rootFlag | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE);
-  freeNode(parent, dFlag);
+  freeNode(parent);
 }
 void getSplitDepth(Node *parent, uint *maximumDepth) {
   Node *reversePtr;
@@ -649,7 +659,85 @@ void getSplitDepth(Node *parent, uint *maximumDepth) {
 }
 void freeSplitDepth(uint treeID) {
   uint j;
-  for (j = 1; j <= RF_leafCount[treeID]; j++) {
-    unstackSplitDepth(RF_terminalNode[treeID][j]);
+  for (j = 1; j <= RF_tLeafCount[treeID]; j++) {
+    unstackSplitDepth(RF_tNodeList[treeID][j]);
+  }
+}
+void saveStatistics(char    mode,
+                    uint    b,
+                    Node   *parent,
+                    uint   *offset,
+                    double *spltST,
+                    double *spltVR) {
+  if (!(RF_opt & OPT_NODE_STAT)) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Inconsistent call to saveStatistics().  The option is NOT active.");
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    Rprintf("\nRF-SRC:  The application will now exit.\n");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  if (mode == RF_GROW) {
+    spltST[*offset] = parent -> splitStatistic;
+  }
+  else {
+    if (RF_ptnCount == 0) {
+      spltST[*offset] = parent -> variance;
+    }
+    else {
+      spltST[*offset] = parent -> pseudoTerminal;
+    }
+  }
+  (*offset) ++;
+  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
+    saveStatistics(mode, b, parent ->  left, offset, spltST, spltVR);
+    saveStatistics(mode, b, parent -> right, offset, spltST, spltVR);
+  }
+}
+uint getMaximumDepth(Node *parent) {
+  uint result, rLeft, rRight;
+  result = parent -> depth;
+  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
+    rLeft = getMaximumDepth(parent ->  left);
+    rRight = getMaximumDepth(parent -> right);
+    result = (rLeft > rRight) ? rLeft : rRight;
+  }
+  return result;
+}
+void getNodesAtDepth(Node *parent, uint tagDepth, Node **nodesAtDepth, uint *nadCount) {
+  char recurseFlag;
+  recurseFlag = TRUE;
+  if (tagDepth == parent -> depth) {
+    if ((parent -> splitParameter) != 0) {
+      (*nadCount) ++;
+      nodesAtDepth[*nadCount] = parent;
+    }
+    recurseFlag = FALSE;
+  }
+  else {
+    if (((parent -> left) == NULL) && ((parent -> right) == NULL)) {
+      recurseFlag = FALSE;
+    }
+  }
+  if (recurseFlag) {
+    getNodesAtDepth(parent ->  left, tagDepth, nodesAtDepth, nadCount);
+    getNodesAtDepth(parent -> right, tagDepth, nodesAtDepth, nadCount);
+  }
+}
+void getTreeInfo(uint treeID, Node *parent) {
+  if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
+    getTreeInfo(treeID, parent ->  left);
+    getTreeInfo(treeID, parent -> right);
+  }
+}
+void getPTNodeList(Node    *parent,
+                   Node   **list,
+                   uint    *offset) {
+  if (!(parent -> pseudoTerminal)) {
+    getPTNodeList(parent ->  left, list, offset);
+    getPTNodeList(parent -> right, list, offset);
+  }
+  else {
+    (*offset) ++;
+    list[*offset] = parent;
   }
 }

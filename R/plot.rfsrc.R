@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -66,30 +66,18 @@ plot.rfsrc <- function (x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,
       sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
     stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, predict)'.")
   }
-  
-  ### grow objects under non-standard bootstrapping are devoid of
-  ### performance values
   if (is.null(x$err.rate)) {
     stop("object is devoid of performance values")
   }
-
-### set importance to NA if it is NULL
   if (is.null(x$importance)) {
     x$importance <- NA
   }
-
-  ### return when everything is NA
   if (all(is.na(x$err.rate)) & all(is.na(x$importance))) {
     stop("performance values are all NA")
   }
-
-  ### save par for later restoration
   old.par <- par(no.readonly = TRUE)
   cex <- par("cex")
-  
   on.exit(par(old.par))
-
-  ### decide what plots to generate
   if (all(is.na(x$importance))) {
     if (x$ntree > 1 && !all(is.na(x$err.rate))) {
       err <- cbind(x$err.rate)  
@@ -98,7 +86,6 @@ plot.rfsrc <- function (x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,
     }
   }
   else {
-    ### convert err/vimp to matrix format
     err <- cbind(x$err.rate)  
     imp <- cbind(x$importance)
     x.var.names <- rownames(imp)
@@ -122,12 +109,10 @@ plot.rfsrc <- function (x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,
     if (x$ntree > 1 & !all(is.na(x$err.rate))) {
       plot.err(err)
     }
-    ### CR/classification scenarios
     if (ncol(imp) > 1) {
       imp.out <- imp[rev(pred.order),, drop = FALSE]
       dotChart(imp[pred.order,, drop = FALSE], dotchart.labels, cex = cex)
     }
-    ### other scenarios
     if (ncol(imp) == 1) {
       dotChart(imp[pred.order, ], dotchart.labels, cex = cex)
       if (!is.null(x$xvar.wt) & length(unique(x$xvar.wt)) > 1 ) {
@@ -150,9 +135,6 @@ plot.rfsrc <- function (x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,
     }    
   } 
 }
-
-
-### error rate plot
 plot.err <- function(err, ...) {
   opar <- par("cex")
   on.exit(par(opar))
@@ -165,8 +147,6 @@ plot.err <- function(err, ...) {
            legend = colnames(err), col = 1:ncol(err), lty = 1, lwd = 3)
   }
 }
-
-### pretty dotchart
 dotChart <- function(x, labels = NULL, cex = cex) {
     if (!is.null(dim(x))) {
       ncol  <- ncol(x)
@@ -184,8 +164,6 @@ dotChart <- function(x, labels = NULL, cex = cex) {
              y.dot, x.dot, y.dot, col=c(2,4)[1 + 1 * (x.dot > 0)], lwd = 4)
     if (min(x.dot, na.rm = TRUE) < 0) abline(v=0, lwd = 2, lty = 2, col = 1)
   }
-
-### workhorse for dotchart
 dot.chart.main <- function (x, labels = NULL, groups = NULL, gdata = NULL, cex = NULL,
     pch = 21, gpch = 21, bg = par("bg"), color = par("fg"), gcolor = par("fg"), 
     lcolor = "gray", xlim = range(x[is.finite(x)]), main = NULL, 

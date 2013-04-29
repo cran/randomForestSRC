@@ -2,21 +2,24 @@
 \alias{predict.rfsrc}
 \title{Prediction for Random Forests for Survival, Regression, and Classification}
 \description{
-    Prediction on test data using a fitted RF-SRC object.
+   Prediction on test data.
 }
 \usage{\method{predict}{rfsrc}(object, newdata,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
   na.action = c("na.omit", "na.impute"), outcome = c("train", "test"),
   proximity = FALSE, var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
-  do.trace = FALSE, membership = TRUE, ...)
+  do.trace = FALSE,
+  membership = TRUE,
+  statistics = FALSE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
 	forest)}. Requires \option{forest=TRUE} in the original \code{rfsrc}
         call.}
-    \item{newdata}{Test data.  If missing, the original grow
-      (training) data is used.}    
+    \item{newdata}{Test data. If missing, the original grow
+      (training) data is used.}
+  
     \item{importance}{Method for computing variable importance (VIMP).
       See \command{rfsrc} for details. Only applies when the test data
       contains y-outcome values.}
@@ -38,6 +41,7 @@
 	causes output to be printed each \code{do.trace} iteration.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
+    \item{statistics}{Should statistics be returned?}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{  
@@ -134,8 +138,7 @@
   see the help file for \command{rfsrc}.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
   Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
@@ -151,7 +154,9 @@
   \command{\link{rfsrc}}
 }
 \examples{
-### typical train/testing scenario
+## ------------------------------------------------------------
+## typical train/testing scenario
+## ------------------------------------------------------------
 
 data(veteran, package = "randomForestSRC")
 train <- sample(1:nrow(veteran), round(nrow(veteran) * 0.80))
@@ -162,11 +167,14 @@ print(veteran.pred)
 
 
 \dontrun{
-### unique feature of rfsrc
-### cross-validation can be used when factor labels differ over
-### training and test data
+## ------------------------------------------------------------
+## unique feature of randomForestSRC
+## cross-validation can be used when factor labels differ over
+## training and test data
+## ------------------------------------------------------------
 
 # first we convert all x-variables to factors
+data(veteran, package = "randomForestSRC")
 veteran.factor <- data.frame(lapply(veteran, factor))
 veteran.factor$time <- veteran$time
 veteran.factor$status <- veteran$status
@@ -183,9 +191,10 @@ veteran.f.pred <- predict(veteran.f.grow, veteran.factor[-train , ])
 print(veteran.f.grow)
 print(veteran.f.pred)
 
-
-### example illustrating the flexibility of outcome = "test"
-### use this to get the out-of-bag error rate
+## ------------------------------------------------------------
+## example illustrating the flexibility of outcome = "test"
+## use this to get out-of-bag error rate
+## ------------------------------------------------------------
 
 # first, we make the grow call
 data(pbc, package = "randomForestSRC")
@@ -208,9 +217,10 @@ iris.obj <- rfsrc(Species ~., data = iris)
 print(iris.obj)
 print(predict.rfsrc(iris.obj, outcome = "test"))
 
-
-### another example illustrating outcome = "test"
-### unique way to check reproducibility of the forest
+## ------------------------------------------------------------
+## another example illustrating outcome = "test"
+## unique way to check reproducibility of the forest
+## ------------------------------------------------------------
 
 # primary call
 set.seed(542899)

@@ -1,10 +1,20 @@
 Package: randomForestSRC
-Version: 1.1.0
-BUILD: bra20121031.bld20130219
+Version: 1.2
+BUILD: bld20130429
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.1.0
+CHANGES TO RELEASE 1.2
+---------------------------------------------------------------------------------
+RELEASE 1.2
 
+Competing risks now implements two distinct splitting rules for
+identifying short term risks affecting the cause-specific hazard or
+long term predictions affecting the cumulative incidence function. The
+plot.variable function now returns, and can reuse, a plot.variable
+data structure object for user convenience. Thanks to John Ehrlinger
+for this improvement. Other minor bug fixes, and enhancements.
+
+---------------------------------------------------------------------------------
 RELEASE 1.1.0
 OpenMP performance enhancements to ensemble and variable importance calculations.
 
@@ -26,6 +36,5 @@ prematurely de-allocating terminal node information.
  
 ---------------------------------------------------------------------------------
 RELEASE 1.0.0 represents the first release of the
-package.  Please report bugs to ubk@kogalur.com
- 
----------------------------------------------------------------------------------
+package.  Please report bugs to commerce@kogalur.com
+

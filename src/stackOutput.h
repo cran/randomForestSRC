@@ -60,18 +60,23 @@
 ////**********************************************************************
 
 
-#ifndef RSFSURV_H
-#define RSFSURV_H
+#ifndef RSFSTACKOUTPUT_H
+#define RSFSTACKOUTPUT_H
 #include "node.h"
-void getAtRiskAndEventCounts(uint treeID);
-void getLocalRatio(uint treeID);
-void getLocalCSH(uint treeID);
-void getLocalCIF(uint treeID);
-void getLocalSurvival(uint treeID);
-void getLocalNelsonAalen(uint treeID);
-void getNelsonAalen(uint treeID);
-void getSurvival(uint treeID);
-void getCSH(uint treeID);
-void getCIF(uint treeID);
-void getMortality(uint treeID);
+void unstackDefinedOutputObjects(char      mode,
+                                 Node    **root);
+uint stackVariableOutputObjects(char     mode,
+                                uint     totalNodeCount,
+                                uint     totalMWCPCount,
+                                uint   **p_treeID,
+                                uint   **pRF_nodeID,
+                                uint   **pRF_parmID,
+                                double **pRF_contPT,
+                                uint   **pRF_mwcpSZ,
+                                uint   **pRF_mwcpPT,
+                                double **pRF_spltST,
+                                double **pRF_spltVR,
+                                uint     sexpLength,
+                                char   **sexpString,
+                                SEXP    *sexpVector);
 #endif

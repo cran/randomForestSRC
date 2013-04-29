@@ -4,7 +4,7 @@
 \title{VIMP for Single or Grouped Variables}
 \description{
   Calculate variable importance (VIMP) for a single variable or group of
-  variables for training or test data from a RF-SRC analysis.
+  variables for training or test data.
 }
 \usage{\method{vimp}{rfsrc}(object, xvar.names,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
@@ -17,6 +17,7 @@
     original \command{rfsrc} call.}
   \item{xvar.names}{Names of the x-variables to be used.  If not
     specified all variables are used.}
+
   \item{importance}{Type of VIMP.}
   \item{joint}{Individual or joint VIMP?}
   \item{newdata}{Test data.  Default is to use the original grow
@@ -55,8 +56,7 @@
     \item{importance}{Variable importance (VIMP).}
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
     Ishwaran H. (2007).  Variable importance in binary regression
@@ -67,8 +67,10 @@
 }
 \examples{
 \dontrun{
-### showcase different vimp
-### classification example
+## ------------------------------------------------------------
+## classification example
+## showcase different vimp
+## ------------------------------------------------------------
 
 iris.obj <- rfsrc(Species ~ ., data = iris)
 
@@ -85,8 +87,11 @@ vimp(iris.obj, joint = TRUE)$importance
 vimp(iris.obj, c("Petal.Length", "Petal.Width"), joint = TRUE)$importance
 vimp(iris.obj, c("Sepal.Length", "Petal.Width"), joint = TRUE)$importance
 
-### compare Breiman-Cutler vimp to ensemble based vimp
-### regression example
+
+## ------------------------------------------------------------
+## regression example
+## compare Breiman-Cutler vimp to ensemble based vimp
+## ------------------------------------------------------------
 
 airq.obj <- rfsrc(Ozone ~ ., airquality)
 vimp.all <- cbind(
@@ -94,7 +99,11 @@ vimp.all <- cbind(
      breimanCutler = vimp(airq.obj, importance = "permute")$importance)
 print(vimp.all)
 
-### calculate VIMP on test data
+
+## ------------------------------------------------------------
+## regression example
+## calculate VIMP on test data
+## ------------------------------------------------------------
 
 set.seed(100080)
 train <- sample(1:nrow(airquality), size = 80)
@@ -107,23 +116,24 @@ vimp(airq.obj)$importance
 #test data vimp
 vimp(airq.obj, newdata = airquality[-train, ])$importance
 
-
-### survival example
-### study how vimp depends on tree imputation
-### makes use of the subset option
+## ------------------------------------------------------------
+## survival example
+## study how vimp depends on tree imputation
+## makes use of the subset option
+## ------------------------------------------------------------
 
 data(pbc, package = "randomForestSRC")
 
-#determine which records have missing values
+# determine which records have missing values
 which.na <- apply(pbc, 1, function(x){any(is.na(x))})
 
-#impute the data using na.action = "na.impute"
+# impute the data using na.action = "na.impute"
 pbc.obj <- rfsrc(Surv(days,status) ~ ., pbc, nsplit = 3,
         na.action = "na.impute", nimpute = 1)
 
-#compare vimp based on records with no missing values
-#to those that have missing values
-#note the option na.action="na.impute" in the vimp() call
+# compare vimp based on records with no missing values
+# to those that have missing values
+# note the option na.action="na.impute" in the vimp() call
 vimp.not.na <- vimp(pbc.obj, subset = !which.na, na.action = "na.impute")$importance
 vimp.na <- vimp(pbc.obj, subset = which.na, na.action = "na.impute")$importance
 data.frame(vimp.not.na, vimp.na)

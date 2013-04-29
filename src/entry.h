@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -93,6 +93,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP observationSize,
                   SEXP rSize,
                   SEXP rType,
+                  SEXP rTarget,
                   SEXP rLevels,
                   SEXP rData,
                   SEXP xSize,
@@ -112,9 +113,9 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP mwcpSZ,
                   SEXP mwcpPT,
                   SEXP totalNodeCount,
-                  SEXP minimumNodeSize,
                   SEXP seed,
                   SEXP intrPredictorSize,
                   SEXP intrPredictor,
+                  SEXP ptnCount,
                   SEXP numThreads);
 #endif

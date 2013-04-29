@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -179,10 +179,10 @@ void convertRelToAbsBinaryPair(uint    treeID,
                                uint    relativePair,
                                double *absoluteLevel, 
                                uint   *pair);
-char summarizeSplitResult(uint   splitParameterMax, 
-                          double splitValueMaxCont,
-                          uint   splitValueMaxFactSize,
-                          uint  *splitValueMaxFactPtr,
-                          double deltaMax);
-char getStandardDeviation(uint repSize, uint *repIndx, double *target);
+char summarizeSplitResult(uint    splitParameterMax, 
+                          double  splitValueMaxCont,
+                          uint    splitValueMaxFactSize,
+                          uint   *splitValueMaxFactPtr,
+                          double *splitStatistic,
+                          double  deltaMax);
 #endif

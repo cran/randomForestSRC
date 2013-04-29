@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -60,21 +60,23 @@
 ////**********************************************************************
 
 
-#include        "global.h"
-#include         "trace.h"
-#include        "nrutil.h"
-#include        "random.h"
-#include        "factor.h"
-#include         "stack.h"
-#include       "nodeOps.h"
-#include          "tree.h"
-#include      "treeUtil.h"
-#include     "bootstrap.h"
-#include        "impute.h"
-#include     "rfsrcUtil.h"
-#include      "survival.h"
-#include    "importance.h"
-#include         "rfsrc.h"
+#include          "global.h"
+#include           "trace.h"
+#include          "nrutil.h"
+#include          "random.h"
+#include          "factor.h"
+#include "stackPreDefined.h"
+#include     "stackOutput.h"
+#include           "stack.h"
+#include         "nodeOps.h"
+#include            "tree.h"
+#include        "treeUtil.h"
+#include       "bootstrap.h"
+#include          "impute.h"
+#include       "rfsrcUtil.h"
+#include        "survival.h"
+#include      "importance.h"
+#include           "rfsrc.h"
 uint stackCount;
 char  *sexpString[RF_SEXP_CNT] = {
   "",              
@@ -103,7 +105,10 @@ char  *sexpString[RF_SEXP_CNT] = {
   "fullMortality", 
   "oobMortality",  
   "nodeMembership",
-  "bootMembership" 
+  "bootMembership",
+  "spltST",        
+  "spltVR",        
+  "ptnMembership"  
 };
 SEXP sexpVector[RF_SEXP_CNT];
 uint     *RF_treeID_;
@@ -112,6 +117,8 @@ uint     *RF_parmID_;
 uint     *RF_mwcpSZ_;
 double   *RF_contPT_;
 uint     *RF_mwcpPT_;
+double   *RF_spltST_;
+double   *RF_spltVR_;
 uint      RF_totalNodeCount;
 double   *RF_importance_;
 double   *RF_imputation_;
@@ -119,10 +126,11 @@ double   *RF_oobImputation_;
 uint     *RF_varUsed_;
 double   *RF_splitDepth_;
 int      *RF_seed_;
-uint     *RF_leafCount_;
+uint     *RF_tLeafCount_;
 double   *RF_performance_;
-uint     *RF_terminalNodeMembership_;
+uint     *RF_tNodeMembershipIndex_;
 uint     *RF_bootstrapMembership_;
+uint     *RF_pNodeMembershipIndex_;
 double   *RF_fullEnsemble_;
 double   *RF_oobEnsemble_;
 double   *RF_fullEnsembleCIF_;
@@ -142,9 +150,11 @@ int       RF_maximumNodeDepth;
 double    RF_crWeight;
 uint      RF_randomCovariateCount;
 double   *RF_randomCovariateWeight;
+uint      RF_ptnCount;
 int       RF_numThreads;
 uint      RF_observationSize;
 uint      RF_rSize;
+uint      RF_rTarget;
 double   *RF_rData;
 uint      RF_xSize;
 double   *RF_xData;
@@ -220,8 +230,8 @@ uint      RF_mRecordSize;
 uint      RF_fmRecordSize;
 uint     *RF_mRecordIndex;
 uint     *RF_fmRecordIndex;
-uint      RF_mvSize;
-uint      RF_fmvSize;
+uint      RF_mvSignSize;
+uint      RF_fmvSignSize;
 int     **RF_mvSign;
 int     **RF_fmvSign;
 int      *RF_mvIndex;
@@ -231,8 +241,9 @@ double **RF_sImputeResponsePtr;
 double **RF_sImputePredictorPtr;
 double **RF_sOOBImputeResponsePtr;
 double **RF_sOOBImputePredictorPtr;
-uint  **RF_terminalNodeMembershipPtr;
+uint  **RF_tNodeMembershipIndexPtr;
 uint  **RF_bootstrapMembershipPtr;
+uint  **RF_pNodeMembershipIndexPtr;
 double ***RF_oobEnsemblePtr;
 double ***RF_fullEnsemblePtr;
 double ***RF_oobCIFPtr;
@@ -259,9 +270,10 @@ double **RF_performancePtr;
 uint   **RF_varUsedPtr;
 uint    *RF_oobSize;
 uint    *RF_foobSize;
-uint    *RF_leafCount;
+uint    *RF_tLeafCount;
 uint    *RF_nodeCount;
 uint    *RF_mwcpCount;
+uint    *RF_pLeafCount;
 uint    *RF_maxDepth;
 double  **RF_status;
 double  **RF_time;
@@ -272,13 +284,16 @@ double ***RF_fresponse;
 double ***RF_observation;
 double ***RF_fobservation;
 Node    **RF_root;
-Node   ***RF_nodeMembership;
+Node   ***RF_tNodeMembership;
+Node   ***RF_pNodeMembership;
 uint    **RF_bootMembershipIndex;
 uint     *RF_trivialBootMembershipIndex;
 uint    **RF_bootMembershipFlag;
 uint    **RF_oobMembershipFlag;
-Node   ***RF_terminalNode;
-Node   ***RF_fnodeMembership;
+Node   ***RF_tNodeList;
+uint    **RF_nodeListIndex;
+Node   ***RF_pNodeList;
+Node   ***RF_ftNodeMembership;
 uint    **RF_masterTimeIndex;
 Factor ***RF_factorList;
 float (*ran1) (uint);
@@ -297,6 +312,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   uint   totalMWCPCount, rejectedTreeCount;  
   uint i, j, k, r;
   int vimpCount, intrIndex, b, p;
+  totalMWCPCount = 0; 
   if (RF_imputeSize < 1) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
     Rprintf("\nRF-SRC:  Parameter verification failed.");
@@ -346,7 +362,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     stackPreDefinedGrowthArrays();
     break;
   }
-  initializeArrays(mode);
+  initializeTimeArrays(mode);
   stackFactorArrays(mode);
   stackMissingArrays(mode);
   if (RF_statusIndex > 0) {
@@ -361,7 +377,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                         & RF_oobEnsemble_,
                                         & RF_fullEnsemble_,
                                         & RF_performance_,
-                                        & RF_leafCount_,
+                                        & RF_tLeafCount_,
                                         & RF_proximity_,
                                         & RF_importance_,
                                         & RF_seed_,
@@ -380,7 +396,8 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                         & RF_fullEnsembleSRV_,
                                         & RF_oobEnsembleMRT_,
                                         & RF_fullEnsembleMRT_,
-                                        & RF_terminalNodeMembership_,
+                                        & RF_tNodeMembershipIndex_,
+                                        & RF_pNodeMembershipIndex_,
                                         & RF_bootstrapMembership_,
                                         & stackCount,
                                         sexpVector
@@ -472,14 +489,18 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
     }
     for (b = 1; b <= RF_forestSize; b++) {
-      RF_leafCount[b] = (RF_nodeCount[b] + 1) >> 1;
+      RF_tLeafCount[b] = (RF_nodeCount[b] + 1) >> 1;
+      totalMWCPCount = 0;
+      if (RF_tLeafCount[b] > 0) {
+        totalMWCPCount += RF_mwcpCount[b];
+      }
     }
   }
   for (r = 1; r <= RF_imputeSize; r++) {
     if (r == RF_imputeSize) {
 #ifdef SUPPORT_OPENMP
       if (mode == RF_GROW) {
-        if (RF_opt & OPT_TREE) { 
+        if (RF_opt & OPT_SEED) { 
           for (b = 1; b <= RF_forestSize; b++) {
             randomSetChain(b , -abs(randomGetChain(b)));
             RF_seed_[b] = randomGetChain(b);
@@ -493,7 +514,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
 #else
       if (mode == RF_GROW) {
-        if (RF_opt & OPT_TREE) { 
+        if (RF_opt & OPT_SEED) { 
           randomSetChain(1, -abs(randomGetChain(1)));
           RF_seed_[1] = randomGetChain(1);
         }
@@ -539,24 +560,29 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     }
     if (r == RF_imputeSize) {
       if (!(RF_opt & OPT_IMPU_ONLY)) {
-        char multipleImputeFlag;
-        multipleImputeFlag = FALSE;
-        if (mode == RF_GROW) {
-          if (r > 1) {
-            multipleImputeFlag = TRUE;
-          } 
-        }
-        if (RF_numThreads > 0) {
+        if ((RF_opt & OPT_PERF) | 
+            (RF_opt & OPT_PERF_CALB) |
+            (RF_opt & OPT_OENS) |
+            (RF_opt & OPT_FENS)) {
+          char multipleImputeFlag;
+          multipleImputeFlag = FALSE;
+          if (mode == RF_GROW) {
+            if (r > 1) {
+              multipleImputeFlag = TRUE;
+            } 
+          }
+          if (RF_numThreads > 0) {
 #ifdef SUPPORT_OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
-          for (b = 1; b <= RF_forestSize; b++) {
-            updateEnsembleCalculations(multipleImputeFlag, mode, b);
+            for (b = 1; b <= RF_forestSize; b++) {
+              updateEnsembleCalculations(multipleImputeFlag, mode, b);
+            }
           }
-        }
-        else {
-          for (b = 1; b <= RF_forestSize; b++) {
-            updateEnsembleCalculations(multipleImputeFlag, mode, b);
+          else {
+            for (b = 1; b <= RF_forestSize; b++) {
+              updateEnsembleCalculations(multipleImputeFlag, mode, b);
+            }
           }
         }
       }
@@ -564,17 +590,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     else {
       for (b = 1; b <= RF_forestSize; b++) {
         freeTree(b, RF_root[b], TRUE);
-        free_vvector(RF_nodeMembership[b], 1, RF_observationSize);
-        free_uivector(RF_bootMembershipIndex[b], 1, RF_observationSize);
-        free_uivector(RF_bootMembershipFlag[b], 1, RF_observationSize);
-        free_uivector(RF_oobMembershipFlag[b], 1, RF_observationSize);
-        free_vvector(RF_terminalNode[b], 1, RF_leafCount[b] + 1);
-        if (mode == RF_PRED) {
-          free_vvector((Node **) RF_fnodeMembership[b],  1, RF_fobservationSize);
-        }
-        unstackShadow(mode, b);
+        unstackAuxiliary(mode, b);
       }
-    }
+    }  
     if (mode != RF_PRED) {
       if (r == 1) {
         if (!(RF_opt & (OPT_BOOT_NODE | OPT_BOOT_NONE))) {
@@ -629,19 +647,15 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       if (r == RF_imputeSize) {
         if (RF_opt & OPT_MISS) {
           imputeSummary(RF_PRED, ACTIVE);
-          if (RF_timeIndex > 0) {
-            if (RF_mTimeFlag == TRUE) {
-            }
-          }
         }
       }
     }
     if ((RF_opt & OPT_OMIS) | (RF_opt & OPT_MISS)) {
       for (b = 1; b <= RF_forestSize; b++) {
-        for (j = 1; j <= RF_leafCount[b]; j++) {
+        for (j = 1; j <= RF_tLeafCount[b]; j++) {
           freeTerminal(RF_mTerminalInfo[b][j]);
         }
-        free_vvector(RF_mTerminalInfo[b], 1, RF_leafCount[b] + 1);
+        free_vvector(RF_mTerminalInfo[b], 1, RF_tLeafCount[b] + 1);
       }
     }
   }  
@@ -658,7 +672,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
 #endif
       for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
         for (uint bb = 1; bb <= RF_forestSize; bb++) {
-          if (RF_leafCount[bb] > 0) {
+          if (RF_tLeafCount[bb] > 0) {
             updateVimpCalculations(mode, bb, intrIndex);
           }
         }
@@ -667,7 +681,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     else {
       for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
         for (uint bb = 1; bb <= RF_forestSize; bb++) {
-          if (RF_leafCount[bb] > 0) {
+          if (RF_tLeafCount[bb] > 0) {
             updateVimpCalculations(mode, bb, intrIndex);
           }
         }
@@ -675,35 +689,24 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     }
   }
   for (b = 1; b <= RF_forestSize; b++) {
-    for (j = 1; j <= RF_leafCount[b]; j++) {
+    for (j = 1; j <= RF_tLeafCount[b]; j++) {
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-        unstackMortality(RF_terminalNode[b][j]);
+        unstackMortality(RF_tNodeList[b][j]);
       }
       else {
         if (RF_rFactorCount > 0) {
-          unstackMultiClassProb(RF_terminalNode[b][j]);
+          unstackMultiClassProb(RF_tNodeList[b][j]);
         }
       }
     }
-    if (!(RF_opt & OPT_TREE)) {
-      freeTree(b, RF_root[b], TRUE);
-    }
-    free_vvector(RF_nodeMembership[b], 1, RF_observationSize);
-    free_uivector(RF_bootMembershipIndex[b], 1, RF_observationSize);
-    free_uivector(RF_bootMembershipFlag[b], 1, RF_observationSize);
-    free_uivector(RF_oobMembershipFlag[b], 1, RF_observationSize);
-    free_vvector(RF_terminalNode[b], 1, RF_leafCount[b] + 1);
-    if (mode == RF_PRED) {
-      free_vvector((Node **) RF_fnodeMembership[b],  1, RF_fobservationSize);
-    }
-    unstackShadow(mode, b);
+    unstackAuxiliary(mode, b);
   }
   rejectedTreeCount = k = 0;
   for (b = 1; b <= RF_forestSize; b++) {
-    if (RF_leafCount[b] == 0) {
+    if (RF_tLeafCount[b] == 0) {
       rejectedTreeCount ++;
     }
-    if (RF_leafCount[b] == 1) {
+    if (RF_tLeafCount[b] == 1) {
       k ++;
     }
   }
@@ -763,13 +766,13 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     Rprintf("\nRF-SRC:  *** WARNING *** ");
     Rprintf("\nRF-SRC:  Insufficient trees for analysis.  \n");
   }
-  RF_totalNodeCount = totalMWCPCount = 0;
   if (mode == RF_GROW) {
     if (RF_opt & OPT_TREE) {
+      RF_totalNodeCount = totalMWCPCount = 0;
       for (b = 1; b <= RF_forestSize; b++) {
-        if (RF_leafCount[b] > 0) {
+        if (RF_tLeafCount[b] > 0) {
           totalMWCPCount += RF_mwcpCount[b];
-          RF_totalNodeCount += (2 * RF_leafCount[b]) - 1;
+          RF_totalNodeCount += (2 * RF_tLeafCount[b]) - 1;
         }
         else {
           RF_totalNodeCount ++;
@@ -778,7 +781,8 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     }
   }
   sexpIndex = 
-    stackVariableOutputObjects(RF_totalNodeCount,    
+    stackVariableOutputObjects(mode,
+                               RF_totalNodeCount,    
                                totalMWCPCount,       
                                & RF_treeID_,         
                                & RF_nodeID_,         
@@ -786,28 +790,46 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                & RF_contPT_,         
                                & RF_mwcpSZ_,         
                                & RF_mwcpPT_,         
+                               & RF_spltST_,         
+                               & RF_spltVR_,         
                                sexpIndex, 
                                sexpString,
                                sexpVector);
-  if (mode == RF_GROW) {
-    if (RF_opt & OPT_TREE) {
-      mwcpPtr = RF_mwcpPT_;
-      mwcpPtrPtr = & mwcpPtr;
-      RF_totalNodeCount = 1;
-      for (b = 1; b <= RF_forestSize; b++) {
-        saveTree(b, 
-                 RF_root[b], 
-                 & RF_totalNodeCount, 
-                 RF_treeID_, 
-                 RF_nodeID_, 
-                 RF_parmID_, 
-                 RF_contPT_,
-                 RF_mwcpSZ_,
-                 mwcpPtrPtr);
-      }
-      RF_totalNodeCount --;
-    }  
+  if (RF_opt & OPT_TREE) {
+    mwcpPtr = RF_mwcpPT_;
+    mwcpPtrPtr = & mwcpPtr;
+    RF_totalNodeCount = 1;
+    for (b = 1; b <= RF_forestSize; b++) {
+      saveTree(b, 
+               RF_root[b], 
+               & RF_totalNodeCount, 
+               RF_treeID_, 
+               RF_nodeID_, 
+               RF_parmID_, 
+               RF_contPT_,
+               RF_mwcpSZ_,
+               mwcpPtrPtr);
+    }
+    RF_totalNodeCount --;
   }  
+  if (RF_opt & OPT_NODE_STAT) {
+    RF_totalNodeCount = 1;
+    for (b = 1; b <= RF_forestSize; b++) {
+      saveStatistics(mode,
+                     b, 
+                     RF_root[b], 
+                     & RF_totalNodeCount, 
+                     RF_spltST_,         
+                     RF_spltVR_          
+                     );
+    }
+    RF_totalNodeCount --;
+  }  
+  for (b = 1; b <= RF_forestSize; b++) {
+    if (!(RF_opt & OPT_TREE)) {
+      freeTree(b, RF_root[b], TRUE);
+    }
+  }
   unstackDefinedOutputObjects(mode, RF_root);
   if (RF_statusIndex > 0) {
     unstackCompetingArrays(mode);

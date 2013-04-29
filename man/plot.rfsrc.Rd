@@ -18,8 +18,7 @@
   Plot variable importance (VIMP) if available.
 }
 \author{
-  Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-  Udaya B. Kogalur \email{kogalurshear@gmail.com}
+  Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
   Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
@@ -33,16 +32,19 @@
 }
 \examples{
 \dontrun{
+## ------------------------------------------------------------
 ## classification example
+## ------------------------------------------------------------
 
 iris.obj <- rfsrc(Species ~ ., data = iris)
 plot(iris.obj)
 
-
+## ------------------------------------------------------------
 ## competing risk example
+## ------------------------------------------------------------
+
 ## use the pbc data from the survival package
 ## events are transplant (1) and death (2)
-
 if (library("survival", logical.return = TRUE)) {
   data(pbc, package = "survival")
   pbc$id <- NULL

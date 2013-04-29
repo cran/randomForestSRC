@@ -30,7 +30,7 @@ rf2rfz(object, forestName = NULL, ...)
   which provides a way for applications to define statistical and data
   mining models and to share models between PMML compliant applications.
   More information about PMML and the Data Mining Group can be found at
-  http://www.dmg.org.
+  http:
 
   The function \command{rf2rfz} is used to import the geometry of the
   forest to the RFSRC Java plugin that is capable of visualizing the
@@ -49,11 +49,10 @@ rf2rfz(object, forestName = NULL, ...)
   Contact the authors on downloading the Java plugin.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
-    http://www.dmg.org
+    http:
 }	
 
 \seealso{

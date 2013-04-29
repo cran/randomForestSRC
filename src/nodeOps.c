@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -78,28 +78,35 @@ unsigned int getTurnOnTraceFlag();
 #endif
 Terminal *makeTerminal() {
   Terminal *parent = (Terminal*) gblock((size_t) sizeof(Terminal));
-  parent -> mvSize = 0;
-  parent -> mvIndex = NULL;
-  parent -> mvValue = NULL;
-  parent -> fmvSize = 0;
-  parent -> fmvIndex = NULL;
-  parent -> fmvValue = NULL;
-  parent -> leafCount = 0;
+  parent -> lmvIndex      = NULL;
+  parent -> lmvIndexSize  = 0;
+  parent -> flmvIndex     = NULL;
+  parent -> flmvIndexSize = 0;;
+  parent -> lmrIndex      = NULL;
+  parent -> lmrIndexSize  = 0;
+  parent -> flmrIndex     = NULL;
+  parent -> flmrIndexSize = 0;;
+  parent -> lmiIndex      = NULL;
+  parent -> lmiValue      = NULL;
+  parent -> lmiSizePtr    = NULL;
+  parent -> lmiSize       = 0;
+  parent -> flmiIndex     = NULL;
+  parent -> flmiValue     = NULL;
+  parent -> flmiSizePtr   = NULL;
+  parent -> flmiSize      = 0;
+  parent -> leafCount     = 0;
+  parent -> mate          = NULL;
+  parent -> dominant      = 0;
+  parent -> fdominant     = 0;
   return parent;
 }
 void freeTerminal(Terminal        *parent) {
-  if (parent -> mvIndex != NULL) {
-    free_uivector(parent -> mvIndex, 1, parent -> mvSize);
-  }
-  if (parent -> mvValue != NULL) {
-    free_dvector(parent -> mvValue, 1, parent -> mvSize);
-  }
-  if (parent -> fmvIndex != NULL) {
-    free_uivector(parent -> fmvIndex, 1, parent -> fmvSize);
-  }
-  if (parent -> fmvValue != NULL) {
-    free_dvector(parent -> fmvValue, 1, parent -> fmvSize);
-  }
+  unstackTermLMVIndex(parent);
+  unstackTermFLMVIndex(parent);
+  unstackTermLMRIndex(parent);
+  unstackTermFLMRIndex(parent);
+  unstackTermFLMISizePtr(parent);
+  unstackTermLMISizePtr(parent);
   free_gblock(parent, sizeof(Terminal));
 }
 Node *makeNode(unsigned int xSize) {
@@ -119,9 +126,11 @@ Node *makeNode(unsigned int xSize) {
   parent -> splitValueFactSize   = 0;
   parent -> splitValueFactPtr    = NULL;
   parent -> splitStatistic       = NA_REAL;
+  parent -> variance             = NA_REAL;
   parent -> leafCount            = 0;
   parent -> depth                = 0;
   parent -> splitDepth           = NULL;
+  parent -> pseudoTerminal       = FALSE;
   parent -> eTypeSize            = 0;
   parent -> mTimeSize            = 0;
   parent -> eTimeSize            = 0;
@@ -142,15 +151,25 @@ Node *makeNode(unsigned int xSize) {
   parent -> rfSize               = NULL;
   parent -> multiClassProb       = NULL;
   parent -> membrCount           = 0;
-  parent -> mvSize               = 0;
-  parent -> fmvSize              = 0;
+  parent -> mvSignSize               = 0;
+  parent -> fmvSignSize              = 0;
   parent -> mvSign               = NULL;
   parent -> fmvSign              = NULL;
+  parent -> lmvIndex             = NULL;
+  parent -> flmvIndex            = NULL;
+  parent -> lmvIndexAllocSize    = 0;
+  parent -> flmvIndexAllocSize   = 0;
+  parent -> lmvIndexActualSize   = 0;
+  parent -> flmvIndexActualSize  = 0;
+  parent -> lmrIndex             = NULL;
+  parent -> flmrIndex            = NULL;
+  parent -> lmrIndexAllocSize    = 0;
+  parent -> flmrIndexAllocSize   = 0;
+  parent -> lmrIndexActualSize   = 0;
+  parent -> flmrIndexActualSize  = 0;
   return parent;
 }
-void freeNode(Node         *parent, 
-              char          dFlag    
-              ) {
+void freeNode(Node         *parent) {
   if (parent -> permissibleSplit != NULL) {
     free_cvector(parent -> permissibleSplit, 1, parent -> xSize);
     parent -> permissibleSplit = NULL;
@@ -169,16 +188,18 @@ void freeNode(Node         *parent,
       }
     }
   }
-  if (dFlag) {
-    unstackMVSign(parent);
-    unstackFMVSign(parent);
-  }
+  unstackMVSign(parent);
+  unstackFMVSign(parent);
+  unstackNodeLMVIndex(parent);
+  unstackNodeFLMVIndex(parent);
+  unstackNodeLMRIndex(parent);
+  unstackNodeFLMRIndex(parent);
   if ((parent -> splitParameter) == 0) {
-    freeTerminalNodeStructures(parent);
+    freeTerminalNodeSurvivalStructures(parent);
   }
   free_gblock(parent, sizeof(Node));
 }
-void freeTerminalNodeStructures(Node *terminalNode) {
+void freeTerminalNodeSurvivalStructures(Node *terminalNode) {
   unstackAtRisk(terminalNode);
   unstackLocalRatio(terminalNode);
   unstackLocalSurvival(terminalNode);
@@ -200,6 +221,7 @@ void getNodeInfo(Node *leaf) {
   Rprintf("\n   LeafCnt   SpltParm  ");
   Rprintf("\n%10d %10d \n", leaf -> leafCount, leaf -> splitParameter);
   if (leaf -> splitValueFactSize > 0) {
+    Rprintf("FactorInfo %20x \n", leaf -> splitValueFactPtr);
     Rprintf("0x ");
     for (i = leaf -> splitValueFactSize; i >= 1; i--) {
       Rprintf("%8x ", (leaf -> splitValueFactPtr)[i]);
@@ -210,6 +232,8 @@ void getNodeInfo(Node *leaf) {
   }
   Rprintf("\nSplit Statistic \n");
   Rprintf(" %12.4f \n", leaf -> splitStatistic);
+  Rprintf("\nNode Variance \n");
+  Rprintf(" %12.4f \n", leaf -> variance);
   if (leaf -> permissibleSplit != NULL) {
     Rprintf("\nPermissible Splits \n");
     for (i=1; i <= leaf -> xSize; i++) {
@@ -221,6 +245,27 @@ void getNodeInfo(Node *leaf) {
     }
     Rprintf("\n");
   }
+  Rprintf("\n mvSignSize   = %20d", leaf -> mvSignSize);
+  Rprintf("\n fmvSignSize  = %20d", leaf -> fmvSignSize);
+  Rprintf("\n");
+  Rprintf("\n mvSign       = %20x", leaf -> mvSign);
+  Rprintf("\n fmvSign      = %20x", leaf -> fmvSign);
+  Rprintf("\n");
+  Rprintf("\n lmvIndexActualSize        = %20d", leaf -> lmvIndexActualSize);
+  Rprintf("\n flmvIndexActualSize       = %20d", leaf -> flmvIndexActualSize);
+  Rprintf("\n lmvIndexAllocSize         = %20d", leaf -> lmvIndexAllocSize);
+  Rprintf("\n flmvIndexAllocSize        = %20d", leaf -> flmvIndexAllocSize);
+  Rprintf("\n");
+  Rprintf("\n lmvIndex            = %20x", leaf -> lmvIndex);
+  Rprintf("\n flmvIndex           = %20x", leaf -> flmvIndex);
+  Rprintf("\n");
+  Rprintf("\n lmrIndexActualSize        = %20d", leaf -> lmrIndexActualSize);
+  Rprintf("\n flmrIndexActualSize       = %20d", leaf -> flmrIndexActualSize);
+  Rprintf("\n lmrIndexAllocSize         = %20d", leaf -> lmrIndexAllocSize);
+  Rprintf("\n flmrIndexAllocSize        = %20d", leaf -> flmrIndexAllocSize);
+  Rprintf("\n");
+  Rprintf("\n lmrIndex            = %20x", leaf -> lmrIndex);
+  Rprintf("\n flmrIndex           = %20x", leaf -> flmrIndex);
 }
 void setParent(Node *daughter, Node *parent) {
   daughter -> parent = parent;
@@ -599,47 +644,251 @@ void unstackMortality(Node *tNode) {
     }
   }
 }
-void stackMVSign(Node *node, unsigned int mvSize) {
-  if (node -> mvSize > 0) {
-    if (node -> mvSize != mvSize) {
+void stackMVSign(Node *tNode, unsigned int mvSignSize) {
+  if (tNode -> mvSignSize > 0) {
+    if (tNode -> mvSignSize != mvSignSize) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  mvSize has been previously defined:  %10d vs %10d", node -> mvSize, mvSize);
+      Rprintf("\nRF-SRC:  mvSignSize has been previously defined:  %10d vs %10d", tNode -> mvSignSize, mvSignSize);
       Rprintf("\nRF-SRC:  Please Contact Technical Support.");
       error("\nRF-SRC:  The application will now exit.\n");
     }
   }
   else {
-    node -> mvSize = mvSize;
+    tNode -> mvSignSize = mvSignSize;
   }
-  node -> mvSign = ivector(1, node -> mvSize);
+  tNode -> mvSign = ivector(1, tNode -> mvSignSize);
 }
-void unstackMVSign(Node *node) {
-  if(node -> mvSize > 0) {
-    if (node -> mvSign != NULL) {
-      free_ivector(node -> mvSign, 1, node -> mvSize);
-      node -> mvSign = NULL;
+void unstackMVSign(Node *tNode) {
+  if(tNode -> mvSignSize > 0) {
+    if (tNode -> mvSign != NULL) {
+      free_ivector(tNode -> mvSign, 1, tNode -> mvSignSize);
+      tNode -> mvSign = NULL;
     }
   }
 }
-void stackFMVSign(Node *node, unsigned int fmvSize) {
-  if (node -> fmvSize > 0) {
-    if (node -> fmvSize != fmvSize) {
+void stackFMVSign(Node *tNode, unsigned int fmvSignSize) {
+  if (tNode -> fmvSignSize > 0) {
+    if (tNode -> fmvSignSize != fmvSignSize) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  fmvSize has been previously defined:  %10d vs %10d", node -> fmvSize, fmvSize);
+      Rprintf("\nRF-SRC:  fmvSignSize has been previously defined:  %10d vs %10d", tNode -> fmvSignSize, fmvSignSize);
       Rprintf("\nRF-SRC:  Please Contact Technical Support.");
       error("\nRF-SRC:  The application will now exit.\n");
     }
   }
   else {
-    node -> fmvSize = fmvSize;
+    tNode -> fmvSignSize = fmvSignSize;
   }
-  node -> fmvSign = ivector(1, node -> fmvSize);
+  tNode -> fmvSign = ivector(1, tNode -> fmvSignSize);
 }
-void unstackFMVSign(Node *node) {
-  if(node -> fmvSize > 0) {
-    if (node -> fmvSign != NULL) {
-      free_ivector(node -> fmvSign, 1, node -> fmvSize);
-      node -> fmvSign = NULL;
+void unstackFMVSign(Node *tNode) {
+  if(tNode -> fmvSignSize > 0) {
+    if (tNode -> fmvSign != NULL) {
+      free_ivector(tNode -> fmvSign, 1, tNode -> fmvSignSize);
+      tNode -> fmvSign = NULL;
+    }
+  }
+}
+void stackNodeLMVIndex(Node *tNode, unsigned int size) {
+  if (tNode -> lmvIndexAllocSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  lmvIndex has been previously defined:  %10d vs %10d", tNode -> lmvIndexAllocSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> lmvIndexAllocSize = size;
+  }
+  tNode -> lmvIndex = uivector(1, tNode -> lmvIndexAllocSize);
+}
+void unstackNodeLMVIndex(Node *tNode) {
+  if(tNode -> lmvIndexAllocSize > 0) {
+    if (tNode -> lmvIndex != NULL) {
+      free_uivector(tNode -> lmvIndex, 1, tNode -> lmvIndexAllocSize);
+      tNode -> lmvIndex = NULL;
+      tNode -> lmvIndexAllocSize = 0;
+    }
+  }
+}
+void stackNodeFLMVIndex(Node *tNode, unsigned int size) {
+  if (tNode -> flmvIndexAllocSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  flmvIndex has been previously defined:  %10d vs %10d", tNode -> flmvIndexAllocSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> flmvIndexAllocSize = size;
+  }
+  tNode -> flmvIndex = uivector(1, tNode -> flmvIndexAllocSize);
+}
+void unstackNodeFLMVIndex(Node *tNode) {
+  if(tNode -> flmvIndexAllocSize > 0) {
+    if (tNode -> flmvIndex != NULL) {
+      free_uivector(tNode -> flmvIndex, 1, tNode -> flmvIndexAllocSize);
+      tNode -> flmvIndex = NULL;
+      tNode -> flmvIndexAllocSize = 0;
+    }
+  }
+}
+void stackNodeLMRIndex(Node *tNode, unsigned int size) {
+  if (tNode -> lmrIndexAllocSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  lmrIndex has been previously defined:  %10d vs %10d", tNode -> lmrIndexAllocSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> lmrIndexAllocSize = size;
+  }
+  tNode -> lmrIndex = uivector(1, tNode -> lmrIndexAllocSize);
+}
+void unstackNodeLMRIndex(Node *tNode) {
+  if(tNode -> lmrIndexAllocSize > 0) {
+    if (tNode -> lmrIndex != NULL) {
+      free_uivector(tNode -> lmrIndex, 1, tNode -> lmrIndexAllocSize);
+      tNode -> lmrIndex = NULL;
+      tNode -> lmrIndexAllocSize = 0;
+    }
+  }
+}
+void stackNodeFLMRIndex(Node *tNode, unsigned int size) {
+  if (tNode -> flmrIndexAllocSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  flmrIndex has been previously defined:  %10d vs %10d", tNode -> flmrIndexAllocSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> flmrIndexAllocSize = size;
+  }
+  tNode -> flmrIndex = uivector(1, tNode -> flmrIndexAllocSize);
+}
+void unstackNodeFLMRIndex(Node *tNode) {
+  if(tNode -> flmrIndexAllocSize > 0) {
+    if (tNode -> flmrIndex != NULL) {
+      free_uivector(tNode -> flmrIndex, 1, tNode -> flmrIndexAllocSize);
+      tNode -> flmrIndex = NULL;
+      tNode -> flmrIndexAllocSize = 0;
+    }
+  }
+}
+void stackTermLMVIndex(Terminal *tNode, unsigned int size) {
+  if (tNode -> lmvIndexSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  lmvIndex has been previously defined:  %10d vs %10d", tNode -> lmvIndexSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> lmvIndexSize = size;
+  }
+  tNode -> lmvIndex = uivector(1, tNode -> lmvIndexSize);
+}
+void unstackTermLMVIndex(Terminal *tNode) {
+  if(tNode -> lmvIndexSize > 0) {
+    if (tNode -> lmvIndex != NULL) {
+      free_uivector(tNode -> lmvIndex, 1, tNode -> lmvIndexSize);
+      tNode -> lmvIndex = NULL;
+    }
+  }
+}
+void stackTermFLMVIndex(Terminal *tNode, unsigned int size) {
+  if (tNode -> flmvIndexSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  flmvIndex has been previously defined:  %10d vs %10d", tNode -> flmvIndexSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> flmvIndexSize = size;
+  }
+  tNode -> flmvIndex = uivector(1, tNode -> flmvIndexSize);
+}
+void unstackTermFLMVIndex(Terminal *tNode) {
+  if(tNode -> flmvIndexSize > 0) {
+    if (tNode -> flmvIndex != NULL) {
+      free_uivector(tNode -> flmvIndex, 1, tNode -> flmvIndexSize);
+      tNode -> flmvIndex = NULL;
+    }
+  }
+}
+void stackTermLMRIndex(Terminal *tNode, unsigned int size) {
+  if (tNode -> lmrIndexSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  lmrIndex has been previously defined:  %10d vs %10d", tNode -> lmrIndexSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> lmrIndexSize = size;
+  }
+  tNode -> lmrIndex = uivector(1, tNode -> lmrIndexSize);
+}
+void unstackTermLMRIndex(Terminal *tNode) {
+  if(tNode -> lmrIndexSize > 0) {
+    if (tNode -> lmrIndex != NULL) {
+      free_uivector(tNode -> lmrIndex, 1, tNode -> lmrIndexSize);
+      tNode -> lmrIndex = NULL;
+    }
+  }
+}
+void stackTermFLMRIndex(Terminal *tNode, unsigned int size) {
+  if (tNode -> flmrIndexSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  flmrIndex has been previously defined:  %10d vs %10d", tNode -> flmrIndexSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> flmrIndexSize = size;
+  }
+  tNode -> flmrIndex = uivector(1, tNode -> flmrIndexSize);
+}
+void unstackTermFLMRIndex(Terminal *tNode) {
+  if(tNode -> flmrIndexSize > 0) {
+    if (tNode -> flmrIndex != NULL) {
+      free_uivector(tNode -> flmrIndex, 1, tNode -> flmrIndexSize);
+      tNode -> flmrIndex = NULL;
+    }
+  }
+}
+void stackTermFLMISizePtr(Terminal *tNode, unsigned int size) {
+  if (tNode -> flmiSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  flmiSize has been previously defined:  %10d vs %10d", tNode -> flmiSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> flmiSize = size;
+  }
+  tNode -> flmiSizePtr = uivector(1, tNode -> flmiSize);
+}
+void unstackTermFLMISizePtr(Terminal *tNode) {
+  if(tNode -> flmiSize > 0) {
+    if (tNode -> flmiSizePtr != NULL) {
+      free_uivector(tNode -> flmiSizePtr, 1, tNode -> flmiSize);
+      tNode -> flmiSizePtr = NULL;
+    }
+  }
+}
+void stackTermLMISizePtr(Terminal *tNode, unsigned int size) {
+  if (tNode -> lmiSize > 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  lmiSize has been previously defined:  %10d vs %10d", tNode -> lmiSize, size);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  else {
+    tNode -> lmiSize = size;
+  }
+  tNode -> lmiSizePtr = uivector(1, tNode -> lmiSize);
+}
+void unstackTermLMISizePtr(Terminal *tNode) {
+  if(tNode -> lmiSize > 0) {
+    if (tNode -> lmiSizePtr != NULL) {
+      free_uivector(tNode -> lmiSizePtr, 1, tNode -> lmiSize);
+      tNode -> lmiSizePtr = NULL;
     }
   }
 }

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -62,7 +62,7 @@
 
 predict.rfsrc <-
   function(object,
-           newdata,
+           newdata, 
            importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
            na.action = c("na.omit", "na.impute"),
            outcome = c("train", "test"),
@@ -72,11 +72,11 @@ predict.rfsrc <-
            seed = NULL,
            do.trace = FALSE,
            membership = TRUE,
+           statistics = FALSE,           
            ...)
 {
-
   result.predict <- generic.predict.rfsrc(object,
-                                          newdata,
+                                          newdata, 
                                           importance = importance,
                                           na.action = na.action,
                                           outcome = outcome,
@@ -86,7 +86,7 @@ predict.rfsrc <-
                                           seed = seed,
                                           do.trace = do.trace,
                                           membership = membership,
+                                          statistics = statistics,                                          
                                           ...)
-
   return(result.predict)
 }

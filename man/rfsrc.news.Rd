@@ -14,7 +14,6 @@ rfsrc.news(...)
     None.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-     Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \keyword{documentation}

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -70,17 +70,12 @@ restore.rfsrc <-
            do.trace = FALSE,
            membership = FALSE,
            ...)
-
 {
-
-  ## Incoming parameter checks.  All are fatal.
   if (missing(object)) stop("Object is missing")
-  
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
       sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2) {
     stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'")
   }
-
   result.restore <- generic.predict.rfsrc(object,
                                           importance = importance,
                                           na.action = NULL,
@@ -92,9 +87,6 @@ restore.rfsrc <-
                                           do.trace = do.trace,
                                           membership = membership,
                                           restore.only = TRUE)
-
   return(result.restore)
-
 }
-
 restore <- restore.rfsrc

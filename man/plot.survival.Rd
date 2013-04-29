@@ -5,7 +5,7 @@
 \description{
     Plot various survival estimates.
   }
-\usage{\method{plot.survival}{rfsrc}(x, plots.one.page = TRUE, plot.it = TRUE,
+\usage{\method{plot.survival}{rfsrc}(x, plots.one.page = TRUE, show.plots = TRUE,
   subset, collapse = FALSE, haz.model = c("spline", "ggamma", "nonpar"),
   k = 25, span = "cv", cens.model = c("km", "rfsrc"), ...)
 }
@@ -13,7 +13,7 @@
   \item{x}{An object of class \code{(rfsrc, grow)} or
     \code{(rfsrc, predict)}.}
   \item{plots.one.page}{Should plots be placed on one page?}
-  \item{plot.it}{Should plots be displayed?}
+  \item{show.plots}{Should plots be displayed?}
   \item{subset}{Vector indicating which individuals we want estimates for.
     All individuals are used if not specified.}
   \item{collapse}{Collapse the survival and cumulative hazard function
@@ -101,8 +101,7 @@
   integrated Brier score (if they are available).
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
      Cox C., Chu, H., Schneider, M. F. and Munoz, A. (2007).  Parametric
@@ -135,11 +134,11 @@
 }
 \examples{
 \dontrun{
-##veteran data
+## veteran data
 data(veteran, package = "randomForestSRC") 
 plot.survival(rfsrc(Surv(time, status)~ ., veteran), cens.model = "rfsrc")
 
-#pbc data
+## pbc data
 data(pbc, package = "randomForestSRC") 
 pbc.obj <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
 

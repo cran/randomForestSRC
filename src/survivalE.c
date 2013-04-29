@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -91,7 +91,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_fnodeMembership;
+    nodeMembershipPtr = RF_ftNodeMembership;
     break;
   default:
     obsSize = RF_observationSize;
@@ -103,7 +103,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_nodeMembership;
+    nodeMembershipPtr = RF_tNodeMembership;
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
@@ -111,7 +111,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
       ensemblePtr    = RF_oobEnsemblePtr;
       ensembleDenPtr = RF_oobEnsembleDen;
       ensMRTPtr = RF_oobMRTPtr;
-      if (RF_eventTypeSize == 1) {
+      if (!(RF_opt & OPT_COMP_RISK)) {
         ensSRVPtr = RF_oobSRVPtr;
       }
       else {
@@ -123,7 +123,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
         ensemblePtr    = RF_fullEnsemblePtr;
         ensembleDenPtr = RF_fullEnsembleDen;
         ensMRTPtr = RF_fullMRTPtr;
-        if (RF_eventTypeSize == 1) {
+      if (!(RF_opt & OPT_COMP_RISK)) {
           ensSRVPtr = RF_fullSRVPtr;
         }
         else {
@@ -153,7 +153,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
       }
       if (selectionFlag) {
         ensembleDenPtr[i] ++;
-        if (RF_eventTypeSize == 1) {
+        if (!(RF_opt & OPT_COMP_RISK)) {
           ensMRTPtr[1][i] += parent -> mortality[1];
           for (k=1; k <= RF_sortedTimeInterestSize; k++) {
             ensemblePtr[1][k][i] += parent -> nelsonAalen[k];
@@ -227,7 +227,7 @@ void getConditionalConcordanceArrays(uint     j,
                                      double  *subsettedMortality,
                                      uint    *subsettedEnsembleDen) {
   uint i;
-  if (RF_eventTypeSize == 1) {
+  if (!(RF_opt & OPT_COMP_RISK)) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
     Rprintf("\nRF-SRC:  Attempt to update event type subsets in a non-CR analysis.");
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
@@ -307,7 +307,7 @@ void getCRPerformance (uint     mode,
   uint **eIndividual;
   double concordanceIndex;
   uint j;
-  if (RF_eventTypeSize == 1) { 
+  if (!(RF_opt & OPT_COMP_RISK)) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
     Rprintf("\nRF-SRC:  Attempt at conditional performance updates in a non-CR analysis.");
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");

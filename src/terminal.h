@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -65,11 +65,24 @@
 typedef struct terminal Terminal;
 struct terminal {
   unsigned int leafCount;
-  unsigned int  mvSize;
-  unsigned int *mvIndex;
-  double       *mvValue;
-  unsigned int  fmvSize;
-  unsigned int *fmvIndex;
-  double       *fmvValue;
+  struct node   *mate;
+  unsigned int *lmvIndex;
+  unsigned int  lmvIndexSize;
+  unsigned int *flmvIndex;
+  unsigned int  flmvIndexSize;
+  unsigned int *lmrIndex;
+  unsigned int  lmrIndexSize;
+  unsigned int *flmrIndex;
+  unsigned int  flmrIndexSize;
+  unsigned int **lmiIndex;
+  double*      **lmiValue;
+  unsigned int  *lmiSizePtr;
+  unsigned int   lmiSize;
+  unsigned int **flmiIndex;
+  double*      **flmiValue;
+  unsigned int  *flmiSizePtr;
+  unsigned int   flmiSize;
+  unsigned int  dominant;
+  unsigned int  fdominant;
 };
 #endif

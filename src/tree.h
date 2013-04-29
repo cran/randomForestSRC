@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -65,4 +65,7 @@
 void acquireTree(uint mode, uint r, uint b);
 void updateProximity(uint mode, uint treeID);
 void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth);
+char pruneBranch(uint mode, uint treeID, Node **nodesAtDepth, uint nadCount, uint ptnTarget, uint ptnCurrent);
+uint pruneTree(uint mode, uint treeID, uint ptnCount);
+void unstackAuxiliary(uint mode, uint b);
 #endif

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -74,7 +74,7 @@
 #include      "regression.h"
 #include       "rfsrcUtil.h"
 void getVariablesUsed(uint treeID, Node *parent, uint *varUsedVector) {
-  if (RF_leafCount[treeID] > 0) {
+  if (RF_tLeafCount[treeID] > 0) {
     if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
       varUsedVector[parent -> splitParameter] ++;
       getVariablesUsed(treeID, parent ->  left, varUsedVector);
@@ -97,7 +97,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
   uint      thisSerialTreeCount;
   uint      j;
   thisSerialTreeCount = 0;  
-  if (RF_leafCount[b] > 0) {
+  if (RF_tLeafCount[b] > 0) {
     responsePtr          = NULL;  
     obsSize              = 0;     
     outcome              = NULL;  
@@ -112,14 +112,14 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       break;
     }
     outcome = dvector(1, obsSize);
-    if (RF_opt & OPT_PERF) {
+    if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
       denominatorCopy = uivector(1, obsSize);
     }
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       getAtRiskAndEventCounts(b);
       getLocalRatio(b);
       getLocalSurvival(b);
-      if (RF_eventTypeSize == 1) {
+      if (!(RF_opt & OPT_COMP_RISK)) {
         getLocalNelsonAalen(b);
       }
       else {
@@ -127,7 +127,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
         getLocalCIF(b);
       }
       getSurvival(b);
-      if (RF_eventTypeSize == 1) {
+      if (!(RF_opt & OPT_COMP_RISK)) {
         getNelsonAalen(b);
       }
       else {
@@ -136,7 +136,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       }
       getMortality(b);
       if (RF_opt & OPT_PERF) {
-        if (RF_eventTypeSize > 1) {
+        if (RF_opt & OPT_COMP_RISK) {
           conditionalOutcome = dmatrix(1, RF_eventTypeSize, 1, obsSize);
         }
       }
@@ -173,7 +173,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
             ensemblePtr = RF_oobMRTPtr;
             break;
           }
-          if (RF_eventTypeSize == 1) {
+          if (!(RF_opt & OPT_COMP_RISK)) {
             getEnsembleMortality(mode, b, obsSize, ensemblePtr, ensembleDenPtr, outcome);
           }
           else {
@@ -192,7 +192,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
           updateEnsembleMean(mode, b, outcome);
         }
       }
-      if (RF_opt & OPT_PERF) {
+      if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
         copyDenominator(mode, denominatorCopy);
         respImputeFlag = stackAndImputePerfResponse(mode, 
                                                     multipleImputeFlag, 
@@ -205,7 +205,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
         respImputeFlag = FALSE;
       }
     }  
-    if (RF_opt & OPT_PERF) {
+    if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
       getPerformance(b,
                      mode,
                      obsSize,
@@ -215,13 +215,13 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
                      denominatorCopy,
                      RF_performancePtr[thisSerialTreeCount]);
       unstackImputeResponse(respImputeFlag, RF_rSize, obsSize, responsePtr);
-    }  
-    for (j = 1; j <= RF_leafCount[b]; j++) {
-      freeTerminalNodeStructures(RF_terminalNode[b][j]);
+    }
+    for (j = 1; j <= RF_tLeafCount[b]; j++) {
+      freeTerminalNodeSurvivalStructures(RF_tNodeList[b][j]);
     }
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       if (RF_opt & OPT_PERF) {
-        if (RF_eventTypeSize > 1) {
+        if (RF_opt & OPT_COMP_RISK) {
           free_dmatrix(conditionalOutcome, 1, RF_eventTypeSize, 1, obsSize);
         }
       }
@@ -236,7 +236,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       }
     }
     free_dvector(outcome, 1, obsSize);
-    if (RF_opt & OPT_PERF) {
+    if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
       free_uivector(denominatorCopy, 1, obsSize);
     }
     if (RF_opt & OPT_VIMP_LEOB) {
@@ -369,7 +369,7 @@ void getPerformance(uint      treeID,
   concordanceIndex = NA_REAL;  
   condPerformanceVector = stackCondPerformance();
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    if (RF_eventTypeSize == 1) {
+    if (!(RF_opt & OPT_COMP_RISK)) {
       concordanceIndex = getConcordanceIndex(1,
                                              obsSize, 
                                              responsePtr[RF_timeIndex],
@@ -409,47 +409,47 @@ void getPerformance(uint      treeID,
     }
     else {
       concordanceIndex = getMeanSquareError( obsSize, 
-                                             responsePtr[1],
+                                             responsePtr[RF_rTarget],
                                              outcome, 
                                              denomPtr);
     }
   }
-    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      if (RF_eventTypeSize == 1) {
+  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+    if (!(RF_opt & OPT_COMP_RISK)) {
+      performancePtr[1] = concordanceIndex;
+    }
+    else {
+      for (j=1; j <= RF_eventTypeSize; j++) {
+        performancePtr[j] = condPerformanceVector[j];
+      }
+    }
+  }
+  else {
+    if (RF_rFactorCount > 0) {
+      if (RF_opt & OPT_PERF_CALB) {
         performancePtr[1] = concordanceIndex;
+        for (j=1; j <=RF_rFactorSize[1]; j++) {
+          performancePtr[1+j] = condPerformanceVector[j];
+        }
       }
       else {
-        for (j=1; j <=RF_eventTypeSize; j++) {
-          performancePtr[j] = condPerformanceVector[j];
+        performancePtr[1] = concordanceIndex;
+        for (j=1; j <=RF_rFactorSize[1]; j++) {
+          performancePtr[1+j] = condPerformanceVector[j];
         }
       }
     }
     else {
-      if (RF_rFactorCount > 0) {
-        if (RF_opt & OPT_PERF_CALB) {
-          performancePtr[1] = concordanceIndex;
-          for (j=1; j <=RF_rFactorSize[1]; j++) {
-            performancePtr[1+j] = condPerformanceVector[j];
-          }
-        }
-        else {
-          performancePtr[1] = concordanceIndex;
-          for (j=1; j <=RF_rFactorSize[1]; j++) {
-            performancePtr[1+j] = condPerformanceVector[j];
-          }
-        }
-      }
-      else {
-        performancePtr[1] = concordanceIndex;
-      }
+      performancePtr[1] = concordanceIndex;
     }
+  }
   unstackCondPerformance(condPerformanceVector);
 }
 double *stackCondPerformance() {
   double *cpv;
   cpv = NULL;
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    if (RF_eventTypeSize > 1) {
+    if (RF_opt & OPT_COMP_RISK) {
       cpv = dvector(1, RF_eventTypeSize);
     }
   }
@@ -462,7 +462,7 @@ double *stackCondPerformance() {
 }
 void unstackCondPerformance(double *cpv) {
   if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    if (RF_eventTypeSize > 1) {
+    if (RF_opt & OPT_COMP_RISK) {
       free_dvector(cpv, 1, RF_eventTypeSize);
     }
   }
@@ -515,7 +515,7 @@ void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount) {
         ensembleDenPtr = RF_oobEnsembleDen;
         if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
           ensMRTPtr = RF_oobMRTPtr;
-          if (RF_eventTypeSize == 1) {
+          if (!(RF_opt & OPT_COMP_RISK)) {
             ensSRVPtr = RF_oobSRVPtr;
           }
           else {
@@ -529,7 +529,7 @@ void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount) {
           ensembleDenPtr = RF_fullEnsembleDen;
           if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
             ensMRTPtr = RF_fullMRTPtr;
-            if (RF_eventTypeSize == 1) {
+            if (!(RF_opt & OPT_COMP_RISK)) {
               ensSRVPtr = RF_fullSRVPtr;
             }
             else {
@@ -547,7 +547,7 @@ void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount) {
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
         for (i = 1; i <= obsSize; i++) {
           if (ensembleDenPtr[i] != 0) {
-            if (RF_eventTypeSize == 1) {
+            if (!(RF_opt & OPT_COMP_RISK)) {
               ensMRTPtr[1][i] = ensMRTPtr[1][i] / ensembleDenPtr[i];
               for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
                 ensemblePtr[1][k][i] = ensemblePtr[1][k][i] / ensembleDenPtr[i];
@@ -565,7 +565,7 @@ void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount) {
             }
           }
           else {
-            if (RF_eventTypeSize == 1) {
+            if (!(RF_opt & OPT_COMP_RISK)) {
               ensMRTPtr[1][i] = NA_REAL;
               for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
                 ensemblePtr[1][k][i] = NA_REAL;

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -64,93 +64,50 @@ rf2rfz <- function(object,
                    forestName = NULL,
                    ...)
 {
-
-  ## Ensure the forest object is coherent.
   rfsrcForest <- checkForestObject(object)
-
   if (is.null(forestName)) {
     stop("RFSRC forest name is NULL.  Please provide a valid name for the forest .rfz file.")
   }
-
-  ## If the user has already provided the .rfz extension, remove it.
   if (nchar(forestName) > 4) {
     if (substr(forestName, nchar(forestName)-3, nchar(forestName)) == ".rfz") {
       forestName <- substr(forestName, 1, nchar(forestName)-4)
     }
   }
-  
-  ## Initialize the local variables extracted from the forest object.
   nativeArray <- rfsrcForest$nativeArray
   time.interest <- rfsrcForest$time.interest
   formula <- rfsrcForest$formula
   forestSeed <- rfsrcForest$seed
   xvar.names <- rfsrcForest$xvar.names
-
-  ## Extract the xvar types.
-
   get.factor <- extract.factor(rfsrcForest$xvar, xvar.names)
   xvar.type <- get.factor$generic.types
-
-  ## This may be null in the absence of factors.
   nativeFactorArray <- rfsrcForest$nativeFactorArray
-        
-  ## Count the number of trees in the forest.
   numTrees <- length(as.vector(unique(nativeArray$treeID)))
-
-  ## Define the root elements of the PMML file.  This is a quick work-around for an issue
-  ## with this version of the XML package, and the inablility to add namespace information
-  ## and attributes concurrently. 
   rootString <- getRootString()
-
-  ## Define the document and the root node.
   pmmlDoc <- xmlTreeParse(rootString, asText=TRUE)
   pmmlRoot <- xmlRoot(pmmlDoc)
-
-  ## Add the DataDictionary to the root node.
   pmmlRoot <- append.XMLNode(pmmlRoot, getDataDictNode(xvar.names=xvar.names, xvar.type=xvar.type))
-
-  ## Write the native array information.
   write.table(nativeArray, 
               paste(forestName, ".txt", sep=""), quote = FALSE)
-
-  ## Write the native factor array information if it exists.
-  ## *** WARNING ***  *** WARNING ***  *** WARNING *** 
-  ## In 32-bit and 64-bit systems, the integer value 0x8000000 is
-  ## interpreted as NA by R as it output from the native code SEXP
-  ## object.  Thus write.table will contain NA's.  These need to be
-  ## handled specially in the JUNG code that parses the .rfz file.
-  ## *** WARNING ***  *** WARNING ***  *** WARNING ***   
   write.table(nativeFactorArray, 
                 paste(forestName, ".factor.txt", sep=""), col.names=FALSE, quote = FALSE)
-
-
-  ## Write the xvar names and types.
   xmlFile <- file(paste(forestName, ".xml", sep=""), open="w")
   saveXML(pmmlRoot, xmlFile)
   close(xmlFile)
-
   zipCommand <- paste("zip", sep=" ",
     paste(forestName, ".rfz", sep=""),
     paste(forestName, ".txt", sep=""),
     paste(forestName, ".factor.txt", sep=""),
     paste(forestName, ".xml", sep="")) 
-
   system(command = zipCommand)
-
   unlink(paste(forestName, ".txt", sep=""))
   unlink(paste(forestName, ".factor.txt", sep=""))
   unlink(paste(forestName, ".xml", sep=""))
-
 }
-
-## Coherency check of the forest object.  Failure stops execution, hence there is no return value.
 checkForestObject <- function(object) {
-
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
       sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2) {
     stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'")
   }
-
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
     if (is.null(object$forest)) {
       stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
@@ -160,24 +117,17 @@ checkForestObject <- function(object) {
   else {
     rfForest <- object
   }
-
   if (is.null(rfForest$nativeArray)) {
     stop("RFsrc nativeArray content is NULL.  Please ensure the object is valid.")
   }
-
   if (is.null(rfForest$xvar.names)) {
     stop("RFsrc xvar.names content is NULL.  Please ensure the object is valid.")
   }
-
   if (is.null(rfForest$xvar)) {
     stop("RFsrc xvar content is NULL.  Please ensure the object is valid.")
   }
-
   return (rfForest)
 }
-
-
-##  The root string is accessed here by rf2rfz().
 getRootString <- function() {
   rootString <- 
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -189,14 +139,8 @@ getRootString <- function() {
        "
   return (rootString)
 }
-
-## Form the data dictionary node.  This is also accessed by rf2rfz().
 getDataDictNode <-  function(xvar.names, xvar.type) {
-
-  ## Define the DataDictionary node for the document.
   dataDictNode <- xmlNode("DataDictionary", attrs=c(numberOfFields=length(xvar.names)))
-
-  ## Add the xvar names to the DataDictionary.
   for (k in 1:length(xvar.names)) {
     if (xvar.type[k] == "C") {
       dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=xvar.names[k], optype="categorical", dataType="string")))
@@ -208,7 +152,5 @@ getDataDictNode <-  function(xvar.names, xvar.type) {
       dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=xvar.names[k], optype="continuous", dataType="double")))
     }
   }
-
   return (dataDictNode)
-  
 }

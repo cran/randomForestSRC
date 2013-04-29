@@ -60,18 +60,51 @@
 ////**********************************************************************
 
 
-#ifndef RSFSURV_H
-#define RSFSURV_H
+#ifndef RSFSPLITREGR_H
+#define RSFSPLITREGR_H
 #include "node.h"
-void getAtRiskAndEventCounts(uint treeID);
-void getLocalRatio(uint treeID);
-void getLocalCSH(uint treeID);
-void getLocalCIF(uint treeID);
-void getLocalSurvival(uint treeID);
-void getLocalNelsonAalen(uint treeID);
-void getNelsonAalen(uint treeID);
-void getSurvival(uint treeID);
-void getCSH(uint treeID);
-void getCIF(uint treeID);
-void getMortality(uint treeID);
+char regressionSplit(uint    treeID,
+                     Node   *parent, 
+                     uint   *repMembrIndx,
+                     uint    repMembrSize,
+                     uint   *allMembrIndx,
+                     uint    allMembrSize,
+                     uint   *splitParameterMax,
+                     double *splitValueMaxCont,
+                     uint   *splitValueMaxFactSize,
+                     uint  **splitValueMaxFactPtr,
+                     double *splitStatistic);
+char regressionHwghtSplit(uint    treeID,
+                          Node   *parent, 
+                          uint   *repMembrIndx,
+                          uint    repMembrSize,
+                          uint   *allMembrIndx,
+                          uint    allMembrSize,
+                          uint   *splitParameterMax,
+                          double *splitValueMaxCont,
+                          uint   *splitValueMaxFactSize,
+                          uint  **splitValueMaxFactPtr,
+                          double *splitStatistic);
+char regressionUwghtSplit(uint    treeID,
+                          Node   *parent, 
+                          uint   *repMembrIndx,
+                          uint    repMembrSize,
+                          uint   *allMembrIndx,
+                          uint    allMembrSize,
+                          uint   *splitParameterMax,
+                          double *splitValueMaxCont,
+                          uint   *splitValueMaxFactSize,
+                          uint  **splitValueMaxFactPtr,
+                          double *splitStatistic);
+char mvRegressionSplit(uint    treeID, 
+                       Node   *parent, 
+                       uint   *repMembrIndx,
+                       uint    repMembrSize,
+                       uint   *allMembrIndx,
+                       uint    allMembrSize,
+                       uint   *splitParameterMax, 
+                       double *splitValueMaxCont, 
+                       uint   *splitValueMaxFactSize, 
+                       uint  **splitValueMaxFactPtr,
+                       double *splitStatistic);
 #endif
