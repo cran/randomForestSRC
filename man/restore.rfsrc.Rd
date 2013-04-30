@@ -37,8 +37,7 @@
      An object of class \code{(rfsrc, predict)}.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \seealso{
   \command{\link{rfsrc}}

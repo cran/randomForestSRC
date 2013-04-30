@@ -12,8 +12,7 @@
     \item{...}{Further arguments passed to or from other methods.}
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
     Ishwaran H. and Kogalur U.B. (2007).  Random survival forests for R,

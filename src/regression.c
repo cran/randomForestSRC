@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -77,13 +77,13 @@ void getMeanResponse(uint mode, uint treeID) {
   else {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
-  for (leaf=1; leaf <= RF_leafCount[treeID]; leaf++) {
+  for (leaf=1; leaf <= RF_tLeafCount[treeID]; leaf++) {
     sumResponse = 0;
     count = 0;
-    parent = RF_terminalNode[treeID][leaf];
+    parent = RF_tNodeList[treeID][leaf];
     for (i=1; i <= RF_observationSize; i++) {
-      if (RF_nodeMembership[treeID][membershipIndex[i]] == parent) {
-        sumResponse += RF_response[treeID][1][membershipIndex[i]];
+      if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
+        sumResponse += RF_response[treeID][RF_rTarget][membershipIndex[i]];
         count ++;
       }
     }
@@ -122,7 +122,7 @@ void updateEnsembleMean(uint     mode,
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_fnodeMembership;
+    nodeMembershipPtr = RF_ftNodeMembership;
     break;
   default:
     obsSize = RF_observationSize;
@@ -134,7 +134,7 @@ void updateEnsembleMean(uint     mode,
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_nodeMembership;
+    nodeMembershipPtr = RF_tNodeMembership;
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
@@ -216,4 +216,33 @@ double getMeanSquareError(uint    size,
     result = result / (double) cumDenomCount;
   }
   return result;
+}
+char getVariance(uint repSize, uint *repIndx, double *targetResponse, double *mean, double *variance) {
+  uint i;
+  double meanResult, varResult;
+  char result;
+  if (repSize == 0) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  No replicates in variance calculation. ");
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    Rprintf("\nRF-SRC:  The application will now exit.\n");
+  }
+  meanResult = 0.0;
+  for (i=1; i <= repSize; i++) {
+      meanResult += targetResponse[repIndx[i]];
+  }
+  meanResult = meanResult / (double) repSize;
+  if (mean != NULL) {
+    *mean = meanResult;
+  }
+  varResult = 0.0;
+  for (i=1; i <= repSize; i++) {
+    varResult += pow(meanResult - targetResponse[repIndx[i]], 2.0);
+  }
+  varResult = varResult / (double) repSize;
+  if (variance != NULL) {
+    *variance = varResult;
+  }
+  result = ((varResult <= EPSILON) ? FALSE : TRUE);
+  return(result);
 }

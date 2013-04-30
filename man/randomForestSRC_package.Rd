@@ -185,8 +185,7 @@ R-side forking (accessed via \command{mclapply} in package
   }
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
     Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.

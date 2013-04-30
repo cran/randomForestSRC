@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -71,10 +71,13 @@ struct node {
   unsigned int splitParameter;
   double splitValueCont;
   double splitStatistic;
+  double variance;
   unsigned int splitValueFactSize;
   unsigned int *splitValueFactPtr;
   unsigned int leafCount;
   unsigned int depth;
+  char pseudoTerminal;
+  struct terminal *mate;
   struct node *left;
   struct node *right;
   char *permissibleSplit;
@@ -100,9 +103,21 @@ struct node {
   unsigned int  *rfSize;
   unsigned int **multiClassProb;
   unsigned int membrCount;
-  unsigned int mvSize;
-  unsigned int fmvSize;
+  unsigned int mvSignSize;
+  unsigned int fmvSignSize;
   int *mvSign;
   int *fmvSign;
+  unsigned int *lmvIndex;
+  unsigned int  lmvIndexAllocSize;
+  unsigned int  lmvIndexActualSize;
+  unsigned int *flmvIndex;
+  unsigned int  flmvIndexAllocSize;
+  unsigned int  flmvIndexActualSize;
+  unsigned int *lmrIndex;
+  unsigned int  lmrIndexAllocSize;
+  unsigned int  lmrIndexActualSize;
+  unsigned int *flmrIndex;
+  unsigned int  flmrIndexAllocSize;
+  unsigned int  flmrIndexActualSize;
 };
 #endif

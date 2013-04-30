@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -116,9 +116,9 @@
 #define OPT_COMP_RISK 0x200000  
 #define OPT_SPLDPTH_F 0x400000  
 #define OPT_SPLDPTH_T 0x800000  
-#define OPT_VIMP_LEOB 0x1000000  
-#define OPT_VIMP      0x2000000  
-#define OPT_MORT_WGHT 0x4000000  
+#define OPT_VIMP_LEOB 0x1000000 
+#define OPT_VIMP      0x2000000 
+#define OPT_NODE_STAT 0x8000000 
 #define RF_OUTP_ID   0  
 #define RF_STRG_ID   1  
 #define RF_FENS_ID   2  
@@ -146,24 +146,34 @@
 #define RF_OMRT_ID  24  
 #define RF_NMBR_ID  25  
 #define RF_BMBR_ID  26  
-#define RF_SEXP_CNT 27  
+#define RF_SPLT_ST  27  
+#define RF_SPLT_VR  28  
+#define RF_PMBR_ID  29  
+#define RF_SEXP_CNT 30  
 #define RF_GROW   0x01
 #define RF_PRED   0x02
 #define RF_REST   0x08
-#define SURV_LGRNK  1  
-#define SURV_CNSEV  2  
-#define SURV_LRSCR  3
-#define SURV_CR_LAU 4  
-#define SURV_CR_LOG 5  
-#define SURV_CR_SCH 6  
-#define REGR_SPLIT  7  
-#define CLAS_SPLIT  8  
-#define RAND_SPLIT  9  
+#define SURV_LGRNK   1  
+#define SURV_LRSCR   2
+#define SURV_CR_LAU  3  
+#define SURV_CR_LOG  4
+#define RAND_SPLIT   5
+#define REGR_WT_NRM  6  
+#define REGR_WT_OFF  7  
+#define REGR_WT_HVY  8  
+#define CLAS_WT_NRM  9  
+#define CLAS_WT_OFF 10  
+#define CLAS_WT_HVY 11  
+#define MVRG_SPLIT  12
+#define MVCL_SPLIT  13
+#define MAXM_SPLIT  13 
 #define APROX 0
 #define EXACT 1
 #define SIZE_OF_INTEGER sizeof(uint)
 #define MAX_EXACT_LEVEL SIZE_OF_INTEGER * 8
 #define SAFE_FACTOR_SIZE 8
+#define V_DOMINANT 1
+#define R_DOMINANT 2
 typedef unsigned int   uint;
 typedef unsigned long  ulong; 
 typedef unsigned char  uchar; 

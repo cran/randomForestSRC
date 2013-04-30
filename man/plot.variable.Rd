@@ -9,26 +9,29 @@
   can select between marginal (unadjusted, but fast) and partial plots
   (adjusted, but slow).
 }
-\usage{\method{plot.variable}{rfsrc}(x, xvar.names, 
-  surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
-  time, which.outcome, partial = FALSE, plots.per.page = 4, granule = 5,
+\usage{\method{plot.variable}{rfsrc}(x, xvar.names, which.outcome,
+  time, surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
+  partial = FALSE, show.plots = TRUE, plots.per.page = 4, granule = 5,
   sorted = TRUE, nvar, npts = 25, smooth.lines = FALSE, subset,
   ...)
 }
 \arguments{
-  \item{x}{An object of class \code{(rfsrc, grow)} or
-    \code{(rfsrc, predict)}.}
+  \item{x}{An object of class \code{(rfsrc, grow)},
+    \code{(rfsrc, predict)}, or \code{(rfsrc, plot.variable)}.  See the
+    examples below for illustration of the latter.}
   \item{xvar.names}{Names of the x-variables to be used.} 
-  \item{surv.type}{For survival families, specifies the predicted value.}
-  \item{time}{For survival families, the value of time used for plotting
-    survival quantities.  Default is the median follow up time.}
   \item{which.outcome}{For classification families, an integer or
     character value specifying the class to focus on (defaults to the
     first class).  For competing risk families, an integer value between
     1 and \code{J} indicating the event of interest, where \code{J} is
     the number of event types.  The default is to use the first event
     type.}
+
+  \item{time}{For survival families, the value of time used for plotting}
+  \item{surv.type}{For survival families, specifies the predicted value.
+    See details below.}
   \item{partial}{Should partial plots be used?}
+  \item{show.plots}{Should plots be displayed?}
   \item{plots.per.page}{Integer value controlling page layout.}
   \item{granule}{Integer value controlling whether a plot for a
     specific variable should be given as a boxplot or scatter 
@@ -98,8 +101,7 @@
     can help.
 }
 \author{
-    Hemant Ishwaran  \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
   Friedman J.H. (2001). Greedy function approximation: a gradient
@@ -121,9 +123,11 @@
 }
 \examples{
 \dontrun{
-### survival/CR examples
+## ------------------------------------------------------------
+## survival/competing risk examples
+## ------------------------------------------------------------
 
-# survival
+## survival
 data(veteran, package = "randomForestSRC") 
 v.obj <- rfsrc(Surv(time,status)~., veteran, nsplit = 10, ntree = 100)
 plot.variable(v.obj, plots.per.page = 3)
@@ -132,28 +136,39 @@ plot.variable(v.obj, surv.type = "surv", nvar = 1, time = 200)
 plot.variable(v.obj, surv.type = "surv", partial = TRUE, smooth.lines = TRUE)
 plot.variable(v.obj, surv.type = "rel.freq", partial = TRUE, nvar = 2)
 
-# competing risks
+## example of plot.variable calling a pre-processed plot.variable object
+p.v <- plot.variable(v.obj, surv.type = "surv", partial = TRUE, smooth.lines = TRUE)
+plot.variable(p.v)
+p.v$plots.per.page <- 1
+p.v$smooth.lines <- FALSE
+plot.variable(p.v)
+
+## competing risks
 data(follic, package = "randomForestSRC")
 follic.obj <- rfsrc(Surv(time, status) ~ ., follic, nsplit = 3, ntree = 100)
 plot.variable(follic.obj, which.outcome = 2)
 
-### regression examples
+## ------------------------------------------------------------
+## regression examples
+## ------------------------------------------------------------
 
-# airquality
+## airquality
 airq.obj <- rfsrc(Ozone ~ ., data = airquality)
 plot.variable(airq.obj, partial = TRUE, smooth.lines = TRUE)
 
-# motor trend cars
+## motor trend cars
 mtcars.obj <- rfsrc(mpg ~ ., data = mtcars)
 plot.variable(mtcars.obj, partial = TRUE, smooth.lines = TRUE)
 
-### classification example
+## ------------------------------------------------------------
+## classification examples
+## ------------------------------------------------------------
 
-# iris
+## iris
 iris.obj <- rfsrc(Species ~., data = iris)
 plot.variable(iris.obj, partial = TRUE)
 
-# motor trend cars: predict number of carburetors
+## motor trend cars: predict number of carburetors
 mtcars2 <- mtcars
 mtcars2$carb <- factor(mtcars2$carb,
    labels = paste("carb", sort(unique(mtcars$carb))))

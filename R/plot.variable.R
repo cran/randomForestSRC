@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -63,10 +63,11 @@
 plot.variable.rfsrc <- function(
   x,
   xvar.names,
-  surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
+  which.outcome, 
   time,
-  which.outcome,
+  surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
   partial = FALSE,
+  show.plots = TRUE,
   plots.per.page = 4,
   granule = 5,
   sorted = TRUE,
@@ -76,157 +77,213 @@ plot.variable.rfsrc <- function(
   subset,
   ...)
 {
-  
-  ### check that object is interpretable
-  ### first rename x to object to avoid confusion with x matrix
   object <- x
+  remove(x)
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
-      sum(inherits(object, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
-    stop("Function only works for objects of class `(rfsrc, grow)', '(rfsrc, predict)'.")
+      sum(inherits(object, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2 &
+      sum(inherits(object, c("rfsrc", "plot.variable"), TRUE) == c(1,2)) != 2) {
+    stop("This function only works for objects of class `(rfsrc, grow)', '(rfsrc, predict)' or '(rfsrc, plot.variable)'.")
   }
-    
-
-  ## process the subsetted index 
-  ## assumes the entire data set is to be used if not specified
-  if (missing(subset)) {
-    subset <- 1:nrow(object$xvar)
+  if (partial && is.null(object$forest)) {
+    stop("forest is empty:  re-run rfsrc (grow) call with forest=TRUE")
   }
-  else {
-    ## convert the user specified subset into a usable form
-    if (is.logical(subset)) subset <- which(subset)
-    subset <- unique(subset[subset >= 1 & subset <= nrow(object$xvar)])
-
-    if (length(subset) == 0) {
-      stop("'subset' not set properly.")
+  if (!inherits(object, "plot.variable")) {
+    if (missing(subset)) {
+      subset <- 1:nrow(object$xvar)
     }
-  }
-  ## subset the x-variable data
-  object$xvar <- object$xvar[subset,, drop = FALSE]
- 
-  ## process the object depending on the underlying family
-
-  ##survival families
-  if (grepl("surv", object$family)) {
-
-    ##extract event information
-    event.info <- get.event.info(object, subset)
-    yvar.dim <- event.info$r.dim
-    cens <- event.info$cens
-    event.type <- event.info$event.type
-
-    ## assign time if missing
-    if (missing(time)) {
-      time <- median(event.info$time.interest, na.rm = TRUE)
+    else {
+      if (is.logical(subset)) subset <- which(subset)
+      subset <- unique(subset[subset >= 1 & subset <= nrow(object$xvar)])
+      if (length(subset) == 0) {
+        stop("'subset' not set properly.")
+      }
     }
-    
-    ## special processing for  CR analysis
-    if (object$family == "surv-CR") {
-      if (missing(which.outcome)) {
-        which.outcome <- 1
+    object$xvar <- object$xvar[subset,, drop = FALSE]
+    fmly <- object$family
+    if (grepl("surv", fmly)) {
+      event.info <- get.event.info(object, subset)
+      yvar.dim <- event.info$r.dim
+      cens <- event.info$cens
+      event.type <- event.info$event.type
+      if (missing(time)) {
+        time <- median(event.info$time.interest, na.rm = TRUE)
+      }
+      if (fmly == "surv-CR") {
+        if (missing(which.outcome)) {
+          which.outcome <- 1
+        }
+        else {
+          if (which.outcome < 1 || which.outcome > max(event.type, na.rm = TRUE)) {
+            stop("'which.outcome' is specified incorrectly")
+          }
+        }
+        VIMP <- object$importance[, which.outcome]
+        surv.type <- setdiff(surv.type, c("mort", "rel.freq", "surv"))
+        pred.type <- match.arg(surv.type, c("years.lost", "cif", "chf"))
+        ylabel <- switch(pred.type,
+                         "years.lost" = paste("Years lost for event ", which.outcome),
+                         "cif" = paste("CIF for event ", which.outcome, " (time=", time, ")", sep = ""),
+                         "chf" = paste("CHF for event ", which.outcome, " (time=", time, ")", sep = ""))
       }
       else {
-        if (which.outcome < 1 || which.outcome > max(event.type, na.rm = TRUE)) {
-          stop("'which.outcome' is specified incorrectly")
-        }
-      }
-      VIMP <- object$importance[, which.outcome]
-      surv.type <- setdiff(surv.type, c("mort", "rel.freq", "surv"))
-      pred.type <- match.arg(surv.type, c("years.lost", "cif", "chf"))
-      ylabel <- switch(pred.type,
-           "years.lost" = paste("Years lost for event ", which.outcome),
-           "cif" = paste("CIF for event ", which.outcome, " (time=", time, ")", sep = ""),
-           "chf" = paste("CHF for event ", which.outcome, " (time=", time, ")", sep = ""))
-    }
-    ## usual right-censoring setup
-    else {
-      which.outcome <- 1
-      VIMP <- object$importance
-      surv.type <- setdiff(surv.type, c("years.lost", "cif", "chf"))
-      pred.type <- match.arg(surv.type, c("mort", "rel.freq", "surv"))
-      ylabel <- switch(pred.type,
-           "mort"      = "mortality",
-           "rel.freq"  = "standardized mortality",
-           "surv"      = paste("predicted survival (time=", time, ")", sep = ""))
-    }
-    
-  }
-  ## all other families
-  else {
-
-    ## assign a null time value
-    time <- NULL
-
-    ## classification families
-    if (object$family == "class") {
-      if (missing(which.outcome)) {
         which.outcome <- 1
+        VIMP <- object$importance
+        surv.type <- setdiff(surv.type, c("years.lost", "cif", "chf"))
+        pred.type <- match.arg(surv.type, c("mort", "rel.freq", "surv"))
+        ylabel <- switch(pred.type,
+                         "mort"      = "mortality",
+                         "rel.freq"  = "standardized mortality",
+                         "surv"      = paste("predicted survival (time=", time, ")", sep = ""))
       }
-      else if (is.character(which.outcome)) {
-        which.outcome <- match(match.arg(which.outcome, levels(object$yvar)), levels(object$yvar))
+    }
+    else {
+      event.info <- time <- NULL
+      if (fmly == "class") {
+        if (missing(which.outcome)) {
+          which.outcome <- 1
+        }
+        else if (is.character(which.outcome)) {
+          which.outcome <- match(match.arg(which.outcome, levels(object$yvar)), levels(object$yvar))
+        }
+        else {
+          if (which.outcome > length(levels(object$yvar)) | which.outcome < 1) {
+            stop("which.outcome is specified incorrectly:", which.outcome)
+          }
+        }
+        pred.type <- "prob"
+        yvar.dim <- 1
+        VIMP <- object$importance[, 1 + which.outcome]
+        ylabel <- paste("probability", levels(object$yvar)[which.outcome])
       }
       else {
-        if (which.outcome > length(levels(object$yvar)) | which.outcome < 1) {
-          stop("which.outcome is specified incorrectly:", which.outcome)
-        }
+        pred.type <- "y"
+        yvar.dim <- 1
+        which.outcome <- NULL
+        VIMP <- object$importance
+        ylabel <- expression(hat(y))
       }
-      pred.type <- "prob"
-      yvar.dim <- 1
-      VIMP <- object$importance[, 1 + which.outcome]
-      ylabel <- paste("probability", levels(object$yvar)[which.outcome])
     }
-    ## regression families
+    outcome.target <- get.outcome.target(object$family, outcome.target)
+    xvar <- object$xvar
+    if (!is.null(object$imputed.indv)) {
+      xvar[object$imputed.indv, ] <- object$imputed.data[, -(1:yvar.dim)]
+    }
+    n <- nrow(xvar)
+    if (missing(xvar.names)) {
+      xvar.names <- object$xvar.names
+    }
     else {
-      pred.type <- "y"
-      yvar.dim <- 1
-      VIMP <- object$importance
-      ylabel <- expression(hat(y))
+      if (length(setdiff(xvar.names, object$xvar.names)) >  0){
+        stop("x-variable names supplied does not match available list:\n", object$xvar.names)
+      }
+      xvar.names <- unique(xvar.names)
     }
-    
-  }
-
-  ### get x-variable matrix (use imputed values if available)
-  xvar <- object$xvar
-  if (!is.null(object$imputed.indv)) {
-    xvar[object$imputed.indv, ] <- object$imputed.data[, -(1:yvar.dim)]
-  }
-  n <- nrow(xvar)
-
-  ### extract xvar names to be plotted
-  ### should xvar be sorted by importance?
-  if (missing(xvar.names)) {
-    xvar.names <- object$xvar.names
-  }
-  else {
-    if (length(setdiff(xvar.names, object$xvar.names)) >  0){
-      stop("x-variable names supplied does not match available list:\n", object$xvar.names)
+    if (sorted & !is.null(VIMP)) {
+      xvar.names <- xvar.names[rev(order(VIMP[xvar.names]))]
     }
-    xvar.names <- unique(xvar.names)
-  }
-  if (sorted & !is.null(VIMP)) {
-    xvar.names <- xvar.names[rev(order(VIMP[xvar.names]))]
-  }
-  if (!missing(nvar)) {
-    nvar <- max(round(nvar), 1)
-    xvar.names <- xvar.names[1:min(length(xvar.names), nvar)]
-  }
-  nvar <- length(xvar.names)
-
-  ## Save par settings
-  old.par <- par(no.readonly = TRUE)
-
-  ##--------------------------------------------------------------------------------
-  ##
-  ## Marginal Plots
-  ##
-  ##--------------------------------------------------------------------------------
-  if (!partial) {
+    if (!missing(nvar)) {
+      nvar <- max(round(nvar), 1)
+      xvar.names <- xvar.names[1:min(length(xvar.names), nvar)]
+    }
+    nvar <- length(xvar.names)
+    if (!partial) {
+      yhat <- extract.pred(object, pred.type, subset, time, which.outcome)
+    }
+    else {
+      class(object$forest) <- c("rfsrc", "partial", class(object)[3])
+      if (npts < 1) npts <- 1 else npts <- round(npts)
+      prtl <- lapply(1:nvar, function(k) {
+        x <- xvar[, object$xvar.names == xvar.names[k]]
+        if (is.factor(x)) x <- factor(x, exclude = NULL)          
+        n.x <- length(unique(x))
+        if (!is.factor(x) & n.x > npts) {
+          x.uniq <- sort(unique(x))[unique(as.integer(seq(1, n.x, length = min(npts, n.x))))]
+        }
+        else {
+          x.uniq <- sort(unique(x))
+        }
+        n.x <- length(x.uniq)
+        yhat <- yhat.se <- NULL
+        newdata.x <- xvar
+        factor.x <- !(!is.factor(x) & (n.x > granule))
+        for (l in 1:n.x) {        
+          newdata.x[, object$xvar.names == xvar.names[k]] <- rep(x.uniq[l], n)
+          pred.temp <- extract.pred(predict.rfsrc(object$forest, newdata.x), pred.type, 1:n, time, which.outcome)
+          mean.temp <- mean(pred.temp , na.rm = TRUE)
+          if (!factor.x) {
+            yhat <- c(yhat, mean.temp)
+            if (fmly == "class") {
+              yhat.se <- c(yhat.se, mean.temp * (1 - mean.temp) / sqrt(n))
+            }
+            else {
+              yhat.se <- c(yhat.se, sd(pred.temp / sqrt(n) , na.rm = TRUE))
+            }
+          }
+          else {
+            pred.temp <- mean.temp + (pred.temp - mean.temp) / sqrt(n)
+            yhat <- c(yhat, pred.temp)
+          }
+        }
+        list(xvar.name = xvar.names[k], yhat = yhat, yhat.se = yhat.se, n.x = n.x, x.uniq = x.uniq, x = x)
+      })
+    }
     plots.per.page <- max(round(min(plots.per.page,nvar)), 1)
-    granule <- max(round(granule),1)
+    granule <- max(round(granule), 1)
+    plot.variable.obj <- list(family = fmly,
+                    partial = partial,
+                    event.info = event.info,
+                    which.outcome = which.outcome,
+                    ylabel = ylabel,
+                    yvar.dim = yvar.dim,
+                    n = n,
+                    xvar.names = xvar.names,
+                    nvar = nvar, 
+                    plots.per.page = plots.per.page,
+                    granule = granule,
+                    smooth.lines = smooth.lines)
+    if (partial) {
+      plot.variable.obj$pData <- prtl
+    }
+    else {
+      plot.variable.obj$yhat <- yhat
+      plot.variable.obj$xvar <- xvar
+    }
+    class(plot.variable.obj) <- c("rfsrc", "plot.variable", fmly)
+  }
+  else {
+    plot.variable.obj <- object
+    remove(object)
+    fmly <- plot.variable.obj$family
+    partial <- plot.variable.obj$partial
+    event.info <- plot.variable.obj$event.info
+    which.outcome <- plot.variable.obj$which.outcome
+    ylabel <- plot.variable.obj$ylabel
+    n <- plot.variable.obj$n
+    xvar.names <- plot.variable.obj$xvar.names
+    nvar <- plot.variable.obj$nvar 
+    plots.per.page <- plot.variable.obj$plots.per.page
+    granule <- plot.variable.obj$granule
+    smooth.lines <- plot.variable.obj$smooth.lines
+    if (partial) {
+      prtl <- plot.variable.obj$pData
+    }
+    else {
+      yhat <- plot.variable.obj$yhat
+      xvar <- plot.variable.obj$xvar
+    }
+    if (!is.null(event.info)){
+      cens <- event.info$cens
+      event.type <- event.info$event.type
+    }
+  }
+  if (show.plots) {
+    old.par <- par(no.readonly = TRUE)
+  }
+  if (!partial && show.plots) {
     par(mfrow = c(min(plots.per.page, ceiling(nvar / plots.per.page)), plots.per.page))
-    yhat <- extract.pred(object, pred.type, subset, time, which.outcome)
     if (n > 500) cex.pt <- 0.5 else cex.pt <- 0.75
     for (k in 1:nvar) {
-      x <- xvar[, object$xvar.names == xvar.names[k]]
+      x <- xvar[, which(colnames(xvar) == xvar.names[k])]
       x.uniq <- unique(x)
       n.x <- length(x.uniq)
       if (!is.factor(x) & n.x > granule) {
@@ -234,8 +291,8 @@ plot.variable.rfsrc <- function(
              yhat,
              xlab = xvar.names[k],
              ylab = ylabel,
-             type = "n") 
-        if (grepl("surv", object$family)) {
+             type = "n", ...) 
+        if (grepl("surv", fmly)) {
           points(x[cens == which.outcome], yhat[cens == which.outcome], pch = 16, col = 4, cex = cex.pt)
           points(x[cens == 0], yhat[cens == 0], pch = 16, cex = cex.pt)
         }
@@ -250,7 +307,7 @@ plot.variable.rfsrc <- function(
                 outline = FALSE,
                 col = "bisque",
                 names = rep("", n.x),
-                xaxt = "n")
+                xaxt = "n", ...)
         at.pretty <- unique(round(pretty(1:n.x, min(30, n.x))))
         at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
         axis(1,
@@ -260,60 +317,25 @@ plot.variable.rfsrc <- function(
       }
     }
   }
-  ##--------------------------------------------------------------------------------
-  ##
-  ## Partial Plots
-  ##
-  ##--------------------------------------------------------------------------------
-  else {
-    if (is.null(object$forest)) {
-      stop("forest is empty:  re-run rfsrc (grow) call with forest=TRUE")
-    }
+  if (partial && show.plots) {
     plots.per.page <- max(round(min(plots.per.page,nvar)), 1)
     granule <- max(round(granule),1)
     par(mfrow = c(min(plots.per.page, ceiling(nvar/plots.per.page)), plots.per.page))
-    baseForest <- object$forest
-    class(baseForest) <- c("rfsrc", "partial", class(object)[3])
-    if (npts < 1) npts <- 1 else npts <- round(npts)
     for (k in 1:nvar) {
-      x <- xvar[, object$xvar.names == xvar.names[k]]
+      x <- prtl[[k]]$x
       if (is.factor(x)) x <- factor(x, exclude = NULL)          
-      n.x <- length(unique(x))
-      if (!is.factor(x) & n.x > npts) {
-        x.uniq <- sort(unique(x))[unique(as.integer(seq(1, n.x, length = min(npts, n.x))))]
-      }
-      else {
-        x.uniq <- sort(unique(x))
-      }
-      n.x <- length(x.uniq)
+      x.uniq <- prtl[[k]]$x.uniq
+      n.x <- prtl[[k]]$n.x
       if (n.x > 25) cex.pt <- 0.5 else cex.pt <- 0.75
-      yhat <- yhat.se <- NULL
-      newdata.x <- xvar
+      yhat <- prtl[[k]]$yhat
+      yhat.se <- prtl[[k]]$yhat.se
       factor.x <- !(!is.factor(x) & (n.x > granule))
-      for (l in 1:n.x) {        
-        newdata.x[, object$xvar.names == xvar.names[k]] <- rep(x.uniq[l], n)
-        pred.temp <- extract.pred(predict.rfsrc(baseForest, newdata.x), pred.type, 1:n, time, which.outcome)
-        mean.temp <- mean(pred.temp , na.rm = TRUE)
-        if (!factor.x) {
-          yhat <- c(yhat, mean.temp)
-          if (object$family == "class") {
-            yhat.se <- c(yhat.se, mean.temp * (1 - mean.temp) / sqrt(n))
-          }
-          else {
-            yhat.se <- c(yhat.se, sd(pred.temp / sqrt(n) , na.rm = TRUE))
-          }
-        }
-        else {
-          pred.temp <- mean.temp + (pred.temp - mean.temp)/sqrt(n)
-          yhat <- c(yhat, pred.temp)
-        }
-      }
       if (!factor.x) {
         plot(c(min(x), x.uniq, max(x), x.uniq, x.uniq),
              c(NA, yhat, NA, yhat + 2 * yhat.se, yhat - 2 * yhat.se),
-             xlab = xvar.names[k],
+             xlab = prtl[[k]]$xvar.name,
              ylab = ylabel,
-             type = "n")
+             type = "n", ...)
         points(x.uniq, yhat, pch = 16, cex = cex.pt, col = 2)
         if (!is.na(yhat.se) && any(yhat.se > 0)) {
           if (smooth.lines) {
@@ -343,10 +365,10 @@ plot.variable.rfsrc <- function(
                 outline = FALSE,
                 range = 2,
                 ylim = c(min(bxp.call$stats[1,], na.rm=TRUE) * ( 1 - y.se ),
-                   max(bxp.call$stats[5,], na.rm=TRUE) * ( 1 + y.se )),
+                         max(bxp.call$stats[5,], na.rm=TRUE) * ( 1 + y.se )),
                 col = "bisque",
                 names = rep("",n.x),
-                xaxt = "n")
+                xaxt = "n", ...)
         at.pretty <- unique(round(pretty(1:n.x, min(30,n.x))))
         at.pretty <- at.pretty[at.pretty >= 1 & at.pretty <= n.x]
         axis(1,
@@ -356,11 +378,9 @@ plot.variable.rfsrc <- function(
       }
     }
   }
-  
-  ## Restore par settings
-  par(old.par)
-  
-
+  if (show.plots) {
+    par(old.par)
+  }
+  invisible(plot.variable.obj)
 }
-
 plot.variable <- plot.variable.rfsrc

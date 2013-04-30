@@ -2,7 +2,7 @@
 \alias{impute.rfsrc}
 \title{Impute Only Mode}
 \description{
-  Fast imputation mode for RF-SRC.  A random forest is grown and used to impute
+  Fast imputation mode.  A random forest is grown and used to impute
   missing data.  No ensemble estimates or error rates are calculated.
 }
 \usage{\method{impute}{rfsrc}(formula, data, ntree = 1000, mtry = NULL,
@@ -38,15 +38,16 @@
   data overlayed.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \seealso{
   \command{\link{rfsrc}}
 }
 \examples{
 \dontrun{
-### survival example
+## ------------------------------------------------------------
+## survival example
+## ------------------------------------------------------------
 
 #default split rule
 data(pbc, package = "randomForestSRC")
@@ -56,14 +57,19 @@ pbc.d <- impute.rfsrc(Surv(days, status) ~ ., data = pbc, nsplit = 3)
 pbc2.d <- impute.rfsrc(Surv(days, status) ~ ., data = pbc, splitrule = "random")
 summary(pbc.d - pbc2.d)
 
-### regression.example
+## ------------------------------------------------------------
+## regression.example
+## ------------------------------------------------------------
 
 air.d <- impute.rfsrc(Ozone ~ ., data = airquality, nimpute = 5)
 air2.d <- impute.rfsrc(Ozone ~ ., data = airquality, nimpute = 5, splitrule = "random")
 
-### Examples where we impute without distinction between y-outcomes
-### and x-variables.  We are invoking random splitting.
-### Note that all variables are imputed.
+## ------------------------------------------------------------
+## unsupervised example
+## we impute without distinction between y-outcomes and x-variables
+## we are invoking random splitting
+## all variables are imputed
+## ------------------------------------------------------------
 
 data(pbc, package = "randomForestSRC")
 pbcR.d <- impute.rfsrc(data = pbc, nimpute = 5)

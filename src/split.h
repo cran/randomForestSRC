@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -72,7 +72,8 @@ char getBestSplit(uint    treeID,
                   uint   *splitParameterMax,
                   double *splitValueMaxCont,
                   uint   *splitValueMaxFactSize,
-                  uint  **splitValueMaxFactPtr);
+                  uint  **splitValueMaxFactPtr,
+                  double *splitStatistic);
 char randomSplit(uint    treeID, 
                  Node   *parent, 
                  uint   *repMembrIndx,
@@ -82,7 +83,8 @@ char randomSplit(uint    treeID,
                  uint   *splitParameterMax,
                  double *splitValueMaxCont,
                  uint   *splitValueMaxFactSize,
-                 uint  **splitValueMaxFactPtr);
+                 uint  **splitValueMaxFactPtr,
+                 double *splitStatistic);
 char randomNonSurvivalSplit(uint    treeID, 
                             Node   *parent, 
                             uint   *repMembrIndx,
@@ -92,35 +94,6 @@ char randomNonSurvivalSplit(uint    treeID,
                             uint   *splitParameterMax,
                             double *splitValueMaxCont,
                             uint   *splitValueMaxFactSize,
-                            uint  **splitValueMaxFactPtr);
-char regressionSplit(uint    treeID,
-                     Node   *parent, 
-                     uint   *repMembrIndx,
-                     uint    repMembrSize,
-                     uint   *allMembrIndx,
-                     uint    allMembrSize,
-                     uint   *splitParameterMax,
-                     double *splitValueMaxCont,
-                     uint   *splitValueMaxFactSize,
-                     uint  **splitValueMaxFactPtr);
-char classificationSplit (uint    treeID, 
-                          Node   *parent, 
-                          uint   *repMembrIndx,
-                          uint    repMembrSize,
-                          uint   *allMembrIndx,
-                          uint    allMembrSize,
-                          uint   *splitParameterMax, 
-                          double *splitValueMaxCont, 
-                          uint   *splitValueMaxFactSize, 
-                          uint  **splitValueMaxFactPtr);
-char weightedRegressionSplit(uint    treeID,
-                             Node   *parent, 
-                             uint   *repMembrIndx,
-                             uint    repMembrSize,
-                             uint   *allMembrIndx,
-                             uint    allMembrSize,
-                             uint   *splitParameterMax,
-                             double *splitValueMaxCont,
-                             uint   *splitValueMaxFactSize,
-                             uint  **splitValueMaxFactPtr);
+                            uint  **splitValueMaxFactPtr,
+                            double *splitStatistic);
 #endif

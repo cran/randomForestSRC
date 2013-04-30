@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -79,7 +79,6 @@ rm.na.levels <- function(dat, xvar.names=NULL) {
   }
   dat
 }
-
 extract.factor <- function (dat, generic.names=NULL) {
   generic.types  <- gfactor <- gfactor.order <- gfactor.levels <- gfactor.order.levels <- NULL
   if (is.null(generic.names)) {
@@ -147,12 +146,8 @@ extract.factor <- function (dat, generic.names=NULL) {
                 generic.types=generic.types))
   }
 }
-
-
-
 map.factor <- function (gvar, gfactor) {
   if (!is.null(gfactor)) {
-    ## Map predictor factors back to original values
     if (length(gfactor$factor) > 0) {
       gvar[, is.element(colnames(gvar), gfactor$factor)] <- data.frame(
         mclapply(1:length(gfactor$factor),
@@ -185,7 +180,6 @@ map.factor <- function (gvar, gfactor) {
   }
   return (gvar)
 }
-
 check.factor <- function(train, test, gfactor) {
   if (!is.null(gfactor)) {
     if (length(gfactor$factor) > 0) {
@@ -215,11 +209,3 @@ check.factor <- function(train, test, gfactor) {
   }
   return(test)
 }
-
-
-
-
-
-
-
-      

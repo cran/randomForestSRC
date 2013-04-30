@@ -3,12 +3,12 @@
 \alias{find.interaction.rfsrc}
 \title{Find Interactions Between Pairs of Variables}
 \description{
-  Find pairwise interactions between variables from a RF-SRC analysis.
+  Find pairwise interactions between variables.
 }
-\usage{\method{find.interaction}{rfsrc}(object, xvar.names, method = c("maxsubtree", "vimp"),
+\usage{\method{find.interaction}{rfsrc}(object, xvar.names, cause,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble"),
-  sorted = TRUE, nvar, nrep = 1, subset, seed = NULL,
-  do.trace = FALSE, ...)
+  method = c("maxsubtree", "vimp"), sorted = TRUE, nvar, nrep = 1, subset, 
+  seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or
@@ -16,9 +16,15 @@
       original \command{rfsrc} call.}
     \item{xvar.names}{Character vector of names of target x-variables.
       Default is to use all variables.}
+    \item{cause}{For competing risk families, integer value between 1
+      and \code{J} indicating the event of interest, where \code{J} is
+      the number of event types. The default is to use the first event
+      type.}
+
+    \item{importance}{Type of variable importance (VIMP). See
+      \command{rfsrc} for details.}
     \item{method}{Method of analysis: maximal subtree or VIMP.  See details
       below.}
-    \item{importance}{Type of variable importance (VIMP). See \command{rfsrc} for details.}
     \item{sorted}{Should variables be sorted by VIMP?  Does not apply for
     competing risks.}
     \item{nvar}{Number of variables to be used.}
@@ -78,8 +84,7 @@
   or the maximal subtree matrix.
 }
 \author{
-    Hemant Ishwaran  \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
     Ishwaran H. (2007).  Variable importance in binary regression
@@ -100,23 +105,35 @@
 }
 \examples{
 \dontrun{
+## ------------------------------------------------------------
 ## find interactions, survival setting
+## ------------------------------------------------------------
+
 data(pbc, package = "randomForestSRC") 
 pbc.obj <- rfsrc(Surv(days,status) ~ ., pbc, nsplit = 10)
 find.interaction(pbc.obj, nvar = 8)
 
+## ------------------------------------------------------------
 ## find interactions, competing risks
+## ------------------------------------------------------------
+
 data(wihs, package = "randomForestSRC")
 wihs.obj <- rfsrc(Surv(time, status) ~ ., wihs, nsplit = 3, ntree = 100)
 find.interaction(wihs.obj)
 find.interaction(wihs.obj, method = "vimp")
 
+## ------------------------------------------------------------
 ## find interactions, regression setting
+## ------------------------------------------------------------
+
 airq.obj <- rfsrc(Ozone ~ ., data = airquality)
 find.interaction(airq.obj, method = "vimp", nrep = 3)
 find.interaction(airq.obj)
 
+## ------------------------------------------------------------
 ## find interactions, classification setting
+## ------------------------------------------------------------
+
 iris.obj <- rfsrc(Species ~., data = iris)
 find.interaction(iris.obj, method = "vimp", nrep = 3)
 find.interaction(iris.obj)

@@ -3,8 +3,11 @@
 \alias{max.subtree.rfsrc}
 \title{Acquire Maximal Subtree Information}
 \description{
+
     Extract maximal subtree information from a RF-SRC object.  Used for
     variable selection and identifying interactions between variables.
+
+
 }
 \usage{\method{max.subtree}{rfsrc}(object,
   max.order = 2, sub.order = FALSE, conservative = FALSE, ...)
@@ -51,12 +54,12 @@
     the threshold value for deciding whether a variable's minimal depth
     value is small enough for the variable to be classified as strong.
 
-    The second order depth is the shortest distance from the root node
-    to the second node split using \emph{x}.  To specify the target
+    The second order depth is the distance from the root node to the
+    second closest maximal subtree of \emph{x}.  To specify the target
     order depth, use the \code{max.order} option (e.g., setting
     \option{max.order=2} returns the first and second order depths).
     Setting \option{max.order=0} returns the first order depth for each
-    variable for each tree.  
+    variable for each tree.
 
     Set \option{sub.order=TRUE} to obtain the minimal depth of a
     variable relative to another variable.  This returns a
@@ -70,8 +73,8 @@
     [i][j] entries indicate interactions.  See
     \command{find.interaction} for related details.
 
-    For competing risk data, analysis corresponds to unconditional
-    values (i.e., they are non-event specific).
+    For competing risk data, maximal subtree analyses are unconditional
+    (i.e., they are non-event specific).
 }
 \value{
      Invisibly, a list with the following components:
@@ -94,10 +97,10 @@
         variables using the 1se threshold rule.}  
       \item{percentile}{Minimal depth percentile for each variable.}
       \item{density}{Estimated minimal depth density.}
+      \item{second.order.threshold}{Threshold for second order depth.}
 }
 \author{
-    Hemant Ishwaran  \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
   Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 
@@ -115,8 +118,10 @@
 }
 \examples{
 \dontrun{
-### First and second order depths for all variables
-### survival analysis
+## ------------------------------------------------------------
+## survival analysis
+## first and second order depths for all variables
+## ------------------------------------------------------------
 
 data(veteran, package = "randomForestSRC")
 v.obj <- rfsrc(Surv(time, status) ~ . , data = veteran)
@@ -135,8 +140,10 @@ print(v.max$threshold)
 # this corresponds to the set of variables
 print(v.max$topvars)
 
-### Try different levels of conservativeness
-### regression analysis
+## ------------------------------------------------------------
+## regression analysis
+## try different levels of conservativeness
+## ------------------------------------------------------------
 
 mtcars.obj <- rfsrc(mpg ~ ., data = mtcars)
 max.subtree(mtcars.obj)$topvars

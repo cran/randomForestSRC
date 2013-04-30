@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -79,6 +79,7 @@ char forkAndUpdate(uint   treeID,
                    double splitValueMaxCont,
                    uint   splitValueMaxFactSize,
                    uint  *splitValueMaxFactPtr,
+                   double splitStatistic,
                    uint  *membershipIndicator,
                    uint  *leftDaughterSize,
                    uint  *rightDaughterSize);
@@ -116,4 +117,16 @@ void saveTree(uint    b,
 void freeTree(uint treeID, Node *parent, char rootFlag);
 void getSplitDepth(Node *parent, uint *maximumDepth);
 void freeSplitDepth(uint treeID);
+void saveStatistics(char    mode,
+                    uint    b,
+                    Node   *parent,
+                    uint   *offset,
+                    double *spltST,
+                    double *spltVR);
+uint getMaximumDepth(Node *parent);
+void getNodesAtDepth(Node *parent, uint tagDepth, Node **nodesAtDepth, uint *nadCount);
+void getTreeInfo(uint treeID, Node *parent);
+void getPTNodeList(Node    *parent,
+                   Node   **list,
+                   uint    *offset);
 #endif

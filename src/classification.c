@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -77,8 +77,8 @@ void getMultiClassProb (uint mode, uint treeID) {
   else {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
-  for (leaf=1; leaf <= RF_leafCount[treeID]; leaf++) {
-    parent = RF_terminalNode[treeID][leaf];
+  for (leaf=1; leaf <= RF_tLeafCount[treeID]; leaf++) {
+    parent = RF_tNodeList[treeID][leaf];
     stackMultiClassProb(parent, RF_rFactorCount, RF_rFactorSize);
     for (j=1; j <= RF_rFactorCount; j++) {
       for (k=1; k <= RF_rFactorSize[j]; k++) {
@@ -87,7 +87,7 @@ void getMultiClassProb (uint mode, uint treeID) {
     }
     parent -> membrCount = 0;
     for (i=1; i <= RF_observationSize; i++) {
-      if (RF_nodeMembership[treeID][membershipIndex[i]] == parent) {
+      if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
         for (j=1; j <= RF_rFactorCount; j++) {
           (parent -> multiClassProb)[j][(uint) RF_response[treeID][j][membershipIndex[i]]] ++;
         }
@@ -139,7 +139,7 @@ void updateEnsembleMultiClass(uint     mode,
       fullFlag = TRUE;
     }
     outcomeFlag = TRUE;
-    nodeMembershipPtr = RF_fnodeMembership;
+    nodeMembershipPtr = RF_ftNodeMembership;
     break;
   default:
     obsSize = RF_observationSize;
@@ -152,7 +152,7 @@ void updateEnsembleMultiClass(uint     mode,
       fullFlag = TRUE;
     }
     outcomeFlag = TRUE;
-    nodeMembershipPtr = RF_nodeMembership;
+    nodeMembershipPtr = RF_tNodeMembership;
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 

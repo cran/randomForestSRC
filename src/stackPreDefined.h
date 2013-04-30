@@ -60,18 +60,21 @@
 ////**********************************************************************
 
 
-#ifndef RSFSURV_H
-#define RSFSURV_H
-#include "node.h"
-void getAtRiskAndEventCounts(uint treeID);
-void getLocalRatio(uint treeID);
-void getLocalCSH(uint treeID);
-void getLocalCIF(uint treeID);
-void getLocalSurvival(uint treeID);
-void getLocalNelsonAalen(uint treeID);
-void getNelsonAalen(uint treeID);
-void getSurvival(uint treeID);
-void getCSH(uint treeID);
-void getCIF(uint treeID);
-void getMortality(uint treeID);
+#ifndef RSFSTACKPREDEFINED_H
+#define RSFSTACKPREDEFINED_H
+void stackIncomingResponseArrays(uint mode);
+void unstackIncomingResponseArrays(uint mode);
+void unstackIncomingCovariateArrays(uint mode);
+void unstackIncomingCovariateArrays(uint mode);
+void stackIncomingArrays(uint mode);
+void unstackIncomingArrays(uint mode);
+void checkInteraction();
+void stackPreDefinedCommonArrays();
+void unstackPreDefinedCommonArrays();
+void stackPreDefinedGrowthArrays();
+void unstackPreDefinedGrowthArrays();
+void stackPreDefinedRestoreArrays();
+void unstackPreDefinedRestoreArrays();
+void stackPreDefinedPredictArrays();
+void unstackPreDefinedPredictArrays();
 #endif

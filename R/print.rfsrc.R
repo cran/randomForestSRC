@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -61,28 +61,24 @@
 
 
 print.rfsrc <- function(x, ...) {
-
-  ### set default printing if the object is a forest
   if (sum(inherits(x, c("rfsrc", "forest"), TRUE) == c(1, 2)) == 2) {
     print.default(x)
     return()
   }
-
-  ### check that the object is interpretable
+  if(sum(inherits(x, c("rfsrc", "plot.variable"), TRUE) == c(1, 2)) == 2) {
+    print.default(x)
+    return()
+  }
   if (sum(inherits(x, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
-    stop("This function only works for xs of class `(rfsrc, grow)' or '(rfsrc, predict)'.")
+    stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, predict)'.")
   }
-
-  ### are we in grow mode
   if (sum(inherits(x, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
     grow.mode <- TRUE
   }
   else {
     grow.mode <- FALSE
   }
-  
-  ### survival: event frequencies
   if (grepl("surv", x$family)) {
     event <- get.event.info(x)$event
     n.event <- 1
@@ -91,8 +87,6 @@ print.rfsrc <- function(x, ...) {
       event.freq <- paste(tapply(event, event, length), collapse = ", ")
     }
   }
-
-  ### classification: outcome frequency/confusion matrix
   if (x$family == "class") {
     if (!is.null(x$yvar)) {
       event.freq <- paste(tapply(x$yvar, x$yvar, length), collapse = ", ")
@@ -109,8 +103,6 @@ print.rfsrc <- function(x, ...) {
       conf.matx <- NULL
     }
   }
-  
-  ### error rates 
   if (!is.null(x$err.rate)) {
     err.rate <- cbind(x$err.rate)
     if (grepl("surv", x$family)) {
@@ -120,22 +112,20 @@ print.rfsrc <- function(x, ...) {
       overall.err.rate <- paste(round(100 * err.rate[nrow(err.rate), 1], 2), "%", sep = "")
       err.rate <- paste(round(err.rate[nrow(err.rate), ], 2), collapse=", ", sep = "")
     }
-    else {
+    else if (x$family == "regr") {
       per.var <- round(100 * (1 - err.rate[nrow(err.rate), ] / var(x$yvar, na.rm = TRUE)), 2)
       err.rate <- round(err.rate[nrow(err.rate), ], 2)
+    }
+    else {
+      err.rate <- NULL
     }
   }
   else {
     err.rate <- NULL
   }
-    
-  
-  ### ensure backward compatibility for nsplit
   if (is.null(x$nsplit)) {
     x$nsplit <- 0
   }
-
-  ### printing depends upon the object and family 
   if (grow.mode) {
     cat("                         Sample size: ", x$n,                 "\n", sep="")
     if (grepl("surv", x$family)) {
@@ -168,7 +158,7 @@ print.rfsrc <- function(x, ...) {
     else {
       cat("                      Splitting rule: ", x$splitrule,         "\n", sep="")
     } 
-    if (!is.null(x$err.rate)) {
+    if (!is.null(err.rate)) {
       if (x$family == "regr") {
         cat("                % variance explained: ", per.var, "\n", sep="")
       }
@@ -186,7 +176,6 @@ print.rfsrc <- function(x, ...) {
     }
   }
   else {
-    #cat("\nCall:\n", deparse(x$call),                   "\n\n")
     cat("  Sample size of test (predict) data: ", x$n,  "\n", sep="")
     if (grepl(x$family, "surv") && !is.null(event)) {
       if (n.event > 1) {
@@ -206,7 +195,7 @@ print.rfsrc <- function(x, ...) {
     cat("         Total no. of grow variables: ", length(x$xvar.names), "\n", sep="")  
     cat("                            Analysis: ", family.pretty(x$family),"\n", sep="")
     cat("                              Family: ", x$family,              "\n", sep="")
-    if (!is.null(x$err.rate)) {
+    if (!is.null(err.rate)) {
       if (x$family == "regr") {
         cat("                % variance explained: ", per.var, "\n", sep="")
       }

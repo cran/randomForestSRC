@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -63,20 +63,7 @@
 #ifndef RSFSTACK_H
 #define RSFSTACK_H
 #include "node.h"
-void stackIncomingArrays(uint mode);
-void unstackIncomingArrays(uint mode);
-void checkInteraction();
-void stackPreDefinedCommonArrays();
-void unstackPreDefinedCommonArrays();
-void stackPreDefinedGrowthArrays();
-void unstackPreDefinedGrowthArrays();
-void stackPreDefinedRestoreArrays();
-void unstackPreDefinedRestoreArrays();
-void stackPreDefinedPredictArrays();
-void unstackPreDefinedPredictArrays();
-void stackPreDefinedInteractionArrays();
-void unstackPreDefinedInteractionArrays();
-void initializeArrays(char mode);
+void initializeTimeArrays(char mode);
 void stackFactorArrays();
 void stackFactorGeneric(uint    size, 
                         char  **type, 
@@ -159,21 +146,9 @@ uint stackDefinedOutputObjects(char      mode,
                                double  **pRF_fullEnsembleSRV,
                                double  **pRF_oobEnsembleMRT,
                                double  **pRF_fullEnsembleMRT,
-                               uint    **pRF_terminalNodeMembership,
+                               uint    **pRF_tNodeMembershipIndex,
+                               uint    **pRF_pNodeMembershipIndex,
                                uint    **pRF_bootstrapMembership,
                                uint     *stackCount,
                                SEXP     *sexpVector);
-void unstackDefinedOutputObjects(char      mode,
-                                 Node    **root);
-uint stackVariableOutputObjects(uint     totalNodeCount,
-                                uint     totalMWCPCount,
-                                uint   **p_treeID,
-                                uint   **pRF_nodeID,
-                                uint   **pRF_parmID,
-                                double **pRF_contPT,
-                                uint   **pRF_mwcpSZ,
-                                uint   **pRF_mwcpPT,
-                                uint     sexpLength,
-                                char   **sexpString,
-                                SEXP    *sexpVector);
 #endif

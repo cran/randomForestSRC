@@ -3,9 +3,9 @@
 \alias{var.select.rfsrc}
 \title{Variable Selection}
 \description{
-    Variable selection for RF-SRC using minimal depth.
+    Variable selection using minimal depth.
 }
-\usage{\method{var.select}{rfsrc}(formula, data, object, cause,     
+\usage{\method{var.select}{rfsrc}(formula, data, object, cause,
   method = c("md", "vh", "vh.vimp"), conservative = c("medium", "low", "high"),
   ntree = (if (method == "md") 1000 else 500),
   mvars = (if (method != "md") ceiling(ncol(data)/5) else NULL),
@@ -23,11 +23,12 @@
       the model. Must be specified unless \code{object} is given.}
    \item{object}{An object of class \code{(rfsrc, grow)}. 
        Not required when \code{formula} and \code{data} are supplied.}
-   \item{cause}{An integer value between 1 and \code{J} indicating
+   \item{cause}{Integer value between 1 and \code{J} indicating
 	  the event of interest for competing risks, where \code{J} is
 	  the number of event types (this option applies only to
 	  competing risk families).  The default is to use the first
 	  event type.}
+
    \item{method}{Variable selection method:
      \describe{  
      \item{\code{md}:}{minimal depth (default).}
@@ -189,8 +190,7 @@
   \item{md.obj}{Minimal depth object.  \code{NULL} unless \option{method="md"}.}
 }
 \author{
-    Hemant Ishwaran  \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
     Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 
@@ -208,8 +208,10 @@
 }
 \examples{
 \dontrun{
-### Minimal depth variable selection
-### survival analysis
+## ------------------------------------------------------------
+## Minimal depth variable selection
+## survival analysis
+## ------------------------------------------------------------
 
 data(pbc, package = "randomForestSRC")
 pbc.obj <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
@@ -221,23 +223,22 @@ topvars <- vs.pbc$topvars
 # the above is equivalent to
 max.subtree(pbc.obj)$topvars
 
-
 # different levels of conservativeness
 var.select(object = pbc.obj, conservative = "low")
 var.select(object = pbc.obj, conservative = "medium")
 var.select(object = pbc.obj, conservative = "high")
 
+## ------------------------------------------------------------
+## Minimal depth variable selection
+## competing risk analysis
+## ------------------------------------------------------------
 
-### Minimal depth variable selection
-### competing risk analysis
-
+## competing risk data set involving AIDS in women
 data(wihs, package = "randomForestSRC")
 vs.wihs <- var.select(Surv(time, status) ~ ., wihs, nsplit = 3, ntree = 100)
 
-### Minimal depth variable selection
-### competing risk analysis of pbc data from survival package
-### implement cause-specific variable selection 
-
+## competing risk analysis of pbc data from survival package
+## implement cause-specific variable selection 
 if (library("survival", logical.return = TRUE)) {
   data(pbc, package = "survival")
   pbc$id <- NULL
@@ -245,14 +246,17 @@ if (library("survival", logical.return = TRUE)) {
   var.select(Surv(time, status) ~ ., pbc, nsplit = 10, cause = 2)
 }
 
-
-### Minimal depth variable selection
-### classification analysis
+## ------------------------------------------------------------
+## Minimal depth variable selection
+## classification analysis
+## ------------------------------------------------------------
 
 vs.iris <- var.select(Species ~ ., iris)
 
-
-### Regression analysis
+## ------------------------------------------------------------
+## Minimal depth variable selection
+## Regression analysis
+## ------------------------------------------------------------
 
 #Variable hunting (overkill for low dimensions)
 vh.air <- var.select(Ozone ~., airquality, method = "vh", nrep = 10, mvars = 5)
@@ -260,37 +264,39 @@ vh.air <- var.select(Ozone ~., airquality, method = "vh", nrep = 10, mvars = 5)
 #better analysis
 vs.air <- var.select(Ozone ~., airquality)
 
-
-### Minimal depth high-dimensional example
-### van de Vijver microarray breast cancer survival data
-### predefined weights for selecting a gene for node splitting are
-### determined from a preliminary forest analysis
+## ------------------------------------------------------------
+## Minimal depth high-dimensional example
+## van de Vijver microarray breast cancer survival data
+## predefined weights for selecting a gene for node splitting are
+## determined from a preliminary forest analysis
+## ------------------------------------------------------------
 
 data(vdv, package = "randomForestSRC")
 md.breast <- var.select(Surv(Time, Censoring) ~ ., vdv,
   prefit = list(action = TRUE))
 
-# same analysis, but with customization for the preliminary forest fit
-# note the large mtry and small nodesize values used
+## same analysis, but with customization for the preliminary forest fit
+## note the large mtry and small nodesize values used
 md.breast.custom <- var.select(Surv(Time, Censoring) ~ ., vdv, 
   prefit = list(action = TRUE, mtry = 500, nodesize = 1))
 
-
-### Variable hunting high-dimensional example
-### van de Vijver microarray breast cancer survival data
-### nrep is small for illustration; typical values are nrep = 100
+## ------------------------------------------------------------
+## Variable hunting high-dimensional example
+## van de Vijver microarray breast cancer survival data
+## nrep is small for illustration; typical values are nrep = 100
+## ------------------------------------------------------------
 
 data(vdv, package = "randomForestSRC")
 vh.breast <- var.select(Surv(Time, Censoring) ~ ., vdv,
       method = "vh", nrep = 10, nstep = 5)
 
-#plot top 10 variables
+# plot top 10 variables
 plot.variable(vh.breast$rfsrc.refit.obj,
        xvar.names = vh.breast$topvars[1:10])
 plot.variable(vh.breast$rfsrc.refit.obj,
        xvar.names = vh.breast$topvars[1:10], partial = TRUE)
 
-# similar analysis, but where weights are obtained from univarate cox p-values.
+## similar analysis, but where weights are obtained from univarate cox p-values.
 if (library("survival", logical.return = TRUE) 
     & library("Hmisc", logical.return = TRUE))
 {

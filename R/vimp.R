@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -70,17 +70,11 @@ vimp.rfsrc <- function(object,
                  seed = NULL,
                  do.trace = FALSE,
                  ...)
-
 {
-
-  ## Incoming parameter checks.  All are fatal.
   if (missing(object)) stop("Object is missing")
-
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
       sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2)
     stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'.")
-
-  ## Process the importance specification
   if (!is.logical(joint)) {
     stop("joint must be a logical value")
   }
@@ -97,16 +91,8 @@ vimp.rfsrc <- function(object,
   importance <- match.arg(importance,
       c("permute", "random", "permute.ensemble", "random.ensemble", "none", 
         "permute.joint", "random.joint", "permute.joint.ensemble", "random.joint.ensemble"))
-
-  
-  ### absence of newdata indicates grow scenario
-  ### this has implications for whether peformance measures must be present in the object
-  ### and whether outcome = train or outcome = test for the generic.predict call
-
+  outcome.target <- get.outcome.target(object$family, outcome.target)
   if (missing(newdata)) {
-    
-    ## grow objects under non-standard bootstrapping are devoid of
-    ## performance values
     if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
       if (is.null(object$forest)) {
         stop("The forest is empty.  Re-run rfsrc (grow) call with forest=TRUE")
@@ -121,54 +107,33 @@ vimp.rfsrc <- function(object,
     if (bootstrap != "by.root") {
       stop("grow objects under non-standard bootstrapping are devoid of performance values")
     }
-    
-    ## combine the xvar and yvar data into a "test" data
-    ## call generic predict with outcome = "test"
     object$yvar <- as.data.frame(object$yvar)
     colnames(object$yvar) <- object$yvar.names
     newdata <- cbind(object$yvar, object$xvar)
-
-    ## set the outcome specification 
     outcome.type <- "test"
-    
   }
-  
   else {
-
-    ## nothing to do except confirm that newdata is a data frame
     if (!is.data.frame(newdata)) {
       stop("newdata must be a data frame")
     }
-
-    ## set the outcome specification 
     outcome.type <- "train"
-    
   }
-  
-  ## Initialize sample size.
   n <- nrow(newdata)
-
-  ## Process the subsetted index 
-  ## Assumes the entire data set is to be used if not specified
   if (missing(subset)) {
     subset <- 1:n
   }
   else {
-    ## convert the user specified subset into a usable form
     if (is.logical(subset)) subset <- which(subset)
     subset <- unique(subset[subset >= 1 & subset <= n])
-
     if (length(subset) == 0) {
       stop("'subset' not set properly.")
     }
   }
-
-  ##subset the data
   newdata <- newdata[subset,, drop = FALSE]
-
   result <- generic.predict.rfsrc(object,
                                   newdata = newdata,
                                   na.action = na.action,
+                                  outcome.target = outcome.target,
                                   importance = importance,
                                   importance.xvar = xvar.names,
                                   outcome = outcome.type,
@@ -181,10 +146,6 @@ vimp.rfsrc <- function(object,
                                   membership = FALSE,
                                   restore.only = FALSE,
                                   ...)
-
-
  return(result)
-
 }
-
 vimp <- vimp.rfsrc

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.1.0
+////  Version 1.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -52,7 +52,7 @@
 ////    5425 Nestleway Drive, Suite L1
 ////    Clemmons, NC 27012
 ////
-////    email:  ubk@kogalur.com
+////    email:  commerce@kogalur.com
 ////    URL:    http://www.kogalur.com
 ////    --------------------------------------------------------------
 ////
@@ -65,9 +65,10 @@
 #include "node.h"
 void imputeInteraction (uint treeID, Node *parent, uint *repMembrIndx, uint repMembrSize);
 char imputeNode (uint     type,
+                 char     lmvFlag,
                  char     chainFlag,
                  uint     treeID, 
-                 Node    *parent,
+                 Node    *nodePtr,
                  uint    *repAbsIdx,
                  uint     repNodeSize,
                  uint    *iAbsIdx,
@@ -91,10 +92,6 @@ void imputeUpdateSummary (uint     mode,
                           double **responsePtr, 
                           double **predictorPtr, 
                           uint     treeID);
-void imputeUpdateSummaryNew (uint     mode, 
-                          double **responsePtr, 
-                          double **predictorPtr, 
-                             uint     treeID);
 void imputeSummary(uint      mode,
                    char      selectionFlag);
 void imputeResponse(uint      mode,
@@ -129,4 +126,7 @@ void updateEventTypeSubsets(double *summaryStatus,
                             uint  **eIndividual);
 void stackShadow (uint mode, uint treeID);
 void unstackShadow (uint mode, uint treeID);
+void imputeUpdateSummaryNew (uint     mode, 
+                             uint     treeID);
+char xferMissingness(uint type, Node *source, Terminal *destination);
 #endif

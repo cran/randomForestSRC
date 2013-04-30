@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.1.0
+####  Version 1.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -52,20 +52,13 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  ubk@kogalur.com
+####    email:  commerce@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
 ####**********************************************************************
 ####**********************************************************************
 
-
-########################################################################
-# 
-# impute data using rfsrc
-#
-#
-########################################################################
 
 impute.rfsrc <- function(formula,
                          data,
@@ -80,8 +73,6 @@ impute.rfsrc <- function(formula,
                          do.trace = FALSE,
                          ...)
 {
-
-  ## set parameters accordingly
   importance <- "none"
   na.action <- "na.impute"
   forest <- FALSE
@@ -89,19 +80,10 @@ impute.rfsrc <- function(formula,
   var.used <- FALSE
   split.depth <- FALSE
   membership <- FALSE
-
-  ## terminate if there is no data
   if (missing(data)) {
     stop("data is missing")
   }
-
-  ## save the rownames
   row.names.data <- rownames(data)
-
-  ## handle the case where there is no formula
-  ## basically this amounts to random splitting
-  ## we mimic this by adding a fake y-outcome
-
   if (missing(formula) | (!missing(formula) && is.null(formula))) {
     formula <- as.formula("junkFAKEYjunkjunkFAKEYjunk ~ .")
     data$junkFAKEYjunkjunkFAKEYjunk <- rnorm(nrow(data))
@@ -111,8 +93,6 @@ impute.rfsrc <- function(formula,
   else {
     missing.formula <- FALSE
   }
-  
-  ## rfsrc grow call
   object <- rfsrc(formula = formula,
                   data = data,
                   ntree = ntree,
@@ -132,29 +112,14 @@ impute.rfsrc <- function(formula,
                   split.depth = split.depth,
                   membership = membership,
                   impute.only = TRUE)
-
-  
-  ## preliminary results of imputation
   imputed.result <- cbind(object$yvar, object$xvar)
   colnames(imputed.result) <- c(object$yvar.names, object$xvar.names)
-
-  ##Overlay the data (only necessary when nimpute = 1)
   if (nimpute == 1) {
     imputed.result[object$imputed.indv, ] <- object$imputed.data
   }
-
-  ## strip away the fake y-outcome in the missing formula scenario
   if (missing.formula) {
     imputed.result$junkFAKEYjunkjunkFAKEYjunk <- NULL
   }
-
-  ## restore the row names
   rownames(imputed.result) <- row.names.data
-  
-  
-  ## return the goodies 
   invisible(imputed.result) 
-
 }
-
-

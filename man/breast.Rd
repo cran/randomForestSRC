@@ -8,7 +8,6 @@
   diagnosis.  The first 30 features of the data describe characteristics
   of the cell nuclei present in the digitized image of a fine needle
   aspirate (FNA) of the breast mass.
- 
 }
 \format{A data frame containing:
   \tabular{ll}{
@@ -59,6 +58,5 @@ data(breast, package = "randomForestSRC")
 breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
 print(breast.obj)
 plot(breast.obj)
-}
-}
+}}
 \keyword{datasets}

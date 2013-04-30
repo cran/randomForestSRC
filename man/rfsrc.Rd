@@ -4,14 +4,16 @@
 \title{Random Forests for Survival, Regression and Classification (RF-SRC)}
 \description{
   A random forest (Breiman, 2001) is grown using user supplied training
-  data.  Applies when the response is numeric, categorical (factor), or
-  right-censored (including competing risk), and yields regression,
-  classification, and survival forests, respectively.  The resulting
-  forest, informally referred to as a RF-SRC object, contains many
-  useful values which can be directly extracted by the user and/or parsed
-  using additional functions (see the examples below).  This is the main
-  entry point to the \pkg{randomForestSRC} package.
+  data.  Applies when the response (outcome) is numeric, categorical
+  (factor), or right-censored (including competing risk), and yields
+  regression, classification, and survival forests, respectively.  The
+  resulting forest, informally referred to as a RF-SRC object, contains
+  many useful values which can be directly extracted by the user and/or
+  parsed using additional functions (see the examples below).  This is
+  the main entry point to the \pkg{randomForestSRC} package.
 
+  
+  
   The package implements OpenMP shared-memory parallel programming.
   However, the default installation will only execute serially.  Users
   should consult the randomForestSRC-package help file for details on
@@ -22,15 +24,27 @@
 }
 \usage{
 rfsrc(formula, data, ntree = 1000,
-  bootstrap = c("by.root", "by.node", "none"), mtry = NULL,
-  nodesize = NULL, nodedepth = NULL,
-  splitrule = NULL, nsplit = 0, split.fast = FALSE,
+  bootstrap = c("by.root", "by.node", "none"),
+  mtry = NULL,
+  nodesize = NULL,
+  nodedepth = NULL,
+  splitrule = NULL,
+  nsplit = 0,
+  split.fast = FALSE,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-  na.action = c("na.omit", "na.impute"), nimpute = 1,
-  ntime, cause, xvar.wt = NULL, forest = TRUE, proximity = FALSE,
+  na.action = c("na.omit", "na.impute"),
+  nimpute = 1,
+  ntime,
+  cause,
+  xvar.wt = NULL,
+  forest = TRUE,
+  proximity = FALSE,
   var.used = c(FALSE, "all.trees", "by.tree"),
-  split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
-  do.trace = FALSE, membership = TRUE, ...)
+  split.depth = c(FALSE, "all.trees", "by.tree"),
+  seed = NULL,
+  do.trace = FALSE,
+  membership = TRUE,
+  statistics = FALSE, ...)
 }
 \arguments{
     \item{formula}{A symbolic description of the model to be fit.}
@@ -54,11 +68,11 @@ rfsrc(formula, data, ntree = 1000,
     \item{nodedepth}{Maximum depth to which a tree should be grown.  The
       default behaviour is that this parameter is ingored.}
     \item{splitrule}{Splitting rule used to grow trees.  Available rules
-      are as follows:
+      for the different familes are as follows:
       \describe{
 	\item{\kbd{Regression:}}{The default rule is weighted mean-squared error
-	  splitting (Breiman et al. 1984, Chapter 8.4).}
-	
+	 splitting (Breiman et al. 1984, Chapter 8.4).}
+
 	\item{\kbd{Classification:}}{The default rule is Gini index splitting (Breiman
 	  et al. 1984, Chapter 4.3).}
 	
@@ -67,22 +81,26 @@ rfsrc(formula, data, ntree = 1000,
 	  Leblanc and Crowley, 1993); (2) \code{logrankscore} implements
 	  log-rank score splitting (Hothorn and Lausen, 2003).}
 	
-	\item{\kbd{Competing risks:}}{The default rule is \code{logrankCR} which
-	  implements a modified log-rank splitting rule modeled after Gray's
-	  test (Gray, 1988).}
-      }
-    }
+	\item{\kbd{Competing risks:}}{Two rules are available. (1) The default rule is
+	  \code{logrankCR} which implements a modified weighted log-rank splitting rule 
+	  modeled after Gray's test (Gray, 1988); (2) \code{logrank}
+	  implements weighted log-rank splitting where each event type
+	  is treated as the event of interest and all other events are
+	  treated as censored.  The split rule is the weighted value of
+	  each of log-rank statistics, standardized by the variance.
+	  For more details see Ishwaran et al. (2013).}
+    }}
     \item{nsplit}{Non-negative integer value.  If non-zero, the
       specified tree splitting rule is randomized which can
       significantly increase speed.}
     \item{split.fast}{Set this value to TRUE when speed more than
       accuracy is important in growing a forest.}
     \item{importance}{Method for computing variable importance (VIMP).
-      Note that calculation of VIMP can be computationally expensive when the
-      number of variables is high.  If VIMP is not needed, consider
+      Calculating VIMP can be computationally expensive when the
+      number of variables is high, thus if VIMP is not needed consider
       setting \code{importance="none"}.  See the details below for more
       about VIMP.}
-    \item{na.action}{Action to be taken if the data contains \code{NA}'s.
+    \item{na.action}{Action taken if the data contains \code{NA}'s.
         Possible values are \code{na.omit} and \code{na.impute}.
         Default is \code{na.omit}, which removes the entire record if
         even one of its entries is \code{NA} (for x-variables this applies only
@@ -97,7 +115,7 @@ rfsrc(formula, data, ntree = 1000,
       more than \code{ntime} time points.  The default is to use all
       observed event times.  Use this option when the sample size is
       large to improve computational efficiency.}
-    \item{cause}{An integer value between 1 and \code{J} indicating
+    \item{cause}{Integer value between 1 and \code{J} indicating
 	  the event of interest for competing risks, where \code{J} is
 	  the number of event types (this option applies only to
 	  competing risks and is ignored otherwise).  While growing a
@@ -138,22 +156,34 @@ rfsrc(formula, data, ntree = 1000,
 	causes output to be printed each \code{do.trace} iteration.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
+    \item{statistics}{Should statistics be returned?}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
   \enumerate{
+
   \item \emph{Families}
 
-  There are four families of random forests: \code{regr}, \code{class},
-  \code{surv}, and \code{surv-CR}.  Regression forests (\code{regr}) are
-  constructed when the response is continuous, classification forests
-  (\code{class}) when the response is a factor, survival forests
-  (\code{surv}) when the response corresponds to right-censored survival
-  settings, and competing risk survival forests (\code{surv-CR}) for
-  right-censored competing risk scenarios.  See below for how to code
-  the response in the two different survival scenarios.
 
-    
+  There are four families of random forests:
+  \code{regr}, \code{class}, \code{surv}, and \code{surv-CR}.
+
+
+  They apply as follows:
+
+  \itemize{
+    \item Regression forests (\code{regr}) for continuous responses.
+  
+    \item Classification forests (\code{class}) for factor responses.
+  
+    \item Survival forest (\code{surv}) for right-censored survival settings.
+
+    \item Competing risk survival forests (\code{surv-CR}) for competing risk scenarios.  
+  }
+  
+  See below for how to code the response in the two different survival scenarios.
+
+
   \item \emph{Randomized Splitting Rules}
  
   A random version of a splitting rule can be invoked using
@@ -250,7 +280,7 @@ rfsrc(formula, data, ntree = 1000,
   censoring and (usually) 1=death (event).  The event time must be
   non-negative.
 
-  \item For competing risk forests (Ishwaran et al., 2012), the
+  \item For competing risk forests (Ishwaran et al., 2013), the
   implementation is similar to survival, but with the following
   caveats:
 
@@ -261,12 +291,9 @@ rfsrc(formula, data, ntree = 1000,
     events can be coded non-sequentially, although 0 must always be used
     for censoring.
     
-    \item Over-riding the default splitting rule \code{logrankCR} by
-    manually selecting any split rule other than \code{logrankCR} or
-    \code{random} will result in a survival analysis in which all
-    (non-censored) events are treated as if they are the same type
-    (indeed, they will coerced as such).  Note that \option{nsplit} works as
-    in survival.
+    \item Setting the splitting rule to \code{logrankscore} will result
+    in a survival analysis in which all events are treated as if they
+    are the same type (indeed, they will coerced as such).
 
     \item Generally, \code{nodesize} should be set larger for competing
     risks than survival settings.
@@ -276,7 +303,7 @@ rfsrc(formula, data, ntree = 1000,
   \item \emph{Imputation}
 
   Setting \option{na.action="na.impute"} implements a tree imputation
-  method whereby missing data (x-variables or y-outcomes) are imputed
+  method whereby missing data (x-variables or y-responses) are imputed
   dynamically as a tree is grown by randomly sampling from the
   distribution within the current node (Ishwaran et al. 2008).  OOB data
   is not used in imputation to avoid biasing prediction error and VIMP
@@ -383,7 +410,7 @@ rfsrc(formula, data, ntree = 1000,
      \item{imputed.indv}{Vector of indices for cases with missing
          values.}
      \item{imputed.data}{Data frame of the imputed data. The first
-	 column(s) are reserved for the y-outcomes, after which the
+	 column(s) are reserved for the y-responses, after which the
 	 x-variables are listed.}
      \item{split.depth}{Matrix of size \code{n}x\code{p} where entry
          [i][j] is the minimal depth for variable [j] for case [i].}
@@ -439,7 +466,7 @@ rfsrc(formula, data, ntree = 1000,
       \item For competing risks, a matrix with one column for each event
       recording the expected number of life years lost due to the event
       specific cause up to the maximum follow up (Ishwaran et al.,
-      2012).  The grow object also contains the cause-specific
+      2013).  The grow object also contains the cause-specific
       cumulative hazard function (CSCHF) and the cumulative incidence
       function (CIF) for each event type.  These are encoded as a 3-d
       array, with the third dimension used for the event type, each time
@@ -452,8 +479,7 @@ rfsrc(formula, data, ntree = 1000,
   }
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
     Breiman L., Friedman J.H., Olshen R.A. and Stone C.J. 
@@ -488,10 +514,10 @@ rfsrc(formula, data, ntree = 1000,
     Lauer M.S. (2010).  High-dimensional variable selection for survival
     data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
 
-    Ishwaran H. (2012).  The effect of splitting on random forests.
+    Ishwaran H. (2013).  The effect of splitting on random forests.
     
     Ishwaran H., Gerds, T.A. Kogalur U.B., Moore R.D., Gange S.J. and Lau
-    B.M. (2012). Random survival forests for competing risks.
+    B.M. (2013). Random survival forests for competing risks.
 
     Lin Y. and Jeon Y. (2006).  Random forests and adaptive nearest
     neighbors, \emph{J. Amer. Statist. Assoc.}, 101:578-590.
@@ -524,12 +550,12 @@ rfsrc(formula, data, ntree = 1000,
   \command{\link{vimp}}
 }
 \examples{
-###------------------------------------------------------------
-### Survival analysis
+##------------------------------------------------------------
+## Survival analysis
+##------------------------------------------------------------
 
-### Veteran data
-### Randomized trial of two treatment regimens for lung cancer
-
+## Veteran data
+## randomized trial of two treatment regimens for lung cancer
 data(veteran, package = "randomForestSRC")
 v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran, ntree = 100)
 
@@ -546,7 +572,7 @@ matplot(v.obj$time.interest, 100 * t(v.obj$survival[1:10, ]),
 plot.survival(v.obj, subset = 1:10, haz.model = "ggamma")
 
 \dontrun{
-### Primary biliary cirrhosis (PBC) of the liver
+## Primary biliary cirrhosis (PBC) of the liver
 
 data(pbc, package = "randomForestSRC") 
 pbc.obj <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
@@ -584,9 +610,9 @@ pbc.fast.impute.data <- impute.rfsrc(Surv(days, status) ~ ., pbc,
 tail(pbc.fast.impute.data)
 
 
-### Competing risks
-### WIHS analysis
-### Cumulative incidence function (CIF) for HAART and AIDS stratified by IDU
+## Competing risks
+## WIHS analysis
+## Cumulative incidence function (CIF) for HAART and AIDS stratified by IDU
 
 data(wihs, package = "randomForestSRC")
 wihs.obj <- rfsrc(Surv(time, status) ~ ., wihs, nsplit = 3, ntree = 100)
@@ -604,8 +630,8 @@ legend("topleft",
        lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3, cex = 1.5)
 
 
-### Compare RF-SRC to cox regression
-### Assumes "pec" and "survival" libraries are loaded 
+## Compare RF-SRC to cox regression
+## Assumes "pec" and "survival" libraries are loaded 
 
 if (library("survival", logical.return = TRUE)
     & library("pec", logical.return = TRUE))
@@ -657,19 +683,18 @@ if (library("survival", logical.return = TRUE)
   cat("\tCox regression      : ", mean(cox.err, na.rm = TRUE), "\n")
 }
 
-###------------------------------------------------------------
-### Regression analysis
+## ------------------------------------------------------------
+## Regression analysis
+## ------------------------------------------------------------
 
-### New York air quality measurements
-
+## New York air quality measurements
 airq.obj <- rfsrc(Ozone ~ ., data = airquality, na.action = "na.impute")
 airq.obj
 
 # partial plot of variables (see plot.variable for more details)
 plot.variable(airq.obj, partial = TRUE, smooth.lines = TRUE)
 
-### motor trend cars
-
+## motor trend cars
 mtcars.obj <- rfsrc(mpg ~ ., data = mtcars)
 mtcars.obj
 
@@ -683,16 +708,15 @@ print(md.obj$topvars)
 vs.obj <- var.select(object = mtcars.obj)
 
 
-###------------------------------------------------------------
-### Classification analysis
+## ------------------------------------------------------------
+## Classification analysis
+## ------------------------------------------------------------
 
-### Edgar Anderson's iris data
-
+## Edgar Anderson's iris data
 iris.obj <- rfsrc(Species ~., data = iris)
 iris.obj
 
-### Wisconsin prognostic breast cancer data
-
+## Wisconsin prognostic breast cancer data
 data(breast, package = "randomForestSRC")
 breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
 breast.obj

@@ -19,12 +19,11 @@
   Does not apply to right-censored data.
 }
 \author{
-    Hemant Ishwaran \email{hemant.ishwaran@gmail.com} and
-    Udaya B. Kogalur \email{kogalurshear@gmail.com}
+    Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
   Ishwaran H., Gerds, T.A. Kogalur U.B., Moore R.D., Gange S.J. and Lau
-  B.M. (2012). Random survival forests for competing risks.
+  B.M. (2013). Random survival forests for competing risks.
 }
 \seealso{
   \command{\link{follic}},
@@ -34,13 +33,19 @@
 }
 \examples{
 \dontrun{
+## ------------------------------------------------------------
 ## follicular cell lymphoma
+## ------------------------------------------------------------
+
   data(follic, package = "randomForestSRC")
   follic.obj <- rfsrc(Surv(time, status) ~ ., follic, nsplit = 3, ntree = 100)
   plot.competing.risk(follic.obj)
 
+## ------------------------------------------------------------
 ## competing risk analysis of pbc data from the survival package
 ## events are transplant (1) and death (2)
+## ------------------------------------------------------------
+
 if (library("survival", logical.return = TRUE)) {
    data(pbc, package = "survival")
    pbc$id <- NULL
