@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -172,8 +172,8 @@
 #define SIZE_OF_INTEGER sizeof(uint)
 #define MAX_EXACT_LEVEL SIZE_OF_INTEGER * 8
 #define SAFE_FACTOR_SIZE 8
-#define V_DOMINANT 1
-#define R_DOMINANT 2
+#define P_DOMINANT 1
+#define N_DOMINANT 2
 typedef unsigned int   uint;
 typedef unsigned long  ulong; 
 typedef unsigned char  uchar; 

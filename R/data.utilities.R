@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.2
+####  Version 1.3
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -233,13 +233,13 @@ family.pretty <- function(fmly) {
 finalizeFormula <- function(formula.obj, data) {
   yvar.names <- formula.obj$yvar.names
   index <- length(yvar.names)
-  fNames <- formula.obj$fNames
+  all.names <- formula.obj$all.names
   fmly <- formula.obj$family
-  if (fNames[index + 1] == ".") {
-    xvar.names <- names(data)[!is.element(names(data), fNames[1:index])]
+  if (all.names[index + 1] == ".") {
+    xvar.names <- names(data)[!is.element(names(data), all.names[1:index])]
   }
   else {
-    xvar.names <- fNames[-c(1:index)]
+    xvar.names <- all.names[-c(1:index)]
     not.specified <- !is.element(xvar.names, names(data))
     if (sum(not.specified) > 0) {
       stop("formula appears misspecified, object ", xvar.names[not.specified], " not found")
@@ -360,6 +360,9 @@ get.event.info <- function(obj, subset = NULL) {
       r.dim <- 2
       time <- obj$yvar[subset, 1]
       cens <- obj$yvar[subset, 2]
+      if (!all(floor(cens) == abs(cens), na.rm = TRUE)) {
+        stop("for survival families censoring variable must be coded as a non-negative integer")
+      }
       event <- na.omit(cens)[na.omit(cens) > 0]
       event.type <- unique(event)
     }
@@ -381,6 +384,9 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
     r.dim <- 2
     time <- yvar[, 1]
     cens <- yvar[, 2]
+    if (!all(floor(cens) == abs(cens), na.rm = TRUE)) {
+      stop("for survival families censoring variable must be coded as a non-negative integer (perhaps the formula is set incorrectly?)")
+    }
     if (need.deaths & all(na.omit(cens) == 0)) {
       stop("no deaths in data!")
     }
@@ -484,7 +490,7 @@ get.grow.splitinfo <- function (fmly, splitrule, nsplit, event.type) {
   splitinfo <- list(name = splitrule, index = splitrule.idx, nsplit = nsplit)
   return (splitinfo)
 }
-get.grow.xvar.wt <- function(weight, n.xvar) {
+get.grow.x.wt <- function(weight, n.xvar) {
   if (is.null(weight)) {
     weight <- rep(1/n.xvar, n.xvar)
   }
@@ -525,8 +531,8 @@ get.yvar.target <- function(fmly, yvar.types, outcome.idx) {
     outcome.idx = 0
   return(outcome.idx)
 }
-parseFormula <- function (formula, data) {
-  if (!inherits(formula, "formula")) {
+parseFormula <- function(f, data) {
+  if (!inherits(f, "formula")) {
     stop("'formula' is not a formula object.")
   }
   if (is.null(data)) {
@@ -535,23 +541,42 @@ parseFormula <- function (formula, data) {
   if (!is.data.frame(data)) {
     stop("'data' must be a data frame.")
   }
-  fNames <- all.vars(formula, max.names = 1e7)
-  if ((all.names(formula)[2] == "Surv")) {
-    if (sum(is.element(names(data), fNames[1:2])) != 2) {
+  all.names <- all.vars(f, max.names = 1e7)
+  fmly <- all.names(f, max.names = 1e7)[2]
+  if ((fmly == "Surv")) {
+    if (sum(is.element(names(data), all.names[1:2])) != 2) {
         stop("Survival formula incorrectly specified.")
     }
     family <- "surv"
-    yvar.names <- fNames[1:2]
+    yvar.names <- all.names[1:2]
   }
   else {
-    if ((all.names(formula)[2] == "Multivar")) {
-      stop("Regression (or) classification formula incorrectly specified.")
+    if ((fmly == "Multivar")) {
+      eligible.names <- all.vars(formula(paste(as.character(f)[2], "~ .")), max.names = 1e7)
+      yvar.names <- eligible.names[-length(eligible.names)]
+      if (length(yvar.names) <= 1) {
+        stop("Multivariate forests require at least two distinct y-responses")
+      }
+      if (sum(is.element(names(data), yvar.names)) < length(yvar.names)) {
+        stop("Multivariate formula incorrectly specified: y's listed in formula are not in data.")
+      }
+      Y <- data[, yvar.names]
+      if (!(all(unlist(lapply(Y, function(y) {is.numeric(y)}))) |
+            all(unlist(lapply(Y, function(y) {is.factor(y)}))))) { 
+        stop("the y-outcomes must _all_ be either real or factors.")
+      }
+      if (is.factor(Y[, 1])) {
+        family <- "class+"
+      }
+      else {
+        family <- "regr+"
+      }
     }
     else {
-      if (sum(is.element(names(data), fNames[1])) != 1) {
+      if (sum(is.element(names(data), all.names[1])) != 1) {
         stop("Regression (or) classification formula incorrectly specified.")
       }
-      yvar.names <- fNames[1]
+      yvar.names <- all.names[1]
       Y <- data[, yvar.names]
       if ( !(is.factor(Y) | is.numeric(Y)) ) {
         stop("the y-outcome must be either real or a factor.")
@@ -564,7 +589,7 @@ parseFormula <- function (formula, data) {
       }
     }
   }
-  return (list(fNames=fNames, family=family, yvar.names=yvar.names))
+  return (list(all.names=all.names, family=family, yvar.names=yvar.names))
 }
 parseMissingData <- function(formula.obj, data) {
   yvar.names <- formula.obj$yvar.names

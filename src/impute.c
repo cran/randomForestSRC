@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -84,19 +84,21 @@ char imputeNode (uint     type,
   double  **response;
   double  **predictor;
   uint    *mRecordMap;
-  uint     mvSignSize;
-  int    **mvSign;
-  int     *mvIndex;
+  uint     mpIndexSize;
+  int    **mpSign;
+  int     *mpIndex;
   int     *mvNSptr;
   uint     mRecordSize;
   double *valuePtr, *imputePtr;
   char mPredictorFlag;
-  uint unsignedIndexSource, unsignedIndexTarget;
+  int  signedSignatureIndex;
+  uint unsignedIndexSource;
+  uint unsignedIndexTarget;
   char result;
-  uint  *glmvIndexPtr;
-  uint  *glmvIndexSize;
-  uint  *glmvIndexParentPtr;
-  uint   glmvIndexParentSize;
+  uint  *glmpIndexPtr;
+  uint  *glmpIndexSize;
+  uint  *glmpIndexParentPtr;
+  uint   glmpIndexParentSize;
   uint  *glmrIndexPtr;
   uint  *glmrIndexSize;
   uint  *glmrIndexParentPtr;
@@ -105,17 +107,17 @@ char imputeNode (uint     type,
   uint i,p;
   uint localDistributionSize;
   mvNSptr = NULL;  
-  mvIndex = NULL;  
-  mvSign  = NULL;  
-  mvSignSize  = 0;  
+  mpIndex = NULL;  
+  mpSign  = NULL;  
+  mpIndexSize  = 0;  
   mRecordMap = NULL;  
   mRecordSize = 0;    
   predictor  = NULL;  
   response   = NULL;  
-  glmvIndexPtr = NULL;
-  glmvIndexSize = NULL;
-  glmvIndexParentPtr = NULL;
-  glmvIndexParentSize = 0;
+  glmpIndexPtr = NULL;
+  glmpIndexSize = NULL;
+  glmpIndexParentPtr = NULL;
+  glmpIndexParentSize = 0;
   glmrIndexPtr = NULL;
   glmrIndexSize = NULL;
   glmrIndexParentPtr = NULL;
@@ -133,70 +135,56 @@ char imputeNode (uint     type,
       }
       predictor = RF_fobservation[treeID];
       mRecordMap = RF_fmRecordMap;
-      mvSignSize = RF_fmvSignSize;
-      mvSign = RF_fmvSign;
-      mvIndex = RF_fmvIndex;
-      mvNSptr = nodePtr -> fmvSign;
-      if (lmvFlag) {
-        if((nodePtr -> parent) == NULL) {
-          glmvIndexParentPtr = uivector(1, mvSignSize);
-          glmvIndexParentSize = mvSignSize;
-          for (p = 1; p <= glmvIndexParentSize; p++) {
-            glmvIndexParentPtr[p] = p;
-          }
-          glmrIndexParentPtr = uivector(1, mRecordSize);
-          glmrIndexParentSize = mRecordSize;
-          for (i = 1; i <= glmrIndexParentSize; i++) {
-            glmrIndexParentPtr[i] = i;
-          }
-          stackNodeFLMVIndex(nodePtr, glmvIndexParentSize);
-          glmvIndexPtr  = nodePtr -> flmvIndex;
-          glmvIndexSize = & (nodePtr -> flmvIndexActualSize);
-          *glmvIndexSize = 0;
+      mpIndexSize = RF_fmpIndexSize;
+      mpSign = RF_fmpSign;
+      mpIndex = RF_fmpIndex;
+      mvNSptr = nodePtr -> fmpSign;
+      if((nodePtr -> parent) == NULL) {
+        glmpIndexParentPtr = uivector(1, mpIndexSize);
+        glmpIndexParentSize = mpIndexSize;
+        for (p = 1; p <= glmpIndexParentSize; p++) {
+          glmpIndexParentPtr[p] = p;
+        }
+        glmrIndexParentPtr = uivector(1, mRecordSize);
+        glmrIndexParentSize = mRecordSize;
+        for (i = 1; i <= glmrIndexParentSize; i++) {
+          glmrIndexParentPtr[i] = i;
+        }
+        stackNodeFLMPIndex(nodePtr, glmpIndexParentSize);
+        glmpIndexPtr  = nodePtr -> flmpIndex;
+        glmpIndexSize = & (nodePtr -> flmpIndexActualSize);
+        *glmpIndexSize = 0;
+        stackNodeFLMRIndex(nodePtr, glmrIndexParentSize);
+        glmrIndexPtr  = nodePtr -> flmrIndex;
+        glmrIndexSize = & (nodePtr -> flmrIndexActualSize);
+        *glmrIndexSize = 0;
+      }
+      else {
+        if((nodePtr -> parent) -> flmpIndexActualSize > 0) {
+          glmpIndexParentPtr = (nodePtr -> parent) -> flmpIndex;
+          glmpIndexParentSize = (nodePtr -> parent) -> flmpIndexActualSize;
+          stackNodeFLMPIndex(nodePtr, glmpIndexParentSize);
+          glmpIndexPtr  = nodePtr -> flmpIndex;
+          glmpIndexSize = & (nodePtr -> flmpIndexActualSize);
+          *glmpIndexSize = 0;
+        }
+        else {
+          glmpIndexParentPtr  = NULL;
+          glmpIndexParentSize = 0;
+          glmpIndexPtr = glmpIndexSize = NULL;
+        }
+        if((nodePtr -> parent) -> flmrIndexActualSize > 0) {
+          glmrIndexParentPtr = (nodePtr -> parent) -> flmrIndex;
+          glmrIndexParentSize = (nodePtr -> parent) -> flmrIndexActualSize;
           stackNodeFLMRIndex(nodePtr, glmrIndexParentSize);
           glmrIndexPtr  = nodePtr -> flmrIndex;
           glmrIndexSize = & (nodePtr -> flmrIndexActualSize);
           *glmrIndexSize = 0;
         }
         else {
-          if((nodePtr -> parent) -> flmvIndexActualSize > 0) {
-            glmvIndexParentPtr = (nodePtr -> parent) -> flmvIndex;
-            glmvIndexParentSize = (nodePtr -> parent) -> flmvIndexActualSize;
-            stackNodeFLMVIndex(nodePtr, glmvIndexParentSize);
-            glmvIndexPtr  = nodePtr -> flmvIndex;
-            glmvIndexSize = & (nodePtr -> flmvIndexActualSize);
-            *glmvIndexSize = 0;
-          }
-          else {
-            glmvIndexParentPtr  = NULL;
-            glmvIndexParentSize = 0;
-            glmvIndexPtr = glmvIndexSize = NULL;
-          }
-          if((nodePtr -> parent) -> flmrIndexActualSize > 0) {
-            glmrIndexParentPtr = (nodePtr -> parent) -> flmrIndex;
-            glmrIndexParentSize = (nodePtr -> parent) -> flmrIndexActualSize;
-            stackNodeFLMRIndex(nodePtr, glmrIndexParentSize);
-            glmrIndexPtr  = nodePtr -> flmrIndex;
-            glmrIndexSize = & (nodePtr -> flmrIndexActualSize);
-            *glmrIndexSize = 0;
-          }
-          else {
-            glmrIndexParentPtr = NULL;
-            glmrIndexParentSize = 0;
-            glmrIndexPtr = glmrIndexSize = NULL;
-          }
-        }
-      }  
-      else {
-        glmvIndexParentPtr = uivector(1, mvSignSize);
-        glmvIndexParentSize = mvSignSize;
-        for (p = 1; p <= glmvIndexParentSize; p++) {
-          glmvIndexParentPtr[p] = p;
-        }
-        glmrIndexParentPtr = uivector(1, mRecordSize);
-        glmrIndexParentSize = mRecordSize;
-        for (i = 1; i <= glmrIndexParentSize; i++) {
-          glmrIndexParentPtr[i] = i;
+          glmrIndexParentPtr = NULL;
+          glmrIndexParentSize = 0;
+          glmrIndexPtr = glmrIndexSize = NULL;
         }
       }
       result = TRUE;
@@ -208,44 +196,44 @@ char imputeNode (uint     type,
       response = RF_response[treeID];
       predictor = RF_observation[treeID];
       mRecordMap = RF_mRecordMap;
-      mvSignSize = RF_mvSignSize;
-      mvSign = RF_mvSign;
-      mvIndex = RF_mvIndex;
-      mvNSptr = nodePtr -> mvSign;
+      mpIndexSize = RF_mpIndexSize;
+      mpSign = RF_mpSign;
+      mpIndex = RF_mpIndex;
+      mvNSptr = nodePtr -> mpSign;
       if (lmvFlag) {
         if((nodePtr -> parent) == NULL) {
-          glmvIndexParentPtr = uivector(1, mvSignSize);
-          glmvIndexParentSize = mvSignSize;
-          for (p = 1; p <= glmvIndexParentSize; p++) {
-            glmvIndexParentPtr[p] = p;
+          glmpIndexParentPtr = uivector(1, mpIndexSize);
+          glmpIndexParentSize = mpIndexSize;
+          for (p = 1; p <= glmpIndexParentSize; p++) {
+            glmpIndexParentPtr[p] = p;
           }
           glmrIndexParentPtr = uivector(1, mRecordSize);
           glmrIndexParentSize = mRecordSize;
           for (i = 1; i <= glmrIndexParentSize; i++) {
             glmrIndexParentPtr[i] = i;
           }
-          stackNodeLMVIndex(nodePtr, glmvIndexParentSize);
-          glmvIndexPtr  = nodePtr -> lmvIndex;
-          glmvIndexSize = & (nodePtr -> lmvIndexActualSize);
-          *glmvIndexSize = 0;
+          stackNodeLMPIndex(nodePtr, glmpIndexParentSize);
+          glmpIndexPtr  = nodePtr -> lmpIndex;
+          glmpIndexSize = & (nodePtr -> lmpIndexActualSize);
+          *glmpIndexSize = 0;
           stackNodeLMRIndex(nodePtr, glmrIndexParentSize);
           glmrIndexPtr  = nodePtr -> lmrIndex;
           glmrIndexSize = & (nodePtr -> lmrIndexActualSize);
           *glmrIndexSize = 0;
         }
         else {
-          if((nodePtr -> parent) -> lmvIndexActualSize > 0) {
-            glmvIndexParentPtr = (nodePtr -> parent) -> lmvIndex;
-            glmvIndexParentSize = (nodePtr -> parent) -> lmvIndexActualSize;
-            stackNodeLMVIndex(nodePtr, glmvIndexParentSize);
-            glmvIndexPtr  = nodePtr -> lmvIndex;
-            glmvIndexSize = & (nodePtr -> lmvIndexActualSize);
-            *glmvIndexSize = 0;
+          if((nodePtr -> parent) -> lmpIndexActualSize > 0) {
+            glmpIndexParentPtr = (nodePtr -> parent) -> lmpIndex;
+            glmpIndexParentSize = (nodePtr -> parent) -> lmpIndexActualSize;
+            stackNodeLMPIndex(nodePtr, glmpIndexParentSize);
+            glmpIndexPtr  = nodePtr -> lmpIndex;
+            glmpIndexSize = & (nodePtr -> lmpIndexActualSize);
+            *glmpIndexSize = 0;
           }
           else {
-            glmvIndexParentPtr = NULL;
-            glmvIndexParentSize = 0;
-            glmvIndexPtr = glmvIndexSize = NULL;
+            glmpIndexParentPtr = NULL;
+            glmpIndexParentSize = 0;
+            glmpIndexPtr = glmpIndexSize = NULL;
           }
           if((nodePtr -> parent) -> lmrIndexActualSize > 0) {
             glmrIndexParentPtr = (nodePtr -> parent) -> lmrIndex;
@@ -263,16 +251,24 @@ char imputeNode (uint     type,
         }
       }  
       else {
-        glmvIndexParentPtr = uivector(1, mvSignSize);
-        glmvIndexParentSize = mvSignSize;
-        for (p = 1; p <= glmvIndexParentSize; p++) {
-          glmvIndexParentPtr[p] = p;
+        glmpIndexParentPtr = uivector(1, mpIndexSize);
+        glmpIndexParentSize = mpIndexSize;
+        for (p = 1; p <= glmpIndexParentSize; p++) {
+          glmpIndexParentPtr[p] = p;
         }
         glmrIndexParentPtr = uivector(1, mRecordSize);
         glmrIndexParentSize = mRecordSize;
         for (i = 1; i <= glmrIndexParentSize; i++) {
           glmrIndexParentPtr[i] = i;
         }
+        stackNodeLMPIndex(nodePtr, glmpIndexParentSize);
+        glmpIndexPtr  = nodePtr -> lmpIndex;
+        glmpIndexSize = & (nodePtr -> lmpIndexActualSize);
+        *glmpIndexSize = 0;
+        stackNodeLMRIndex(nodePtr, glmrIndexParentSize);
+        glmrIndexPtr  = nodePtr -> lmrIndex;
+        glmrIndexSize = & (nodePtr -> lmrIndexActualSize);
+        *glmrIndexSize = 0;
       }
       result = TRUE;
     }
@@ -285,28 +281,29 @@ char imputeNode (uint     type,
     error("\nRF-SRC:  The application will now exit.\n");
   }
   double *localDistribution = dvector(1, repMembrSize + 1);
-  for (p = 1; p <= glmvIndexParentSize; p++) {
-    if (mvNSptr[glmvIndexParentPtr[p]] != -1) {
-      if (mvIndex[glmvIndexParentPtr[p]] < 0) {
-        unsignedIndexSource = unsignedIndexTarget = (uint) abs(mvIndex[glmvIndexParentPtr[p]]);
-        valuePtr = RF_response[treeID][(uint) abs(mvIndex[glmvIndexParentPtr[p]])];
-        imputePtr = response[(uint) abs(mvIndex[glmvIndexParentPtr[p]])];
+  for (p = 1; p <= glmpIndexParentSize; p++) {
+    if (mvNSptr[glmpIndexParentPtr[p]] != -1) {
+      signedSignatureIndex = mpIndex[glmpIndexParentPtr[p]];
+      if (signedSignatureIndex < 0) {
+        unsignedIndexSource = unsignedIndexTarget = (uint) abs(signedSignatureIndex);
+        valuePtr = RF_response[treeID][(uint) abs(signedSignatureIndex)];
+        imputePtr = response[(uint) abs(signedSignatureIndex)];
       }
       else { 
-        unsignedIndexSource = RF_rSize + (uint) mvIndex[glmvIndexParentPtr[p]];
+        unsignedIndexSource = RF_rSize + (uint) signedSignatureIndex;
         if (type == RF_PRED) {
           if (RF_frSize > 0) {
-            unsignedIndexTarget = RF_rSize + (uint) mvIndex[glmvIndexParentPtr[p]];
+            unsignedIndexTarget = RF_rSize + (uint) signedSignatureIndex;
           }
           else {
-            unsignedIndexTarget = (uint) mvIndex[glmvIndexParentPtr[p]];
+            unsignedIndexTarget = (uint) signedSignatureIndex;
           }
         }
         else {
-          unsignedIndexTarget = RF_rSize + (uint) mvIndex[glmvIndexParentPtr[p]];
+          unsignedIndexTarget = RF_rSize + (uint) signedSignatureIndex;
         }
-        valuePtr = RF_observation[treeID][(uint) mvIndex[glmvIndexParentPtr[p]]];
-        imputePtr = predictor[(uint) mvIndex[glmvIndexParentPtr[p]]];
+        valuePtr = RF_observation[treeID][(uint) signedSignatureIndex];
+        imputePtr = predictor[(uint) signedSignatureIndex];
       }
       localDistributionSize = 0;
       for (i = 1; i <= repMembrSize; i++) {
@@ -314,7 +311,7 @@ char imputeNode (uint     type,
         if (RF_mRecordMap[repMembrIndx[i]] == 0) {
           mPredictorFlag = FALSE;
         }
-        else if (RF_mvSign[unsignedIndexSource][RF_mRecordMap[repMembrIndx[i]]] == 0) {
+        else if (RF_mpSign[unsignedIndexSource][RF_mRecordMap[repMembrIndx[i]]] == 0) {
           mPredictorFlag = FALSE;
         }
         if (mPredictorFlag == FALSE) {
@@ -325,7 +322,7 @@ char imputeNode (uint     type,
       mvFlag = FALSE;
       for (i = 1; i <= allMembrSize; i++) {
         if (mRecordMap[allMembrIndx[i]] > 0) {
-          if(mvSign[unsignedIndexTarget][mRecordMap[allMembrIndx[i]]] == 1) {
+          if(mpSign[unsignedIndexTarget][mRecordMap[allMembrIndx[i]]] == 1) {
             mvFlag = TRUE;
             if (localDistributionSize > 0) {
               imputePtr[allMembrIndx[i]] = getSampleValue(localDistribution, localDistributionSize, chainFlag, treeID);
@@ -333,31 +330,27 @@ char imputeNode (uint     type,
           }  
         }
       }  
-      if (lmvFlag) {
-        if (mvFlag) {
-          glmvIndexPtr[++(*glmvIndexSize)] = glmvIndexParentPtr[p]; 
-        }
+      if (mvFlag) {
+        glmpIndexPtr[++(*glmpIndexSize)] = glmpIndexParentPtr[p]; 
       }
       if (localDistributionSize == 0) {
       }
     }  
   }  
-  if (lmvFlag) {
-    for (i = 1; i <= allMembrSize; i++) {
-      if (mRecordMap[allMembrIndx[i]] > 0) {
-        glmrIndexPtr[++(*glmrIndexSize)] = mRecordMap[allMembrIndx[i]];
-      }
+  for (i = 1; i <= allMembrSize; i++) {
+    if (mRecordMap[allMembrIndx[i]] > 0) {
+      glmrIndexPtr[++(*glmrIndexSize)] = mRecordMap[allMembrIndx[i]];
     }
   }
   free_dvector(localDistribution, 1, repMembrSize + 1);
   if (lmvFlag) {
     if((nodePtr -> parent) == NULL) {
-      free_uivector(glmvIndexParentPtr, 1, mvSignSize);
+      free_uivector(glmpIndexParentPtr, 1, mpIndexSize);
       free_uivector(glmrIndexParentPtr, 1, mRecordSize);
     }
   }
   else {
-    free_uivector(glmvIndexParentPtr, 1, mvSignSize);
+    free_uivector(glmpIndexParentPtr, 1, mpIndexSize);
     free_uivector(glmrIndexParentPtr, 1, mRecordSize);
   }
   return TRUE;
@@ -427,8 +420,8 @@ char restoreNodeMembership(uint  mode,
   else {
     bootMembrIndx = repMembrIndx;
     bootMembrSize = repMembrSize;
-    parent -> mvSign = (parent -> parent) -> mvSign;
-    parent -> fmvSign = (parent -> parent) -> fmvSign;
+    parent -> mpSign = (parent -> parent) -> mpSign;
+    parent -> fmpSign = (parent -> parent) -> fmpSign;
   }
   if (bootResult) {
     if (RF_mRecordSize > 0) {
@@ -648,19 +641,20 @@ void imputeUpdateSummary (uint     mode,
                           uint     treeID) {
   uint     mRecordSize;
   uint    *mRecordIndex;
-  uint     mvSignSize;
-  int    **mvSign;
-  int     *mvIndex;
+  uint     mpIndexSize;
+  int    **mpSign;
+  int     *mpIndex;
   int     *mvNodeSign;
   double  *valuePtr;
+  int      signedSignatureIndex;
   uint     unsignedIndex;
   char result;
   uint rspSize;
   uint i, p;
   rspSize = 0;  
-  mvIndex = 0;  
-  mvSign  = 0;  
-  mvSignSize  = 0;  
+  mpIndex = 0;  
+  mpSign  = 0;  
+  mpIndexSize  = 0;  
   mRecordIndex = 0;  
   mRecordSize  = 0;  
   result = FALSE;
@@ -668,9 +662,9 @@ void imputeUpdateSummary (uint     mode,
     if (RF_mRecordSize > 0) {
       mRecordSize = RF_mRecordSize;
       mRecordIndex = RF_mRecordIndex;
-      mvSignSize = RF_mvSignSize;
-      mvSign = RF_mvSign;
-      mvIndex = RF_mvIndex;
+      mpIndexSize = RF_mpIndexSize;
+      mpSign = RF_mpSign;
+      mpIndex = RF_mpIndex;
       rspSize = RF_rSize;
       result = TRUE;
     }
@@ -679,9 +673,9 @@ void imputeUpdateSummary (uint     mode,
     if (RF_fmRecordSize > 0) {
       mRecordSize = RF_fmRecordSize;
       mRecordIndex = RF_fmRecordIndex;
-      mvSignSize = RF_fmvSignSize;
-      mvSign = RF_fmvSign;
-      mvIndex = RF_fmvIndex;
+      mpIndexSize = RF_fmpIndexSize;
+      mpSign = RF_fmpSign;
+      mpIndex = RF_fmpIndex;
       rspSize = RF_frSize;
       result = TRUE;
     }
@@ -692,40 +686,41 @@ void imputeUpdateSummary (uint     mode,
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
-  for (p = 1; p <= mvSignSize; p++) {
+  for (p = 1; p <= mpIndexSize; p++) {
     for (i = 1; i <= mRecordSize; i++) {
       if ((mode == RF_GROW) || (mode == RF_REST)) {
-          mvNodeSign = RF_tNodeMembership[treeID][mRecordIndex[i]] -> mvSign;
+          mvNodeSign = RF_tNodeMembership[treeID][mRecordIndex[i]] -> mpSign;
       }
       else {
-          mvNodeSign = RF_ftNodeMembership[treeID][mRecordIndex[i]] -> fmvSign;
+          mvNodeSign = RF_ftNodeMembership[treeID][mRecordIndex[i]] -> fmpSign;
       }
       if (mvNodeSign[p] != -1) {
-        if (mvIndex[p] < 0) {
-          unsignedIndex = (uint) abs(mvIndex[p]);
-          valuePtr = responsePtr[(uint) abs(mvIndex[p])];
+        signedSignatureIndex = mpIndex[p];
+        if (signedSignatureIndex < 0) {
+          unsignedIndex = (uint) abs(signedSignatureIndex);
+          valuePtr = responsePtr[(uint) abs(signedSignatureIndex)];
         }
         else {
-          unsignedIndex = (uint) mvIndex[p] + rspSize;
-          valuePtr = predictorPtr[(uint) mvIndex[p]];
+          unsignedIndex = (uint) signedSignatureIndex + rspSize;
+          valuePtr = predictorPtr[(uint) signedSignatureIndex];
         }
-        if (mvSign[unsignedIndex][i] == 1) {
+        if (mpSign[unsignedIndex][i] == 1) {
           if (ISNA(valuePtr[mRecordIndex[i]])) {
             Rprintf("\nDiagnostic Trace of Shadowed Data:  ");
             Rprintf("\n       index   imputation -> \n");
             Rprintf(  "            ");
-            for (p=1; p <= mvSignSize; p++) {
-              Rprintf(" %12d", mvIndex[p]);
+            for (p=1; p <= mpIndexSize; p++) {
+              Rprintf(" %12d", mpIndex[p]);
             }
             Rprintf("\n");
             for (i = 1; i <= mRecordSize; i++) {
               Rprintf("%12d", mRecordIndex[i]);
-              for (p = 1; p <= mvSignSize; p++) {
-                if (mvIndex[p] < 0) {
-                  valuePtr = responsePtr[(uint) abs(mvIndex[p])];
+              for (p = 1; p <= mpIndexSize; p++) {
+                if (mpIndex[p] < 0) {
+                  valuePtr = responsePtr[(uint) abs(mpIndex[p])];
                 }
                 else {
-                  valuePtr = predictorPtr[(uint) mvIndex[p]];
+                  valuePtr = predictorPtr[(uint) mpIndex[p]];
                 }
                 Rprintf(" %12.4f", valuePtr[mRecordIndex[i]]);
               }
@@ -733,7 +728,7 @@ void imputeUpdateSummary (uint     mode,
             }
             Rprintf("\nRF-SRC:  *** ERROR *** ");
             Rprintf("\nRF-SRC:  Attempt to update forest impute data with invalid shadowed value, NA. ");
-            Rprintf("\nRF-SRC:  Invalid value for:  [indv][outcome/predictor] = [%10d][%10d] ", mRecordIndex[i], mvIndex[p]);
+            Rprintf("\nRF-SRC:  Invalid value for:  [indv][outcome/predictor] = [%10d][%10d] ", mRecordIndex[i], mpIndex[p]);
             Rprintf("\nRF-SRC:  Please Contact Technical Support.");
             error("\nRF-SRC:  The application will now exit.\n");
           }  
@@ -751,9 +746,9 @@ void imputeUpdateShadow (uint      mode,
                          double  **shadowPredictor) {
   uint     mRecordSize;
   uint    *mRecordIndex;
-  uint     mvSignSize;
-  int    **mvSign;
-  int     *mvIndex;
+  uint     mpIndexSize;
+  int    **mpSign;
+  int     *mpIndex;
   double **outResponse;
   double **outPredictor;
   double  *valuePtr;
@@ -764,9 +759,9 @@ void imputeUpdateShadow (uint      mode,
   uint i, p;
   mRecordSize  = 0;     
   mRecordIndex = NULL;  
-  mvSignSize       = 0;     
-  mvSign       = NULL;  
-  mvIndex      = NULL;  
+  mpIndexSize       = 0;     
+  mpSign       = NULL;  
+  mpIndex      = NULL;  
   outResponse  = NULL;  
   outPredictor = NULL;  
   valuePtr     = NULL;  
@@ -776,9 +771,9 @@ void imputeUpdateShadow (uint      mode,
   case RF_PRED:
     mRecordSize = RF_fmRecordSize;
     mRecordIndex = RF_fmRecordIndex;
-    mvSignSize = RF_fmvSignSize;
-    mvSign = RF_fmvSign;
-    mvIndex = RF_fmvIndex;
+    mpIndexSize = RF_fmpIndexSize;
+    mpSign = RF_fmpSign;
+    mpIndex = RF_fmpIndex;
     outResponse  = RF_sImputeResponsePtr;
     outPredictor = RF_sImputePredictorPtr;
     rspSize = RF_frSize;
@@ -786,9 +781,9 @@ void imputeUpdateShadow (uint      mode,
   default:
     mRecordSize = RF_mRecordSize;
     mRecordIndex = RF_mRecordIndex;
-    mvSignSize = RF_mvSignSize;
-    mvSign = RF_mvSign;
-    mvIndex = RF_mvIndex;
+    mpIndexSize = RF_mpIndexSize;
+    mpSign = RF_mpSign;
+    mpIndex = RF_mpIndex;
     if ((selectionFlag == TRUE) || (selectionFlag == ACTIVE)) {
       outResponse  = RF_sImputeResponsePtr;
       outPredictor = RF_sImputePredictorPtr;
@@ -807,23 +802,23 @@ void imputeUpdateShadow (uint      mode,
     error("\nRF-SRC:  The application will now exit.\n");
   }
   outcomeFlag = TRUE;
-  for (p = 1; p <= mvSignSize; p++) {
+  for (p = 1; p <= mpIndexSize; p++) {
     for (i = 1; i <= mRecordSize; i++) {
-      if (mvIndex[p] < 0) {
-        unsignedIndex = (uint) abs(mvIndex[p]);
-        valuePtr = shadowResponse[(uint) abs(mvIndex[p])];
-        outputPtr = outResponse[(uint) abs(mvIndex[p])];
+      if (mpIndex[p] < 0) {
+        unsignedIndex = (uint) abs(mpIndex[p]);
+        valuePtr = shadowResponse[(uint) abs(mpIndex[p])];
+        outputPtr = outResponse[(uint) abs(mpIndex[p])];
       }
       else {
         if (shadowPredictor != NULL) {
-          unsignedIndex = (uint) mvIndex[p] + rspSize;
-          valuePtr = shadowPredictor[(uint) mvIndex[p]];
-          outputPtr = outPredictor[(uint) mvIndex[p]];
+          unsignedIndex = (uint) mpIndex[p] + rspSize;
+          valuePtr = shadowPredictor[(uint) mpIndex[p]];
+          outputPtr = outPredictor[(uint) mpIndex[p]];
         }
         outcomeFlag = FALSE;
       }
       if (outcomeFlag || (shadowPredictor != NULL)) {
-        if (mvSign[unsignedIndex][i] == 1) {
+        if (mpSign[unsignedIndex][i] == 1) {
           if (ISNA(outputPtr[i])) {
           }
           valuePtr[mRecordIndex[i]] = outputPtr[i];
@@ -834,7 +829,7 @@ void imputeUpdateShadow (uint      mode,
 }
 void imputeSummary(uint      mode,
                    char      selectionFlag) {
-  imputeCommon(mode,
+  imputeCommonNew(mode,
                0,
                selectionFlag, 
                TRUE);
@@ -844,11 +839,11 @@ void imputeResponse(uint      mode,
                     double  **tempResponse) {
   switch(mode) {
   case RF_PRED:
-    imputeCommon(mode, serialTreeID, ACTIVE, FALSE);
+    imputeCommonNew(mode, serialTreeID, ACTIVE, FALSE);
     imputeUpdateShadow(mode, ACTIVE, tempResponse, NULL);
     break;
   default:
-    imputeCommon(mode, serialTreeID, FALSE, FALSE);
+    imputeCommonNew(mode, serialTreeID, FALSE, FALSE);
     imputeUpdateShadow(mode, FALSE, tempResponse, NULL);
     break;
   }
@@ -864,9 +859,9 @@ void imputeCommon(uint      mode,
   char outcomeFlag;
   uint     mRecordSize;
   uint    *mRecordIndex;
-  uint     mvSignSize;
-  int    **mvSign;
-  int     *mvIndex;
+  uint     mpIndexSize;
+  int    **mpSign;
+  int     *mpIndex;
   double **outResponse;
   double **outPredictor;
   double *valuePtr;
@@ -885,9 +880,9 @@ void imputeCommon(uint      mode,
   outResponse         = 0;  
   outPredictor        = 0;  
   rspSize = 0;  
-  mvIndex = 0;  
-  mvSign  = 0;  
-  mvSignSize  = 0;  
+  mpIndex = 0;  
+  mpSign  = 0;  
+  mpIndexSize  = 0;  
   mRecordIndex = 0;  
   mRecordSize  = 0;  
   if ((selectionFlag != TRUE) && (selectionFlag != FALSE) && (selectionFlag != ACTIVE)) {
@@ -902,9 +897,9 @@ void imputeCommon(uint      mode,
     if (RF_fmRecordSize > 0) {
       mRecordSize = RF_fmRecordSize;
       mRecordIndex = RF_fmRecordIndex;
-      mvSignSize = RF_fmvSignSize;
-      mvSign = RF_fmvSign;
-      mvIndex = RF_fmvIndex;
+      mpIndexSize = RF_fmpIndexSize;
+      mpSign = RF_fmpSign;
+      mpIndex = RF_fmpIndex;
       maxDistributionSize = ((RF_observationSize) > (RF_forestSize)) ? (RF_observationSize) : (RF_forestSize);
       outResponse  = RF_sImputeResponsePtr;
       outPredictor = RF_sImputePredictorPtr;
@@ -916,9 +911,9 @@ void imputeCommon(uint      mode,
     if (RF_mRecordSize > 0) {
       mRecordSize = RF_mRecordSize;
       mRecordIndex = RF_mRecordIndex;
-      mvSignSize = RF_mvSignSize;
-      mvSign = RF_mvSign;
-      mvIndex = RF_mvIndex;
+      mpIndexSize = RF_mpIndexSize;
+      mpSign = RF_mpSign;
+      mpIndex = RF_mpIndex;
       maxDistributionSize = ((RF_observationSize) > (RF_forestSize)) ? (RF_observationSize) : (RF_forestSize);
       if ((selectionFlag == TRUE) || (selectionFlag == ACTIVE)) {
         outResponse  = RF_sImputeResponsePtr;
@@ -953,26 +948,26 @@ void imputeCommon(uint      mode,
   }
   imputedValue = 0.0;  
   double *localDistribution = dvector(1, maxDistributionSize);
-  char  *naiveMvFlag = cvector(1, mvSignSize);
-  char **naiveSign = cmatrix(1, mRecordSize, 1, mvSignSize);
-  for (p = 1; p <= mvSignSize; p++) {
-    naiveMvFlag[p] = FALSE;
+  char  *naiveFlag = cvector(1, mpIndexSize);
+  char **naiveSign = cmatrix(1, mRecordSize, 1, mpIndexSize);
+  for (p = 1; p <= mpIndexSize; p++) {
+    naiveFlag[p] = FALSE;
   }
   for (i = 1; i <= mRecordSize; i++) {
     outcomeFlag = TRUE;
-    for (p = 1; p <= mvSignSize; p++) {
+    for (p = 1; p <= mpIndexSize; p++) {
       naiveSign[i][p] = FALSE;  
-      if (mvIndex[p] < 0) {
-        unsignedIndex = (uint) abs(mvIndex[p]);
+      if (mpIndex[p] < 0) {
+        unsignedIndex = (uint) abs(mpIndex[p]);
       }
       else {
         if (predictorFlag == TRUE) {
-          unsignedIndex = (uint) mvIndex[p] + rspSize;
+          unsignedIndex = (uint) mpIndex[p] + rspSize;
         }
         outcomeFlag = FALSE;
       }
       if (outcomeFlag || predictorFlag) {
-        if (mvSign[unsignedIndex][i] == 1) {
+        if (mpSign[unsignedIndex][i] == 1) {
           localDistributionSize = 0;
           for (tree = 1; tree <= localSerialCount; tree++) {
             if (RF_tLeafCount[serialPtr[tree]] > 0) {
@@ -986,69 +981,69 @@ void imputeCommon(uint      mode,
             }  
           }  
           if (localDistributionSize > 0) {
-            if (mvIndex[p] < 0) {
-              if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "T") == 0) {
+            if (mpIndex[p] < 0) {
+              if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "T") == 0) {
                 imputedValue = getMeanValue(localDistribution, localDistributionSize);
               }
-              else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "S") == 0) {
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "S") == 0) {
                 imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
-              else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "R") == 0) {
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "R") == 0) {
                 imputedValue = getMeanValue(localDistribution, localDistributionSize);
               }
-              else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "I") == 0) {
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "I") == 0) {
                 imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
-              else if (strcmp(RF_rType[(uint) abs(mvIndex[p])], "C") == 0) {
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "C") == 0) {
                 imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
-              outResponse[(uint) abs(mvIndex[p])][i] = imputedValue;
+              outResponse[(uint) abs(mpIndex[p])][i] = imputedValue;
             }  
             else {
-              if (strcmp(RF_xType[(uint) mvIndex[p]], "R") == 0) {
+              if (strcmp(RF_xType[(uint) mpIndex[p]], "R") == 0) {
                 imputedValue = getMeanValue(localDistribution, localDistributionSize);
               }
               else {
                 imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
               }
-              outPredictor[(uint) mvIndex[p]][i] = imputedValue;
+              outPredictor[(uint) mpIndex[p]][i] = imputedValue;
             }
           }  
           else {
-            naiveMvFlag[p] = TRUE;
+            naiveFlag[p] = TRUE;
             naiveSign[i][p] = TRUE;
           }
         }  
       }  
       else {
-        p = mvSignSize;
+        p = mpIndexSize;
       }
     }  
   }  
   outcomeFlag = TRUE;
-  for (p = 1; p <= mvSignSize; p++) {
-    if (mvIndex[p] < 0) {
-      unsignedIndex = (uint) abs(mvIndex[p]);
-      valuePtr = RF_responseIn[(uint) abs(mvIndex[p])];
-      naivePtr = outResponse[(uint) abs(mvIndex[p])];
+  for (p = 1; p <= mpIndexSize; p++) {
+    if (mpIndex[p] < 0) {
+      unsignedIndex = (uint) abs(mpIndex[p]);
+      valuePtr = RF_responseIn[(uint) abs(mpIndex[p])];
+      naivePtr = outResponse[(uint) abs(mpIndex[p])];
     }
     else {
       if (predictorFlag == TRUE) {
-        unsignedIndex = (uint) mvIndex[p] + rspSize;
-        valuePtr = RF_observationIn[(uint) mvIndex[p]];
-        naivePtr = outPredictor[(uint) mvIndex[p]];
+        unsignedIndex = (uint) mpIndex[p] + rspSize;
+        valuePtr = RF_observationIn[(uint) mpIndex[p]];
+        naivePtr = outPredictor[(uint) mpIndex[p]];
       }
       outcomeFlag = FALSE;
     }
     if (outcomeFlag || predictorFlag) {
-      if (naiveMvFlag[p] == TRUE) {
+      if (naiveFlag[p] == TRUE) {
         localDistributionSize = 0;
         for (i=1; i <= RF_observationSize; i++) {
           mFlag = TRUE;
           if (RF_mRecordMap[i] == 0) {
             mFlag = FALSE;
           }
-          else if (RF_mvSign[unsignedIndex][RF_mRecordMap[i]] == 0) {
+          else if (RF_mpSign[unsignedIndex][RF_mRecordMap[i]] == 0) {
             mFlag = FALSE;
           }
           if (mFlag == FALSE) {
@@ -1063,9 +1058,9 @@ void imputeCommon(uint      mode,
           }
         }  
         else {
-          if (mvIndex[p] < 0) {
+          if (mpIndex[p] < 0) {
             Rprintf("\nRF-SRC:  *** ERROR *** ");
-            Rprintf("\nRF-SRC:  Naive imputation failed for [indv, outcome] = [%10d, %10d] \n", mRecordIndex[i], mvIndex[p]);
+            Rprintf("\nRF-SRC:  Naive imputation failed for [indv, outcome] = [%10d, %10d] \n", mRecordIndex[i], mpIndex[p]);
             Rprintf("\nRF-SRC:  Please Contact Technical Support.");
             error("\nRF-SRC:  The application will now exit.\n");
           }
@@ -1075,15 +1070,15 @@ void imputeCommon(uint      mode,
       }  
     }  
     else {
-      p = mvSignSize;
+      p = mpIndexSize;
     }
   }  
   if (serialTreeID == 0) {
     free_uivector(localSerialIndex, 1, RF_forestSize);
   }
   free_dvector(localDistribution, 1, maxDistributionSize);
-  free_cvector(naiveMvFlag, 1, mvSignSize);
-  free_cmatrix(naiveSign, 1, mRecordSize, 1, mvSignSize);
+  free_cvector(naiveFlag, 1, mpIndexSize);
+  free_cmatrix(naiveSign, 1, mRecordSize, 1, mpIndexSize);
 }
 void imputeMultipleTime (char selectionFlag) {
   double  *outTime;
@@ -1119,7 +1114,7 @@ void imputeMultipleTime (char selectionFlag) {
     outTime  = RF_sImputeResponsePtr[RF_timeIndex];
   }    
   for (i=1; i <= RF_mRecordSize; i++) {
-    if(RF_mvSign[RF_timeIndex][i] == 1) { 
+    if(RF_mpSign[RF_timeIndex][i] == 1) { 
       meanValue = outTime[i];
       if ((meanValue < RF_masterTime[1]) || (meanValue > RF_masterTime[RF_masterTimeSize])) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -1334,7 +1329,7 @@ void updateTimeIndexArray(uint    treeID,
 }
 void updateEventTypeSubsets(double *summaryStatus, 
                             uint    mRecordSize,
-                            int   **mvSign,
+                            int   **mpSign,
                             uint   *mRecordIndex,
                             uint   *meIndividualSize,
                             uint  **eIndividual) {
@@ -1356,7 +1351,7 @@ void updateEventTypeSubsets(double *summaryStatus,
       eventCounter[j] = RF_eIndividualSize[j]; 
     }
     for (i = 1; i <= mRecordSize; i++) {
-      if (mvSign[RF_statusIndex][i] == 1) {
+      if (mpSign[RF_statusIndex][i] == 1) {
         if ((uint) summaryStatus[mRecordIndex[i]] > 0) {
           j = RF_eventTypeIndex[(uint) summaryStatus[mRecordIndex[i]]];
           eventCounter[j] ++;
@@ -1404,15 +1399,15 @@ void stackShadow (uint mode, uint treeID) {
     for (p = 1; p <= RF_rSize; p++) {
       RF_response[treeID][p] = RF_responseIn[p];
     }
-    for (p = 1; p <= RF_mvSignSize; p++) {
-      if (RF_mvIndex[p] < 0) {
-        RF_response[treeID][(uint) abs(RF_mvIndex[p])] = dvector(1, RF_observationSize);
+    for (p = 1; p <= RF_mpIndexSize; p++) {
+      if (RF_mpIndex[p] < 0) {
+        RF_response[treeID][(uint) abs(RF_mpIndex[p])] = dvector(1, RF_observationSize);
         for (i = 1; i <= RF_observationSize; i++) {
-          RF_response[treeID][(uint) abs(RF_mvIndex[p])][i] = RF_responseIn[(uint) abs(RF_mvIndex[p])][i];
+          RF_response[treeID][(uint) abs(RF_mpIndex[p])][i] = RF_responseIn[(uint) abs(RF_mpIndex[p])][i];
         }
       }
       else {
-        p = RF_mvSignSize;
+        p = RF_mpIndexSize;
       }
     }
     if (RF_timeIndex > 0) {
@@ -1445,11 +1440,11 @@ void stackShadow (uint mode, uint treeID) {
       for (p = 1; p <= RF_xSize; p++) {
         RF_observation[treeID][p] = RF_observationIn[p];
       }
-      for (p = 1; p <= RF_mvSignSize; p++) {
-        if (RF_mvIndex[p] > 0) {
-          RF_observation[treeID][(uint) RF_mvIndex[p]] = dvector(1, RF_observationSize);
+      for (p = 1; p <= RF_mpIndexSize; p++) {
+        if (RF_mpIndex[p] > 0) {
+          RF_observation[treeID][(uint) RF_mpIndex[p]] = dvector(1, RF_observationSize);
           for (i = 1; i <= RF_observationSize; i++) {
-            RF_observation[treeID][(uint) RF_mvIndex[p]][i] = RF_observationIn[(uint) RF_mvIndex[p]][i];
+            RF_observation[treeID][(uint) RF_mpIndex[p]][i] = RF_observationIn[(uint) RF_mpIndex[p]][i];
           }
         }
       }
@@ -1462,15 +1457,15 @@ void stackShadow (uint mode, uint treeID) {
         for (p = 1; p <= RF_frSize; p++) {
           RF_fresponse[treeID][p] = RF_fresponseIn[p];
         }
-        for (p = 1; p <= RF_fmvSignSize; p++) {
-          if (RF_fmvIndex[p] < 0) {
-            RF_fresponse[treeID][(uint) abs(RF_fmvIndex[p])] = dvector(1, RF_fobservationSize);
+        for (p = 1; p <= RF_fmpIndexSize; p++) {
+          if (RF_fmpIndex[p] < 0) {
+            RF_fresponse[treeID][(uint) abs(RF_fmpIndex[p])] = dvector(1, RF_fobservationSize);
             for (i = 1; i <= RF_fobservationSize; i++) {
-              RF_fresponse[treeID][(uint) abs(RF_fmvIndex[p])][i] = RF_fresponseIn[(uint) abs(RF_fmvIndex[p])][i];
+              RF_fresponse[treeID][(uint) abs(RF_fmpIndex[p])][i] = RF_fresponseIn[(uint) abs(RF_fmpIndex[p])][i];
             }
           }
           else {
-            p = RF_fmvSignSize;
+            p = RF_fmpIndexSize;
           }
         }
         if (RF_timeIndex > 0) {
@@ -1493,11 +1488,11 @@ void stackShadow (uint mode, uint treeID) {
         for (p = 1; p <= RF_xSize; p++) {
           RF_fobservation[treeID][p] = RF_fobservationIn[p];
         }
-        for (p = 1; p <= RF_fmvSignSize; p++) {
-          if (RF_fmvIndex[p] > 0) {
-            RF_fobservation[treeID][(uint) RF_fmvIndex[p]] = dvector(1, RF_fobservationSize);
+        for (p = 1; p <= RF_fmpIndexSize; p++) {
+          if (RF_fmpIndex[p] > 0) {
+            RF_fobservation[treeID][(uint) RF_fmpIndex[p]] = dvector(1, RF_fobservationSize);
             for (i = 1; i <= RF_fobservationSize; i++) {
-              RF_fobservation[treeID][(uint) RF_fmvIndex[p]][i] = RF_fobservationIn[(uint) RF_fmvIndex[p]][i];
+              RF_fobservation[treeID][(uint) RF_fmpIndex[p]][i] = RF_fobservationIn[(uint) RF_fmpIndex[p]][i];
             }
           }
         }
@@ -1524,12 +1519,12 @@ void unstackShadow (uint mode, uint treeID) {
     vimpShadowFlag = TRUE;
   }
   if (RF_mResponseFlag == TRUE) {
-    for (p = 1; p <= RF_mvSignSize; p++) {
-      if (RF_mvIndex[p] < 0) {
-        free_dvector(RF_response[treeID][(uint) abs(RF_mvIndex[p])], 1, RF_observationSize);
+    for (p = 1; p <= RF_mpIndexSize; p++) {
+      if (RF_mpIndex[p] < 0) {
+        free_dvector(RF_response[treeID][(uint) abs(RF_mpIndex[p])], 1, RF_observationSize);
       }
       else {
-        p = RF_mvSignSize;
+        p = RF_mpIndexSize;
       }
     }
     free_vvector(RF_response[treeID], 1, RF_rSize);
@@ -1544,9 +1539,9 @@ void unstackShadow (uint mode, uint treeID) {
   }
   else {
     if(RF_mPredictorFlag == TRUE) {
-      for (p = 1; p <= RF_mvSignSize; p++) {
-        if (RF_mvIndex[p] > 0) {
-          free_vvector(RF_observation[treeID][(uint) RF_mvIndex[p]], 1, RF_observationSize);
+      for (p = 1; p <= RF_mpIndexSize; p++) {
+        if (RF_mpIndex[p] > 0) {
+          free_vvector(RF_observation[treeID][(uint) RF_mpIndex[p]], 1, RF_observationSize);
         }
       }
       free_vvector(RF_observation[treeID], 1, RF_xSize);
@@ -1555,12 +1550,12 @@ void unstackShadow (uint mode, uint treeID) {
   if (mode == RF_PRED) {
     if (RF_frSize > 0) {
       if (RF_fmResponseFlag == TRUE) {
-        for (p = 1; p <= RF_fmvSignSize; p++) {
-          if (RF_fmvIndex[p] < 0) {
-            free_vvector(RF_fresponse[treeID][(uint) abs(RF_fmvIndex[p])], 1, RF_fobservationSize);
+        for (p = 1; p <= RF_fmpIndexSize; p++) {
+          if (RF_fmpIndex[p] < 0) {
+            free_vvector(RF_fresponse[treeID][(uint) abs(RF_fmpIndex[p])], 1, RF_fobservationSize);
           }
           else {
-            p = RF_fmvSignSize;
+            p = RF_fmpIndexSize;
           }
         }
         free_vvector(RF_fresponse[treeID], 1, RF_rSize);
@@ -1571,9 +1566,9 @@ void unstackShadow (uint mode, uint treeID) {
     }
     else {
       if(RF_fmPredictorFlag == TRUE) {
-        for (p = 1; p <= RF_fmvSignSize; p++) {
-          if (RF_fmvIndex[p] > 0) {
-            free_vvector(RF_fobservation[treeID][(uint) RF_fmvIndex[p]], 1, RF_fobservationSize);
+        for (p = 1; p <= RF_fmpIndexSize; p++) {
+          if (RF_fmpIndex[p] > 0) {
+            free_vvector(RF_fobservation[treeID][(uint) RF_fmpIndex[p]], 1, RF_fobservationSize);
           }
         }
         free_vvector(RF_fobservation[treeID], 1, RF_xSize);
@@ -1585,149 +1580,495 @@ void imputeUpdateSummaryNew (uint     mode,
                              uint     treeID) {
   Node     *leafNodePtr;
   Terminal *infoNodePtr;
-  int    **mvSign;
+  double **response;
+  double **predictor;
+  double  *valuePtr;
+  int    **mpSign;
+  int     *mpIndex;
+  uint    *mRecordIndex;
   uint *glmdIndex;
   uint  glmdSize;
-  uint *glmiIndex;
-  uint  glmiSize;
-  uint *glmiSizePtr;
-  uint  gdominant;
-  uint j, r, p;
-  for (j = 1; j <= RF_tLeafCount[treeID]; j++) {
-    leafNodePtr = RF_tNodeList[treeID][j];
-    infoNodePtr = RF_mTerminalInfo[treeID][j];
+  uint *lmiIndex;
+  uint  lmiSize;
+  uint *lmiRaggedSize;
+  int   signedSignatureIndex;
+  uint  unsignedSignatureIndex;
+  uint  absoluteTargetIndex;
+  uint  iterator;
+  uint i, j, r, p, t;
+  for (t = 1; t <= RF_tLeafCount[treeID]; t++) {
+    leafNodePtr = RF_tNodeList[treeID][t];
+    infoNodePtr = RF_mTermList[treeID][t];
     if (xferMissingness(mode, leafNodePtr, infoNodePtr)) {
       if ((mode == RF_GROW) || (mode == RF_REST)) {
-        if ((infoNodePtr -> lmvIndexSize) > (infoNodePtr -> lmrIndexSize)) {
-          gdominant = infoNodePtr -> dominant = V_DOMINANT;
-          glmdSize  = infoNodePtr -> lmvIndexSize; 
-          glmdIndex = infoNodePtr -> lmvIndex; 
-          glmiSize  = infoNodePtr -> lmrIndexSize; 
-          glmiIndex = infoNodePtr -> lmrIndex; 
+        mRecordIndex = RF_mRecordIndex;
+        mpSign  = RF_mpSign;
+        mpIndex = RF_mpIndex;
+        response = RF_response[treeID];
+        predictor = RF_observation[treeID];
+        if (infoNodePtr -> dominant == P_DOMINANT) {
+          glmdIndex = leafNodePtr -> lmpIndex;
+          glmdSize = leafNodePtr -> lmpIndexActualSize;
         }
         else {
-          gdominant = infoNodePtr -> dominant = R_DOMINANT;
-          glmdSize  = infoNodePtr -> lmrIndexSize; 
-          glmdIndex = infoNodePtr -> lmrIndex; 
-          glmiSize  = infoNodePtr -> lmvIndexSize; 
-          glmiIndex = infoNodePtr -> lmvIndex; 
-        } 
-        stackTermLMISizePtr(infoNodePtr, glmiSize);
-        glmiSizePtr = infoNodePtr -> lmiSizePtr;
-        mvSign = RF_mvSign;
+          glmdIndex = leafNodePtr -> lmrIndex;
+          glmdSize = leafNodePtr -> lmrIndexActualSize;
+        }
       }
       else {
-        if ((infoNodePtr -> flmvIndex) > (infoNodePtr -> flmrIndex)) {
-          gdominant = infoNodePtr -> fdominant = V_DOMINANT;
-          glmdSize  = infoNodePtr -> flmvIndexSize; 
-          glmdIndex = infoNodePtr -> flmvIndex; 
-          glmiSize  = infoNodePtr -> flmrIndexSize; 
-          glmiIndex = infoNodePtr -> flmrIndex; 
+        mRecordIndex = RF_fmRecordIndex;
+        mpSign  = RF_fmpSign;
+        mpIndex = RF_fmpIndex;
+        if (RF_frSize > 0) {
+          response = RF_fresponse[treeID];
+        } 
+        else {
+          response = NULL;
+        }
+        predictor = RF_fobservation[treeID];
+        if (infoNodePtr -> dominant == P_DOMINANT) {
+          glmdIndex = leafNodePtr -> flmpIndex;
+          glmdSize = leafNodePtr -> flmpIndexActualSize;
         }
         else {
-          gdominant = infoNodePtr -> fdominant = R_DOMINANT;
-          glmdSize  = infoNodePtr -> flmrIndexSize;
-          glmdIndex = infoNodePtr -> flmrIndex; 
-          glmiSize  = infoNodePtr -> flmvIndexSize; 
-          glmiIndex = infoNodePtr -> flmvIndex; 
-        } 
-        stackTermFLMISizePtr(infoNodePtr, glmiSize);
-        glmiSizePtr = infoNodePtr -> flmiSizePtr;
-        mvSign = RF_fmvSign;
+          glmdIndex = leafNodePtr -> flmrIndex;
+          glmdSize = leafNodePtr -> flmrIndexActualSize;
+        }
       }
-      if (gdominant == V_DOMINANT) {
-        for (r = 1; r <= glmiSize; r++) {
-          glmiSizePtr[r] = 0;
+      lmiSize = infoNodePtr -> lmiSize;
+      lmiIndex = infoNodePtr -> lmiIndex;
+      lmiRaggedSize = infoNodePtr -> lmiRaggedSize;
+      if (infoNodePtr -> dominant == P_DOMINANT) {
+        for (r = 1; r <= lmiSize; r++) {
+          lmiRaggedSize[r] = 0;
           for (p = 1; p <= glmdSize; p++) {
-            if (mvSign[glmdIndex[p]][glmiIndex[r]] == 1) {
-              glmiSizePtr[r] ++;
+            signedSignatureIndex = mpIndex[glmdIndex[p]];
+            if (signedSignatureIndex < 0) {
+              unsignedSignatureIndex = (uint) abs(signedSignatureIndex);
+            }
+            else { 
+              if ((mode == RF_GROW) || (mode == RF_REST)) {
+                unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+              }
+              else {
+                if (RF_frSize > 0) {
+                  unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+                }
+                else {
+                  unsignedSignatureIndex = (uint) signedSignatureIndex;
+                }
+              }
+            }
+            if(mpSign[unsignedSignatureIndex][lmiIndex[r]] == 1) {
+              lmiRaggedSize[r] ++;
             }
           }
         }
       }
       else {
-        for (p = 1; p <= glmiSize; p++) {
-          glmiSizePtr[p] = 0;
+        for (p = 1; p <= lmiSize; p++) {
+          signedSignatureIndex = mpIndex[lmiIndex[p]];
+          if (signedSignatureIndex < 0) {
+            unsignedSignatureIndex = (uint) abs(signedSignatureIndex);
+          }
+          else { 
+            if ((mode == RF_GROW) || (mode == RF_REST)) {
+              unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+            }
+            else {
+              if (RF_frSize > 0) {
+                unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+              }
+              else {
+                unsignedSignatureIndex = (uint) signedSignatureIndex;
+              }
+            }
+          }
+          lmiRaggedSize[p] = 0;
           for (r = 1; r <= glmdSize; r++) {
-            if (mvSign[glmiIndex[p]][glmdIndex[r]] == 1) {
-              glmiSizePtr[p] ++;
+            if(mpSign[unsignedSignatureIndex][glmdIndex[r]] == 1) {
+              lmiRaggedSize[p] ++;
             }
           }
         }
       }
-    }
+      stackTermLMIRagged(infoNodePtr);
+      for (i = 1; i <= infoNodePtr -> lmiSize; i++) {
+        for (j = 1; j <= (infoNodePtr -> lmiRaggedSize)[i]; j++) {
+          (infoNodePtr -> lmiRaggedValue)[i][j] = NA_REAL;
+        }
+      }
+      if (infoNodePtr -> dominant == P_DOMINANT) {
+        for (r = 1; r <= lmiSize; r++) {
+          iterator = 0;
+          for (p = 1; p <= glmdSize; p++) {
+            signedSignatureIndex = mpIndex[glmdIndex[p]];
+            if (signedSignatureIndex < 0) {
+              unsignedSignatureIndex = (uint) abs(signedSignatureIndex);
+              absoluteTargetIndex = (uint) abs(signedSignatureIndex);
+              valuePtr = response[absoluteTargetIndex];
+            }
+            else { 
+              if ((mode == RF_GROW) || (mode == RF_REST)) {
+                unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+              }
+              else {
+                if (RF_frSize > 0) {
+                  unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+                }
+                else {
+                  unsignedSignatureIndex = (uint) signedSignatureIndex;
+                }
+              }
+              absoluteTargetIndex = (uint) signedSignatureIndex;
+              valuePtr = predictor[absoluteTargetIndex];
+            }
+            if(mpSign[unsignedSignatureIndex][lmiIndex[r]] == 1) {
+              (infoNodePtr -> lmiRaggedIndex)[r][++iterator] = glmdIndex[p];
+              (infoNodePtr -> lmiRaggedValue)[r][iterator] = valuePtr[mRecordIndex[lmiIndex[r]]];
+            }
+          }
+        }
+      }
+      else {
+        for (p = 1; p <= lmiSize; p++) {
+          iterator = 0;
+          signedSignatureIndex = mpIndex[lmiIndex[p]];
+          if (signedSignatureIndex < 0) {
+            unsignedSignatureIndex = (uint) abs(signedSignatureIndex);
+            absoluteTargetIndex = (uint) abs(signedSignatureIndex);
+            valuePtr = response[absoluteTargetIndex];
+          }
+          else { 
+            if ((mode == RF_GROW) || (mode == RF_REST)) {
+              unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+            }
+            else {
+              if (RF_frSize > 0) {
+                unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
+              }
+              else {
+                unsignedSignatureIndex = (uint) signedSignatureIndex;
+              }
+            }
+            absoluteTargetIndex = (uint) signedSignatureIndex;
+            valuePtr = predictor[absoluteTargetIndex];
+          }
+          for (r = 1; r <= glmdSize; r++) {
+            if(mpSign[unsignedSignatureIndex][glmdIndex[r]] == 1) {
+              (infoNodePtr -> lmiRaggedIndex)[p][++iterator] = glmdIndex[r];
+              (infoNodePtr -> lmiRaggedValue)[p][iterator] = valuePtr[mRecordIndex[glmdIndex[r]]];
+            }
+          }
+        }
+      }
+    }  
+  }  
+}
+void imputeCommonNew(uint      mode,
+                  uint      serialTreeID,
+                  char      selectionFlag,
+                  char      predictorFlag) {
+  uint *localSerialIndex;
+  uint  localSerialCount;
+  uint *serialPtr;
+  char mFlag;
+  char outcomeFlag;
+  uint     mRecordSize;
+  uint    *mRecordIndex;
+  uint     mpIndexSize;
+  int    **mpSign;
+  int     *mpIndex;
+  double **outResponse;
+  double **outPredictor;
+  double *valuePtr;
+  double *naivePtr;
+  uint    unsignedSignatureIndex;
+  Terminal *info;
+  double imputedValue;
+  uint localDistributionSize;
+  uint maxDistributionSize;
+  uint rspSize;
+  char result;
+  uint i, p, r, v, tree;
+  valuePtr      = NULL;  
+  naivePtr      = NULL;  
+  unsignedSignatureIndex = 0;     
+  maxDistributionSize = 0;  
+  outResponse         = 0;  
+  outPredictor        = 0;  
+  rspSize = 0;  
+  mpIndex = 0;  
+  mpSign  = 0;  
+  mpIndexSize  = 0;  
+  mRecordIndex = 0;  
+  mRecordSize  = 0;  
+  if ((selectionFlag != TRUE) && (selectionFlag != FALSE) && (selectionFlag != ACTIVE)) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Invalid selectionFlag in imputeCommon():  %10d", selectionFlag);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
   }
+  result = FALSE;
+  switch (mode) {
+  case RF_PRED:
+    if (RF_fmRecordSize > 0) {
+      mRecordSize = RF_fmRecordSize;
+      mRecordIndex = RF_fmRecordIndex;
+      mpIndexSize = RF_fmpIndexSize;
+      mpSign = RF_fmpSign;
+      mpIndex = RF_fmpIndex;
+      maxDistributionSize = ((RF_observationSize) > (RF_forestSize)) ? (RF_observationSize) : (RF_forestSize);
+      outResponse  = RF_sImputeResponsePtr;
+      outPredictor = RF_sImputePredictorPtr;
+      rspSize = RF_frSize;
+      result = TRUE;
+    }
+    break;
+  default:
+    if (RF_mRecordSize > 0) {
+      mRecordSize = RF_mRecordSize;
+      mRecordIndex = RF_mRecordIndex;
+      mpIndexSize = RF_mpIndexSize;
+      mpSign = RF_mpSign;
+      mpIndex = RF_mpIndex;
+      maxDistributionSize = ((RF_observationSize) > (RF_forestSize)) ? (RF_observationSize) : (RF_forestSize);
+      if ((selectionFlag == TRUE) || (selectionFlag == ACTIVE)) {
+        outResponse  = RF_sImputeResponsePtr;
+        outPredictor = RF_sImputePredictorPtr;
+      }
+      else {
+        outResponse  = RF_sOOBImputeResponsePtr;
+        outPredictor = RF_sOOBImputePredictorPtr;
+      }
+      rspSize = RF_rSize;
+      result = TRUE;
+    }
+    break;
+  }
+  if (result == FALSE) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Attempt to impute in imputeCommon() with no missingness in mode:  %10d", mode);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  if (serialTreeID == 0) {
+    localSerialIndex = uivector(1, RF_forestSize);
+    for (tree = 1; tree <= RF_forestSize; tree++) {
+      localSerialIndex[tree] = tree;
+    }
+    serialPtr = localSerialIndex;
+    localSerialCount = RF_forestSize;
+  }
+  else {
+    serialPtr = RF_serialTreeIndex;
+    localSerialCount = serialTreeID;
+  }
+  imputedValue = 0.0;  
+  double *localDistribution = dvector(1, maxDistributionSize);
+  char  *naiveFlag = cvector(1, mpIndexSize);
+  char **naiveSign = cmatrix(1, mRecordSize, 1, mpIndexSize);
+  for (p = 1; p <= mpIndexSize; p++) {
+    naiveFlag[p] = FALSE;
+  }
+  for (i = 1; i <= mRecordSize; i++) {
+    outcomeFlag = TRUE;
+    for (p = 1; p <= mpIndexSize; p++) {
+      naiveSign[i][p] = FALSE;  
+      if (mpIndex[p] < 0) {
+        unsignedSignatureIndex = (uint) abs(mpIndex[p]);
+      }
+      else {
+        if (predictorFlag == TRUE) {
+          unsignedSignatureIndex = (uint) mpIndex[p] + rspSize;
+        }
+        outcomeFlag = FALSE;
+      }
+      if (outcomeFlag || predictorFlag) {
+        if (mpSign[unsignedSignatureIndex][i] == 1) {
+          localDistributionSize = 0;
+          for (tree = 1; tree <= localSerialCount; tree++) {
+            if (RF_tLeafCount[serialPtr[tree]] > 0) {
+              if ((RF_dmRecordBootFlag[serialPtr[tree]][i] == selectionFlag) || (selectionFlag == ACTIVE)) {
+                info = RF_mTermMembership[serialPtr[tree]][i];
+                if (info -> dominant == P_DOMINANT) {
+                  for (r = 1; r <= info -> lmiSize; r++) {
+                    if ((info -> lmiIndex)[r] == i) {
+                      for (v = 1; v <= info -> lmiRaggedSize[r]; v++) {
+                        if ((info -> lmiRaggedIndex)[r][v] == p) {
+                          if (!ISNA((info -> lmiRaggedValue)[r][v])) {
+                            localDistribution[++localDistributionSize] = (info -> lmiRaggedValue)[r][v];
+                          }
+                          else {
+                          }  
+                          v = (info -> lmiRaggedSize)[r];
+                        }
+                      }
+                      r = info -> lmiSize;
+                    }
+                  } 
+                }
+                else {
+                  for (v = 1; v <= info -> lmiSize; v++) {
+                    if ((info -> lmiIndex)[v] == p) {
+                      for (r = 1; r <= info -> lmiRaggedSize[v]; r++) {
+                        if ((info -> lmiRaggedIndex)[v][r] == i) {
+                          if (!ISNA((info -> lmiRaggedValue)[v][r])) {
+                            localDistribution[++localDistributionSize] = (info -> lmiRaggedValue)[v][r];
+                          }
+                          else {
+                          }  
+                          r = (info -> lmiRaggedSize)[v];
+                        }
+                      }
+                      v = info -> lmiSize;
+                    }
+                  } 
+                }
+              }  
+            }  
+            else {
+            }
+          }  
+          if (localDistributionSize > 0) {
+            if (mpIndex[p] < 0) {
+              if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "T") == 0) {
+                imputedValue = getMeanValue(localDistribution, localDistributionSize);
+              }
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "S") == 0) {
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
+              }
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "R") == 0) {
+                imputedValue = getMeanValue(localDistribution, localDistributionSize);
+              }
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "I") == 0) {
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
+              }
+              else if (strcmp(RF_rType[(uint) abs(mpIndex[p])], "C") == 0) {
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
+              }
+              outResponse[(uint) abs(mpIndex[p])][i] = imputedValue;
+            }  
+            else {
+              if (strcmp(RF_xType[(uint) mpIndex[p]], "R") == 0) {
+                imputedValue = getMeanValue(localDistribution, localDistributionSize);
+              }
+              else {
+                imputedValue = getMaximalValue(localDistribution, localDistributionSize, localSerialCount);
+              }
+              outPredictor[(uint) mpIndex[p]][i] = imputedValue;
+            }
+          }  
+          else {
+            naiveFlag[p] = TRUE;
+            naiveSign[i][p] = TRUE;
+          }
+        }  
+      }  
+      else {
+        p = mpIndexSize;
+      }
+    }  
+  }  
+  outcomeFlag = TRUE;
+  for (p = 1; p <= mpIndexSize; p++) {
+    if (mpIndex[p] < 0) {
+      unsignedSignatureIndex = (uint) abs(mpIndex[p]);
+      valuePtr = RF_responseIn[(uint) abs(mpIndex[p])];
+      naivePtr = outResponse[(uint) abs(mpIndex[p])];
+    }
+    else {
+      if (predictorFlag == TRUE) {
+        unsignedSignatureIndex = (uint) mpIndex[p] + rspSize;
+        valuePtr = RF_observationIn[(uint) mpIndex[p]];
+        naivePtr = outPredictor[(uint) mpIndex[p]];
+      }
+      outcomeFlag = FALSE;
+    }
+    if (outcomeFlag || predictorFlag) {
+      if (naiveFlag[p] == TRUE) {
+        localDistributionSize = 0;
+        for (i=1; i <= RF_observationSize; i++) {
+          mFlag = TRUE;
+          if (RF_mRecordMap[i] == 0) {
+            mFlag = FALSE;
+          }
+          else if (RF_mpSign[unsignedSignatureIndex][RF_mRecordMap[i]] == 0) {
+            mFlag = FALSE;
+          }
+          if (mFlag == FALSE) {
+            localDistribution[++localDistributionSize] = valuePtr[i];
+          }
+        }  
+        if (localDistributionSize > 0) {
+          for (i=1; i <= mRecordSize; i++) {
+            if (naiveSign[i][p] == TRUE) {
+              naivePtr[i] = getSampleValue(localDistribution, localDistributionSize, FALSE, localSerialCount);
+            }
+          }
+        }  
+        else {
+          if (mpIndex[p] < 0) {
+            Rprintf("\nRF-SRC:  *** ERROR *** ");
+            Rprintf("\nRF-SRC:  Naive imputation failed for [indv, outcome] = [%10d, %10d] \n", mRecordIndex[i], mpIndex[p]);
+            Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+            error("\nRF-SRC:  The application will now exit.\n");
+          }
+          else {
+          }
+        }
+      }  
+    }  
+    else {
+      p = mpIndexSize;
+    }
+  }  
+  if (serialTreeID == 0) {
+    free_uivector(localSerialIndex, 1, RF_forestSize);
+  }
+  free_dvector(localDistribution, 1, maxDistributionSize);
+  free_cvector(naiveFlag, 1, mpIndexSize);
+  free_cmatrix(naiveSign, 1, mRecordSize, 1, mpIndexSize);
 }
 char xferMissingness(uint mode, Node *source, Terminal *destination) {
+  uint *sourcePtr;
+  uint sourceLen;
   uint p;
-  char legalResult;
+  char result;
   char xferFlag;
-  legalResult = xferFlag = FALSE;  
+  sourcePtr = NULL;  
+  sourceLen = 0;     
   if ((mode == RF_GROW) || (mode == RF_REST)) {
     if (RF_mRecordSize > 0) {
-      if (source -> lmvIndexActualSize > 0) {
-        stackTermLMVIndex(destination, source -> lmvIndexActualSize);
-        for (p = 1; p <= source -> lmvIndexActualSize; p++) {
-          (destination -> lmvIndex)[p] = (source -> lmvIndex)[p]; 
-        } 
-      }
-      if (source -> lmrIndexActualSize > 0) {
-        stackTermLMRIndex(destination, source -> lmrIndexActualSize);
-        for (p = 1; p <= source -> lmrIndexActualSize; p++) {
-          (destination -> lmrIndex)[p] = (source -> lmrIndex)[p]; 
-        } 
-      }
-      if ((source -> lmvIndexActualSize > 0) && (source -> lmrIndexActualSize > 0)) {
-        legalResult = TRUE;
-        xferFlag = TRUE;
-      }
-      else {
-        if ((source -> lmvIndexActualSize == 0) && (source -> lmrIndexActualSize == 0)) {
-          legalResult = TRUE;
-          xferFlag = FALSE;
-        }
-        else {
-          legalResult = FALSE;
-          xferFlag = FALSE;
-        }
-      }
+      result = TRUE;
+        destination -> dominant = N_DOMINANT;
+        sourcePtr = source -> lmpIndex;
+        sourceLen = source -> lmpIndexActualSize;
     }
   }
   else {
-    if (RF_fmRecordSize > 0) {       
-      if (source -> flmvIndexActualSize > 0) {
-        stackTermFLMVIndex(destination, source -> flmvIndexActualSize);
-        for (p = 1; p <= source -> flmvIndexActualSize; p++) {
-          (destination -> flmvIndex)[p] = (source -> flmvIndex)[p]; 
-        } 
-      }
-      if (source -> flmrIndexActualSize > 0) {
-        stackTermFLMRIndex(destination, source -> flmrIndexActualSize);
-        for (p = 1; p <= source -> flmrIndexActualSize; p++) {
-          (destination -> flmrIndex)[p] = (source -> flmrIndex)[p]; 
-        } 
-      }
-      if ((source -> flmvIndexActualSize > 0) && (source -> flmrIndexActualSize > 0)) {
-        legalResult = TRUE;
-        xferFlag = TRUE;
-      }
-      else {
-        if ((source -> flmvIndexActualSize == 0) && (source -> flmrIndexActualSize == 0)) {
-          legalResult = TRUE;
-          xferFlag = FALSE;
-        }
-        else {
-          legalResult = FALSE;
-          xferFlag = FALSE;
-        }
-      }
+    if (RF_fmRecordSize > 0) {
+      result = TRUE;
+        destination -> dominant = N_DOMINANT;
+        sourcePtr = source -> flmpIndex;
+        sourceLen = source -> flmpIndexActualSize;
     }
   }
-  if (legalResult == FALSE) {
+  if (result == FALSE) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  Attempt to transfer missing information with either no on inconsistent missingness in mode:  %10d", mode);
+    Rprintf("\nRF-SRC:  Attempt to update forest impute data with no missingness in mode:  %10d", mode);
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
+  }
+  if (sourceLen > 0) {
+    stackTermLMIIndex(destination, sourceLen);
+    for (p = 1; p <= sourceLen; p++) {
+      (destination -> lmiIndex)[p] = sourcePtr[p]; 
+    } 
+    xferFlag = TRUE;
+  }
+  else {
+    xferFlag = FALSE;
   }
   return xferFlag;
 }

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -73,7 +73,7 @@ uint stackDefinedOutputObjects(char      mode,
                                double  **pRF_fullEnsemble,
                                double  **p_performance,
                                uint    **pRF_tLeafCount,
-                               uint    **pRF_proximity,
+                               double  **pRF_proximity,
                                double  **pRF_importance,
                                int     **pRF_seed,
                                double  **pRF_oobImputation,
@@ -497,10 +497,10 @@ uint stackDefinedOutputObjects(char      mode,
     }
   }
   if (RF_opt & OPT_PROX) {
-    PROTECT(sexpVector[RF_PROX_ID] = NEW_INTEGER(proximitySize));
+    PROTECT(sexpVector[RF_PROX_ID] = NEW_NUMERIC(proximitySize));
     SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_PROX_ID]);
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_PROX_ID]));
-    *pRF_proximity = (uint*) INTEGER_POINTER(sexpVector[RF_PROX_ID]);
+    *pRF_proximity = NUMERIC_POINTER(sexpVector[RF_PROX_ID]);
     sexpIndex ++;
     (*pRF_proximity) --;
     for (i = 1; i <= proximitySize; i++) {
@@ -912,7 +912,7 @@ void unstackDefinedOutputObjects(char      mode,
   }  
   if (RF_opt & OPT_MEMB) {
     free_vvector(RF_tNodeMembershipIndexPtr, 1, RF_forestSize);
-    free_vvector(RF_bootstrapMembershipPtr,    1, RF_forestSize);
+    free_vvector(RF_bootstrapMembershipPtr,  1, RF_forestSize);
     if (RF_ptnCount > 0) {
       free_vvector(RF_pNodeMembershipIndexPtr, 1, RF_forestSize);
     }

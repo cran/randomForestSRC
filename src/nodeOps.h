@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -109,30 +109,22 @@ void stackCIF(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize);
 void unstackCIF(Node *tNode);
 void stackMortality(Node *tNode, unsigned int eTypeSize);
 void unstackMortality(Node *tNode);
-void stackMVSign(Node *node, unsigned int mvSignSize);
-void unstackMVSign(Node *node);
-void stackFMVSign(Node *node, unsigned int fmvSignSize);
-void unstackFMVSign(Node *node);
-void stackNodeLMVIndex(Node *node, unsigned int size);
-void unstackNodeLMVIndex(Node *node);
-void stackNodeFLMVIndex(Node *node, unsigned int size);
-void unstackNodeFLMVIndex(Node *node);
+void stackMPSign(Node *node, unsigned int mpIndexSize);
+void unstackMPSign(Node *node);
+void stackFMPSign(Node *node, unsigned int fmpIndexSize);
+void unstackFMPSign(Node *node);
+void stackNodeLMPIndex(Node *node, unsigned int size);
+void unstackNodeLMPIndex(Node *node);
+void stackNodeFLMPIndex(Node *node, unsigned int size);
+void unstackNodeFLMPIndex(Node *node);
 void stackNodeLMRIndex(Node *node, unsigned int size);
 void unstackNodeLMRIndex(Node *node);
 void stackNodeFLMRIndex(Node *node, unsigned int size);
 void unstackNodeFLMRIndex(Node *node);
-void stackTermLMVIndex(Terminal *node, unsigned int size);
-void unstackTermLMVIndex(Terminal *node);
-void stackTermFLMVIndex(Terminal *node, unsigned int size);
-void unstackTermFLMVIndex(Terminal *node);
-void stackTermLMRIndex(Terminal *node, unsigned int size);
-void unstackTermLMRIndex(Terminal *node);
-void stackTermFLMRIndex(Terminal *node, unsigned int size);
-void unstackTermFLMRIndex(Terminal *node);
-void stackTermFLMISizePtr(Terminal *tNode, unsigned int size);
-void unstackTermFLMISizePtr(Terminal *tNode);
-void stackTermLMISizePtr(Terminal *tNode, unsigned int size);
-void unstackTermLMISizePtr(Terminal *tNode);
+void stackTermLMIIndex(Terminal *tNode, unsigned int size);
+void unstackTermLMIIndex(Terminal *tNode);
+void stackTermLMIRagged(Terminal *tNode);
+void unstackTermLMIRagged(Terminal *tNode);
 void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize);
 void unstackMultiClassProb(Node *tNode);
 void stackSplitDepth(Node *tNode, unsigned int depth);

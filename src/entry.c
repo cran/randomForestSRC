@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -70,7 +70,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP seedPtr,  
                SEXP opt,  
                SEXP splitRule,  
-               SEXP splitRandomRule,  
+               SEXP splitRandomCount,  
                SEXP randomCovariateCount,  
                SEXP minimumNodeSize,
                SEXP maximumNodeDepth,
@@ -85,6 +85,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP xType,
                SEXP xLevels,
                SEXP xWeight,
+               SEXP splitWeight,
                SEXP xData,
                SEXP timeInterestSize,
                SEXP timeInterest,
@@ -94,7 +95,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
   int seedValue           = INTEGER(seedPtr)[0];
   RF_opt                  = INTEGER(opt)[0];
   RF_splitRule            = INTEGER(splitRule)[0];
-  RF_splitRandomRule      = INTEGER(splitRandomRule)[0];
+  RF_splitRandomCount      = INTEGER(splitRandomCount)[0];
   RF_randomCovariateCount = INTEGER(randomCovariateCount)[0];
   RF_minimumNodeSize      = INTEGER(minimumNodeSize)[0];
   RF_maximumNodeDepth     = INTEGER(maximumNodeDepth)[0];
@@ -108,7 +109,8 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_xSize                = INTEGER(xSize)[0];
   RF_sexp_xType           = xType;
   RF_xLevels              = INTEGER(xLevels); RF_xLevels--;
-  RF_randomCovariateWeight =REAL(xWeight);  RF_randomCovariateWeight--;
+  RF_xWeight =REAL(xWeight);  RF_xWeight--;
+  RF_splitWeight =REAL(splitWeight);  RF_splitWeight--;
   RF_xData                = REAL(xData);
   RF_timeInterestSize     = INTEGER(timeInterestSize)[0];
   RF_timeInterest         = REAL(timeInterest);  RF_timeInterest--;
@@ -154,7 +156,6 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_opt                  = RF_opt & (~OPT_OUTC_TYPE);
   RF_opt                  = RF_opt & (~OPT_COMP_RISK);
   RF_opt                  = RF_opt | OPT_LEAF;  
-  RF_opt                  = RF_opt | OPT_MISS;
   RF_frSize = RF_fobservationSize = 0;
   if (seedValue >= 0) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -186,10 +187,17 @@ SEXP rfsrcGrow(SEXP traceFlag,
     return R_NilValue;
   }
   for (i = 1; i <= RF_xSize; i++) {
-    if(RF_randomCovariateWeight[i] < 0) {
+    if(RF_xWeight[i] < 0) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
       Rprintf("\nRF-SRC:  Parameter verification failed.");
-      Rprintf("\nRF-SRC:  Random covariate weight elements must be greater than or equal to zero:  %12.4f \n", RF_randomCovariateWeight[i]);
+      Rprintf("\nRF-SRC:  X-weight elements must be greater than or equal to zero:  %12.4f \n", RF_xWeight[i]);
+      Rprintf("\nRF-SRC:  The application will now exit.\n");
+      return R_NilValue;
+    }
+    if(RF_splitWeight[i] < 0) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Parameter verification failed.");
+      Rprintf("\nRF-SRC:  Split-weight elements must be greater than or equal to zero:  %12.4f \n", RF_splitWeight[i]);
       Rprintf("\nRF-SRC:  The application will now exit.\n");
       return R_NilValue;
     }

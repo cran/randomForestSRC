@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -187,7 +187,7 @@ char stackMissingArrays(char mode) {
   char mFlag;
   char dualUseFlag;
   uint recordSize;
-  uint vSize;
+  uint vIndexSize;
   uint i, j, k;
   result = TRUE;
   for (j = 1; j <= RF_rSize; j++) {
@@ -320,9 +320,9 @@ char stackMissingArrays(char mode) {
                            RF_mRecordMap,
                            RF_mRecordSize,
                            & RF_mRecordIndex,
-                           & RF_mvSignSize,
-                           & RF_mvSign,
-                           & RF_mvIndex,
+                           & RF_mpIndexSize,
+                           & RF_mpSign,
+                           & RF_mpIndex,
                            & RF_mrFactorSize,
                            & RF_mrFactorIndex,
                            & RF_mxFactorSize,
@@ -391,9 +391,9 @@ char stackMissingArrays(char mode) {
                              RF_fmRecordMap,
                              RF_fmRecordSize,
                              & RF_fmRecordIndex,
-                             & RF_fmvSignSize,
-                             & RF_fmvSign,
-                             & RF_fmvIndex,
+                             & RF_fmpIndexSize,
+                             & RF_fmpSign,
+                             & RF_fmpIndex,
                              & RF_fmrFactorSize,
                              & RF_fmrFactorIndex,
                              & RF_fmxFactorSize,
@@ -427,7 +427,7 @@ char stackMissingArrays(char mode) {
   case RF_PRED:
     if (RF_fmRecordSize > 0) {
       recordSize = RF_fmRecordSize;
-      vSize = RF_fmvSignSize;
+      vIndexSize = RF_fmpIndexSize;
       dualUseFlag = TRUE;
       mFlag = ACTIVE;
     }
@@ -438,7 +438,7 @@ char stackMissingArrays(char mode) {
   default:
     if (RF_mRecordSize > 0) {
       recordSize = RF_mRecordSize;
-      vSize = RF_mvSignSize;
+      vIndexSize = RF_mpIndexSize;
       dualUseFlag = TRUE;
       mFlag = FALSE;
     }
@@ -455,12 +455,11 @@ char stackMissingArrays(char mode) {
         RF_dmRecordBootFlag[j][i] = mFlag;
       }
     }
-    RF_dmvImputation = dmatrix3(1, RF_forestSize, 1, recordSize, 1, vSize);
-    RF_mTerminalInfo = (Terminal ***) vvector(1, RF_forestSize);
+    RF_mTermList = (Terminal ***) vvector(1, RF_forestSize);
+    RF_mTermMembership = (Terminal ***) vvector(1, RF_forestSize);
     for (i = 1; i <= RF_forestSize; i++) {
       for (j = 1; j <= recordSize; j++) {
-        for (k = 1; k <= vSize; k++) {
-          RF_dmvImputation[i][j][k] = NA_REAL;
+        for (k = 1; k <= vIndexSize; k++) {
         }
       }
     }
@@ -473,7 +472,6 @@ char stackMissingArrays(char mode) {
 void unstackMissingArrays(char mode) {
   char dualUseFlag;
   uint recordSize;
-  uint vSize;
   free_vvector(RF_response, 1, RF_forestSize);
   if (RF_timeIndex > 0) {
     free_vvector(RF_time, 1, RF_forestSize);
@@ -490,9 +488,9 @@ void unstackMissingArrays(char mode) {
     unstackMissingSignatures(RF_rSize,
                              RF_mRecordSize,
                              RF_mRecordIndex,
-                             RF_mvSignSize,
-                             RF_mvSign,
-                             RF_mvIndex,
+                             RF_mpIndexSize,
+                             RF_mpSign,
+                             RF_mpIndex,
                              RF_mrFactorSize,
                              RF_mrFactorIndex,
                              RF_mxFactorSize,
@@ -516,9 +514,9 @@ void unstackMissingArrays(char mode) {
       unstackMissingSignatures(RF_frSize,
                                RF_fmRecordSize,
                                RF_fmRecordIndex,
-                               RF_fmvSignSize,
-                               RF_fmvSign,
-                               RF_fmvIndex,
+                               RF_fmpIndexSize,
+                               RF_fmpSign,
+                               RF_fmpIndex,
                                RF_fmrFactorSize,
                                RF_fmrFactorIndex,
                                RF_fmxFactorSize,
@@ -531,21 +529,19 @@ void unstackMissingArrays(char mode) {
     if (RF_fmRecordSize > 0) {
       dualUseFlag = TRUE;
       recordSize = RF_fmRecordSize;
-      vSize = RF_fmvSignSize;
     }
     break;
   default:
     if (RF_mRecordSize > 0) {
       dualUseFlag = TRUE;
       recordSize = RF_mRecordSize;
-      vSize = RF_mvSignSize;
     }
     break;
   }  
   if (dualUseFlag == TRUE) {
     free_cmatrix(RF_dmRecordBootFlag, 1, RF_forestSize, 1, recordSize);
-    free_dmatrix3(RF_dmvImputation, 1, RF_forestSize, 1, recordSize, 1, vSize);
-    free_vvector(RF_mTerminalInfo, 1, RF_forestSize);
+    free_vvector(RF_mTermList, 1, RF_forestSize);
+    free_vvector(RF_mTermMembership, 1, RF_forestSize);
   }
 }
 void stackMissingSignatures(uint     obsSize, 
@@ -555,9 +551,9 @@ void stackMissingSignatures(uint     obsSize,
                             uint    *recordMap,
                             uint     recordSize, 
                             uint   **p_recordIndex, 
-                            uint    *p_vSize,
-                            int   ***p_vSign, 
-                            int    **p_vIndex,
+                            uint    *p_pIndexSize,
+                            int   ***p_pSign, 
+                            int    **p_pIndex,
                             uint    *pRF_mrFactorSize,
                             uint   **pRF_mrFactorIndex,
                             uint    *pRF_mxFactorSize,
@@ -581,33 +577,33 @@ void stackMissingSignatures(uint     obsSize,
       (*p_recordIndex)[i] = j;
     }
   }
-  *p_vSign = imatrix(1, rspSize + RF_xSize, 1, recordSize);
+  *p_pSign = imatrix(1, rspSize + RF_xSize, 1, recordSize);
   for (j = 1; j <= recordSize; j++) {
     for (i = 1; i <= rspSize + RF_xSize; i++) {
-      (*p_vSign)[i][j] = 0;
+      (*p_pSign)[i][j] = 0;
     }
   }
   for (j = 1; j <= recordSize; j++) {
     for (i = 1; i <= rspSize; i++) {
       if (ISNA(responsePtr[i][(*p_recordIndex)[j]])) {
-        (*p_vSign)[i][j] = 1;
+        (*p_pSign)[i][j] = 1;
       }
     }
     for (i = 1; i <= RF_xSize; i++) {
       if (ISNA(predictorPtr[i][(*p_recordIndex)[j]])) {
-        (*p_vSign)[rspSize + i][j] = 1;
+        (*p_pSign)[rspSize + i][j] = 1;
       }
     }
   }
   *pRF_mStatusFlag = *pRF_mTimeFlag = *pRF_mResponseFlag = *pRF_mPredictorFlag = FALSE;
-  *p_vIndex = ivector(1, rspSize + RF_xSize);
-  *p_vSize = 0;
+  *p_pIndex = ivector(1, rspSize + RF_xSize);
+  *p_pIndexSize = 0;
   for (i = 1; i <= rspSize; i++) {
-    (*p_vIndex)[i] = 0;
+    (*p_pIndex)[i] = 0;
     for (j = 1; j <= recordSize; j++) {
-      if ((*p_vSign)[i][j] == 1) {
-        (*p_vSize) ++;
-        (*p_vIndex)[*p_vSize] = - i;
+      if ((*p_pSign)[i][j] == 1) {
+        (*p_pIndexSize) ++;
+        (*p_pIndex)[*p_pIndexSize] = - i;
         *pRF_mResponseFlag = TRUE;
         if (i == RF_timeIndex) {
           *pRF_mTimeFlag = TRUE;
@@ -620,11 +616,11 @@ void stackMissingSignatures(uint     obsSize,
     }
   }  
   for (i = rspSize + 1; i <= rspSize + RF_xSize; i++) {
-    (*p_vIndex)[i] = 0;
+    (*p_pIndex)[i] = 0;
     for (j = 1; j <= recordSize; j++) {
-      if ((*p_vSign)[i][j] == 1) {
-        (*p_vSize) ++;
-        (*p_vIndex)[*p_vSize] =  i - rspSize;
+      if ((*p_pSign)[i][j] == 1) {
+        (*p_pIndexSize) ++;
+        (*p_pIndex)[*p_pIndexSize] =  i - rspSize;
         *pRF_mPredictorFlag = TRUE;
         j = recordSize;
       }
@@ -641,17 +637,17 @@ void stackMissingSignatures(uint     obsSize,
     (*pRF_mxFactorIndex)[p] = 0;
   }
   *pRF_mrFactorSize = *pRF_mxFactorSize = 0;
-  for (p = 1; p <= *p_vSize; p++) {
-    if ((*p_vIndex)[p] < 0) {
-      if (strcmp(RF_rType[(uint) abs((*p_vIndex)[p])], "C") == 0) {
+  for (p = 1; p <= *p_pIndexSize; p++) {
+    if ((*p_pIndex)[p] < 0) {
+      if (strcmp(RF_rType[(uint) abs((*p_pIndex)[p])], "C") == 0) {
         (*pRF_mrFactorSize) ++;
-        (*pRF_mrFactorIndex)[*pRF_mrFactorSize] = (uint) abs((*p_vIndex)[p]);
+        (*pRF_mrFactorIndex)[*pRF_mrFactorSize] = (uint) abs((*p_pIndex)[p]);
       }
     }
     else {
-      if (strcmp(RF_xType[(*p_vIndex)[p]], "C") == 0) {
+      if (strcmp(RF_xType[(*p_pIndex)[p]], "C") == 0) {
         (*pRF_mxFactorSize) ++;
-        (*pRF_mxFactorIndex)[*pRF_mxFactorSize] = (*p_vIndex)[p];
+        (*pRF_mxFactorIndex)[*pRF_mxFactorSize] = (*p_pIndex)[p];
       }
     }
   }
@@ -659,7 +655,7 @@ void stackMissingSignatures(uint     obsSize,
 void unstackMissingSignatures(uint      rspSize,
                               uint      recordSize, 
                               uint     *recordIndex, 
-                              uint      vSize,
+                              uint      vIndexSize,
                               int     **vSign, 
                               int      *vIndex,
                               uint      mrFactorSize,
@@ -799,7 +795,7 @@ char stackCompetingArrays(char mode) {
   uint obsSize;
   double  *statusPtr;
   uint    *mRecordMap;
-  int    **mvSign;
+  int    **mpSign;
   char eventAnalysisFlag, eventSubsetFlag, consistencyFlag, overrideFlag;
   char statusFlag;
   uint *eventCounter;
@@ -825,7 +821,7 @@ char stackCompetingArrays(char mode) {
   getEventTypeSize(RF_observationSize, 
                    RF_responseIn[RF_statusIndex], 
                    RF_mRecordMap, 
-                   RF_mvSign,  
+                   RF_mpSign,  
                    overrideFlag, 
                    & RF_eventTypeSize,
                    & RF_mStatusSize,
@@ -900,7 +896,7 @@ char stackCompetingArrays(char mode) {
     getEventTypeSize(RF_fobservationSize, 
                      RF_fresponseIn[RF_statusIndex], 
                      RF_fmRecordMap,
-                     RF_fmvSign, 
+                     RF_fmpSign, 
                      overrideFlag, 
                      & feventTypeSize, 
                      & RF_mStatusSize, 
@@ -946,13 +942,13 @@ char stackCompetingArrays(char mode) {
     if ((mode == RF_GROW) || (mode == RF_REST)) { 
       obsSize = RF_observationSize; 
       statusPtr = RF_responseIn[RF_statusIndex]; 
-      mvSign = RF_mvSign;
+      mpSign = RF_mpSign;
       mRecordMap = RF_mRecordMap; 
     } 
     else { 
       obsSize = RF_fobservationSize;
       statusPtr = RF_fresponseIn[RF_statusIndex]; 
-      mvSign = RF_fmvSign; 
+      mpSign = RF_fmpSign; 
       mRecordMap = RF_fmRecordMap; 
     }
     RF_eIndividualSize = uivector(1, RF_eventTypeSize);
@@ -965,7 +961,7 @@ char stackCompetingArrays(char mode) {
         statusFlag = TRUE; 
       } 
       else { 
-        if (mvSign[RF_statusIndex][mRecordMap[i]] == 0) { 
+        if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) { 
           statusFlag = TRUE; 
         } 
       }
@@ -994,7 +990,7 @@ char stackCompetingArrays(char mode) {
         statusFlag = TRUE; 
       } 
       else { 
-        if (mvSign[RF_statusIndex][mRecordMap[i]] == 0) { 
+        if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) { 
           statusFlag = TRUE; 
         } 
       }
@@ -1019,7 +1015,7 @@ char stackCompetingArrays(char mode) {
 void getEventTypeSize(uint obsSize, 
                       double *status, 
                       uint *mRecordMap,
-                      int **mvSign, 
+                      int **mpSign, 
                       char overrideFlag, 
                       uint *eventTypeSize, 
                       uint *msize,
@@ -1041,7 +1037,7 @@ void getEventTypeSize(uint obsSize,
       statusFlag = TRUE; 
     }
     else { 
-      if (mvSign[RF_statusIndex][mRecordMap[i]] == 0) { 
+      if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) { 
         statusFlag = TRUE; 
       } 
     }
@@ -1132,7 +1128,7 @@ char stackClassificationArrays(char mode) {
   getClassLevelSize(RF_observationSize, 
                     RF_responseIn, 
                     RF_mRecordMap,
-                    RF_mvSign, 
+                    RF_mpSign, 
                     RF_classLevelSize, 
                     RF_classLevel);
   RF_classLevelIndex = (uint **) vvector(1, RF_rFactorCount); 
@@ -1164,7 +1160,7 @@ char stackClassificationArrays(char mode) {
     getClassLevelSize(RF_fobservationSize, 
                       RF_fresponseIn, 
                       RF_fmRecordMap, 
-                      RF_fmvSign,  
+                      RF_fmpSign,  
                       fclassLevelSize, 
                       fclassLevel);
     consistencyFlag = TRUE;
@@ -1195,7 +1191,7 @@ char stackClassificationArrays(char mode) {
 void getClassLevelSize(uint      obsSize, 
                        double  **response, 
                        uint     *mRecordMap, 
-                       int     **mvSign,  
+                       int     **mpSign,  
                        uint     *classLevelSize,
                        uint    **classLevel) {
   uint *rawClassVector;
@@ -1219,7 +1215,7 @@ void getClassLevelSize(uint      obsSize,
         classFlag = TRUE;
       }
       else {
-        if (mvSign[RF_rFactorIndex[j]][mRecordMap[i]] == 0) {
+        if (mpSign[RF_rFactorIndex[j]][mRecordMap[i]] == 0) {
           classFlag = TRUE;
         }
       }

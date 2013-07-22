@@ -36,15 +36,15 @@ rfsrc(formula, data, ntree = 1000,
   nimpute = 1,
   ntime,
   cause,
-  xvar.wt = NULL,
+  xvar.wt = NULL, 
   forest = TRUE,
   proximity = FALSE,
   var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"),
   seed = NULL,
   do.trace = FALSE,
-  membership = TRUE,
-  statistics = FALSE, ...)
+  membership = TRUE, 
+  ...)
 }
 \arguments{
     \item{formula}{A symbolic description of the model to be fit.}
@@ -66,15 +66,19 @@ rfsrc(formula, data, ntree = 1000,
       terminal node.  The defaults are: survival (3), competing
       risk (6), regression (5), classification (1).}
     \item{nodedepth}{Maximum depth to which a tree should be grown.  The
-      default behaviour is that this parameter is ingored.}
+      default behaviour is that this parameter is ignored.}
     \item{splitrule}{Splitting rule used to grow trees.  Available rules
       for the different familes are as follows:
-      \describe{
-	\item{\kbd{Regression:}}{The default rule is weighted mean-squared error
-	 splitting (Breiman et al. 1984, Chapter 8.4).}
+      \describe{	
 
+	\item{\kbd{Regression:}}{The default rule is weighted mean-squared error
+	 splitting (Breiman et al. 1984, Chapter 8.4).  }
+
+
+       
 	\item{\kbd{Classification:}}{The default rule is Gini index splitting (Breiman
 	  et al. 1984, Chapter 4.3).}
+
 	
 	\item{\kbd{Survival:}}{Two rules are available. (1) The default rule is
 	  \code{logrank} which implements log-rank splitting (Segal, 1988;
@@ -136,7 +140,8 @@ rfsrc(formula, data, ntree = 1000,
         variable \code{k} as a candidate for splitting a node.  Default is to
         use uniform weights.  Vector must be of dimension \code{p},
         where \code{p} equals the number of variables, otherwise the
-	  default is invoked.}
+	default is invoked.}
+          
     \item{forest}{Should the forest object be returned?  Used for
         prediction on new data and required by many of the functions
 	  used to parse the RF-SRC object.}
@@ -156,7 +161,7 @@ rfsrc(formula, data, ntree = 1000,
 	causes output to be printed each \code{do.trace} iteration.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
-    \item{statistics}{Should statistics be returned?}
+
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -169,7 +174,6 @@ rfsrc(formula, data, ntree = 1000,
   \code{regr}, \code{class}, \code{surv}, and \code{surv-CR}.
 
 
-  They apply as follows:
 
   \itemize{
     \item Regression forests (\code{regr}) for continuous responses.
@@ -248,7 +252,7 @@ rfsrc(formula, data, ntree = 1000,
   Note that the function \command{vimp} provides a friendly user
   interface for extracting VIMP.
   
-  \item \emph{Predition Error}
+  \item \emph{Prediction Error}
 
   Prediction error is calculated using OOB data.  Performance is
   measured in terms of mean-squared-error for regression and
@@ -299,6 +303,7 @@ rfsrc(formula, data, ntree = 1000,
     risks than survival settings.
   }
   }
+              
   
   \item \emph{Imputation}
 
@@ -364,10 +369,16 @@ rfsrc(formula, data, ntree = 1000,
     count of the number of times a split occurred on variable [j] in tree
     [i].
     
-    \item Setting \option{split.depth=TRUE} returns a matrix of size
-    \code{n}x\code{p} where entry [i][j] is the minimal depth for variable
-    [j] for case [i].  Used to select variables at the case-level.  See
-    \code{max.subtree} for more details regarding minimal depth.
+    \item Setting \option{split.depth="all.trees"} returns a matrix of
+    size \code{n}x\code{p} where entry [i][j] is the minimal depth for
+    variable [j] for case [i] averaged over the forest.  That is, for
+    case [i], the entry [i][j] records the first time case [i] splits on
+    variable [j] averaged over the forest.  If
+    \option{split.depth="by.tree"}, a three-dimensional array is
+    returned where the third dimension [k] records the tree and the
+    first two coordinates [i][j] record the case and the variable.  Thus
+    entry [i][j][k] is the minimal depth for case [i] for variable [j]
+    for tree [k].
   }
 }   
 \value{
@@ -381,6 +392,7 @@ rfsrc(formula, data, ntree = 1000,
      \item{ntree}{Number of trees grown.}
      \item{mtry}{Number of variables randomly selected for splitting at each node.}
      \item{nodesize}{Minimum size of terminal nodes.}
+     \item{nodesize}{Maximum depth allowed for a tree.}
      \item{splitrule}{Splitting rule used.}
      \item{nsplit}{Number of randomly selected split points.}
      \item{yvar}{y-outcome values.}
@@ -389,6 +401,9 @@ rfsrc(formula, data, ntree = 1000,
      \item{xvar.names}{A character vector of the x-variable names.}
      \item{xvar.wt}{Vector of non-negative weights specifying the
         probability used to select a variable for splitting a node.}
+     \item{split.wt}{Vector of non-negative weights where entry
+        \code{k}, after normalizing, is the multiplier by which the
+	  split statistic for a covariate is adjusted.}
      \item{leaf.count}{Number of terminal nodes for each tree in the
          forest. Vector of length \option{ntree}.  A value of zero indicates
          a rejected tree (can occur when imputing missing data).
@@ -396,15 +411,14 @@ rfsrc(formula, data, ntree = 1000,
      \item{forest}{If \option{forest=TRUE}, the forest object is returned.
          This object is used for prediction with new test data
 	 sets and is required for other R-wrappers.}
-     \item{proximity}{If \option{proximity=TRUE}, a matrix of dimension
-         \code{n}x\code{n} recording the frequency pairs of data points
+     \item{proximity}{If \option{proximity=TRUE}, matrix 
+         recording the frequency pairs of data points
          occur within the same terminal node.}
-     \item{membership}{Matrix of dimension \code{n}x\code{ntree}
-       recording terminal node membership where each column contains the
-       node number that a case falls in for that tree.}
-     \item{inbag}{Matrix of dimension \code{n}x\code{ntree}
-       recording inbag membership where each column contains the number
-     of times that a case appears in the bootstrap sample for that tree.}
+     \item{membership}{Matrix recording terminal node membership where
+       each column contains the node number that a case falls in for that tree.}
+     \item{inbag}{Matrix recording inbag membership where each column
+     contains the number of times that a case appears in the bootstrap
+     sample for that tree.}
      \item{var.used}{Count of the number of times a variable is used in
        growing the forest.}
      \item{imputed.indv}{Vector of indices for cases with missing
@@ -412,8 +426,10 @@ rfsrc(formula, data, ntree = 1000,
      \item{imputed.data}{Data frame of the imputed data. The first
 	 column(s) are reserved for the y-responses, after which the
 	 x-variables are listed.}
-     \item{split.depth}{Matrix of size \code{n}x\code{p} where entry
-         [i][j] is the minimal depth for variable [j] for case [i].}
+     \item{split.depth}{Matrix [i][j] or array [i][j][k] recording the
+           minimal depth for variable [j] for case [i], either averaged over
+           the forest, or by tree [k].}
+            
      \item{err.rate}{Tree cumulative OOB error rate.}
      \item{importance}{Variable importance (VIMP) for each x-variable.}
      \item{predicted}{In-bag predicted value.}
@@ -446,7 +462,8 @@ rfsrc(formula, data, ntree = 1000,
   \enumerate{
     \item The returned object depends heavily on the family.  In
     particular, \code{predicted} and \code{predicted.oob} are the
-    following values calculated using in-bag and OOB data:
+    following values calculated using in-bag and OOB data.
+    
     \itemize{
       \item For regression, a vector of predicted y-responses.
 
@@ -468,11 +485,11 @@ rfsrc(formula, data, ntree = 1000,
       specific cause up to the maximum follow up (Ishwaran et al.,
       2013).  The grow object also contains the cause-specific
       cumulative hazard function (CSCHF) and the cumulative incidence
-      function (CIF) for each event type.  These are encoded as a 3-d
-      array, with the third dimension used for the event type, each time
-      point in \code{time.interest} making up the second dimension
-      (columns), and the case (individual) being the first dimension
-      (rows).  }
+      function (CIF) for each event type.  These are encoded as a
+      three-dimensional array, with the third dimension used for the
+      event type, each time point in \code{time.interest} making up the
+      second dimension (columns), and the case (individual) being the
+      first dimension (rows).  }
   
     \item Different R-wrappers are provided to aid in parsing the grow
     object.
@@ -544,7 +561,8 @@ rfsrc(formula, data, ntree = 1000,
   \command{\link{plot.survival}},
   \command{\link{plot.variable}},
   \command{\link{predict.rfsrc}},
-  \command{\link{print.rfsrc}},
+  \command{\link{print.rfsrc}}, 
+  \command{\link{rf2rfz}},
   \command{\link{restore}},
   \command{\link{var.select}},
   \command{\link{vimp}}
@@ -554,7 +572,7 @@ rfsrc(formula, data, ntree = 1000,
 ## Survival analysis
 ##------------------------------------------------------------
 
-## Veteran data
+## veteran data
 ## randomized trial of two treatment regimens for lung cancer
 data(veteran, package = "randomForestSRC")
 v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran, ntree = 100)
@@ -610,9 +628,9 @@ pbc.fast.impute.data <- impute.rfsrc(Surv(days, status) ~ ., pbc,
 tail(pbc.fast.impute.data)
 
 
-## Competing risks
+## competing risks
 ## WIHS analysis
-## Cumulative incidence function (CIF) for HAART and AIDS stratified by IDU
+## cumulative incidence function (CIF) for HAART and AIDS stratified by IDU
 
 data(wihs, package = "randomForestSRC")
 wihs.obj <- rfsrc(Surv(time, status) ~ ., wihs, nsplit = 3, ntree = 100)
@@ -630,8 +648,28 @@ legend("topleft",
        lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3, cex = 1.5)
 
 
-## Compare RF-SRC to cox regression
-## Assumes "pec" and "survival" libraries are loaded 
+## competing risks
+## illustrates the various splitting rules
+## use the pbc data from the survival package
+## events are transplant (1) and death (2)
+if (library("survival", logical.return = TRUE)) {
+  data(pbc, package = "survival")
+  pbc$id <- NULL
+  pbc.cr <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10)
+  pbc.log1 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
+              splitrule = "logrank", cause = c(1,0))
+  pbc.log2 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
+              splitrule = "logrank", cause = c(0,1))
+  var.perf <- data.frame(md = max.subtree(pbc.cr)$order[, 1],
+                         vimp1 = pbc.log1$importance[,1],
+                         vimp2 = pbc.log2$importance[,2])
+  var.perf[order(var.perf$md), ]
+}
+
+
+
+## compare RF-SRC to cox regression
+## assumes "pec" and "survival" libraries are loaded 
 
 if (library("survival", logical.return = TRUE)
     & library("pec", logical.return = TRUE))
@@ -721,6 +759,7 @@ data(breast, package = "randomForestSRC")
 breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
 breast.obj
 plot(breast.obj)
+
 
 
 }}

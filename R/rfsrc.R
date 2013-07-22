@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.2
+####  Version 1.3
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -83,7 +83,6 @@ rfsrc <- function(formula,
                   seed = NULL,
                   do.trace = FALSE,
                   membership = TRUE,
-                  statistics = FALSE,
                   ...)
 {
   user.option <- match.call(expand.dots = TRUE)
@@ -120,10 +119,13 @@ rfsrc <- function(formula,
   data <- finalizeData(c(yvar.names, xvar.names), data, na.action)
   xvar <- as.matrix(data[, xvar.names])
   rownames(xvar) <- colnames(xvar) <- NULL
+  split.wt <- NULL
+  statistics <- FALSE
   n <- nrow(xvar)
   n.xvar <- ncol(xvar)
   mtry <- get.grow.mtry(mtry, n.xvar, formulaDetail$family)
-  xvar.wt <- get.grow.xvar.wt(xvar.wt, n.xvar)
+  xvar.wt  <- get.grow.x.wt(xvar.wt, n.xvar)
+  split.wt <- get.grow.x.wt(split.wt, n.xvar)  
   yvar <- as.matrix(data[, yvar.names, drop = FALSE])
   remove(data)
   n.miss <- get.nmiss(xvar, yvar)
@@ -231,6 +233,7 @@ rfsrc <- function(formula,
                         as.character(xfactor$generic.types),
                         as.integer(xfactor$nlevels),
                         as.double(xvar.wt),
+                        as.double(split.wt),                        
                         as.double(xvar),
                         as.integer(length(event.info$time.interest)),
                         as.double(event.info$time.interest),
@@ -338,12 +341,12 @@ rfsrc <- function(formula,
   else {
     forest.out <- NULL
   }
-  if(statistics) {
+  if (statistics) {
     node.stats <- as.data.frame(cbind(nativeOutput$spltST))
     names(node.stats) <- c("spltST")
   }
   else {
-    node.stats = NULL
+    node.stats <- NULL
   }
   if (grepl("surv", formulaDetail$family)) {  
     if (formulaDetail$family == "surv-CR") {
@@ -437,6 +440,7 @@ rfsrc <- function(formula,
     xvar = xvar,
     xvar.names = xvar.names,
     xvar.wt = xvar.wt,
+    split.wt = split.wt,
     leaf.count = nativeOutput$leafCount,
     forest = forest.out,
     proximity = proximity.out,
@@ -447,8 +451,7 @@ rfsrc <- function(formula,
     imputed.data = (if (n.miss > 0) imputed.data else NULL),
     split.depth  = split.depth.out,
     err.rate = ERR,
-    importance = VIMP,
-    node.stats = node.stats
+    importance = VIMP
   )
   remove(yvar)
   remove(xvar)

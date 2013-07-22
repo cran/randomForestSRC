@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.2
+####  Version 1.3
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -72,9 +72,10 @@ predict.rfsrc <-
            seed = NULL,
            do.trace = FALSE,
            membership = TRUE,
-           statistics = FALSE,           
            ...)
 {
+  statistics <- FALSE
+  ptn.count <- 0
   result.predict <- generic.predict.rfsrc(object,
                                           newdata, 
                                           importance = importance,
@@ -86,7 +87,8 @@ predict.rfsrc <-
                                           seed = seed,
                                           do.trace = do.trace,
                                           membership = membership,
-                                          statistics = statistics,                                          
+                                          statistics = statistics,
+                                          ptn.count = ptn.count,
                                           ...)
   return(result.predict)
 }

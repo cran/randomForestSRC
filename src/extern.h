@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -76,17 +76,18 @@ extern double   *RF_spltVR_;
 extern uint      RF_totalNodeCount;
 extern int      *RF_seed_;
 extern uint     *RF_tLeafCount_;
-extern uint     *RF_proximity_;
+extern double   *RF_proximity_;
 extern uint      RF_opt;
 extern uint      RF_splitRule;
-extern uint      RF_splitRandomRule;
+extern uint      RF_splitRandomCount;
 extern uint      RF_imputeSize;
 extern uint      RF_forestSize;
 extern uint      RF_minimumNodeSize;
 extern int       RF_maximumNodeDepth;
 extern double   *RF_crWeight;
 extern uint      RF_randomCovariateCount;
-extern double   *RF_randomCovariateWeight;
+extern double   *RF_xWeight;
+extern double   *RF_splitWeight;
 extern uint      RF_ptnCount;
 extern int       RF_numThreads;
 extern uint      RF_observationSize;
@@ -167,12 +168,12 @@ extern uint      RF_mRecordSize;
 extern uint      RF_fmRecordSize;
 extern uint     *RF_mRecordIndex;
 extern uint     *RF_fmRecordIndex;
-extern uint      RF_mvSignSize;
-extern uint      RF_fmvSignSize;
-extern int     **RF_mvSign;
-extern int     **RF_fmvSign;
-extern int      *RF_mvIndex;
-extern int      *RF_fmvIndex;
+extern uint      RF_mpIndexSize;
+extern uint      RF_fmpIndexSize;
+extern int     **RF_mpSign;
+extern int     **RF_fmpSign;
+extern int      *RF_mpIndex;
+extern int      *RF_fmpIndex;
 extern double   **RF_importancePtr;
 extern double **RF_sImputeResponsePtr;
 extern double **RF_sImputePredictorPtr;
@@ -202,7 +203,8 @@ extern uint    *RF_serialTreeIndex;
 extern uint     RF_serialTreeCount;  
 extern char    **RF_dmRecordBootFlag;
 extern double ***RF_dmvImputation;
-extern Terminal ***RF_mTerminalInfo;
+extern Terminal ***RF_mTermList;
+extern Terminal ***RF_mTermMembership;
 extern double **RF_performancePtr;
 extern uint   **RF_varUsedPtr;
 extern uint    *RF_oobSize;
@@ -212,6 +214,17 @@ extern uint    *RF_nodeCount;
 extern uint    *RF_mwcpCount;
 extern uint    *RF_pLeafCount;
 extern uint    *RF_maxDepth;
+extern Node    **RF_root;
+extern Node   ***RF_tNodeMembership;
+extern Node   ***RF_ftNodeMembership;
+extern Node   ***RF_pNodeMembership;
+extern uint    **RF_bootMembershipIndex;
+extern uint     *RF_trivialBootMembershipIndex;
+extern uint    **RF_bootMembershipFlag;
+extern uint    **RF_oobMembershipFlag;
+extern Node   ***RF_tNodeList;
+extern Node   ***RF_pNodeList;
+extern uint     *RF_orderedLeafCount;
 extern double  **RF_status;
 extern double  **RF_time;
 extern double ***RF_response;
@@ -220,17 +233,6 @@ extern double  **RF_fstatus;
 extern double ***RF_fresponse;
 extern double ***RF_observation;
 extern double ***RF_fobservation;
-extern Node    **RF_root;
-extern Node   ***RF_tNodeMembership;
-extern Node   ***RF_pNodeMembership;
-extern uint    **RF_bootMembershipIndex;
-extern uint     *RF_trivialBootMembershipIndex;
-extern uint    **RF_bootMembershipFlag;
-extern uint    **RF_oobMembershipFlag;
-extern Node   ***RF_tNodeList;
-extern uint    **RF_nodeListIndex;
-extern Node   ***RF_pNodeList;
-extern Node   ***RF_ftNodeMembership;
 extern uint    **RF_masterTimeIndex;
 extern Factor ***RF_factorList;
 extern float (*ran1) (uint);

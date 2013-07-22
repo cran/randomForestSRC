@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,25 +64,12 @@
 #define TERMINAL_H
 typedef struct terminal Terminal;
 struct terminal {
-  unsigned int leafCount;
-  struct node   *mate;
-  unsigned int *lmvIndex;
-  unsigned int  lmvIndexSize;
-  unsigned int *flmvIndex;
-  unsigned int  flmvIndexSize;
-  unsigned int *lmrIndex;
-  unsigned int  lmrIndexSize;
-  unsigned int *flmrIndex;
-  unsigned int  flmrIndexSize;
-  unsigned int **lmiIndex;
-  double*      **lmiValue;
-  unsigned int  *lmiSizePtr;
-  unsigned int   lmiSize;
-  unsigned int **flmiIndex;
-  double*      **flmiValue;
-  unsigned int  *flmiSizePtr;
-  unsigned int   flmiSize;
+  unsigned int nodeID;
+  unsigned int *lmiIndex;
+  unsigned int  lmiSize;
+  unsigned int **lmiRaggedIndex;
+  double       **lmiRaggedValue;
+  unsigned int  *lmiRaggedSize;
   unsigned int  dominant;
-  unsigned int  fdominant;
 };
 #endif

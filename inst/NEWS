@@ -1,11 +1,17 @@
 Package: randomForestSRC
-Version: 1.2
-BUILD: bld20130429
+Version: 1.3
+BUILD: bld20130718
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.2
+CHANGES TO RELEASE 1.3
 ---------------------------------------------------------------------------------
-RELEASE 1.2
+RELEASE 1.3
+
+Initial re-engineering of memory footprint for imputation.
+Performance enhancements to split rules.
+
+---------------------------------------------------------------------------------
+RELEASE 1.2.0
 
 Competing risks now implements two distinct splitting rules for
 identifying short term risks affecting the cause-specific hazard or

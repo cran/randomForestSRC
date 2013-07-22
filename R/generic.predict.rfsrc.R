@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.2
+####  Version 1.3
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -110,6 +110,9 @@ generic.predict.rfsrc <-
   split.depth <- match.arg(as.character(split.depth),  c("FALSE", "all.trees", "by.tree"))
   if (split.depth == "FALSE") split.depth <- FALSE
   restore.only.bits <- get.restore.only(restore.only)
+  if (missing(newdata)) {
+    outcome <- "test" 
+  }
   if (outcome == "test") {
     restore.only <- FALSE
   }
@@ -348,12 +351,12 @@ generic.predict.rfsrc <-
       imputed.data <- map.factor(imputed.data, yfactor)
     }
   }
-  if((statistics == TRUE) || (ptn.count > 0)) {
+  if (statistics == TRUE) {
     node.stats <- as.data.frame(cbind(nativeOutput$spltST))
     names(node.stats) <- c("spltST")
   }
   else {
-    node.stats = NULL
+    node.stats <- NULL
   }
   if (grepl("surv", object$family)) {
     if (object$family == "surv-CR") {
@@ -476,8 +479,7 @@ generic.predict.rfsrc <-
     imputed.data = (if (n.miss>0) imputed.data else NULL),
     split.depth  = split.depth.out,
     err.rate = ERR,
-    importance = VIMP,
-    node.stats = node.stats
+    importance = VIMP
   )
   nativeOutput$leafCount <- NULL
   object.family <- object$family

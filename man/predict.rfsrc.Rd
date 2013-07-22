@@ -2,16 +2,16 @@
 \alias{predict.rfsrc}
 \title{Prediction for Random Forests for Survival, Regression, and Classification}
 \description{
-   Prediction on test data.
+   Obtain predicted values using a forest.  Also returns performance
+   values if the test data contains y-outcomes.
 }
 \usage{\method{predict}{rfsrc}(object, newdata,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
   na.action = c("na.omit", "na.impute"), outcome = c("train", "test"),
   proximity = FALSE, var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
-  do.trace = FALSE,
-  membership = TRUE,
-  statistics = FALSE, ...)
+  do.trace = FALSE, membership = TRUE, 
+  ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
@@ -27,9 +27,14 @@
          \code{na.omit} removes the entire record if
         even one of its entries is \code{NA}.  Use \option{na.impute} to
         impute the test data.}
-    \item{outcome}{Determines which data should be used to calculate the
-        grow predictor.  The default and natural choice \code{train}
-	uses the training data, but see details below.}
+    \item{outcome}{Determines whether the y-outcomes from the training
+      data or the test data are used to calculate the predicted value.
+      The default and natural choice is \code{train} which uses the
+      original training data.  Note that this option is ignored when
+      \code{newdata} is missing since the training data is used for
+      the test data (see above).  The option is also ignored whenever
+      the test data is devoid of y-outcomes.  See the details and
+      examples below for more information.}
     \item{proximity}{Should proximity measure between
         test observations be calculated? Can be large.}
     \item{var.used}{Record the number of times a variable is split?}
@@ -41,18 +46,18 @@
 	causes output to be printed each \code{do.trace} iteration.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
-    \item{statistics}{Should statistics be returned?}
+ 
     \item{...}{Further arguments passed to or from other methods.}
 }
-\details{  
+\details{
   Predicted values are obtained by dropping test data down the grow
-  forest (the forest grown using the the training data).  If the test
-  data contains y-outcome values, the overall error rate and VIMP are
-  also returned.  Single as well as joint VIMP measures can be
-  requested.  Note that calculating VIMP can be computationally
-  expensive, especially when the dimension is high.  If VIMP is not
-  needed, computational times can be significantly improved by setting
-  \option{importance="none"} which turns VIMP calculations off entirely.
+  forest (the forest grown using the training data).  The overall error
+  rate and VIMP are also returned if the test data contains y-outcome
+  values.  Single as well as joint VIMP measures can be requested.  Note
+  that calculating VIMP can be computationally expensive (especially
+  when the dimension is high), thus if VIMP is not needed, computational
+  times can be significantly improved by setting
+  \option{importance="none"} which turns VIMP off entirely.
   
   Setting \option{na.action="na.impute"} imputes missing
   test data (x-variables and/or y-outcomes).  Imputation uses the
@@ -84,23 +89,25 @@
        grow forest.  Vector of length \code{ntree}.}
      \item{forest}{The grow forest.}
      \item{proximity}{Symmetric proximity matrix of the test data.}
-     \item{membership}{Matrix of dimension \code{n}x\code{ntree}
-       recording terminal node membership for the
+     \item{membership}{Matrix recording terminal node membership for the
        test data where each column contains the node number that a
        case falls in for that tree.}
-     \item{inbag}{Matrix of dimension \code{n}x\code{ntree} recording
-       inbag membership for the test data where each column contains the
-       number of times that a case appears in the bootstrap sample for
-       that tree.}
+                 
+     \item{inbag}{Matrix recording inbag membership for the test data
+       where each column contains the number of times that a case
+       appears in the bootstrap sample for that tree.}
      \item{imputed.indv}{Vector of indices of records in test data with
          missing values.}
      \item{imputed.data}{Data frame comprising imputed test data.  First
        columns are the y-outcomes.}
-     \item{split.depth}{Matrix of size \code{n}x\code{p} where entry
-            [i][j] is the minimal depth for variable [j] for test case [i].}
+     \item{split.depth}{Matrix [i][j] or array [i][j][k] recording the
+     minimal depth for variable [j] for case [i], either averaged over
+     the forest, or by tree [k].}
+            
      \item{err.rate}{Cumulative OOB error rate for the test data if
        y-outcomes are present.}
-     \item{importance}{Test set variable importance (VIMP).  Can be \code{NULL}.}
+     \item{importance}{Test set variable importance (VIMP).  Can be
+       \code{NULL}.}
      \item{predicted}{Test set predicted value.}
      \item{predicted.oob}{OOB predicted value (\code{NULL} unless
        \option{outcome="test"}).}\cr
@@ -151,7 +158,12 @@
   \emph{Rnews}, 7(2):25-31.
 }	
 \seealso{
-  \command{\link{rfsrc}}
+  \command{\link{plot.competing.risk}},
+  \command{\link{plot.rfsrc}},
+  \command{\link{plot.survival}},
+  \command{\link{plot.variable}},
+  \command{\link{rfsrc}}, 
+  \command{\link{vimp}}
 }
 \examples{
 ## ------------------------------------------------------------
@@ -167,6 +179,18 @@ print(veteran.pred)
 
 
 \dontrun{
+## ------------------------------------------------------------
+## predicted probability and predicted class labels are returned
+## in the predict object for classification analyses
+## ------------------------------------------------------------
+
+data(breast, package = "randomForestSRC")
+breast.obj <- rfsrc(status ~ ., data = breast[(1:100), ], nsplit = 10)
+breast.pred <- predict(breast.obj, breast[-(1:100), ])
+head(breast.pred$predicted)
+breast.pred$class
+
+
 ## ------------------------------------------------------------
 ## unique feature of randomForestSRC
 ## cross-validation can be used when factor labels differ over
@@ -193,10 +217,11 @@ print(veteran.f.pred)
 
 ## ------------------------------------------------------------
 ## example illustrating the flexibility of outcome = "test"
-## use this to get out-of-bag error rate
+## shows how to make a call to predict to obtain the same results
+## as the original grow call
 ## ------------------------------------------------------------
 
-# first, we make the grow call
+# first we make the grow call
 data(pbc, package = "randomForestSRC")
 pbc.grow <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
 
@@ -207,15 +232,26 @@ pbc.pred <- predict(pbc.grow, pbc, outcome = "test")
 print(pbc.grow)
 print(pbc.pred)
 
+# same ... but without using outcome = "test"
+# if predict is called without specifying the test data
+# the original training data is used and the predict
+# and grow results will automatically be the same
+pbc.pred2 <- predict(pbc.grow)
+print(pbc.grow)
+print(pbc.pred)
+print(pbc.pred2)
+
 # similar example, but with na.action = "na.impute"
+# note that the predict call must also use na.action = "na.impute"
+# for the results to be the same
 airq.obj <- rfsrc(Ozone ~ ., data = airquality, na.action = "na.impute")
 print(airq.obj)
-print(predict(airq.obj, outcome = "test", na.action = "na.impute"))
+print(predict(airq.obj, na.action = "na.impute"))
 
-# similar example for classification
+# classification example
 iris.obj <- rfsrc(Species ~., data = iris)
 print(iris.obj)
-print(predict.rfsrc(iris.obj, outcome = "test"))
+print(predict.rfsrc(iris.obj))
 
 ## ------------------------------------------------------------
 ## another example illustrating outcome = "test"
@@ -239,6 +275,11 @@ pbc.test <- predict(pbc.out, pbc[-train, ], outcome = "test")
 Time <- pbc.out$time.interest
 matplot(Time, t(exp(-pbc.train$chf)[1:3,]), ylab = "Survival", col = 1, type = "l")
 matlines(Time, t(exp(-pbc.test$chf)[1:3,]), col = 2)
+
+
+
+
+
 }
 }
 \keyword{predict}

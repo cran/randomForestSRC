@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -317,6 +317,7 @@ char randomNonSurvivalSplit(uint    treeID,
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
+  uint   **repMembrIndxx;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   double deltaMax;
@@ -364,7 +365,8 @@ char randomNonSurvivalSplit(uint    treeID,
                                                                repMembrSize,
                                                                & randomCovariateIndex, 
                                                                & permissibleSplit, 
-                                                               & permissibleSplitSize);
+                                                               & permissibleSplitSize,
+                                                               & repMembrIndxx);
     if (actualCovariateCount > 0) {
       covariateStatus = cvector(1, actualCovariateCount);
     }
@@ -433,8 +435,10 @@ char randomNonSurvivalSplit(uint    treeID,
     unstackRandomCovariates(treeID,
                             repMembrSize, 
                             randomCovariateIndex, 
+                            actualCovariateCount,
                             permissibleSplit, 
-                            permissibleSplitSize);
+                            permissibleSplitSize,
+                            repMembrIndxx);
     if (actualCovariateCount > 0) {
       free_cvector(covariateStatus, 1, actualCovariateCount);
     }

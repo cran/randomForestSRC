@@ -19,6 +19,7 @@ export(find.interaction.rfsrc,
        rfsrc.news, 
        rfsrc,       
        rf2rfz,
+              
        var.select.rfsrc,
        var.select,
        vimp.rfsrc,
@@ -27,3 +28,4 @@ export(find.interaction.rfsrc,
 S3method(print, rfsrc)
 S3method(plot, rfsrc)
 S3method(predict, rfsrc)
+
