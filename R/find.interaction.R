@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.2
+####  Version 1.3
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -63,15 +63,17 @@
 find.interaction.rfsrc <- function(
     object, 
     xvar.names,
-    cause, 
+    cause,
     importance = c("permute", "random", "permute.ensemble", "random.ensemble"),
     method = c("maxsubtree", "vimp"),
     sorted = TRUE,
     nvar = NULL, 
     nrep  = 1,
-    subset,                              
+    subset,
+    na.action = c("na.omit", "na.impute"),
     seed = NULL,
     do.trace = FALSE,
+    verbose = TRUE,
     ...)
 {
   if (is.null(object)) stop("Object is empty!")
@@ -89,7 +91,7 @@ find.interaction.rfsrc <- function(
   method <- match.arg(method,  c("maxsubtree", "vimp"))
   importance <- match.arg(importance, c("permute", "random", "permute.ensemble", "random.ensemble"))
   event.info <- get.event.info(object)
-  n.event <- length(event.info$event.type)
+  n.event <- max(1, length(event.info$event.type))
   if (n.event > 1) {
     object.imp <- NULL
   }
@@ -130,20 +132,26 @@ find.interaction.rfsrc <- function(
     for (j in 1:n.event) {
       rownames.interact.imp <- interact.imp <- NULL
       target.dim <- ifelse(n.event > 1, j, 1)
-      if (n.event > 1) cat("--> event", j, "\n")
+      if (verbose && n.event > 1) {
+        cat("--> event", j, "\n")
+      }
       for (k in 1:(n.interact-1)) {
         n.joint.cov <- n.interact - k
         imp <- rep(0 , 1 + n.joint.cov)
         imp.joint <- rep(0, n.joint.cov)
         for (l in (k+1):n.interact) {
-          cat("Pairing",cov.names[k],"with",cov.names[l],"\n")
+          if (verbose) {
+            cat("Pairing",cov.names[k],"with",cov.names[l],"\n")
+          }
           for (m in 1:nrep) {
             imp.indv.m <- c(cbind(vimp(object, cov.names[c(k,l)], outcome.target = outcome.target,
-                                       importance=importance, subset=subset, joint=FALSE, seed=seed,
-                                       do.trace=do.trace)$importance)[, target.dim])
+                                       importance = importance, joint = FALSE, 
+                                       na.action = na.action, subset = subset, seed = seed, 
+                                       do.trace = do.trace)$importance)[, target.dim])
             imp.joint.m <- vimp(object, cov.names[c(k,l)], outcome.target = outcome.target,
-                                importance=importance, subset=subset, joint=TRUE, seed=seed,
-                                do.trace=do.trace)$importance[target.dim]
+                                importance = importance, joint = TRUE,
+                                na.action = na.action, subset = subset, seed = seed,
+                                do.trace = do.trace)$importance[target.dim]
             imp[1] <- imp[1] + imp.indv.m[1]
             imp[l-k+1] <- imp[l-k+1] + imp.indv.m[2]
             imp.joint[l-k] <- imp.joint[l-k] + imp.joint.m
@@ -167,16 +175,18 @@ find.interaction.rfsrc <- function(
     if (n.event > 1) {
       interact.imp <- interact.imp.list
     }
-    cat("\n")
-    cat("                              Method: ", method,                       "\n", sep="")
-    cat("                    No. of variables: ", n.cov,                        "\n", sep="")
-    cat("           Variables sorted by VIMP?: ", sorted,                       "\n", sep="")
-    cat("   No. of variables used for pairing: ", n.interact,                   "\n", sep="")
-    cat("    Total no. of paired interactions: ", length(rownames.interact.imp),"\n", sep="")
-    cat("            Monte Carlo replications: ", nrep,                         "\n", sep="")
-    cat("    Type of noising up used for VIMP: ", importance,                   "\n", sep="")
-    cat("\n")
-    if (n.event == 1) print(round(interact.imp, 4)) else print(interact.imp)
+    if (verbose) {
+      cat("\n")
+      cat("                              Method: ", method,                       "\n", sep="")
+      cat("                    No. of variables: ", n.cov,                        "\n", sep="")
+      cat("           Variables sorted by VIMP?: ", sorted,                       "\n", sep="")
+      cat("   No. of variables used for pairing: ", n.interact,                   "\n", sep="")
+      cat("    Total no. of paired interactions: ", length(rownames.interact.imp),"\n", sep="")
+      cat("            Monte Carlo replications: ", nrep,                         "\n", sep="")
+      cat("    Type of noising up used for VIMP: ", importance,                   "\n", sep="")
+      cat("\n")
+      if (n.event == 1) print(round(interact.imp, 4)) else print(interact.imp)
+    }
     invisible(interact.imp)
   }
   else {
@@ -188,12 +198,14 @@ find.interaction.rfsrc <- function(
     }
     cov.pt <- is.element(colnames(sub.order), cov.names[1:n.interact])
     sub.order <- sub.order[cov.pt, cov.pt]
-    cat("\n")
-    cat("                              Method: ", method,              "\n", sep="")
-    cat("                    No. of variables: ", n.cov,               "\n", sep="")
-    cat("  Variables sorted by minimal depth?: ", sorted,              "\n", sep="")
-    cat("\n")
-    print(round(sub.order, 2))
+    if (verbose) {
+      cat("\n")
+      cat("                              Method: ", method,              "\n", sep="")
+      cat("                    No. of variables: ", n.cov,               "\n", sep="")
+      cat("  Variables sorted by minimal depth?: ", sorted,              "\n", sep="")
+      cat("\n")
+      print(round(sub.order, 2))
+    }
     invisible(sub.order)
   }
 }

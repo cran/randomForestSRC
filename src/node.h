@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -74,7 +74,8 @@ struct node {
   double variance;
   unsigned int splitValueFactSize;
   unsigned int *splitValueFactPtr;
-  unsigned int leafCount;
+  unsigned int nodeID;
+  unsigned int orderedNodeID;
   unsigned int depth;
   char pseudoTerminal;
   struct terminal *mate;
@@ -103,16 +104,16 @@ struct node {
   unsigned int  *rfSize;
   unsigned int **multiClassProb;
   unsigned int membrCount;
-  unsigned int mvSignSize;
-  unsigned int fmvSignSize;
-  int *mvSign;
-  int *fmvSign;
-  unsigned int *lmvIndex;
-  unsigned int  lmvIndexAllocSize;
-  unsigned int  lmvIndexActualSize;
-  unsigned int *flmvIndex;
-  unsigned int  flmvIndexAllocSize;
-  unsigned int  flmvIndexActualSize;
+  unsigned int mpIndexSize;
+  unsigned int fmpIndexSize;
+  int *mpSign;
+  int *fmpSign;
+  unsigned int *lmpIndex;
+  unsigned int  lmpIndexAllocSize;
+  unsigned int  lmpIndexActualSize;
+  unsigned int *flmpIndex;
+  unsigned int  flmpIndexAllocSize;
+  unsigned int  flmpIndexActualSize;
   unsigned int *lmrIndex;
   unsigned int  lmrIndexAllocSize;
   unsigned int  lmrIndexActualSize;

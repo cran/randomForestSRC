@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -139,17 +139,18 @@ double   *RF_fullEnsembleSRV_;
 double   *RF_oobEnsembleSRV_;
 double   *RF_fullEnsembleMRT_;
 double   *RF_oobEnsembleMRT_;
-uint     *RF_proximity_;
+double     *RF_proximity_;
 uint      RF_opt;
 uint      RF_splitRule;
-uint      RF_splitRandomRule;
+uint      RF_splitRandomCount;
 uint      RF_imputeSize;
 uint      RF_forestSize;
 uint      RF_minimumNodeSize;
 int       RF_maximumNodeDepth;
 double    RF_crWeight;
 uint      RF_randomCovariateCount;
-double   *RF_randomCovariateWeight;
+double   *RF_xWeight;
+double   *RF_splitWeight;
 uint      RF_ptnCount;
 int       RF_numThreads;
 uint      RF_observationSize;
@@ -230,12 +231,12 @@ uint      RF_mRecordSize;
 uint      RF_fmRecordSize;
 uint     *RF_mRecordIndex;
 uint     *RF_fmRecordIndex;
-uint      RF_mvSignSize;
-uint      RF_fmvSignSize;
-int     **RF_mvSign;
-int     **RF_fmvSign;
-int      *RF_mvIndex;
-int      *RF_fmvIndex;
+uint      RF_mpIndexSize;
+uint      RF_fmpIndexSize;
+int     **RF_mpSign;
+int     **RF_fmpSign;
+int      *RF_mpIndex;
+int      *RF_fmpIndex;
 double   **RF_importancePtr;
 double **RF_sImputeResponsePtr;
 double **RF_sImputePredictorPtr;
@@ -265,7 +266,8 @@ uint    *RF_serialTreeIndex;
 uint     RF_serialTreeCount;  
 char    **RF_dmRecordBootFlag;
 double ***RF_dmvImputation;
-Terminal ***RF_mTerminalInfo;
+Terminal ***RF_mTermList;
+Terminal ***RF_mTermMembership;
 double **RF_performancePtr;
 uint   **RF_varUsedPtr;
 uint    *RF_oobSize;
@@ -275,6 +277,17 @@ uint    *RF_nodeCount;
 uint    *RF_mwcpCount;
 uint    *RF_pLeafCount;
 uint    *RF_maxDepth;
+Node    **RF_root;
+Node   ***RF_tNodeMembership;
+Node   ***RF_ftNodeMembership;
+Node   ***RF_pNodeMembership;
+uint    **RF_bootMembershipIndex;
+uint     *RF_trivialBootMembershipIndex;
+uint    **RF_bootMembershipFlag;
+uint    **RF_oobMembershipFlag;
+Node   ***RF_tNodeList;
+Node   ***RF_pNodeList;
+uint     *RF_orderedLeafCount;
 double  **RF_status;
 double  **RF_time;
 double ***RF_response;
@@ -283,17 +296,6 @@ double  **RF_fstatus;
 double ***RF_fresponse;
 double ***RF_observation;
 double ***RF_fobservation;
-Node    **RF_root;
-Node   ***RF_tNodeMembership;
-Node   ***RF_pNodeMembership;
-uint    **RF_bootMembershipIndex;
-uint     *RF_trivialBootMembershipIndex;
-uint    **RF_bootMembershipFlag;
-uint    **RF_oobMembershipFlag;
-Node   ***RF_tNodeList;
-uint    **RF_nodeListIndex;
-Node   ***RF_pNodeList;
-Node   ***RF_ftNodeMembership;
 uint    **RF_masterTimeIndex;
 Factor ***RF_factorList;
 float (*ran1) (uint);
@@ -310,6 +312,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   uint **mwcpPtrPtr;
   uint  *mwcpPtr;
   uint   totalMWCPCount, rejectedTreeCount;  
+  uint recordSize;
   uint i, j, k, r;
   int vimpCount, intrIndex, b, p;
   totalMWCPCount = 0; 
@@ -557,7 +560,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
           getVariablesUsed(b, RF_root[b], RF_varUsedPtr[b]);
         }
       }
-    }
+    }  
     if (r == RF_imputeSize) {
       if (!(RF_opt & OPT_IMPU_ONLY)) {
         if ((RF_opt & OPT_PERF) | 
@@ -587,10 +590,35 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         }
       }
     }  
-    else {
-      for (b = 1; b <= RF_forestSize; b++) {
-        freeTree(b, RF_root[b], TRUE);
-        unstackAuxiliary(mode, b);
+    if (r == RF_imputeSize) {
+      if (RF_opt & OPT_VIMP) {
+        if (RF_opt & OPT_VIMP_JOIN) {
+          vimpCount = 1;
+        }
+        else {
+          vimpCount = RF_intrPredictorSize;
+        }
+        if (RF_numThreads > 0) {
+#ifdef SUPPORT_OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+          for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
+            for (uint bb = 1; bb <= RF_forestSize; bb++) {
+              if (RF_tLeafCount[bb] > 0) {
+                updateVimpCalculations(mode, bb, intrIndex);
+              }
+            }
+          }
+        }
+        else {
+          for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
+            for (uint bb = 1; bb <= RF_forestSize; bb++) {
+              if (RF_tLeafCount[bb] > 0) {
+                updateVimpCalculations(mode, bb, intrIndex);
+              }
+            }
+          }
+        }
       }
     }  
     if (mode != RF_PRED) {
@@ -650,44 +678,32 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         }
       }
     }
-    if ((RF_opt & OPT_OMIS) | (RF_opt & OPT_MISS)) {
+    if (r != RF_imputeSize) {
       for (b = 1; b <= RF_forestSize; b++) {
-        for (j = 1; j <= RF_tLeafCount[b]; j++) {
-          freeTerminal(RF_mTerminalInfo[b][j]);
-        }
-        free_vvector(RF_mTerminalInfo[b], 1, RF_tLeafCount[b] + 1);
+        freeTree(b, RF_root[b], TRUE);
+        unstackAuxiliary(mode, b);
       }
-    }
+      if ((RF_opt & OPT_OMIS) | (RF_opt & OPT_MISS)) {
+        switch (mode) {
+        case RF_PRED:
+          recordSize = RF_fmRecordSize;
+          break;
+        default:
+          recordSize = RF_mRecordSize;
+          break;
+        } 
+        for (b = 1; b <= RF_forestSize; b++) {
+          for (j = 1; j <= RF_tLeafCount[b]; j++) {
+            freeTerminal(RF_mTermList[b][j]);
+          }
+          if (RF_tLeafCount[b] > 0) {
+            free_vvector(RF_mTermList[b], 1, RF_tLeafCount[b]);
+            free_vvector(RF_mTermMembership[b], 1, recordSize);
+          }
+        }
+      }
+    }  
   }  
-  if (RF_opt & OPT_VIMP) {
-    if (RF_opt & OPT_VIMP_JOIN) {
-      vimpCount = 1;
-    }
-    else {
-      vimpCount = RF_intrPredictorSize;
-    }
-    if (RF_numThreads > 0) {
-#ifdef SUPPORT_OPENMP
-#pragma omp parallel for num_threads(RF_numThreads)
-#endif
-      for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
-        for (uint bb = 1; bb <= RF_forestSize; bb++) {
-          if (RF_tLeafCount[bb] > 0) {
-            updateVimpCalculations(mode, bb, intrIndex);
-          }
-        }
-      }
-    }
-    else {
-      for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
-        for (uint bb = 1; bb <= RF_forestSize; bb++) {
-          if (RF_tLeafCount[bb] > 0) {
-            updateVimpCalculations(mode, bb, intrIndex);
-          }
-        }
-      }
-    }
-  }
   for (b = 1; b <= RF_forestSize; b++) {
     for (j = 1; j <= RF_tLeafCount[b]; j++) {
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -824,6 +840,25 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                      );
     }
     RF_totalNodeCount --;
+  }  
+  if ((RF_opt & OPT_OMIS) | (RF_opt & OPT_MISS)) {
+    switch (mode) {
+    case RF_PRED:
+      recordSize = RF_fmRecordSize;
+      break;
+    default:
+      recordSize = RF_mRecordSize;
+      break;
+    } 
+    for (b = 1; b <= RF_forestSize; b++) {
+      for (j = 1; j <= RF_tLeafCount[b]; j++) {
+        freeTerminal(RF_mTermList[b][j]);
+      }
+      if (RF_tLeafCount[b] > 0) {
+        free_vvector(RF_mTermList[b], 1, RF_tLeafCount[b]);
+        free_vvector(RF_mTermMembership[b], 1, recordSize);
+      }
+    }
   }  
   for (b = 1; b <= RF_forestSize; b++) {
     if (!(RF_opt & OPT_TREE)) {

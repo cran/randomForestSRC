@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,7 +63,6 @@
 #ifndef RSFIMPUTE_H
 #define RSFIMPUTE_H
 #include "node.h"
-void imputeInteraction (uint treeID, Node *parent, uint *repMembrIndx, uint repMembrSize);
 char imputeNode (uint     type,
                  char     lmvFlag,
                  char     chainFlag,
@@ -101,6 +100,10 @@ void imputeCommon(uint      mode,
                   uint      treeID,
                   char      selectionFlag,
                   char      predictorFlag);
+void imputeCommonNew(uint      mode,
+                  uint      treeID,
+                  char      selectionFlag,
+                  char      predictorFlag);
 void imputeMultipleTime (char selectionFlag);
 double getMaximalValue(double *value, uint size, uint treeID);
 double getMedianValue(double *value, uint size);
@@ -120,7 +123,7 @@ void updateTimeIndexArray(uint    treeID,
                           uint   *masterTimeIndex);
 void updateEventTypeSubsets(double *summaryStatus, 
                             uint    mRecordSize,
-                            int   **mvSign,
+                            int   **mpSign,
                             uint   *mRecordIndex,
                             uint   *meIndividualSize,
                             uint  **eIndividual);

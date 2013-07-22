@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -80,12 +80,15 @@ uint stackAndSelectRandomCovariates(uint      treeID,
                                     uint      repMembrSize,
                                     uint    **covariateIndex,
                                     double ***permissibleSplit,
-                                    uint    **permissibleSplitSize);
+                                    uint    **permissibleSplitSize,
+                                    uint   ***repMembrIndxx);
 void unstackRandomCovariates(uint     treeID,
                              uint     nodeSize, 
                              uint    *covariateIndex,
+                             uint     actualCovariateCount,
                              double **permissibleSplit,
-                             uint    *permissibleSplitSize);
+                             uint    *permissibleSplitSize,
+                             uint   **repMembrIndxx);
 uint getSelectableElement(uint    treeID,
                           uint    length,
                           char   *permissible,
@@ -161,6 +164,19 @@ uint virtuallySplitNode(uint  treeID,
                         uint *nodeRightEvent,
                         uint *rightEventTimeSize,
                         char *localSplitIndicator);
+uint virtuallySplitNodeNew(uint  treeID,
+                           char  factorFlag,
+                           uint  mwcpSizeAbsolute,
+                           uint  randomCovariate,
+                           uint *repMembrIndx,
+                           uint *repMembrIndxx,
+                           uint  repMembrSize,
+                           void *permissibleSplitPtr,
+                           uint  offset,
+                           char *localSplitIndicator,
+                           uint *leftSize,
+                           uint  priorMembrIter,
+                           uint *currentMembrIter);
 void getReweightedRandomPair(uint    treeID,
                              uint    relativefactorSize, 
                              uint    absoluteFactorSize, 

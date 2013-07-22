@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -96,13 +96,14 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
   char      respImputeFlag;
   uint      thisSerialTreeCount;
   uint      j;
-  thisSerialTreeCount = 0;  
+  respImputeFlag       = FALSE; 
+  responsePtr          = NULL;  
+  obsSize              = 0;     
+  outcome              = NULL;  
+  conditionalOutcome   = NULL;  
+  denominatorCopy      = NULL;  
+  thisSerialTreeCount  = 0;     
   if (RF_tLeafCount[b] > 0) {
-    responsePtr          = NULL;  
-    obsSize              = 0;     
-    outcome              = NULL;  
-    conditionalOutcome   = NULL;  
-    denominatorCopy      = NULL;  
     switch (mode) {
     case RF_PRED:
       obsSize = RF_fobservationSize;
@@ -152,10 +153,12 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
         getMeanResponse(mode, b);
       }
     }
+  }  
 #ifdef SUPPORT_OPENMP
 #pragma omp critical (_update_ensemble_true)
 #endif
-    { 
+  { 
+    if (RF_tLeafCount[b] > 0) {
       RF_serialTreeIndex[++RF_serialTreeCount] = b;
       thisSerialTreeCount = RF_serialTreeCount;
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
@@ -205,6 +208,11 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
         respImputeFlag = FALSE;
       }
     }  
+    else {
+      RF_serialTreeIndex[++RF_serialTreeCount] = b;
+    }
+  }  
+  if (RF_tLeafCount[b] > 0) {
     if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
       getPerformance(b,
                      mode,
@@ -242,15 +250,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
     if (RF_opt & OPT_VIMP_LEOB) {
       summarizeTreePerformance(mode, b);
     }
-  }
-  else {
-#ifdef SUPPORT_OPENMP
-#pragma omp critical (_update_ensemble_false)
-#endif
-    { 
-      RF_serialTreeIndex[++RF_serialTreeCount] = b;
-    }
-  }
+  }  
 }
 void copyDenominator(uint mode, uint *denominatorCopy) {
   uint *denomPtr;

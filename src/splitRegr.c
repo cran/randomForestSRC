@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -82,10 +82,13 @@ char regressionSplit (uint    treeID,
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
+  uint   **repMembrIndxx;
+  uint priorMembrIter, currentMembrIter;
+  uint leftSizeIter, rghtSizeIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   double delta, deltaMax;
-  double sumLeft, sumRght;
+  double sumLeft, sumRght, sumRghtSave, sumLeftSqr, sumRghtSqr;
   uint splitLength;
   void *permissibleSplitPtr;
   char factorFlag;
@@ -93,7 +96,10 @@ char regressionSplit (uint    treeID,
   char deterministicSplitFlag;
   char result;
   uint i, j, k;
-  mwcpSizeAbsolute = 0;  
+  mwcpSizeAbsolute       = 0;  
+  sumLeft = sumRght      = 0;  
+  leftSizeIter           = 0;  
+  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -123,16 +129,21 @@ char regressionSplit (uint    treeID,
   }
   if (result) {
     stackSplitIndicator(repMembrSize, & localSplitIndicator);
-    uint   *nodeLeftIndex  = uivector(1, repMembrSize);
-    uint   *nodeRghtIndex  = uivector(1, repMembrSize);
     uint actualCovariateCount = stackAndSelectRandomCovariates(treeID,
                                                                parent, 
                                                                repMembrIndx, 
                                                                repMembrSize, 
                                                                & randomCovariateIndex, 
                                                                & permissibleSplit, 
-                                                               & permissibleSplitSize);
+                                                               & permissibleSplitSize,
+                                                               & repMembrIndxx);
+    sumRghtSave = 0.0;
+    for (j = 1; j <= repMembrSize; j++) {
+      sumRghtSave += RF_response[treeID][1][repMembrIndx[j]];
+    }
     for (i = 1; i <= actualCovariateCount; i++) {
+      leftSize = 0;
+      priorMembrIter = 0;
       splitLength = stackAndConstructSplitVector(treeID,
                                                  repMembrSize,
                                                  randomCovariateIndex[i], 
@@ -142,49 +153,57 @@ char regressionSplit (uint    treeID,
                                                  & deterministicSplitFlag,
                                                  & mwcpSizeAbsolute,
                                                  & permissibleSplitPtr);
+      if (factorFlag == FALSE) {
+        for (j = 1; j <= repMembrSize; j++) {
+          localSplitIndicator[j] = RIGHT;
+        }
+        sumRght      = sumRghtSave;
+        sumLeft      = 0.0;
+        leftSizeIter = 0;
+        rghtSizeIter = repMembrSize;
+      }
       for (j = 1; j < splitLength; j++) {
-        leftSize = virtuallySplitNode(treeID,
-                           factorFlag,
-                           mwcpSizeAbsolute,
-                           randomCovariateIndex[i],
-                           repMembrIndx,
-                           repMembrSize,
-                           permissibleSplitPtr,
-                           j,
-                           0,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           localSplitIndicator);
+        if (factorFlag == TRUE) {
+          priorMembrIter = 0;
+          leftSize = 0;
+        }
+        virtuallySplitNodeNew(treeID,
+                              factorFlag,
+                              mwcpSizeAbsolute,
+                              randomCovariateIndex[i],
+                              repMembrIndx,
+                              repMembrIndxx[i],
+                              repMembrSize,
+                              permissibleSplitPtr,
+                              j,
+                              localSplitIndicator,
+                              & leftSize,
+                              priorMembrIter,
+                              & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
-          leftSize = rghtSize = 0;
-          for (k=1; k <= repMembrSize; k++) {
-            nodeLeftIndex[k] = nodeRghtIndex[k] = 0;
-            if (localSplitIndicator[k] == LEFT) {
-              nodeLeftIndex[++leftSize] = repMembrIndx[k];
+          if (factorFlag == TRUE) {
+            sumLeft = sumRght = 0.0;
+            for (k = 1; k <= repMembrSize; k++) {
+              if (localSplitIndicator[k] == LEFT) {
+                sumLeft += RF_response[treeID][1][repMembrIndx[k]];
+              }
+              else {
+                sumRght += RF_response[treeID][1][repMembrIndx[k]];
+              }
             }
-            else {
-              nodeRghtIndex[++rghtSize] = repMembrIndx[k];
+          }
+          else {
+            for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
+              sumLeft += RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]];
+              sumRght -= RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]];
             }
+            rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
+            leftSizeIter = currentMembrIter - 1; 
           }
-          sumLeft = 0;
-          for (k=1; k <= leftSize; k++) {
-            sumLeft += RF_response[treeID][1][nodeLeftIndex[k]];
-          }
-          sumRght = 0;
-          for (k=1; k <= rghtSize; k++) {
-            sumRght += RF_response[treeID][1][nodeRghtIndex[k]];
-          }
-          sumLeft = pow (sumLeft, 2.0) / leftSize;
-          sumRght = pow (sumRght, 2.0) / rghtSize;
-          delta = sumLeft + sumRght;
+          sumLeftSqr = pow (sumLeft, 2.0) / leftSize;
+          sumRghtSqr = pow (sumRght, 2.0) / rghtSize;
+          delta = sumLeftSqr + sumRghtSqr;
           updateMaximumSplit(delta,
                              randomCovariateIndex[i],
                              j,
@@ -197,6 +216,14 @@ char regressionSplit (uint    treeID,
                              splitValueMaxFactPtr,
                              permissibleSplitPtr);
         }  
+        if (factorFlag == FALSE) {
+          if (rghtSize  < RF_minimumNodeSize) {
+            j = splitLength;
+          }
+          else {
+            priorMembrIter = currentMembrIter - 1;
+          }
+        }
       }  
       unstackSplitVector(treeID,
                          permissibleSplitSize[i],
@@ -209,11 +236,11 @@ char regressionSplit (uint    treeID,
     unstackRandomCovariates(treeID,
                             repMembrSize, 
                             randomCovariateIndex, 
+                            actualCovariateCount,
                             permissibleSplit, 
-                            permissibleSplitSize);
+                            permissibleSplitSize,
+                            repMembrIndxx);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
-    free_uivector(nodeLeftIndex, 1, repMembrSize);
-    free_uivector(nodeRghtIndex, 1, repMembrSize);
   }  
   result = summarizeSplitResult(*splitParameterMax, 
                                 *splitValueMaxCont,
@@ -237,10 +264,14 @@ char regressionUwghtSplit (uint    treeID,
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
+  uint   **repMembrIndxx;
+  uint priorMembrIter, currentMembrIter;
+  uint leftSizeIter, rghtSizeIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   double delta, deltaMax;
-  double sumLeft, sumRght, sumLeftSqr, sumRghtSqr;
+  double sumLeft, sumRght, sumRghtSave, sumRghtSqrSave, sumLeftSqr, sumRghtSqr;
+  double leftTemp, rghtTemp, leftTempSqr, rghtTempSqr;
   uint splitLength;
   void *permissibleSplitPtr;
   char factorFlag;
@@ -248,7 +279,12 @@ char regressionUwghtSplit (uint    treeID,
   char deterministicSplitFlag;
   char result;
   uint i, j, k;
-  mwcpSizeAbsolute = 0;  
+  mwcpSizeAbsolute       = 0;  
+  sumLeft = sumRght      = 0;  
+  sumLeftSqr             = 0;  
+  sumRghtSqr             = 0;  
+  leftSizeIter           = 0;  
+  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -278,16 +314,22 @@ char regressionUwghtSplit (uint    treeID,
   }
   if (result) {
     stackSplitIndicator(repMembrSize, & localSplitIndicator);
-    uint   *nodeLeftIndex  = uivector(1, repMembrSize);
-    uint   *nodeRghtIndex  = uivector(1, repMembrSize);
     uint actualCovariateCount = stackAndSelectRandomCovariates(treeID,
                                                                parent, 
                                                                repMembrIndx, 
                                                                repMembrSize, 
                                                                & randomCovariateIndex, 
                                                                & permissibleSplit, 
-                                                               & permissibleSplitSize);
+                                                               & permissibleSplitSize,
+                                                               & repMembrIndxx);
+    sumRghtSave = sumRghtSqrSave = 0.0;
+    for (j = 1; j <= repMembrSize; j++) {
+      sumRghtSave += RF_response[treeID][1][repMembrIndx[j]];
+      sumRghtSqrSave += pow(RF_response[treeID][1][repMembrIndx[j]], 2.0);
+    }
     for (i = 1; i <= actualCovariateCount; i++) {
+      leftSize = 0;
+      priorMembrIter = 0;
       splitLength = stackAndConstructSplitVector(treeID,
                                                  repMembrSize,
                                                  randomCovariateIndex[i], 
@@ -297,53 +339,66 @@ char regressionUwghtSplit (uint    treeID,
                                                  & deterministicSplitFlag,
                                                  & mwcpSizeAbsolute,
                                                  & permissibleSplitPtr);
+      if (factorFlag == FALSE) {
+        for (j = 1; j <= repMembrSize; j++) {
+          localSplitIndicator[j] = RIGHT;
+        }
+        sumRght      = sumRghtSave;
+        sumRghtSqr   = sumRghtSqrSave; 
+        sumLeft      = 0.0;
+        sumLeftSqr   = 0.0;
+        leftSizeIter = 0;
+        rghtSizeIter = repMembrSize;
+      }
       for (j = 1; j < splitLength; j++) {
-        leftSize = virtuallySplitNode(treeID,
-                           factorFlag,
-                           mwcpSizeAbsolute,
-                           randomCovariateIndex[i],
-                           repMembrIndx,
-                           repMembrSize,
-                           permissibleSplitPtr,
-                           j,
-                           0,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           localSplitIndicator);
+        if (factorFlag == TRUE) {
+          priorMembrIter = 0;
+          leftSize = 0;
+        }
+        virtuallySplitNodeNew(treeID,
+                              factorFlag,
+                              mwcpSizeAbsolute,
+                              randomCovariateIndex[i],
+                              repMembrIndx,
+                              repMembrIndxx[i],
+                              repMembrSize,
+                              permissibleSplitPtr,
+                              j,
+                              localSplitIndicator,
+                              & leftSize,
+                              priorMembrIter,
+                              & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
-          leftSize = rghtSize = 0;
-          for (k=1; k <= repMembrSize; k++) {
-            nodeLeftIndex[k] = nodeRghtIndex[k] = 0;
-            if (localSplitIndicator[k] == LEFT) {
-              nodeLeftIndex[++leftSize] = repMembrIndx[k];
+          if (factorFlag == TRUE) {
+            sumLeft = sumRght = 0.0;
+            sumLeftSqr = sumRghtSqr = 0.0;
+            for (k = 1; k <= repMembrSize; k++) {
+              if (localSplitIndicator[k] == LEFT) {
+                sumLeft    += RF_response[treeID][1][repMembrIndx[k]];
+                sumLeftSqr += pow(RF_response[treeID][1][repMembrIndx[k]], 2.0);
+              }
+              else {
+                sumRght    += RF_response[treeID][1][repMembrIndx[k]];
+                sumRghtSqr += pow(RF_response[treeID][1][repMembrIndx[k]], 2.0);
+              }
             }
-            else {
-              nodeRghtIndex[++rghtSize] = repMembrIndx[k];
+          }
+          else {
+            for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
+              sumLeft    += RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]];
+              sumLeftSqr += pow(RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]], 2.0);
+              sumRght    -= RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]];
+              sumRghtSqr -= pow(RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]], 2.0);
             }
+            rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
+            leftSizeIter = currentMembrIter - 1; 
           }
-          sumLeft = sumLeftSqr = 0.0;
-          for (k=1; k <= leftSize; k++) {
-            sumLeft += RF_response[treeID][1][nodeLeftIndex[k]];
-            sumLeftSqr += pow(RF_response[treeID][1][nodeLeftIndex[k]], 2.0);
-          }
-          sumRght = sumRghtSqr = 0.0;
-          for (k=1; k <= rghtSize; k++) {
-            sumRght += RF_response[treeID][1][nodeRghtIndex[k]];
-            sumRghtSqr += pow(RF_response[treeID][1][nodeRghtIndex[k]], 2.0);
-          }
-          sumLeft = pow(sumLeft, 2.0) / pow(leftSize, 2.0);
-          sumRght = pow(sumRght, 2.0) / pow(rghtSize, 2.0);
-          sumLeftSqr = sumLeftSqr / leftSize;
-          sumRghtSqr = sumRghtSqr / rghtSize;
-          delta = sumLeft + sumRght - sumLeftSqr - sumRghtSqr;
+          leftTemp = pow(sumLeft, 2.0) / pow(leftSize, 2.0);
+          rghtTemp = pow(sumRght, 2.0) / pow(rghtSize, 2.0);
+          leftTempSqr = sumLeftSqr / leftSize;
+          rghtTempSqr = sumRghtSqr / rghtSize;
+          delta = leftTemp + rghtTemp - leftTempSqr - rghtTempSqr;
           updateMaximumSplit(delta,
                              randomCovariateIndex[i],
                              j,
@@ -356,6 +411,14 @@ char regressionUwghtSplit (uint    treeID,
                              splitValueMaxFactPtr,
                              permissibleSplitPtr);
         }  
+        if (factorFlag == FALSE) {
+          if (rghtSize  < RF_minimumNodeSize) {
+            j = splitLength;
+          }
+          else {
+            priorMembrIter = currentMembrIter - 1;
+          }
+        }
       }  
       unstackSplitVector(treeID,
                          permissibleSplitSize[i],
@@ -368,11 +431,11 @@ char regressionUwghtSplit (uint    treeID,
     unstackRandomCovariates(treeID,
                             repMembrSize, 
                             randomCovariateIndex, 
+                            actualCovariateCount,
                             permissibleSplit, 
-                            permissibleSplitSize);
+                            permissibleSplitSize,
+                            repMembrIndxx);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
-    free_uivector(nodeLeftIndex, 1, repMembrSize);
-    free_uivector(nodeRghtIndex, 1, repMembrSize);
   }  
   result = summarizeSplitResult(*splitParameterMax, 
                                 *splitValueMaxCont,
@@ -396,10 +459,14 @@ char regressionHwghtSplit (uint    treeID,
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
+  uint   **repMembrIndxx;
+  uint priorMembrIter, currentMembrIter;
+  uint leftSizeIter, rghtSizeIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   double delta, deltaMax;
-  double sumLeft, sumRght, sumLeftSqr, sumRghtSqr;
+  double sumLeft, sumRght, sumRghtSave, sumRghtSqrSave, sumLeftSqr, sumRghtSqr;
+  double leftTemp, rghtTemp, leftTempSqr, rghtTempSqr;
   uint splitLength;
   void *permissibleSplitPtr;
   char factorFlag;
@@ -407,7 +474,12 @@ char regressionHwghtSplit (uint    treeID,
   char deterministicSplitFlag;
   char result;
   uint i, j, k;
-  mwcpSizeAbsolute = 0;  
+  mwcpSizeAbsolute = 0;        
+  sumLeft = sumRght      = 0;  
+  sumLeftSqr             = 0;  
+  sumRghtSqr             = 0;  
+  leftSizeIter           = 0;  
+  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -437,16 +509,22 @@ char regressionHwghtSplit (uint    treeID,
   }
   if (result) {
     stackSplitIndicator(repMembrSize, & localSplitIndicator);
-    uint   *nodeLeftIndex  = uivector(1, repMembrSize);
-    uint   *nodeRghtIndex  = uivector(1, repMembrSize);
     uint actualCovariateCount = stackAndSelectRandomCovariates(treeID,
                                                                parent, 
                                                                repMembrIndx, 
                                                                repMembrSize, 
                                                                & randomCovariateIndex, 
                                                                & permissibleSplit, 
-                                                               & permissibleSplitSize);
+                                                               & permissibleSplitSize,
+                                                               & repMembrIndxx);
+    sumRghtSave = sumRghtSqrSave = 0.0;
+    for (j = 1; j <= repMembrSize; j++) {
+      sumRghtSave += RF_response[treeID][1][repMembrIndx[j]];
+      sumRghtSqrSave += pow(RF_response[treeID][1][repMembrIndx[j]], 2.0);
+    }
     for (i = 1; i <= actualCovariateCount; i++) {
+      leftSize = 0;
+      priorMembrIter = 0;
       splitLength = stackAndConstructSplitVector(treeID,
                                                  repMembrSize,
                                                  randomCovariateIndex[i], 
@@ -456,53 +534,66 @@ char regressionHwghtSplit (uint    treeID,
                                                  & deterministicSplitFlag,
                                                  & mwcpSizeAbsolute,
                                                  & permissibleSplitPtr);
+      if (factorFlag == FALSE) {
+        for (j = 1; j <= repMembrSize; j++) {
+          localSplitIndicator[j] = RIGHT;
+        }
+        sumRght      = sumRghtSave;
+        sumRghtSqr   = sumRghtSqrSave; 
+        sumLeft      = 0.0;
+        sumLeftSqr   = 0.0;
+        leftSizeIter = 0;
+        rghtSizeIter = repMembrSize;
+      }
       for (j = 1; j < splitLength; j++) {
-        leftSize = virtuallySplitNode(treeID,
-                           factorFlag,
-                           mwcpSizeAbsolute,
-                           randomCovariateIndex[i],
-                           repMembrIndx,
-                           repMembrSize,
-                           permissibleSplitPtr,
-                           j,
-                           0,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           localSplitIndicator);
+        if (factorFlag == TRUE) {
+          priorMembrIter = 0;
+          leftSize = 0;
+        }
+        virtuallySplitNodeNew(treeID,
+                              factorFlag,
+                              mwcpSizeAbsolute,
+                              randomCovariateIndex[i],
+                              repMembrIndx,
+                              repMembrIndxx[i],
+                              repMembrSize,
+                              permissibleSplitPtr,
+                              j,
+                              localSplitIndicator,
+                              & leftSize,
+                              priorMembrIter,
+                              & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
-          leftSize = rghtSize = 0;
-          for (k=1; k <= repMembrSize; k++) {
-            nodeLeftIndex[k] = nodeRghtIndex[k] = 0;
-            if (localSplitIndicator[k] == LEFT) {
-              nodeLeftIndex[++leftSize] = repMembrIndx[k];
+          if (factorFlag == TRUE) {
+            sumLeft = sumRght = 0.0;
+            sumLeftSqr = sumRghtSqr = 0.0;
+            for (k = 1; k <= repMembrSize; k++) {
+              if (localSplitIndicator[k] == LEFT) {
+                sumLeft    += RF_response[treeID][1][repMembrIndx[k]];
+                sumLeftSqr += pow(RF_response[treeID][1][repMembrIndx[k]], 2.0);
+              }
+              else {
+                sumRght    += RF_response[treeID][1][repMembrIndx[k]];
+                sumRghtSqr += pow(RF_response[treeID][1][repMembrIndx[k]], 2.0);
+              }
             }
-            else {
-              nodeRghtIndex[++rghtSize] = repMembrIndx[k];
+          }
+          else {
+            for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
+              sumLeft    += RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]];
+              sumLeftSqr += pow(RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]], 2.0);
+              sumRght    -= RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]];
+              sumRghtSqr -= pow(RF_response[treeID][1][repMembrIndx[repMembrIndxx[i][k]]], 2.0);
             }
+            rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
+            leftSizeIter = currentMembrIter - 1; 
           }
-          sumLeft = sumLeftSqr = 0;
-          for (k=1; k <= leftSize; k++) {
-            sumLeft += RF_response[treeID][1][nodeLeftIndex[k]];
-            sumLeftSqr += pow(RF_response[treeID][1][nodeLeftIndex[k]], 2.0);
-          }
-          sumRght = sumRghtSqr = 0;
-          for (k=1; k <= rghtSize; k++) {
-            sumRght += RF_response[treeID][1][nodeRghtIndex[k]];
-            sumRghtSqr += pow(RF_response[treeID][1][nodeRghtIndex[k]], 2.0);
-          }
-          sumLeft = pow(sumLeft, 2.0) / pow (repMembrSize, 2.0);
-          sumRght = pow(sumRght, 2.0) / pow (repMembrSize, 2.0);
-          sumLeftSqr = sumLeftSqr * leftSize / pow (repMembrSize, 2.0);
-          sumRghtSqr = sumRghtSqr * rghtSize / pow (repMembrSize, 2.0);
-          delta = sumLeft + sumRght - sumLeftSqr - sumRghtSqr;
+          leftTemp = pow(sumLeft, 2.0) / pow (repMembrSize, 2.0);
+          rghtTemp = pow(sumRght, 2.0) / pow (repMembrSize, 2.0);
+          leftTempSqr = sumLeftSqr * leftSize / pow (repMembrSize, 2.0);
+          rghtTempSqr = sumRghtSqr * rghtSize / pow (repMembrSize, 2.0);
+          delta = leftTemp + rghtTemp - leftTempSqr - rghtTempSqr;
           updateMaximumSplit(delta,
                              randomCovariateIndex[i],
                              j,
@@ -515,6 +606,14 @@ char regressionHwghtSplit (uint    treeID,
                              splitValueMaxFactPtr,
                              permissibleSplitPtr);
         }  
+        if (factorFlag == FALSE) {
+          if (rghtSize  < RF_minimumNodeSize) {
+            j = splitLength;
+          }
+          else {
+            priorMembrIter = currentMembrIter - 1;
+          }
+        }
       }  
       unstackSplitVector(treeID,
                          permissibleSplitSize[i],
@@ -527,11 +626,11 @@ char regressionHwghtSplit (uint    treeID,
     unstackRandomCovariates(treeID,
                             repMembrSize, 
                             randomCovariateIndex, 
+                            actualCovariateCount,
                             permissibleSplit, 
-                            permissibleSplitSize);
+                            permissibleSplitSize,
+                            repMembrIndxx);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
-    free_uivector(nodeLeftIndex, 1, repMembrSize);
-    free_uivector(nodeRghtIndex, 1, repMembrSize);
   }  
   result = summarizeSplitResult(*splitParameterMax, 
                                 *splitValueMaxCont,
@@ -555,6 +654,9 @@ char mvRegressionSplit (uint    treeID,
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
+  uint   **repMembrIndxx;
+  uint priorMembrIter, currentMembrIter;
+  uint leftSizeIter, rghtSizeIter;
   uint leftSize, rghtSize;
   char   *purity;
   double *mean;
@@ -562,8 +664,7 @@ char mvRegressionSplit (uint    treeID,
   char    puritySummary;
   char *localSplitIndicator;
   double delta, deltaMax;
-  double sumLeft, sumRght;
-  double sqrLeft, sqrRght;
+  double *sumLeft, *sumRght, *sumRghtSave, sumLeftSqr, sumRghtSqr;
   uint splitLength;
   void *permissibleSplitPtr;
   char factorFlag;
@@ -571,7 +672,10 @@ char mvRegressionSplit (uint    treeID,
   char deterministicSplitFlag;
   char result;
   uint i, j, k, r;
-  mwcpSizeAbsolute = 0;  
+  mwcpSizeAbsolute       = 0;  
+  sumLeft = sumRght      = 0;  
+  leftSizeIter           = 0;  
+  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -599,6 +703,9 @@ char mvRegressionSplit (uint    treeID,
   purity   = cvector(1, RF_rSize); 
   mean     = dvector(1, RF_rSize);
   variance = dvector(1, RF_rSize);
+  sumLeft      = dvector(1, RF_rSize);
+  sumRght      = dvector(1, RF_rSize);
+  sumRghtSave  = dvector(1, RF_rSize);
   if (result) {
     puritySummary = FALSE;
     for (r = 1; r <= RF_rSize; r++) {
@@ -609,16 +716,23 @@ char mvRegressionSplit (uint    treeID,
   }
   if (result) {
     stackSplitIndicator(repMembrSize, & localSplitIndicator);
-    uint   *nodeLeftIndex  = uivector(1, repMembrSize);
-    uint   *nodeRghtIndex  = uivector(1, repMembrSize);
     uint actualCovariateCount = stackAndSelectRandomCovariates(treeID,
                                                                parent, 
                                                                repMembrIndx, 
                                                                repMembrSize, 
                                                                & randomCovariateIndex, 
                                                                & permissibleSplit, 
-                                                               & permissibleSplitSize);
+                                                               & permissibleSplitSize,
+                                                               & repMembrIndxx);
+    for (r = 1; r <= RF_rSize; r++) {
+      sumRghtSave[r] = 0.0;
+      for (j = 1; j <= repMembrSize; j++) {
+        sumRghtSave[r] += RF_response[treeID][r][repMembrIndx[j]] - mean[r];
+      }
+    }
     for (i = 1; i <= actualCovariateCount; i++) {
+      leftSize = 0;
+      priorMembrIter = 0;
       splitLength = stackAndConstructSplitVector(treeID,
                                                  repMembrSize,
                                                  randomCovariateIndex[i], 
@@ -628,54 +742,66 @@ char mvRegressionSplit (uint    treeID,
                                                  & deterministicSplitFlag,
                                                  & mwcpSizeAbsolute,
                                                  & permissibleSplitPtr);
+      if (factorFlag == FALSE) {
+        for (j = 1; j <= repMembrSize; j++) {
+          localSplitIndicator[j] = RIGHT;
+        }
+        for (r = 1; r <= RF_rSize; r++) {
+          sumRght[r]      = sumRghtSave[r];
+          sumLeft[r]      = 0.0;
+        }
+        leftSizeIter = 0;
+        rghtSizeIter = repMembrSize;
+      }
       for (j = 1; j < splitLength; j++) {
-        leftSize = virtuallySplitNode(treeID,
-                           factorFlag,
-                           mwcpSizeAbsolute,
-                           randomCovariateIndex[i],
-                           repMembrIndx,
-                           repMembrSize,
-                           permissibleSplitPtr,
-                           j,
-                           0,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           NULL,
-                           localSplitIndicator);
+        if (factorFlag == TRUE) {
+          priorMembrIter = 0;
+          leftSize = 0;
+        }
+        virtuallySplitNodeNew(treeID,
+                              factorFlag,
+                              mwcpSizeAbsolute,
+                              randomCovariateIndex[i],
+                              repMembrIndx,
+                              repMembrIndxx[i],
+                              repMembrSize,
+                              permissibleSplitPtr,
+                              j,
+                              localSplitIndicator,
+                              & leftSize,
+                              priorMembrIter,
+                              & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
-          leftSize = rghtSize = 0;
-          for (k=1; k <= repMembrSize; k++) {
-            nodeLeftIndex[k] = nodeRghtIndex[k] = 0;
-            if (localSplitIndicator[k] == LEFT) {
-              nodeLeftIndex[++leftSize] = repMembrIndx[k];
-            }
-            else {
-              nodeRghtIndex[++rghtSize] = repMembrIndx[k];
-            }
-          }
           delta = 0.0;
           for (r = 1; r <= RF_rSize; r++) {
             if (purity[r]) {
-              sumLeft = 0;
-              for (k=1; k <= leftSize; k++) {
-                sumLeft += RF_response[treeID][r][nodeLeftIndex[k]] - mean[r];
+              if (factorFlag == TRUE) {
+                sumLeft[r] = sumRght[r] = 0.0;
+                for (k = 1; k <= repMembrSize; k++) {
+                  if (localSplitIndicator[k] == LEFT) {
+                    sumLeft[r] += RF_response[treeID][r][repMembrIndx[k]] - mean[r];
+                  }
+                  else {
+                    sumRght[r] += RF_response[treeID][r][repMembrIndx[k]] - mean[r];
+                  }
+                }
               }
-              sumRght = 0;
-              for (k=1; k <= rghtSize; k++) {
-                sumRght += RF_response[treeID][r][repMembrIndx[k]] - mean[r];
+              else {
+                for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
+                  sumLeft[r] += RF_response[treeID][r][repMembrIndx[repMembrIndxx[i][k]]] - mean[r];
+                  sumRght[r] -= RF_response[treeID][r][repMembrIndx[repMembrIndxx[i][k]]] - mean[r];
+                }
               }
-              sqrLeft = pow (sumLeft, 2.0) / (leftSize * variance[r]);
-              sqrRght = pow (sumRght, 2.0) / (rghtSize * variance[r]);
-              delta += sqrLeft + sqrRght;
+              sumLeftSqr = pow (sumLeft[r], 2.0) / (leftSize * variance[r]);
+              sumRghtSqr = pow (sumRght[r], 2.0) / (rghtSize * variance[r]);
+              delta += sumLeftSqr + sumRghtSqr;
             } 
           }  
+          if (factorFlag == FALSE) {
+            rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
+            leftSizeIter = currentMembrIter - 1; 
+          }
           updateMaximumSplit(delta,
                              randomCovariateIndex[i],
                              j,
@@ -688,6 +814,14 @@ char mvRegressionSplit (uint    treeID,
                              splitValueMaxFactPtr,
                              permissibleSplitPtr);
         }  
+        if (factorFlag == FALSE) {
+          if (rghtSize  < RF_minimumNodeSize) {
+            j = splitLength;
+          }
+          else {
+            priorMembrIter = currentMembrIter - 1;
+          }
+        }
       }  
       unstackSplitVector(treeID,
                          permissibleSplitSize[i],
@@ -700,15 +834,18 @@ char mvRegressionSplit (uint    treeID,
     unstackRandomCovariates(treeID,
                             repMembrSize, 
                             randomCovariateIndex, 
+                            actualCovariateCount,
                             permissibleSplit, 
-                            permissibleSplitSize);
+                            permissibleSplitSize,
+                            repMembrIndxx);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
-    free_uivector(nodeLeftIndex, 1, repMembrSize);
-    free_uivector(nodeRghtIndex, 1, repMembrSize);
   }  
   free_cvector(purity,   1, RF_rSize); 
   free_dvector(mean,     1, RF_rSize);
   free_dvector(variance, 1, RF_rSize);
+  free_dvector(sumLeft, 1, RF_rSize);
+  free_dvector(sumRght, 1, RF_rSize);
+  free_dvector(sumRghtSave, 1, RF_rSize);
   result = summarizeSplitResult(*splitParameterMax, 
                                 *splitValueMaxCont,
                                 *splitValueMaxFactSize,

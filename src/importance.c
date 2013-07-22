@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -451,7 +451,7 @@ void updateGenericVimpEnsemble (uint       treeID,
         else {
           if (!(RF_opt & OPT_OUTC_TYPE)) {
             Rprintf("\nRF-SRC:  *** ERROR *** ");
-            Rprintf("\nRF-SRC:  NA encountered for VIMP outcome in terminal node:  %10d", terminalNode -> leafCount);
+            Rprintf("\nRF-SRC:  NA encountered for VIMP outcome in terminal node:  %10d", terminalNode -> nodeID);
             Rprintf("\nRF-SRC:  Please Contact Technical Support.");
             error("\nRF-SRC:  The application will now exit.\n");
           }

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -75,7 +75,7 @@ Node *getTerminalNode(uint treeID, uint leaf) {
   Node *parent;
   parent = NULL;
   for (j = 1; j <= RF_observationSize; j++) {
-    if ((RF_tNodeMembership[treeID][j] -> leafCount) == leaf) {
+    if ((RF_tNodeMembership[treeID][j] -> nodeID) == leaf) {
       parent = RF_tNodeMembership[treeID][j];
       j = RF_observationSize;
     }
@@ -86,9 +86,9 @@ Node *getTerminalNode(uint treeID, uint leaf) {
     for (i = 1; i <= RF_observationSize; i++) {
       Rprintf(" %12d %12d %12x %12d \n", i, 
               RF_bootMembershipFlag[treeID][i], RF_tNodeMembership[treeID][i], 
-              RF_tNodeMembership[treeID][i] -> leafCount);
+              RF_tNodeMembership[treeID][i] -> nodeID);
     }
-    Rprintf("\nDiagnostic State of TRAIN data:  ");
+    Rprintf("\nDiagnostic State of TRAIN (SHADOW) data:  ");
     Rprintf("\n       index       status         time   observations -> \n");
     Rprintf("\n                                      ");
     for (i=1; i <= RF_xSize; i++) {
@@ -183,9 +183,7 @@ char forkAndUpdate(uint   treeID,
     if (RF_opt & OPT_TREE) {    
       RF_nodeCount[treeID] += 2;
     }
-    if (RF_opt & OPT_NODE_STAT) {
-      parent -> splitStatistic = splitStatistic;
-    }
+    parent -> splitStatistic = splitStatistic;
     RF_tLeafCount[treeID]++;
     factorFlag = FALSE;
     if (strcmp(RF_xType[splitParameterMax], "C") == 0) {
@@ -225,13 +223,13 @@ char forkAndUpdate(uint   treeID,
         membershipIndicator[allMembrIndx[i]] = LEFT;
         (*leftDaughterSize) ++;
         RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
-        ((parent -> left) -> leafCount) = (parent -> leafCount);
+        ((parent -> left) -> nodeID) = (parent -> nodeID);
       }
       else {
         membershipIndicator[allMembrIndx[i]] = RIGHT;
         (*rghtDaughterSize) ++;
         RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
-        ((parent -> right) -> leafCount) = RF_tLeafCount[treeID];
+        ((parent -> right) -> nodeID) = RF_tLeafCount[treeID];
       }
     }
   }
@@ -299,10 +297,10 @@ char growTree (char     rootFlag,
         bsUpdateFlag = TRUE;
       }
       if (RF_mRecordSize > 0) {
-        for (p = 1; p <= RF_mvSignSize; p++) {
-          if (RF_mvIndex[p] > 0) {
-            if (parent -> mvSign[p] == -1) {
-              (parent -> permissibleSplit)[RF_mvIndex[p]] = FALSE;
+        for (p = 1; p <= RF_mpIndexSize; p++) {
+          if (RF_mpIndex[p] > 0) {
+            if (parent -> mpSign[p] == -1) {
+              (parent -> permissibleSplit)[RF_mpIndex[p]] = FALSE;
             }
           }         
         }
@@ -312,7 +310,7 @@ char growTree (char     rootFlag,
   else {
     bootMembrIndx = repMembrIndx;
     bootMembrSize = repMembrSize;
-    parent -> mvSign = (parent -> parent) -> mvSign;
+    parent -> mpSign = (parent -> parent) -> mpSign;
   }
   if (bootResult) {
     if (multImpFlag == FALSE) {
@@ -473,6 +471,7 @@ char growTree (char     rootFlag,
         getSplitDepth(parent, maximumDepth);
       }
     }
+    parent -> orderedNodeID = ++RF_orderedLeafCount[treeID];
   }  
   if (bsUpdateFlag) {
     for (i = 1; i <= bootMembrSize; i++) {
@@ -497,7 +496,7 @@ char restoreTree(uint    b,
                  uint  **mwcpPtr,
                  uint    depth,
                  uint   *maximumDepth) {
-  char result;
+  char notTerminal;
   uint i;
   if (b != treeID[*offset]) {
     Rprintf("\nDiagnostic Trace of Tree Record:  \n");
@@ -516,7 +515,7 @@ char restoreTree(uint    b,
   }
   parent -> splitFlag = FALSE;
   parent -> predictedOutcome = NA_REAL;
-  parent -> leafCount = nodeID[*offset];
+  parent -> nodeID = nodeID[*offset];
   parent -> splitParameter = parmID[*offset];
   if ((parent -> splitParameter) != 0) {
     if (strcmp(RF_xType[parent -> splitParameter], "C") == 0) {
@@ -541,7 +540,7 @@ char restoreTree(uint    b,
   }
   (*offset) ++;
   if ((parent -> splitParameter) != 0) {
-    result = TRUE;
+    notTerminal = TRUE;
     parent -> left  = makeNode(parent -> xSize);
     setParent(parent ->  left, parent);
     restoreTree(b, 
@@ -570,23 +569,19 @@ char restoreTree(uint    b,
                 maximumDepth);
   }
   else {
-    result = FALSE;
+    notTerminal = FALSE;
   }
-  if (!result) {
+  if (!notTerminal) {
     parent -> pseudoTerminal = TRUE;
-    RF_tNodeList[b][parent -> leafCount] = parent;
-    if ((RF_opt & OPT_MISS) | (RF_opt & OPT_OMIS)) {
-      RF_mTerminalInfo[b][parent -> leafCount] = makeTerminal();
-      RF_mTerminalInfo[b][parent -> leafCount] -> mate = RF_tNodeList[b][parent -> leafCount];
-      parent -> mate = RF_mTerminalInfo[b][parent -> leafCount];
-    }
+    RF_tNodeList[b][parent -> nodeID] = parent;
     if (!(RF_opt & OPT_IMPU_ONLY)) {
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
         getSplitDepth(parent, maximumDepth);
       }
     }
+    parent -> orderedNodeID = ++RF_orderedLeafCount[b];
   }
-  return result;
+  return notTerminal;
 }
 void saveTree(uint    b,
               Node   *parent,
@@ -599,7 +594,7 @@ void saveTree(uint    b,
               uint  **mwcpPtr) {
   uint i;
   treeID[*offset] = b;
-  nodeID[*offset] = parent -> leafCount;
+  nodeID[*offset] = parent -> nodeID;
   parmID[*offset] = parent -> splitParameter;
   if ((parent -> splitParameter) != 0) {
     if (strcmp(RF_xType[parent -> splitParameter], "C") == 0) {

@@ -202,7 +202,7 @@ R-side forking (accessed via \command{mclapply} in package
     data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
 
     Ishwaran H., Gerds, T.A. Kogalur U.B., Moore R.D., Gange S.J. and Lau
-    B.M. (2012). Random survival forests for competing risks.
+    B.M. (2013). Random survival forests for competing risks.
 }
 \seealso{
   \command{\link{find.interaction}},

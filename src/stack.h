@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -110,7 +110,7 @@ void unstackClassificationArrays(char mode);
 void getEventTypeSize(uint     obsSize, 
                       double  *status, 
                       uint    *mRecordMap, 
-                      int    **mvSign,  
+                      int    **mpSign,  
                       char     overWriteFlag,
                       uint    *eventTypeSize,
                       uint    *msize,
@@ -118,7 +118,7 @@ void getEventTypeSize(uint     obsSize,
 void getClassLevelSize(uint      obsSize, 
                        double  **response, 
                        uint     *mRecordMap, 
-                       int     **mvSign,  
+                       int     **mpSign,  
                        uint     *classLevelSize,
                        uint    **classLevel);
 uint stackDefinedOutputObjects(char      mode,
@@ -128,7 +128,7 @@ uint stackDefinedOutputObjects(char      mode,
                                double  **pRF_fullEnsemble,
                                double  **p_performance,
                                uint    **p_leafCount,
-                               uint    **pRF_proximity,
+                               double  **pRF_proximity,
                                double  **p_varImportance,
                                int     **pRF_seed,
                                double  **pRF_oobImputation,

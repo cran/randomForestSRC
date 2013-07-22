@@ -12,9 +12,9 @@
   mtry = (if (method == "md") ceiling(ncol(data)/3) else NULL),
   nodesize = 2, splitrule = NULL, nsplit = 10, xvar.wt = NULL,
   refit = (method != "md"), fast = FALSE, na.action = c("na.omit", "na.impute"), 
-  always.use = NULL, nrep = 50, K = 5, nstep = 1,         
-  prefit =  list(action = (method != "md"), ntree = 100, mtry = 500, nodesize = 3, nsplit = 1),
-  do.trace = 0, verbose = TRUE, ...)
+  always.use = NULL, nrep = 50, K = 5, nstep = 1,
+  prefit =  list(action = (method != "md"), ntree = 100,
+  mtry = 500, nodesize = 3, nsplit = 1), do.trace = 0, verbose = TRUE, ...)
 }
 \arguments{
    \item{formula}{A symbolic description of the model to be fit. 
@@ -267,7 +267,7 @@ vs.air <- var.select(Ozone ~., airquality)
 ## ------------------------------------------------------------
 ## Minimal depth high-dimensional example
 ## van de Vijver microarray breast cancer survival data
-## predefined weights for selecting a gene for node splitting are
+## predefined weights for *selecting* a gene for node splitting are
 ## determined from a preliminary forest analysis
 ## ------------------------------------------------------------
 
@@ -279,6 +279,35 @@ md.breast <- var.select(Surv(Time, Censoring) ~ ., vdv,
 ## note the large mtry and small nodesize values used
 md.breast.custom <- var.select(Surv(Time, Censoring) ~ ., vdv, 
   prefit = list(action = TRUE, mtry = 500, nodesize = 1))
+
+## ------------------------------------------------------------
+## Minimal depth high-dimensional example
+## van de Vijver microarray breast cancer survival data
+## predefined weights for genes for *splitting* tree nodes
+## weights defined in terms of cox p-values
+## ------------------------------------------------------------
+
+if (library("survival", logical.return = TRUE) 
+    & library("Hmisc", logical.return = TRUE))
+{
+  cox.weights <- function(rfsrc.f, rfsrc.data) {
+    event.names <- all.vars(rfsrc.f)[1:2]
+    p <- ncol(rfsrc.data) - 2
+    event.pt <- match(event.names, names(rfsrc.data))
+    xvar.pt <- setdiff(1:ncol(rfsrc.data), event.pt)
+    unlist(mclapply(1:p, function(j) {
+      cox.out <- coxph(rfsrc.f, rfsrc.data[, c(event.pt, xvar.pt[j])])
+      pvalue <- summary(cox.out)$coef[5]
+      if (is.na(pvalue)) 1.0 else 1/(pvalue + 1e-100)
+    }))
+  }       
+  data(vdv, package = "randomForestSRC")
+  rfsrc.f <- as.formula(Surv(Time, Censoring) ~ .)
+  cox.wts <- cox.weights(rfsrc.f, vdv)
+  breast.obj <- rfsrc(rfsrc.f, vdv, nsplit = 10, split.wt = cox.wts)
+  md.breast.splitwt <- var.select(object = breast.obj) 
+}
+
 
 ## ------------------------------------------------------------
 ## Variable hunting high-dimensional example
@@ -296,7 +325,7 @@ plot.variable(vh.breast$rfsrc.refit.obj,
 plot.variable(vh.breast$rfsrc.refit.obj,
        xvar.names = vh.breast$topvars[1:10], partial = TRUE)
 
-## similar analysis, but where weights are obtained from univarate cox p-values.
+## similar analysis, but using weights from univarate cox p-values
 if (library("survival", logical.return = TRUE) 
     & library("Hmisc", logical.return = TRUE))
 {

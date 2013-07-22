@@ -35,7 +35,7 @@
 }   
 \value{
   Invisibly, the data frame containing the orginal data with imputed
-  data overlayed.
+  data overlayed.  The first column(s) contain the y outcome values.
 }
 \author{
     Hemant Ishwaran and Udaya B. Kogalur

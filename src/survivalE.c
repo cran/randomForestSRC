@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -301,7 +301,7 @@ void getCRPerformance (uint     mode,
                        uint    *ensembleDenPtr,
                        double  *performanceVector) {
   uint   mRecordSize;
-  int  **mvSign;
+  int  **mpSign;
   uint  *mRecordIndex;
   uint  *meIndividualSize;
   uint **eIndividual;
@@ -316,12 +316,12 @@ void getCRPerformance (uint     mode,
   if (RF_mStatusSize > 0) {
     if ((mode == RF_GROW) || (mode == RF_REST)) {
       mRecordSize = RF_mRecordSize;
-      mvSign = RF_mvSign;
+      mpSign = RF_mpSign;
       mRecordIndex = RF_mRecordIndex;
     }
     else {
       mRecordSize = RF_fmRecordSize;
-      mvSign = RF_fmvSign;
+      mpSign = RF_fmpSign;
       mRecordIndex = RF_fmRecordIndex;
     }
     meIndividualSize  = uivector(1, RF_eventTypeSize);
@@ -329,7 +329,7 @@ void getCRPerformance (uint     mode,
     for (j = 1; j <= RF_eventTypeSize; j++) {
       eIndividual[j] = uivector(1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
-    updateEventTypeSubsets(responsePtr[RF_statusIndex], mRecordSize, mvSign, mRecordIndex, meIndividualSize, eIndividual);
+    updateEventTypeSubsets(responsePtr[RF_statusIndex], mRecordSize, mpSign, mRecordIndex, meIndividualSize, eIndividual);
   }
   else {
     meIndividualSize  = RF_eIndividualSize;

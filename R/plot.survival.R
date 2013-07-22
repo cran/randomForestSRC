@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.2
+####  Version 1.3
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -81,13 +81,13 @@ plot.survival.rfsrc <- function (x,
     stop("this function only supports right-censored survival settings")
   }
   if (sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) == 2) {
-    rfsrcPred <- TRUE
+    pred.flag <- TRUE
   }
   else {
-    rfsrcPred <- FALSE
+    pred.flag <- FALSE
   }
   if (is.null(x$predicted.oob)) {
-    rfsrcPred <- TRUE
+    pred.flag <- TRUE
   }
   haz.model <- match.arg(haz.model, c("spline", "ggamma", "nonpar"))
   if (!missing(subset) && haz.model == "spline") {
@@ -103,47 +103,47 @@ plot.survival.rfsrc <- function (x,
   event.info <- get.event.info(x)
   if (missing(subset)) {
     subset <- 1:x$n
-    subsetProvided <- FALSE
+    subset.provided <- FALSE
   }
   else {
     if (is.logical(subset)) subset <- which(subset)
     subset <- unique(subset[subset >= 1 & subset <= x$n])
-    show.plots <- subsetProvided <- TRUE
+    show.plots <- subset.provided <- TRUE
     if (length(subset) == 0) {
       stop("'subset' not set properly.")
     }
   }
-  if (!rfsrcPred && !subsetProvided && (x$n < 2 | x$ndead < 1)) {
+  if (!pred.flag && !subset.provided && (x$n < 2 | x$ndead < 1)) {
     stop("sample size or number of deaths is too small for meaningful analysis")
   }
-  if (rfsrcPred) {
-    mort    <- x$predicted[subset]
-    surv.ensb  <- t(x$survival[subset,, drop = FALSE])
+  if (is.null(x$predicted.oob)) {
+    mort <- x$predicted[subset]
+    surv.ensb <- t(x$survival[subset,, drop = FALSE])
     chf.ensb <- x$chf[subset,, drop = FALSE]
-    y.lab   <- "Mortality"
+    y.lab <- "Mortality"
     title.1 <- "Survival"
     title.2 <- "Cumulative Hazard"
     title.3 <- "Hazard"
     title.4 <- "Mortality vs Time"
   }
   else {
-    mort    <- x$predicted.oob[subset]
-    surv.ensb    <- t(x$survival.oob[subset,, drop = FALSE])
+    mort <- x$predicted.oob[subset]
+    surv.ensb <- t(x$survival.oob[subset,, drop = FALSE])
     chf.ensb <- x$chf.oob[subset,, drop = FALSE]
-    y.lab   <- "OOB Mortality"
+    y.lab <- "OOB Mortality"
     title.1 <- "OOB Survival"
     title.2 <- "OOB Cumulative Hazard"
     title.3 <- "OOB Hazard"
     title.4 <- "OOB Mortality vs Time"
   }
-  if (!subsetProvided) {
+  if (!subset.provided) {
     surv.mean.ensb <- apply(surv.ensb, 1, mean, na.rm = TRUE)
   }
-  if (subsetProvided && collapse) {
+  if (subset.provided && collapse) {
     surv.ensb <- apply(surv.ensb, 1, mean, na.rm = TRUE)
     chf.ensb <- rbind(apply(chf.ensb, 2, mean, na.rm = TRUE))
   }
-  if (!rfsrcPred && !subsetProvided) {
+  if (!pred.flag && !subset.provided) {
     km.obj <- matrix(unlist(mclapply(1:length(event.info$time.interest),
           function(j) {
            c(sum(event.info$time >= event.info$time.interest[j], na.rm = TRUE),
@@ -202,7 +202,7 @@ plot.survival.rfsrc <- function (x,
     brier.score <- as.data.frame(cbind(brier.score, apply(brier.obj, 2, mean, na.rm = TRUE)))
     colnames(brier.score) <- c("q25", "q50", "q75", "q100", "all") 
   }
-  if (subsetProvided) {
+  if (subset.provided) {
     sggamma <- function(q, mu = 0, sigma = 1, Q)
       {
         sigma <- exp(sigma)
@@ -310,7 +310,7 @@ plot.survival.rfsrc <- function (x,
   if (show.plots) {
     old.par <- par(no.readonly = TRUE)
     if (plots.one.page) {
-      if (rfsrcPred && !subsetProvided) {
+      if (pred.flag && !subset.provided) {
         if (!is.null(x$yvar)) {
           par(mfrow = c(1,2))
         }
@@ -326,7 +326,7 @@ plot.survival.rfsrc <- function (x,
       par(mfrow=c(1,1))
     }
     par(cex = 1.0)
-    if (!subsetProvided && x$n > 500) {
+    if (!subset.provided && x$n > 500) {
       r.pt <- sample(1:x$n, 500, replace = FALSE)
       matplot(event.info$time.interest,
               surv.ensb[, r.pt],
@@ -345,17 +345,17 @@ plot.survival.rfsrc <- function (x,
               col = 1,
               lty = 3, ...)
     }
-    if (!rfsrcPred && !subsetProvided) {
+    if (!pred.flag && !subset.provided) {
       lines(event.info$time.interest, surv.aalen, lty = 1, col = 3, lwd = 3)
     }
-    if (!subsetProvided) {
+    if (!subset.provided) {
       lines(event.info$time.interest, surv.mean.ensb, lty = 1, col = 2, lwd = 3)
     }
     rug(event.info$time.interest, ticksize=-0.03)
     if (plots.one.page) {
       title(title.1, cex.main = 1.25)
     }
-    if (subsetProvided) {
+    if (subset.provided) {
       matplot(event.info$time.interest,
               t(chf.ensb),
               xlab = "Time",
@@ -373,7 +373,7 @@ plot.survival.rfsrc <- function (x,
         title(title.2, cex.main = 1.25)
       }
     }
-    if (subsetProvided) {
+    if (subset.provided) {
       plot(range(haz.list[[1]]$x, na.rm = TRUE),
            range(unlist(mclapply(haz.list, function(ll) {ll$y})), na.rm = TRUE),
            type = "n",
@@ -387,7 +387,7 @@ plot.survival.rfsrc <- function (x,
         title(title.3, cex.main = 1.25)
       }
     }
-    if (!rfsrcPred && !subsetProvided) {
+    if (!pred.flag && !subset.provided) {
       matplot(event.info$time.interest, brier.score,
               xlab = "Time",
               ylab = "OOB Brier Score",
@@ -403,7 +403,7 @@ plot.survival.rfsrc <- function (x,
       rug(event.info$time.interest,ticksize=0.03)
       if (plots.one.page) title("OOB Brier Score",cex.main = 1.25)
     }
-    if (!subsetProvided && !is.null(x$yvar)) {
+    if (!subset.provided && !is.null(x$yvar)) {
       plot(event.info$time, mort, xlab = "Time", ylab = y.lab, type = "n", ...)
       if (plots.one.page) {
         title(title.4, cex.main = 1.25)
@@ -426,7 +426,7 @@ plot.survival.rfsrc <- function (x,
     }
     par(old.par)
   }
-  if (!rfsrcPred && !subsetProvided) {
+  if (!pred.flag && !subset.provided) {
     Dint <- function(f, range, grid) {
       a <-  range[1]
       b <-  range[2]

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -66,7 +66,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP seedPtr,  
                SEXP opt,  
                SEXP splitRule,  
-               SEXP splitRandomRule,  
+               SEXP splitRandomCount,  
                SEXP randomCovariateCount,  
                SEXP minimumNodeSize,
                SEXP maximumNodeDepth,
@@ -81,6 +81,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP xType,
                SEXP xLevels,
                SEXP xWeight,
+               SEXP splitWeight,
                SEXP xData,
                SEXP timeInterestSize,
                SEXP timeInterest,

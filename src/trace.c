@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -134,6 +134,10 @@ void decreaseMemoryAllocation(size_t amount) {
     changeMemoryAllocation(amount, -1);
 }
 void changeMemoryAllocation(size_t amount, int direction) {
+#ifdef SUPPORT_OPENMP
+#pragma omp critical (RF_change_memory_allocation)
+#endif
+{
   if (direction > 0) {
     RF_memor_minMemoryAllocation += amount;
   }
@@ -143,4 +147,5 @@ void changeMemoryAllocation(size_t amount, int direction) {
   if (RF_memor_minMemoryAllocation > RF_memor_maxMemoryAllocation) {
     RF_memor_maxMemoryAllocation = RF_memor_minMemoryAllocation;
   }
+}
 }

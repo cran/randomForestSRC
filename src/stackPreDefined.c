@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -265,7 +265,6 @@ void stackPreDefinedCommonArrays() {
   RF_bootMembershipFlag = (uint **) vvector(1, RF_forestSize);
   RF_oobMembershipFlag = (uint **) vvector(1, RF_forestSize);
   RF_tNodeList = (Node ***) vvector(1, RF_forestSize);
-  RF_nodeListIndex = (uint **) vvector(1, RF_forestSize);
   if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
     RF_trivialBootMembershipIndex = uivector(1, RF_observationSize);
     for (i = 1; i <= RF_observationSize; i++) {
@@ -288,6 +287,10 @@ void stackPreDefinedCommonArrays() {
     RF_pNodeList = (Node ***) vvector(1, RF_forestSize);
     RF_pLeafCount = uivector(1, RF_forestSize);
   }
+  RF_orderedLeafCount = uivector(1, RF_forestSize);
+  for (i = 1; i <= RF_forestSize; i++) {
+    RF_orderedLeafCount[i] = 0;
+  }
 }
 void unstackPreDefinedCommonArrays() {
   free_vvector(RF_tNodeMembership, 1, RF_forestSize);
@@ -295,7 +298,6 @@ void unstackPreDefinedCommonArrays() {
   free_vvector(RF_bootMembershipFlag, 1, RF_forestSize);
   free_vvector(RF_oobMembershipFlag, 1, RF_forestSize);
   free_vvector(RF_tNodeList, 1, RF_forestSize);
-  free_vvector(RF_nodeListIndex, 1, RF_forestSize);
   if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
     free_uivector(RF_trivialBootMembershipIndex, 1, RF_observationSize);
   }
@@ -312,6 +314,7 @@ void unstackPreDefinedCommonArrays() {
     free_vvector(RF_pNodeList, 1, RF_forestSize);
     free_uivector(RF_pLeafCount, 1, RF_forestSize);
   }
+  free_uivector(RF_orderedLeafCount, 1, RF_forestSize);
 }
 void stackPreDefinedGrowthArrays() {
   uint i;

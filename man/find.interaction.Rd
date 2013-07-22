@@ -8,7 +8,8 @@
 \usage{\method{find.interaction}{rfsrc}(object, xvar.names, cause,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble"),
   method = c("maxsubtree", "vimp"), sorted = TRUE, nvar, nrep = 1, subset, 
-  seed = NULL, do.trace = FALSE, ...)
+  na.action = c("na.omit", "na.impute"), seed = NULL, do.trace = FALSE,
+  verbose = TRUE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or
@@ -31,11 +32,14 @@
     \item{nrep}{Number of Monte Carlo replicates when \option{method="vimp"}.}
     \item{subset}{Vector indicating which rows of the x-variable matrix
       from the \code{object} are to be used. Uses all rows if not specified.}
+    \item{na.action}{Action to be taken if the data contains \code{NA}
+      values.  Applies only when \option{method="vimp"}.}
     \item{seed}{Seed for random number generator.  Must be a negative
       integer.}
     \item{do.trace}{Logical. Should trace output be enabled? Default is
       \code{FALSE}. Integer values can also be passed.  A positive value
-      causes output to be printed each \code{do.trace} iteration.} 
+      causes output to be printed each \code{do.trace} iteration.}
+    \item{verbose}{Set to \code{TRUE} for verbose output.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{

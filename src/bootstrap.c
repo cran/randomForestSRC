@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.2
+////  Version 1.3
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -108,15 +108,15 @@ char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint rep
   switch (mode) {
   case RF_PRED:
     if (RF_mRecordSize > 0) {
-      stackMVSign(nodePtr, RF_mvSignSize);
-      mvNSptr = nodePtr -> mvSign;
+      stackMPSign(nodePtr, RF_mpIndexSize);
+      mvNSptr = nodePtr -> mpSign;
     }
     else {
       mvNSptr = NULL;
     }
     if (RF_fmRecordSize > 0) {
-      stackFMVSign(nodePtr, RF_fmvSignSize);
-      fmvNSptr = nodePtr -> fmvSign;
+      stackFMPSign(nodePtr, RF_fmpIndexSize);
+      fmvNSptr = nodePtr -> fmpSign;
     }
     else {
       fmvNSptr = NULL;
@@ -124,8 +124,8 @@ char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint rep
     break;
   default:
     if (RF_mRecordSize > 0) {
-      stackMVSign(nodePtr, RF_mvSignSize);
-      mvNSptr = nodePtr -> mvSign;
+      stackMPSign(nodePtr, RF_mpIndexSize);
+      mvNSptr = nodePtr -> mpSign;
     }
     else {
       mvNSptr = NULL;
@@ -134,38 +134,38 @@ char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint rep
     break;
   }  
   if (mvNSptr != NULL) {
-    int **mvBootstrapSign = imatrix(1, RF_mvSignSize, 1, repMembrSize);
-    for (p = 1; p <= RF_mvSignSize; p++) {
+    int **mvBootstrapSign = imatrix(1, RF_mpIndexSize, 1, repMembrSize);
+    for (p = 1; p <= RF_mpIndexSize; p++) {
       for (i = 1; i <= repMembrSize; i++) {
         mvBootstrapSign[p][i] = 0;
       }
     }
-    for (p = 1; p <= RF_mvSignSize; p++) {
+    for (p = 1; p <= RF_mpIndexSize; p++) {
       mvNSptr[p] = 0;
     }
     for (i=1; i <= repMembrSize; i++) {
       m = bmIndex[i];
       if (RF_mRecordMap[m] != 0) {
-        for (p = 1; p <= RF_mvSignSize; p++) {
-          if (RF_mvIndex[p] < 0) {
-            mvBootstrapSign[p][i] = RF_mvSign[(uint) abs(RF_mvIndex[p])][RF_mRecordMap[m]];
+        for (p = 1; p <= RF_mpIndexSize; p++) {
+          if (RF_mpIndex[p] < 0) {
+            mvBootstrapSign[p][i] = RF_mpSign[(uint) abs(RF_mpIndex[p])][RF_mRecordMap[m]];
           }
           else {
-            mvBootstrapSign[p][i] = RF_mvSign[RF_rSize + (uint) RF_mvIndex[p]][RF_mRecordMap[m]];
+            mvBootstrapSign[p][i] = RF_mpSign[RF_rSize + (uint) RF_mpIndex[p]][RF_mRecordMap[m]];
           }
         }
       }
       else {
-        for (p = 1; p <= RF_mvSignSize; p++) {
+        for (p = 1; p <= RF_mpIndexSize; p++) {
           mvBootstrapSign[p][i] = 0;
         }
       }
-      for (p = 1; p <= RF_mvSignSize; p++) {
+      for (p = 1; p <= RF_mpIndexSize; p++) {
         mvNSptr[p] = mvNSptr[p] + mvBootstrapSign[p][i];
       }
     }
     m = 0;
-    for (p = 1; p <= RF_mvSignSize; p++) {
+    for (p = 1; p <= RF_mpIndexSize; p++) {
       if (mvNSptr[p] > 0) {
         if (mvNSptr[p] == repMembrSize) {
           mvNSptr[p] = -1;
@@ -174,38 +174,38 @@ char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint rep
           mvNSptr[p] = 1;
         }
       }
-      if(RF_mvIndex[p] < 0) {
+      if(RF_mpIndex[p] < 0) {
         if (mvNSptr[p] == -1) result = FALSE;
       }
       else {
         if (mvNSptr[p] == -1) m ++;
       }
     }  
-    if (m == RF_mvSignSize) {
+    if (m == RF_mpIndexSize) {
       result = FALSE;
     }
-    free_imatrix(mvBootstrapSign, 1, RF_mvSignSize, 1, repMembrSize);
+    free_imatrix(mvBootstrapSign, 1, RF_mpIndexSize, 1, repMembrSize);
   }
   if (fmvNSptr != NULL) {
-    for (p = 1; p <= RF_fmvSignSize; p++) {
+    for (p = 1; p <= RF_fmpIndexSize; p++) {
       fmvNSptr[p] = 1;
     }
     if (RF_mRecordSize > 0) {
       p = q = 1;
-      while ((p <= RF_mvSignSize) && (q <= RF_fmvSignSize)) {
-        if (RF_mvIndex[p] == RF_fmvIndex[q]) {
+      while ((p <= RF_mpIndexSize) && (q <= RF_fmpIndexSize)) {
+        if (RF_mpIndex[p] == RF_fmpIndex[q]) {
           if (mvNSptr[p] == -1) {
             fmvNSptr[q] = -1;
           }
           p++;
           q++;
         }
-        else if (RF_fmvIndex[q] < 0) {
-          if (RF_mvIndex[p] > 0) {
+        else if (RF_fmpIndex[q] < 0) {
+          if (RF_mpIndex[p] > 0) {
             q++;
           }
           else {
-            if (abs(RF_fmvIndex[q]) < abs(RF_mvIndex[p])) {
+            if (abs(RF_fmpIndex[q]) < abs(RF_mpIndex[p])) {
               q++;
             }
             else {
@@ -214,7 +214,7 @@ char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint rep
           }
         }
         else {
-          if (RF_fmvIndex[q] < RF_mvIndex[p]) {
+          if (RF_fmpIndex[q] < RF_mpIndex[p]) {
             q++;
           }
           else {
