@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,7 +64,7 @@
 #define RSFIMPUTE_H
 #include "node.h"
 char imputeNode (uint     type,
-                 char     lmvFlag,
+                 char     termFlag,
                  char     chainFlag,
                  uint     treeID, 
                  Node    *nodePtr,
@@ -84,12 +84,9 @@ char restoreNodeMembership(uint  mode,
                            uint  ngAllMembrSize,
                            uint *bootMembrIndxIter);
 void imputeUpdateShadow (uint      mode, 
-                         char      selectionFlag,
                          double  **shadowResponse, 
                          double  **shadowPredictor);
 void imputeUpdateSummary (uint     mode, 
-                          double **responsePtr, 
-                          double **predictorPtr, 
                           uint     treeID);
 void imputeSummary(uint      mode,
                    char      selectionFlag);
@@ -100,12 +97,11 @@ void imputeCommon(uint      mode,
                   uint      treeID,
                   char      selectionFlag,
                   char      predictorFlag);
-void imputeCommonNew(uint      mode,
-                  uint      treeID,
-                  char      selectionFlag,
-                  char      predictorFlag);
 void imputeMultipleTime (char selectionFlag);
-double getMaximalValue(double *value, uint size, uint treeID);
+double getNearestMasterTime (double   meanvalue,
+                             char     chainFlag,
+                             uint     treeID);
+double getMaximalValue(double *value, uint size, char chainFlag, uint treeID);
 double getMedianValue(double *value, uint size);
 double getMeanValue(double *value, uint size);
 double getSampleValue(double *value, uint size, char chainFlag, uint treeID);
@@ -114,7 +110,6 @@ uint getRecordMap(uint     *map,
                   double  **resp, 
                   double  **data);
 void updateTimeIndexArray(uint    treeID,
-                          Node   *parent, 
                           uint   *allMemberIndx,
                           uint    allMembrSize,
                           double *time, 
@@ -128,8 +123,6 @@ void updateEventTypeSubsets(double *summaryStatus,
                             uint   *meIndividualSize,
                             uint  **eIndividual);
 void stackShadow (uint mode, uint treeID);
-void unstackShadow (uint mode, uint treeID);
-void imputeUpdateSummaryNew (uint     mode, 
-                             uint     treeID);
+void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag);
 char xferMissingness(uint type, Node *source, Terminal *destination);
 #endif

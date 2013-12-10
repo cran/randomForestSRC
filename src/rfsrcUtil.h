@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,6 +63,7 @@
 #ifndef RSFUTIL_H
 #define RSFUTIL_H
 #include "node.h"
+void updateTerminalNodeOutcomes (uint b);
 void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
                                  uint      b);

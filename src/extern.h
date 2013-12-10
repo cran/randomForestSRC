@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -80,7 +80,7 @@ extern double   *RF_proximity_;
 extern uint      RF_opt;
 extern uint      RF_splitRule;
 extern uint      RF_splitRandomCount;
-extern uint      RF_imputeSize;
+extern uint      RF_nImpute;
 extern uint      RF_forestSize;
 extern uint      RF_minimumNodeSize;
 extern int       RF_maximumNodeDepth;
@@ -104,6 +104,7 @@ extern int      *RF_xLevels;
 extern SEXP      RF_sexp_rType;
 extern char    **RF_rType;
 extern int      *RF_rLevels;
+extern uint      RF_randomResponseCount;
 extern uint      RF_fobservationSize;
 extern uint      RF_frSize;
 extern double   *RF_frData;
@@ -177,8 +178,6 @@ extern int      *RF_fmpIndex;
 extern double   **RF_importancePtr;
 extern double **RF_sImputeResponsePtr;
 extern double **RF_sImputePredictorPtr;
-extern double **RF_sOOBImputeResponsePtr;
-extern double **RF_sOOBImputePredictorPtr;
 extern uint  **RF_tNodeMembershipIndexPtr;
 extern uint  **RF_bootstrapMembershipPtr;
 extern uint  **RF_pNodeMembershipIndexPtr;
@@ -225,6 +224,7 @@ extern uint    **RF_oobMembershipFlag;
 extern Node   ***RF_tNodeList;
 extern Node   ***RF_pNodeList;
 extern uint     *RF_orderedLeafCount;
+extern Node  ****RF_vimpMembership;
 extern double  **RF_status;
 extern double  **RF_time;
 extern double ***RF_response;

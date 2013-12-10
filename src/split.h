@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -73,7 +73,10 @@ char getBestSplit(uint    treeID,
                   double *splitValueMaxCont,
                   uint   *splitValueMaxFactSize,
                   uint  **splitValueMaxFactPtr,
-                  double *splitStatistic);
+                  double *splitStatistic,
+                  char  **splitIndicator,
+                  char  **omitMembrFlag,
+                  char    multImpFlag);
 char randomSplit(uint    treeID, 
                  Node   *parent, 
                  uint   *repMembrIndx,
@@ -84,7 +87,10 @@ char randomSplit(uint    treeID,
                  double *splitValueMaxCont,
                  uint   *splitValueMaxFactSize,
                  uint  **splitValueMaxFactPtr,
-                 double *splitStatistic);
+                 double *splitStatistic,
+                 char  **splitIndicator,
+                 char  **omitMembrFlag,
+                 char    multImpFlag);
 char randomNonSurvivalSplit(uint    treeID, 
                             Node   *parent, 
                             uint   *repMembrIndx,
@@ -95,5 +101,8 @@ char randomNonSurvivalSplit(uint    treeID,
                             double *splitValueMaxCont,
                             uint   *splitValueMaxFactSize,
                             uint  **splitValueMaxFactPtr,
-                            double *splitStatistic);
+                            double *splitStatistic,
+                            char  **splitIndicator,
+                            char  **omitMembrFlag,
+                            char    multImpFlag);
 #endif

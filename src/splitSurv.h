@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -73,7 +73,10 @@ char randomSurvivalSplit(uint    treeID,
                          double *splitValueMaxCont,
                          uint   *splitValueMaxFactSize,
                          uint  **splitValueMaxFactPtr,
-                         double *splitStatistic);
+                         double *splitStatistic,
+                         char  **splitIndicator,
+                         char  **omitMembrFlag,
+                         char    multImpFlag);
 char logRank(uint    treeID,
              Node   *parent, 
              uint   *repMembrIndx,
@@ -84,7 +87,10 @@ char logRank(uint    treeID,
              double *splitValueMaxCont,
              uint   *splitValueMaxFactSize,
              uint  **splitValueMaxFactPtr,
-             double *splitStatistic);
+             double *splitStatistic,
+             char  **splitIndicator,
+             char  **omitMembrFlag,
+             char    multImpFlag);
 char logRankScore(uint    treeID,
                   Node   *parent, 
                   uint   *repMembrIndx,
@@ -95,7 +101,10 @@ char logRankScore(uint    treeID,
                   double *splitValueMaxCont,
                   uint   *splitValueMaxFactSize,
                   uint  **splitValueMaxFactPtr,
-                  double *splitStatistic);
+                  double *splitStatistic,
+                  char  **splitIndicator,
+                  char  **omitMembrFlag,
+                  char    multImpFlag);
 char logRankLauCR (uint    treeID,
                    Node   *parent,
                    uint   *repMembrIndx,
@@ -106,7 +115,10 @@ char logRankLauCR (uint    treeID,
                    double *splitValueMaxCont,
                    uint   *splitValueMaxFactSize,
                    uint  **splitValueMaxFactPtr,
-                   double *splitStatistic);
+                   double *splitStatistic,
+                   char  **splitIndicator,
+                   char  **omitMembrFlag,
+                   char    multImpFlag);
 char logRankCR (uint    treeID,
                 Node   *parent,
                 uint   *repMembrIndx,
@@ -117,5 +129,8 @@ char logRankCR (uint    treeID,
                 double *splitValueMaxCont,
                 uint   *splitValueMaxFactSize,
                 uint  **splitValueMaxFactPtr,
-                double *splitStatistic);
+                double *splitStatistic,
+                char  **splitIndicator,
+                char  **omitMembrFlag,
+                char    multImpFlag);
 #endif

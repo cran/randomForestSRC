@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -78,7 +78,10 @@ char classificationSplit (uint    treeID,
                           double *splitValueMaxCont, 
                           uint   *splitValueMaxFactSize, 
                           uint  **splitValueMaxFactPtr,
-                          double *splitStatistic) {
+                          double *splitStatistic,
+                          char  **splitIndicator,
+                          char  **omitMembrFlag,
+                          char    multImpFlag) {
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
@@ -176,19 +179,19 @@ char classificationSplit (uint    treeID,
           priorMembrIter = 0;
           leftSize = 0;
         }
-        virtuallySplitNodeNew(treeID,
-                              factorFlag,
-                              mwcpSizeAbsolute,
-                              randomCovariateIndex[i],
-                              repMembrIndx,
-                              repMembrIndxx[i],
-                              repMembrSize,
-                              permissibleSplitPtr,
-                              j,
-                              localSplitIndicator,
-                              & leftSize,
-                              priorMembrIter,
-                              & currentMembrIter);
+        virtuallySplitNode(treeID,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           randomCovariateIndex[i],
+                           repMembrIndx,
+                           repMembrIndxx[i],
+                           repMembrSize,
+                           permissibleSplitPtr,
+                           j,
+                           localSplitIndicator,
+                           & leftSize,
+                           priorMembrIter,
+                           & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
           if (factorFlag == TRUE) {
@@ -220,17 +223,21 @@ char classificationSplit (uint    treeID,
           sumLeftSqr = sumLeft / leftSize;
           sumRghtSqr  = sumRght / rghtSize;
           delta = (sumLeftSqr + sumRghtSqr) / repMembrSize;
-          updateMaximumSplit(delta,
+          updateMaximumSplit(treeID,
+                             delta,
                              randomCovariateIndex[i],
                              j,
                              factorFlag,
                              mwcpSizeAbsolute,
+                             repMembrSize,
+                             localSplitIndicator,
                              & deltaMax,
                              splitParameterMax,
                              splitValueMaxCont,
                              splitValueMaxFactSize,
                              splitValueMaxFactPtr,
-                             permissibleSplitPtr);
+                             permissibleSplitPtr,
+                             splitIndicator);
         }  
         if (factorFlag == FALSE) {
           if (rghtSize  < RF_minimumNodeSize) {
@@ -279,7 +286,10 @@ char classificationUwghtSplit (uint    treeID,
                                double *splitValueMaxCont, 
                                uint   *splitValueMaxFactSize, 
                                uint  **splitValueMaxFactPtr,
-                               double *splitStatistic) {
+                               double *splitStatistic,
+                               char  **splitIndicator,
+                               char  **omitMembrFlag,
+                               char    multImpFlag) {
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
@@ -377,19 +387,19 @@ char classificationUwghtSplit (uint    treeID,
           priorMembrIter = 0;
           leftSize = 0;
         }
-        virtuallySplitNodeNew(treeID,
-                              factorFlag,
-                              mwcpSizeAbsolute,
-                              randomCovariateIndex[i],
-                              repMembrIndx,
-                              repMembrIndxx[i],
-                              repMembrSize,
-                              permissibleSplitPtr,
-                              j,
-                              localSplitIndicator,
-                              & leftSize,
-                              priorMembrIter,
-                              & currentMembrIter);
+        virtuallySplitNode(treeID,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           randomCovariateIndex[i],
+                           repMembrIndx,
+                           repMembrIndxx[i],
+                           repMembrSize,
+                           permissibleSplitPtr,
+                           j,
+                           localSplitIndicator,
+                           & leftSize,
+                           priorMembrIter,
+                           & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
           if (factorFlag == TRUE) {
@@ -419,17 +429,21 @@ char classificationUwghtSplit (uint    treeID,
             sumRght += pow((double) (rghtClassProp[p]) / (double) rghtSize, 2.0);
           }
           delta = sumLeft + sumRght;
-          updateMaximumSplit(delta,
+          updateMaximumSplit(treeID,
+                             delta,
                              randomCovariateIndex[i],
                              j,
                              factorFlag,
                              mwcpSizeAbsolute,
+                             repMembrSize,
+                             localSplitIndicator,
                              & deltaMax,
                              splitParameterMax,
                              splitValueMaxCont,
                              splitValueMaxFactSize,
                              splitValueMaxFactPtr,
-                             permissibleSplitPtr);
+                             permissibleSplitPtr,
+                             splitIndicator);
         }  
         if (factorFlag == FALSE) {
           if (rghtSize  < RF_minimumNodeSize) {
@@ -478,7 +492,10 @@ char classificationHwghtSplit (uint    treeID,
                                double *splitValueMaxCont, 
                                uint   *splitValueMaxFactSize, 
                                uint  **splitValueMaxFactPtr,
-                               double *splitStatistic) {
+                               double *splitStatistic,
+                               char  **splitIndicator,
+                               char  **omitMembrFlag,
+                               char    multImpFlag) {
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
@@ -576,19 +593,19 @@ char classificationHwghtSplit (uint    treeID,
           priorMembrIter = 0;
           leftSize = 0;
         }
-        virtuallySplitNodeNew(treeID,
-                              factorFlag,
-                              mwcpSizeAbsolute,
-                              randomCovariateIndex[i],
-                              repMembrIndx,
-                              repMembrIndxx[i],
-                              repMembrSize,
-                              permissibleSplitPtr,
-                              j,
-                              localSplitIndicator,
-                              & leftSize,
-                              priorMembrIter,
-                              & currentMembrIter);
+        virtuallySplitNode(treeID,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           randomCovariateIndex[i],
+                           repMembrIndx,
+                           repMembrIndxx[i],
+                           repMembrSize,
+                           permissibleSplitPtr,
+                           j,
+                           localSplitIndicator,
+                           & leftSize,
+                           priorMembrIter,
+                           & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
           if (factorFlag == TRUE) {
@@ -622,17 +639,21 @@ char classificationHwghtSplit (uint    treeID,
             (sumRght / (double) (upower(repMembrSize, 2))) -
             pow((double) leftSize / repMembrSize, 2.0) -
             pow((double) rghtSize / repMembrSize, 2.0) + 2.0;
-          updateMaximumSplit(delta,
+          updateMaximumSplit(treeID,
+                             delta,
                              randomCovariateIndex[i],
                              j,
                              factorFlag,
                              mwcpSizeAbsolute,
+                             repMembrSize,
+                             localSplitIndicator,
                              & deltaMax,
                              splitParameterMax,
                              splitValueMaxCont,
                              splitValueMaxFactSize,
                              splitValueMaxFactPtr,
-                             permissibleSplitPtr);
+                             permissibleSplitPtr,
+                             splitIndicator);
         }  
         if (factorFlag == FALSE) {
           if (rghtSize  < RF_minimumNodeSize) {
@@ -681,7 +702,10 @@ char mvClassificationSplit (uint    treeID,
                             double *splitValueMaxCont, 
                             uint   *splitValueMaxFactSize, 
                             uint  **splitValueMaxFactPtr,
-                            double *splitStatistic) {
+                            double *splitStatistic,
+                            char  **splitIndicator,
+                            char  **omitMembrFlag,
+                            char    multImpFlag) {
   uint    *randomCovariateIndex;
   double **permissibleSplit;
   uint    *permissibleSplitSize;
@@ -736,9 +760,6 @@ char mvClassificationSplit (uint    treeID,
   purity   = cvector(1, RF_rSize); 
   mean     = dvector(1, RF_rSize);
   variance = dvector(1, RF_rSize);
-  parentClassProp = (uint**) vvector(1, RF_rSize);
-  leftClassProp   = (uint**) vvector(1, RF_rSize);
-  rghtClassProp   = (uint**) vvector(1, RF_rSize);
   if (result) {
     puritySummary = FALSE;
     for (r = 1; r <= RF_rSize; r++) {
@@ -757,6 +778,9 @@ char mvClassificationSplit (uint    treeID,
                                                                & permissibleSplit, 
                                                                & permissibleSplitSize,
                                                                & repMembrIndxx);
+    parentClassProp = (uint**) vvector(1, RF_rSize);
+    leftClassProp   = (uint**) vvector(1, RF_rSize);
+    rghtClassProp   = (uint**) vvector(1, RF_rSize);
     for (r = 1; r <= RF_rSize; r++) {
       parentClassProp[r] = uivector(1, RF_classLevelSize[r]);
       leftClassProp[r]   = uivector(1, RF_classLevelSize[r]);
@@ -798,19 +822,19 @@ char mvClassificationSplit (uint    treeID,
           priorMembrIter = 0;
           leftSize = 0;
         }
-        virtuallySplitNodeNew(treeID,
-                              factorFlag,
-                              mwcpSizeAbsolute,
-                              randomCovariateIndex[i],
-                              repMembrIndx,
-                              repMembrIndxx[i],
-                              repMembrSize,
-                              permissibleSplitPtr,
-                              j,
-                              localSplitIndicator,
-                              & leftSize,
-                              priorMembrIter,
-                              & currentMembrIter);
+        virtuallySplitNode(treeID,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           randomCovariateIndex[i],
+                           repMembrIndx,
+                           repMembrIndxx[i],
+                           repMembrSize,
+                           permissibleSplitPtr,
+                           j,
+                           localSplitIndicator,
+                           & leftSize,
+                           priorMembrIter,
+                           & currentMembrIter);
         rghtSize = repMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
           delta = 0.0;
@@ -841,7 +865,7 @@ char mvClassificationSplit (uint    treeID,
                 sumRght += (double) upower(rghtClassProp[r][p], 2);
               }
               sumLeft = sumLeft / leftSize;
-              sumRght = sumRght / (rghtSize);
+              sumRght = sumRght / rghtSize;
               delta += sumLeft + sumRght; 
             }  
           }  
@@ -849,17 +873,21 @@ char mvClassificationSplit (uint    treeID,
             rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
             leftSizeIter = currentMembrIter - 1; 
           }
-          updateMaximumSplit(delta,
+          updateMaximumSplit(treeID,
+                             delta,
                              randomCovariateIndex[i],
                              j,
                              factorFlag,
                              mwcpSizeAbsolute,
+                             repMembrSize,
+                             localSplitIndicator,
                              & deltaMax,
                              splitParameterMax,
                              splitValueMaxCont,
                              splitValueMaxFactSize,
                              splitValueMaxFactPtr,
-                             permissibleSplitPtr);
+                             permissibleSplitPtr,
+                             splitIndicator);
         }  
         if (factorFlag == FALSE) {
           if (rghtSize  < RF_minimumNodeSize) {
@@ -891,13 +919,13 @@ char mvClassificationSplit (uint    treeID,
                             permissibleSplitSize,
                             repMembrIndxx);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
+    free_vvector(parentClassProp, 1, RF_rSize);
+    free_vvector(leftClassProp,   1, RF_rSize);
+    free_vvector(rghtClassProp,   1, RF_rSize);
   }  
   free_cvector(purity,   1, RF_rSize); 
   free_dvector(mean,     1, RF_rSize);
   free_dvector(variance, 1, RF_rSize);
-  free_vvector(parentClassProp, 1, RF_rSize);
-  free_vvector(leftClassProp,   1, RF_rSize);
-  free_vvector(rghtClassProp,   1, RF_rSize);
   result = summarizeSplitResult(*splitParameterMax, 
                                 *splitValueMaxCont,
                                 *splitValueMaxFactSize,

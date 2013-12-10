@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -66,7 +66,7 @@
 #include          "nrutil.h"
 #include         "nodeOps.h"
 #include  "classification.h"
-void getMultiClassProb (uint mode, uint treeID) {
+void getMultiClassProb (uint treeID) {
   Node *parent;
   double maxValue, maxClass;
   uint leaf, i, j, k;
@@ -89,7 +89,7 @@ void getMultiClassProb (uint mode, uint treeID) {
     for (i=1; i <= RF_observationSize; i++) {
       if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
         for (j=1; j <= RF_rFactorCount; j++) {
-          (parent -> multiClassProb)[j][(uint) RF_response[treeID][j][membershipIndex[i]]] ++;
+          (parent -> multiClassProb)[j][(uint) RF_response[treeID][RF_rFactorIndex[j]][membershipIndex[i]]] ++;
         }
         parent -> membrCount ++; 
       }
@@ -97,9 +97,9 @@ void getMultiClassProb (uint mode, uint treeID) {
     if ((parent -> membrCount) > 0) {
       maxValue = 0;
       maxClass = 0;
-      for (k=1; k <= RF_rFactorSize[1]; k++) {
-        if (maxValue < (parent -> multiClassProb[1][k])) {
-          maxValue = parent -> multiClassProb[1][k];
+      for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
+        if (maxValue < (parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k])) {
+          maxValue = parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k];
           maxClass = (double) k;
         }
       }
@@ -187,8 +187,8 @@ void updateEnsembleMultiClass(uint     mode,
         }
       }
       if (selectionFlag) {
-        for (k=1; k <= RF_rFactorSize[1]; k++) {
-          ensemblePtr[1][k][i] += (double) (parent -> multiClassProb)[1][k] / (double) (parent -> membrCount);
+        for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
+          ensemblePtr[1][k][i] += (double) (parent -> multiClassProb)[RF_rFactorMap[RF_rTarget]][k] / (double) (parent -> membrCount);
         }
         ensembleDenPtr[i] ++;
       }
@@ -196,7 +196,7 @@ void updateEnsembleMultiClass(uint     mode,
         if (ensembleDenPtr[i] != 0) {
           maxValue = 0;
           maxClass = 0;
-          for (k=1; k <= RF_rFactorSize[1]; k++) {
+          for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
             if (maxValue < ensemblePtr[1][k][i]) {
               maxValue = ensemblePtr[1][k][i];
               maxClass = (double) k;
@@ -240,7 +240,7 @@ double getBrierScore(uint     obsSize,
       cumDenomCount += 1;
     }
   }
-  for (against = 1; against < RF_rFactorSize[1]; against++) {
+  for (against = 1; against < RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; against++) {
     for (k = 1; k <= obsSize; k ++) {
       if ((uint) responsePtr[k] == against) {
         oaaResponse[k] = 1;
@@ -267,7 +267,7 @@ double getBrierScore(uint     obsSize,
     result = NA_REAL;
   }
   else {
-    result = result / RF_rFactorSize[1];
+    result = result / RF_rFactorSize[RF_rFactorMap[RF_rTarget]];
   }
   free_uivector(oaaResponse, 1, obsSize);
   return result;
@@ -281,8 +281,8 @@ void getConditionalClassificationIndex(uint    size,
   uint cumDenomCount;
   uint *condClassificationCount;
   cumDenomCount = 0;
-  condClassificationCount = uivector(1, RF_rFactorSize[1]);
-  for (j=1; j <= RF_rFactorSize[1]; j++) {
+  condClassificationCount = uivector(1, RF_rFactorSize[RF_rFactorMap[RF_rTarget]]);
+  for (j=1; j <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; j++) {
     condClassificationCount[j] = 0;
     condPerformance[j] = 0;
   }
@@ -296,12 +296,12 @@ void getConditionalClassificationIndex(uint    size,
     }  
   }  
   if (cumDenomCount == 0) {
-    for (j=1; j <= RF_rFactorSize[1]; j++) {
+    for (j=1; j <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; j++) {
         condPerformance[j] = NA_REAL;
     }
   }
   else {
-    for (j=1; j <= RF_rFactorSize[1]; j++) {
+    for (j=1; j <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; j++) {
       if (condClassificationCount[j] != 0) {
         condPerformance[j] = 1.0 - condPerformance[j] / (double) condClassificationCount[j];
       }
@@ -310,7 +310,7 @@ void getConditionalClassificationIndex(uint    size,
       }
     }
   }
-  free_uivector(condClassificationCount, 1, RF_rFactorSize[1]);
+  free_uivector(condClassificationCount, 1, RF_rFactorSize[RF_rFactorMap[RF_rTarget]]);
   return;
 }
 double getClassificationIndex(uint    size, 

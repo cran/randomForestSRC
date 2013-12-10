@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,7 +65,7 @@
 #include           "trace.h"
 #include          "nrutil.h"
 #include  "regression.h"
-void getMeanResponse(uint mode, uint treeID) {
+void getMeanResponse(uint treeID) {
   Node *parent;
   uint leaf, i;
   uint count;
@@ -78,7 +78,7 @@ void getMeanResponse(uint mode, uint treeID) {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
   for (leaf=1; leaf <= RF_tLeafCount[treeID]; leaf++) {
-    sumResponse = 0;
+    sumResponse = 0.0;
     count = 0;
     parent = RF_tNodeList[treeID][leaf];
     for (i=1; i <= RF_observationSize; i++) {
@@ -219,6 +219,7 @@ double getMeanSquareError(uint    size,
 }
 char getVariance(uint repSize, uint *repIndx, double *targetResponse, double *mean, double *variance) {
   uint i;
+  uint denom;
   double meanResult, varResult;
   char result;
   if (repSize == 0) {
@@ -227,22 +228,39 @@ char getVariance(uint repSize, uint *repIndx, double *targetResponse, double *me
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     Rprintf("\nRF-SRC:  The application will now exit.\n");
   }
+  denom      = 0;
   meanResult = 0.0;
   for (i=1; i <= repSize; i++) {
+    if(!ISNA(targetResponse[repIndx[i]])) {
+      denom ++;
       meanResult += targetResponse[repIndx[i]];
+    }
   }
-  meanResult = meanResult / (double) repSize;
+  if (denom > 0) {
+    meanResult = meanResult / (double) denom;
+  }
+  else {
+    meanResult = NA_REAL;
+  }
   if (mean != NULL) {
     *mean = meanResult;
   }
   varResult = 0.0;
-  for (i=1; i <= repSize; i++) {
-    varResult += pow(meanResult - targetResponse[repIndx[i]], 2.0);
+  if(!ISNA(meanResult)) {
+    for (i=1; i <= repSize; i++) {
+      if(!ISNA(targetResponse[repIndx[i]])) {
+        varResult += pow(meanResult - targetResponse[repIndx[i]], 2.0);
+      }
+    }
+    varResult = varResult / (double) denom;
+    result = ((varResult <= EPSILON) ? FALSE : TRUE);
   }
-  varResult = varResult / (double) repSize;
+  else {
+    varResult = NA_REAL;
+    result = FALSE;
+  }
   if (variance != NULL) {
     *variance = varResult;
   }
-  result = ((varResult <= EPSILON) ? FALSE : TRUE);
   return(result);
 }

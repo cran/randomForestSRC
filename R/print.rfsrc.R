@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -149,6 +149,9 @@ print.rfsrc <- function(x, ...) {
     cat("       Average no. of terminal nodes: ", mean(x$leaf.count),     "\n", sep="")
     cat("No. of variables tried at each split: ", x$mtry,                 "\n", sep="")
     cat("              Total no. of variables: ", length(x$xvar.names),   "\n", sep="")
+    if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") { 
+      cat("              Total no. of responses: ", length(x$yvar.names),   "\n", sep="")
+    }
     cat("                            Analysis: ", family.pretty(x$family),"\n", sep="")
     cat("                              Family: ", x$family,              "\n", sep="")
     if (x$nsplit > 0 & x$splitrule != "random") {
@@ -193,6 +196,9 @@ print.rfsrc <- function(x, ...) {
     cat("                Number of grow trees: ", x$ntree,             "\n",sep="")
     cat("  Average no. of grow terminal nodes: ", mean(x$leaf.count),  "\n", sep="")
     cat("         Total no. of grow variables: ", length(x$xvar.names), "\n", sep="")  
+    if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") { 
+      cat("         Total no. of grow responses: ", length(x$yvar.names),   "\n", sep="")
+    }
     cat("                            Analysis: ", family.pretty(x$family),"\n", sep="")
     cat("                              Family: ", x$family,              "\n", sep="")
     if (!is.null(err.rate)) {

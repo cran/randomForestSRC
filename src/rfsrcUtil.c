@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -83,6 +83,39 @@ void getVariablesUsed(uint treeID, Node *parent, uint *varUsedVector) {
   }
   return;
 }
+void updateTerminalNodeOutcomes (uint b) {
+  if (RF_tLeafCount[b] > 0) {
+    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+      getAtRiskAndEventCounts(b);
+      getLocalRatio(b);
+      getLocalSurvival(b);
+      if (!(RF_opt & OPT_COMP_RISK)) {
+        getLocalNelsonAalen(b);
+      }
+      else {
+        getLocalCSH(b);
+        getLocalCIF(b);
+      }
+      getSurvival(b);
+      if (!(RF_opt & OPT_COMP_RISK)) {
+        getNelsonAalen(b);
+      }
+      else {
+        getCSH(b);
+        getCIF(b);
+      }
+      getMortality(b);
+    }
+    else {
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+        getMultiClassProb(b);
+      }
+      else {
+        getMeanResponse(b);
+      }
+    }
+  }  
+}
 void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
                                  uint      b) {
@@ -117,25 +150,6 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       denominatorCopy = uivector(1, obsSize);
     }
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      getAtRiskAndEventCounts(b);
-      getLocalRatio(b);
-      getLocalSurvival(b);
-      if (!(RF_opt & OPT_COMP_RISK)) {
-        getLocalNelsonAalen(b);
-      }
-      else {
-        getLocalCSH(b);
-        getLocalCIF(b);
-      }
-      getSurvival(b);
-      if (!(RF_opt & OPT_COMP_RISK)) {
-        getNelsonAalen(b);
-      }
-      else {
-        getCSH(b);
-        getCIF(b);
-      }
-      getMortality(b);
       if (RF_opt & OPT_PERF) {
         if (RF_opt & OPT_COMP_RISK) {
           conditionalOutcome = dmatrix(1, RF_eventTypeSize, 1, obsSize);
@@ -143,17 +157,15 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       }
     }
     else {
-      if (RF_rFactorCount > 0) {
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
         if (RF_opt & OPT_PERF_CALB) {
-          conditionalOutcome = dmatrix(1, RF_rFactorSize[1], 1, obsSize);
+          conditionalOutcome = dmatrix(1, RF_rFactorSize[RF_rFactorMap[RF_rTarget]], 1, obsSize);
         }
-        getMultiClassProb(mode, b);
       }
       else {
-        getMeanResponse(mode, b);
       }
     }
-  }  
+  }
 #ifdef SUPPORT_OPENMP
 #pragma omp critical (_update_ensemble_true)
 #endif
@@ -185,7 +197,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
         }  
       }  
       else {
-        if (RF_rFactorCount > 0) {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
           updateEnsembleMultiClass(mode, b, outcome);
           if (RF_opt & OPT_PERF_CALB) {
             copyEnsemble(mode, conditionalOutcome);
@@ -235,9 +247,9 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       }
     }
     else {
-      if (RF_rFactorCount > 0) {
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
         if (RF_opt & OPT_PERF_CALB) {
-          free_dmatrix(conditionalOutcome, 1, RF_rFactorSize[1], 1, obsSize);
+          free_dmatrix(conditionalOutcome, 1, RF_rFactorSize[RF_rFactorMap[RF_rTarget]], 1, obsSize);
         }
       }
       else {
@@ -387,21 +399,21 @@ void getPerformance(uint      treeID,
     }
   }
   else {
-    if (RF_rFactorCount > 0) {
+    if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
       if (RF_opt & OPT_PERF_CALB) {
         concordanceIndex = getBrierScore(obsSize, 
-                                         responsePtr[1],
+                                         responsePtr[RF_rTarget],
                                          conditionalOutcome,
                                          denomPtr,
                                          condPerformanceVector);
       }
       else {
         concordanceIndex = getClassificationIndex( obsSize, 
-                                                   responsePtr[1],
+                                                   responsePtr[RF_rTarget],
                                                    outcome, 
                                                    denomPtr);
         getConditionalClassificationIndex( obsSize, 
-                                           responsePtr[1],
+                                           responsePtr[RF_rTarget],
                                            outcome, 
                                            denomPtr,
                                            condPerformanceVector);
@@ -425,16 +437,16 @@ void getPerformance(uint      treeID,
     }
   }
   else {
-    if (RF_rFactorCount > 0) {
+    if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
       if (RF_opt & OPT_PERF_CALB) {
         performancePtr[1] = concordanceIndex;
-        for (j=1; j <=RF_rFactorSize[1]; j++) {
+        for (j=1; j <=RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; j++) {
           performancePtr[1+j] = condPerformanceVector[j];
         }
       }
       else {
         performancePtr[1] = concordanceIndex;
-        for (j=1; j <=RF_rFactorSize[1]; j++) {
+        for (j=1; j <=RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; j++) {
           performancePtr[1+j] = condPerformanceVector[j];
         }
       }
@@ -454,8 +466,8 @@ double *stackCondPerformance() {
     }
   }
   else {
-    if (RF_rFactorCount > 0) {
-      cpv = dvector(1, RF_rFactorSize[1]);
+    if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+      cpv = dvector(1, RF_rFactorSize[RF_rFactorMap[RF_rTarget]]);
     }
   }
   return cpv;
@@ -467,8 +479,8 @@ void unstackCondPerformance(double *cpv) {
     }
   }
   else {
-    if (RF_rFactorCount > 0) {
-      free_dvector(cpv, 1, RF_rFactorSize[1]);
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+      free_dvector(cpv, 1, RF_rFactorSize[RF_rFactorMap[RF_rTarget]]);
     }
   }
 }
@@ -585,15 +597,15 @@ void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount) {
         }
       }  
       else {
-        if (RF_rFactorCount > 0) {
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
           for (i = 1; i <= obsSize; i++) {
             if (ensembleDenPtr[i] != 0) {
-              for (k=1; k <= RF_rFactorSize[1]; k++) {
+              for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
                 ensemblePtr[1][k][i] = ensemblePtr[1][k][i] / ensembleDenPtr[i];
               }
             }
             else {
-              for (k=1; k <= RF_rFactorSize[1]; k++) {
+              for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
                 ensemblePtr[1][k][i] = NA_REAL;
               }
             }

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -88,6 +88,9 @@ find.interaction.rfsrc <- function(
     cause <- 1
   }
   outcome.target <- get.outcome.target(object$family, outcome.target)
+  if (object$family == "unsupv") {
+    method <- "maxsubtree"
+  }
   method <- match.arg(method,  c("maxsubtree", "vimp"))
   importance <- match.arg(importance, c("permute", "random", "permute.ensemble", "random.ensemble"))
   event.info <- get.event.info(object)
@@ -109,7 +112,6 @@ find.interaction.rfsrc <- function(
       stop("Pairwise comparisons require more than one candidate variable.")
     cov.names <- xvar.names
     sorted <- FALSE
-    nvar <- NULL
     n.interact <- length(xvar.names)
   }
   if (sorted) {

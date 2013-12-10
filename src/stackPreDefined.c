@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,113 +67,102 @@
 #include "stackPreDefined.h"
 void stackIncomingResponseArrays(uint mode) {
   uint i, j;
-  if (RF_rSize == 0) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  Attempt to stack response arrays in the absence of responses.");
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-    error("\nRF-SRC:  The application will now exit.\n");
-  }
   RF_timeIndex = RF_statusIndex = 0;
-  RF_rType = (char**) vvector(1, RF_rSize);
-  RF_yIndex = uivector(1, RF_rSize);
-  j = 0;
-  for (i = 1; i <= RF_rSize; i++) {
-    RF_rType[i] = (char*) CHAR(STRING_ELT(AS_CHARACTER(RF_sexp_rType), i-1));
-    if ((strcmp(RF_rType[i], "C") != 0) && 
-        (strcmp(RF_rType[i], "I") != 0) && 
-        (strcmp(RF_rType[i], "R") != 0) &&
-        (strcmp(RF_rType[i], "T") != 0) &&
-        (strcmp(RF_rType[i], "S") != 0)) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  Invalid type:  [%10d] = %2s", i, RF_rType[i]);
-      Rprintf("\nRF-SRC:  Outcomes must be 'C', 'I', 'R', 'T', or 'S'.");
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-    RF_yIndex[i] = 0;
-    if (strcmp(RF_rType[i], "T") == 0) {
-      RF_timeIndex = i;
-    }
-    else if (strcmp(RF_rType[i], "S") == 0) {
-      RF_statusIndex = i;  
-    }
-    else {
-      RF_yIndex[++j] = i;
-    }
-  }
-  if (mode == RF_PRED) {
-    if (RF_frSize > 0) {
-      if (RF_rSize != RF_frSize) {
+  if (RF_rSize > 0) {
+    RF_rType = (char**) vvector(1, RF_rSize);
+    RF_yIndex = uivector(1, RF_rSize);
+    j = 0;
+    for (i = 1; i <= RF_rSize; i++) {
+      RF_rType[i] = (char*) CHAR(STRING_ELT(AS_CHARACTER(RF_sexp_rType), i-1));
+      if ((strcmp(RF_rType[i], "C") != 0) && 
+          (strcmp(RF_rType[i], "I") != 0) && 
+          (strcmp(RF_rType[i], "R") != 0) &&
+          (strcmp(RF_rType[i], "T") != 0) &&
+          (strcmp(RF_rType[i], "S") != 0)) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
-        Rprintf("\nRF-SRC:  TRAIN and TEST outcome/response matrices must be of the same dimension.  ");
-        Rprintf("\nRF-SRC:  TRAIN vs TEST:  %10d vs %10d  ", RF_rSize, RF_frSize);
+        Rprintf("\nRF-SRC:  Invalid type:  [%10d] = %2s", i, RF_rType[i]);
+        Rprintf("\nRF-SRC:  Outcomes must be 'C', 'I', 'R', 'T', or 'S'.");
         Rprintf("\nRF-SRC:  Please Contact Technical Support.");
         error("\nRF-SRC:  The application will now exit.\n");
       }
-    }
-    else {
-      if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB) | (RF_opt & OPT_VIMP)) {
-        Rprintf("\nRF-SRC:  *** ERROR *** ");
-        Rprintf("\nRF-SRC:  TEST outcome/response matrix must be present when PERF or VIMP is requested.  ");
-        Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-        error("\nRF-SRC:  The application will now exit.\n");
+      RF_yIndex[i] = 0;
+      if (strcmp(RF_rType[i], "T") == 0) {
+        RF_timeIndex = i;
+      }
+      else if (strcmp(RF_rType[i], "S") == 0) {
+        RF_statusIndex = i;  
+      }
+      else {
+        RF_yIndex[++j] = i;
       }
     }
-  }
-  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    RF_ySize = 0;
-    RF_rTarget = 0;
-    RF_ptnCount = 0;
-  }
-  else {
-    RF_ySize = RF_rSize - ((RF_timeIndex == 0) ? 0:1) - ((RF_statusIndex == 0) ? 0:1);
-    if (RF_ySize != RF_rSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  Responses must be [S], [C], [R], or [R+].  ");
-      Rprintf("\nRF-SRC:  The application will now exit.\n");
-      error("\nRF-SRC:  The application will now exit.\n");
+    if (mode == RF_PRED) {
+      if (RF_frSize > 0) {
+        if (RF_rSize != RF_frSize) {
+          Rprintf("\nRF-SRC:  *** ERROR *** ");
+          Rprintf("\nRF-SRC:  TRAIN and TEST outcome/response matrices must be of the same dimension.  ");
+          Rprintf("\nRF-SRC:  TRAIN vs TEST:  %10d vs %10d  ", RF_rSize, RF_frSize);
+          Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+          error("\nRF-SRC:  The application will now exit.\n");
+        }
+      }
+      else {
+        if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB) | (RF_opt & OPT_VIMP)) {
+          Rprintf("\nRF-SRC:  *** ERROR *** ");
+          Rprintf("\nRF-SRC:  TEST outcome/response matrix must be present when PERF or VIMP is requested.  ");
+          Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+          error("\nRF-SRC:  The application will now exit.\n");
+        }
+      }
     }
-    if (RF_ySize == 1) {
-      RF_rTarget = 1;
+    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+      RF_ySize = 0;
+      RF_rTarget = 0;
+      RF_ptnCount = 0;
     }
     else {
-      if (mode == RF_GROW) {
-        RF_rTarget = 1;
-      }
-      if ((RF_rTarget < 1) || (RF_rTarget > RF_rSize)) {
+      RF_ySize = RF_rSize - ((RF_timeIndex == 0) ? 0:1) - ((RF_statusIndex == 0) ? 0:1);
+      if (RF_ySize != RF_rSize) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
-        Rprintf("\nRF-SRC:  Target response is out of range for [R+]:  %10d  ", RF_rTarget);
+        Rprintf("\nRF-SRC:  Responses must be [S], [C], [R], [R+], [C+], [M+].  ");
         Rprintf("\nRF-SRC:  The application will now exit.\n");
         error("\nRF-SRC:  The application will now exit.\n");
       }
+      if (RF_ySize == 1) {
+        RF_rTarget = 1;
+      }
+      else {
+      }
     }
-  }
-  RF_responseIn = (double **) vvector(1, RF_rSize);
-  for (i=1; i <= RF_rSize; i++) {
-    RF_responseIn[i] = (RF_rData + ((i-1) * RF_observationSize) - 1);
-  }
-  if (mode == RF_PRED) {
-    if (RF_frSize > 0) {
-      RF_fresponseIn = (double **) vvector(1, RF_frSize);
-      for (i=1; i <= RF_rSize; i++) {
-        RF_fresponseIn[i] = (RF_frData + ((i-1) * RF_fobservationSize) - 1);
+    RF_responseIn = (double **) vvector(1, RF_rSize);
+    for (i=1; i <= RF_rSize; i++) {
+      RF_responseIn[i] = (RF_rData + ((i-1) * RF_observationSize) - 1);
+    }
+    if (mode == RF_PRED) {
+      if (RF_frSize > 0) {
+        RF_fresponseIn = (double **) vvector(1, RF_frSize);
+        for (i=1; i <= RF_rSize; i++) {
+          RF_fresponseIn[i] = (RF_frData + ((i-1) * RF_fobservationSize) - 1);
+        }
+      }
+      else {
+        RF_fresponseIn = NULL;
       }
     }
   }
+  else {
+    RF_responseIn = NULL;
+  }
 }
 void unstackIncomingResponseArrays(uint mode) {
-  if (RF_rSize == 0) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  Attempt to unstack response arrays in the absence of responses.");
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-    error("\nRF-SRC:  The application will now exit.\n");
-  }
-  free_vvector(RF_rType, 1, RF_rSize);
-  free_uivector(RF_yIndex, 1, RF_rSize);
-  free_vvector(RF_responseIn, 1, RF_rSize);
-  if (mode == RF_PRED) {
-    if (RF_frSize > 0) {
-      free_vvector(RF_fresponseIn, 1, RF_frSize);
+  if (RF_rSize > 0) {
+    free_vvector(RF_rType, 1, RF_rSize);
+    free_uivector(RF_yIndex, 1, RF_rSize);
+    free_vvector(RF_responseIn, 1, RF_rSize);
+    if (mode == RF_PRED) {
+      if (RF_frSize > 0) {
+        free_vvector(RF_fresponseIn, 1, RF_frSize);
+      }
     }
   }
 }
@@ -211,9 +200,7 @@ void unstackIncomingCovariateArrays(uint mode) {
   }
 }
 void stackIncomingArrays(uint mode) {
-  if (RF_rSize > 0) {
-    stackIncomingResponseArrays(mode);
-  }
+  stackIncomingResponseArrays(mode);
   stackIncomingCovariateArrays(mode);
   if (mode == RF_GROW) {
     if ((RF_timeIndex == 0) && (RF_statusIndex == 0)) {
@@ -224,8 +211,9 @@ void stackIncomingArrays(uint mode) {
           (RF_splitRule != CLAS_WT_NRM) &&
           (RF_splitRule != CLAS_WT_OFF) &&
           (RF_splitRule != CLAS_WT_HVY) &&
-          (RF_splitRule != MVRG_SPLIT) &&
-          (RF_splitRule != MVCL_SPLIT)) {
+          (RF_splitRule != MVRG_SPLIT)  &&
+          (RF_splitRule != MVCL_SPLIT)  &&
+          (RF_splitRule != USPV_SPLIT)) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
         Rprintf("\nRF-SRC:  !SURV data and split rule specified are incompatible.");
         Rprintf("\nRF-SRC:  Please Contact Technical Support.");
@@ -234,7 +222,7 @@ void stackIncomingArrays(uint mode) {
     }
     else if ((RF_timeIndex != 0) && (RF_statusIndex != 0)) {
       if ((RF_splitRule != SURV_LGRNK)  &&
-          (RF_splitRule != SURV_CR_LOG)  &&
+          (RF_splitRule != SURV_CR_LOG) &&
           (RF_splitRule != SURV_LRSCR)  &&
           (RF_splitRule != SURV_CR_LAU) &&
           (RF_splitRule != RAND_SPLIT)) {
@@ -253,9 +241,7 @@ void stackIncomingArrays(uint mode) {
   }
 }
 void unstackIncomingArrays(uint mode) {
-  if (RF_rSize > 0) {
-    unstackIncomingResponseArrays(mode);
-  }
+  unstackIncomingResponseArrays(mode);
   unstackIncomingCovariateArrays(mode);
 }
 void stackPreDefinedCommonArrays() {

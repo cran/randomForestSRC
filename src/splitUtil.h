@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,17 +63,21 @@
 #ifndef RSFSPLITUTIL_H
 #define RSFSPLITUTIL_H
 #include "node.h"
-void updateMaximumSplit(double  delta, 
+char updateMaximumSplit(uint    treeID,
+                        double  delta, 
                         uint    randomCovariate,
-                        uint    jLong,
+                        uint    index,
                         char    factorFlag,
                         uint    mwcpSizeAbsolute,
+                        uint    repMembrSize,
+                        char   *localSplitIndicator,
                         double *deltaMax,
                         uint   *splitParameterMax,
                         double *splitValueMaxCont,
                         uint   *splitValueMaxFactSize,
                         uint  **splitValueMaxFactPtr,
-                        void   *permissibleSplitPtr);
+                        void   *permissibleSplitPtr,
+                        char  **splitIndicator);
 uint stackAndSelectRandomCovariates(uint      treeID,
                                     Node     *parent,
                                     uint     *repMembrIndx,
@@ -150,33 +154,14 @@ uint virtuallySplitNode(uint  treeID,
                         uint  mwcpSizeAbsolute,
                         uint  randomCovariate,
                         uint *repMembrIndx,
+                        uint *repMembrIndxx,
                         uint  repMembrSize,
                         void *permissibleSplitPtr,
                         uint  offset,
-                        uint  localEventTimeSize,
-                        uint *localEventTimeIndex,
-                        uint *nodeParentAtRisk,
-                        uint *nodeParentEvent,
-                        uint *nodeLeftAtRisk,
-                        uint *nodeLeftEvent,
-                        uint *leftEventTimeSize,
-                        uint *nodeRightAtRisk,
-                        uint *nodeRightEvent,
-                        uint *rightEventTimeSize,
-                        char *localSplitIndicator);
-uint virtuallySplitNodeNew(uint  treeID,
-                           char  factorFlag,
-                           uint  mwcpSizeAbsolute,
-                           uint  randomCovariate,
-                           uint *repMembrIndx,
-                           uint *repMembrIndxx,
-                           uint  repMembrSize,
-                           void *permissibleSplitPtr,
-                           uint  offset,
-                           char *localSplitIndicator,
-                           uint *leftSize,
-                           uint  priorMembrIter,
-                           uint *currentMembrIter);
+                        char *localSplitIndicator,
+                        uint *leftSize,
+                        uint  priorMembrIter,
+                        uint *currentMembrIter);
 void getReweightedRandomPair(uint    treeID,
                              uint    relativefactorSize, 
                              uint    absoluteFactorSize, 

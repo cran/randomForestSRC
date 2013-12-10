@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,6 +63,33 @@
 #ifndef RSFSTACKOUTPUT_H
 #define RSFSTACKOUTPUT_H
 #include "node.h"
+uint stackDefinedOutputObjects(char      mode,
+                               char    **sexpString,
+                               Node   ***pRF_root,
+                               double  **pRF_oobEnsemble,
+                               double  **pRF_fullEnsemble,
+                               double  **p_performance,
+                               uint    **p_leafCount,
+                               double  **pRF_proximity,
+                               double  **p_varImportance,
+                               int     **pRF_seed,
+                               double  **p_imputation,
+                               double ***p_sImputeResponsePtr,
+                               double ***p_sImputePredictorPtr,
+                               uint    **pRF_varUsed,
+                               uint   ***pRF_varUsedPtr,
+                               double  **p_splitDepth,
+                               double  **pRF_oobPOEEnsemble,
+                               double  **pRF_fullPOEEnsemble,
+                               double  **pRF_oobEnsembleSRV,
+                               double  **pRF_fullEnsembleSRV,
+                               double  **pRF_oobEnsembleMRT,
+                               double  **pRF_fullEnsembleMRT,
+                               uint    **pRF_tNodeMembershipIndex,
+                               uint    **pRF_pNodeMembershipIndex,
+                               uint    **pRF_bootstrapMembership,
+                               uint     *stackCount,
+                               SEXP     *sexpVector);
 void unstackDefinedOutputObjects(char      mode,
                                  Node    **root);
 uint stackVariableOutputObjects(char     mode,

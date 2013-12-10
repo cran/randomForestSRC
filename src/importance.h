@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,14 +63,15 @@
 #ifndef RSFIMPORTANCE_H
 #define RSFIMPORTANCE_H
 #include "node.h"
-Node *getPerturbedMembership(Node    *parent,
-                             double **shadowVIMP,
-                             uint     index);
+Node *identifyPerturbedMembership(Node    *parent,
+                                  double **shadowVIMP,
+                                  uint     index);
 Node *randomizeMembership(Node    *parent, 
                           double **predictor, 
                           uint     individual, 
-                          uint     splitParameter);
-void permute(uint treeID, uint n, uint *indx);
+                          uint     splitParameter,
+                          uint     treeID);
+void permute(uint ranGenID, uint p, uint n, uint *indx);
 void getRandomMembership(uint      mode,
                          uint      treeID,
                          Node    **vimpMembership,
@@ -79,7 +80,7 @@ void getPermuteMembership(uint      mode,
                           uint      treeID,
                           Node    **vimpMembership,
                           uint      p);
-void getVIMPmembership(uint      mode, 
+void getVimpMembership(uint      mode, 
                        uint      treeID,
                        Node    **vimpMembership,
                        uint      p);
@@ -106,8 +107,8 @@ void summarizeVimpPerformance(uint       mode,
                               uint       treeID,
                               uint       p);
 void finalizeVimpPerformance(uint mode, uint rejectedTreeCount);
-Node  **stackVimpMembership(uint mode);
-void    unstackVimpMembership(uint mode, Node **membership);
+void  stackVimpMembership(uint mode, Node ***membership);
+void  unstackVimpMembership(uint mode, Node **membership);
 void stackTreeEnsemble(uint        mode,
                       double    ***treeOutcome,
                       double   ****sTreeOutcome,
@@ -116,7 +117,7 @@ void unstackTreeEnsemble(uint       mode,
                         double    **treeOutcome,
                         double   ***sTreeOutcome,
                         double   ***mcTreeOutcome);
-void updateVimpCalculations (uint mode, uint b, uint intrIndex);
+void updateVimpCalculations (uint mode, uint b, uint intrIndex, Node **vimpMembership);
 void summarizeTreePerformance(uint mode, uint treeID);
 uint getEnsembleDim ();
 #endif

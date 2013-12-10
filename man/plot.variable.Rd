@@ -122,7 +122,7 @@
   \command{\link{predict.rfsrc}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## ------------------------------------------------------------
 ## survival/competing risk examples
 ## ------------------------------------------------------------
@@ -174,6 +174,9 @@ mtcars2$carb <- factor(mtcars2$carb,
    labels = paste("carb", sort(unique(mtcars$carb))))
 mtcars2.obj <- rfsrc(carb ~ ., data = mtcars2)
 plot.variable(mtcars2.obj, partial = TRUE)
+
+
+
 }
 }
 \keyword{plot}

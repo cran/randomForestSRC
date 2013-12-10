@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,10 +65,11 @@
 #include       "nodeOps.h"
 #include   <R_ext/Print.h>
 #include   <Rdefines.h>
-extern unsigned int getTraceFlag(unsigned int tree);
-unsigned int getForkDefTraceFlag();
-unsigned int getTurnOffTraceFlag();
-unsigned int getTurnOnTraceFlag();
+extern unsigned int getTraceFlag();
+extern unsigned int getNodeDefTraceFlag();
+extern unsigned int getForkDefTraceFlag();
+extern unsigned int getTurnOffTraceFlag();
+extern unsigned int getTurnOnTraceFlag();
 #include <R_ext/Arith.h>
 #ifndef TRUE
 #define TRUE   0x01
@@ -80,11 +81,8 @@ Terminal *makeTerminal() {
   Terminal *parent = (Terminal*) gblock((size_t) sizeof(Terminal));
   parent -> lmiIndex      = NULL;
   parent -> lmiSize       = 0;
-  parent -> lmiRaggedIndex  = NULL;
   parent -> lmiRaggedValue  = NULL;
-  parent -> lmiRaggedSize   = NULL;
   parent -> nodeID     = 0;
-  parent -> dominant   = FALSE;
   return parent;
 }
 void freeTerminal(Terminal        *parent) {
@@ -136,10 +134,11 @@ Node *makeNode(unsigned int xSize) {
   parent -> rfSize               = NULL;
   parent -> multiClassProb       = NULL;
   parent -> membrCount           = 0;
-  parent -> mpIndexSize               = 0;
-  parent -> fmpIndexSize              = 0;
+  parent -> mpIndexSize          = 0;
+  parent -> fmpIndexSize         = 0;
   parent -> mpSign               = NULL;
   parent -> fmpSign              = NULL;
+  parent -> imputed              = FALSE;
   parent -> lmpIndex             = NULL;
   parent -> flmpIndex            = NULL;
   parent -> lmpIndexAllocSize    = 0;
@@ -768,9 +767,7 @@ void stackTermLMIIndex(Terminal *tNode, unsigned int size) {
     tNode -> lmiSize = size;
   }
   tNode -> lmiIndex = uivector(1, tNode -> lmiSize);
-  tNode -> lmiRaggedSize = uivector(1, tNode -> lmiSize);
-  tNode -> lmiRaggedIndex = (unsigned int **) vvector(1, tNode -> lmiSize);
-  tNode -> lmiRaggedValue = (double**) vvector(1, tNode -> lmiSize);
+  tNode -> lmiRaggedValue = dvector(1, tNode -> lmiSize);
 }
 void unstackTermLMIIndex(Terminal *tNode) {
   if(tNode -> lmiSize > 0) {
@@ -778,16 +775,8 @@ void unstackTermLMIIndex(Terminal *tNode) {
       free_uivector(tNode -> lmiIndex, 1, tNode -> lmiSize);
       tNode -> lmiIndex = NULL;
     }
-    if (tNode -> lmiRaggedSize != NULL) {
-      free_uivector(tNode -> lmiRaggedSize, 1, tNode -> lmiSize);
-      tNode -> lmiRaggedSize = NULL;
-    }
-    if (tNode -> lmiRaggedIndex != NULL) {
-      free_vvector(tNode -> lmiRaggedIndex, 1, tNode -> lmiSize);
-      tNode -> lmiRaggedIndex = NULL;
-    }
     if (tNode -> lmiRaggedValue != NULL) {
-      free_vvector(tNode -> lmiRaggedValue, 1, tNode -> lmiSize);
+      free_dvector(tNode -> lmiRaggedValue, 1, tNode -> lmiSize);
       tNode -> lmiRaggedValue = NULL;
     }
   }
@@ -801,27 +790,13 @@ void stackTermLMIRagged(Terminal *tNode) {
     error("\nRF-SRC:  The application will now exit.\n");
   }
   for (i = 1; i <= tNode -> lmiSize; i++) {
-    (tNode -> lmiRaggedIndex)[i] = uivector(1, (tNode -> lmiRaggedSize)[i]);
-    (tNode -> lmiRaggedValue)[i] = dvector(1, (tNode -> lmiRaggedSize)[i]);
   }
 }
 void unstackTermLMIRagged(Terminal *tNode) {
   unsigned int i;
   if(tNode -> lmiSize > 0) {
-    if (tNode -> lmiRaggedIndex != NULL) { 
-      for (i = 1; i <= tNode -> lmiSize; i++) {
-        if ((tNode -> lmiRaggedIndex)[i] != NULL) { 
-          free_uivector((tNode -> lmiRaggedIndex)[i], 1, (tNode -> lmiRaggedSize)[i]);
-          (tNode -> lmiRaggedIndex)[i] = NULL;
-        }
-      }
-    }
     if (tNode -> lmiRaggedValue != NULL) { 
       for (i = 1; i <= tNode -> lmiSize; i++) {
-        if ((tNode -> lmiRaggedValue)[i] != NULL) { 
-          free_dvector((tNode -> lmiRaggedValue)[i], 1, (tNode -> lmiRaggedSize)[i]);
-          (tNode -> lmiRaggedValue)[i] = NULL;
-        }
       }
     }
   }

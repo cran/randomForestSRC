@@ -33,7 +33,7 @@ rf2rfz(object, forestName = NULL, ...)
   http:
 
   The function \command{rf2rfz} is used to import the geometry of the
-  forest to the RFSRC Java plugin that is capable of visualizing the
+  forest to the RF-SRC Java plugin that is capable of visualizing the
   trees in the forest.
 
   The geometry of the forest is saved as a file called
@@ -59,7 +59,7 @@ rf2rfz(object, forestName = NULL, ...)
   \command{\link{rfsrc}}
 }
 \examples{
-\dontrun{
+\donttest{
 # Example 1:  Growing a forest, saving it as a \emph{.rfz} file ready
 # for import into the Java plugin.
 

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -71,18 +71,23 @@ void getRawNodeSize(uint  type,
                     uint *repMembrSize,
                     uint *allMembrIndx,
                     uint *allMembrSize);
-char forkAndUpdate(uint   treeID, 
-                   Node  *parent, 
-                   uint  *allMembrIndx,
-                   uint   allMembrSize,
-                   uint   splitParameterMax,
-                   double splitValueMaxCont,
-                   uint   splitValueMaxFactSize,
-                   uint  *splitValueMaxFactPtr,
-                   double splitStatistic,
-                   uint  *membershipIndicator,
-                   uint  *leftDaughterSize,
-                   uint  *rightDaughterSize);
+char forkAndUpdate(uint    treeID, 
+                   Node   *parent, 
+                   uint   *repMembrIndx,
+                   uint    repMembrSize,
+                   uint   *allMembrIndx,
+                   uint    allMembrSize,
+                   uint    splitParameterMax,
+                   double  splitValueMaxCont,
+                   uint    splitValueMaxFactSize,
+                   uint   *splitValueMaxFactPtr,
+                   double  splitStatistic,
+                   char   *localSplitIndicator,
+                   char   *localOmitMembrFlag,
+                   char    multImpFlag,
+                   char   *membershipIndicator,
+                   uint   *leftDaughterSize,
+                   uint   *rightDaughterSize);
 char growTree(char     rootFlag,
               char     multImpFlag,
               uint     b,

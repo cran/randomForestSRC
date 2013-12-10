@@ -6,7 +6,7 @@
   missing data.  No ensemble estimates or error rates are calculated.
 }
 \usage{\method{impute}{rfsrc}(formula, data, ntree = 1000, mtry = NULL,
-  nodesize = NULL, splitrule = NULL, nsplit = 0, nimpute = 1,
+  nodesize = NULL, splitrule = NULL, nsplit = 1, nimpute = 1,
   xvar.wt = NULL, seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
@@ -26,12 +26,22 @@
     \item{...}{Further arguments passed to or from other methods.}
   }
 \details{
-  Grow a forest and use this to impute data.  All external calculations
-  such as ensemble calculations, error rates, etc. are turned off.  Use
-  this function if your only interest is imputing the data.
+  \enumerate{
+  \item Grow a forest and use this to impute data.  All external
+  calculations such as ensemble calculations, error rates, etc. are
+  turned off.  Use this function if your only interest is imputing the
+  data.
 
-  All options are the same as \command{rfsrc} and the user should consult the
-  help file for \command{rfsrc} for details.
+  
+  \item If no formula is specified, unsupervised splitting
+  is implemented which treats the data as if there are no y-outcomes.
+  
+
+  
+  
+  \item All options are the same as \command{rfsrc} and the user should
+  consult the help file for \command{rfsrc} for details.
+  }
 }   
 \value{
   Invisibly, the data frame containing the orginal data with imputed
@@ -40,40 +50,41 @@
 \author{
     Hemant Ishwaran and Udaya B. Kogalur
 }
+\references{
+    Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
+    (2008).  Random survival forests, \emph{Ann. App.
+    Statist.}, 2:841-860.
+}
 \seealso{
   \command{\link{rfsrc}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## ------------------------------------------------------------
-## survival example
+## example of survival imputation
 ## ------------------------------------------------------------
 
-#default split rule
+#imputation using outcome splitting
 data(pbc, package = "randomForestSRC")
 pbc.d <- impute.rfsrc(Surv(days, status) ~ ., data = pbc, nsplit = 3)
 
-#random splitting is fast and works well
-pbc2.d <- impute.rfsrc(Surv(days, status) ~ ., data = pbc, splitrule = "random")
-summary(pbc.d - pbc2.d)
+#when no formula is given we default to unsupervised splitting
+pbc2.d <- impute.rfsrc(data = pbc, nodesize = 1, nsplit = 10, nimpute = 5)
+
+#random splitting can be reasonably good
+pbc3.d <- impute.rfsrc(Surv(days, status) ~ ., data = pbc,
+          splitrule = "random", nodesize = 1, nimpute = 5)
 
 ## ------------------------------------------------------------
-## regression.example
+## example of regression imputation
 ## ------------------------------------------------------------
 
 air.d <- impute.rfsrc(Ozone ~ ., data = airquality, nimpute = 5)
-air2.d <- impute.rfsrc(Ozone ~ ., data = airquality, nimpute = 5, splitrule = "random")
+air2.d <- impute.rfsrc(data = airquality, nimpute = 5, nodesize = 1)
+air3.d <- impute.rfsrc(Ozone ~ ., data = airquality, nimpute = 5,
+           splitrule = "random", nodesize = 1)
 
-## ------------------------------------------------------------
-## unsupervised example
-## we impute without distinction between y-outcomes and x-variables
-## we are invoking random splitting
-## all variables are imputed
-## ------------------------------------------------------------
 
-data(pbc, package = "randomForestSRC")
-pbcR.d <- impute.rfsrc(data = pbc, nimpute = 5)
-airR.d <- impute.rfsrc(data = airquality, nimpute = 5)
 }
 }
 \keyword{missing data}

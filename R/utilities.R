@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -70,7 +70,7 @@ get.seed <- function (seed) {
 get.trace <- function (do.trace) {
   if (!is.logical(do.trace)) {
     if (do.trace >= 1) {
-      do.trace <- 2^24 * round(do.trace) + 1
+      do.trace <- round(do.trace)
     }
     else {
       do.trace <- 0
@@ -156,16 +156,41 @@ get.forest <- function (forest) {
   }
   return (forest)
 }
-get.proximity <- function (proximity) {
+get.proximity <- function (grow.equivalent, proximity) {
   if (!is.null(proximity)) {
-    if (proximity == TRUE) {
-      proximity <- 2^3
-    }
-    else if (proximity == FALSE) {
+    if (proximity == FALSE) {
       proximity <- 0
     }
+    else if (grow.equivalent == TRUE) {
+      if (proximity == TRUE) {
+        proximity <- 2^28 
+      }
+      else if (proximity == "inbag") {
+        proximity <- 2^28
+      }
+      else if (proximity == "oob") {
+        proximity <- 2^29
+      }
+      else if (proximity == "all") {
+        proximity <- 2^28 + 2^29
+      }
+      else {
+        stop("Invalid choice for 'proximity' option:  ", proximity)
+      }
+    }
+    else if (grow.equivalent == FALSE) {
+      if (proximity == TRUE) {
+        proximity <- 2^28 + 2^29
+      }
+      else if (proximity == "all") {
+        proximity <- 2^28 + 2^29
+      }
+      else {
+        stop("Invalid choice for 'proximity' option:  ", proximity)
+      }
+    }
     else {
-      stop("Invalid choice for 'proximity' option:  ", proximity)
+      stop("Invalid choice for 'grow.equivalent' in proximity:  ", grow.equivalent)
     }
   }
   else {
@@ -173,22 +198,22 @@ get.proximity <- function (proximity) {
   }
   return (proximity)
 }
-get.split.fast <- function (split.fast) {
-  if (!is.null(split.fast)) {
-    if (split.fast == TRUE) {
-      split.fast <- 2^1
+get.split.null <- function (split.null) {
+  if (!is.null(split.null)) {
+    if (split.null == TRUE) {
+      split.null <- 2^18
     }
-    else if (split.fast == FALSE) {
-      split.fast <- 0
+    else if (split.null == FALSE) {
+      split.null <- 0
     }
     else {
-      stop("Invalid choice for 'split.fast' option:  ", split.fast)
+      stop("Invalid choice for 'split.null' option:  ", split.null)
     }
   }
   else {
-    stop("Invalid choice for 'split.fast' option:  ", split.fast)
+    stop("Invalid choice for 'split.null' option:  ", split.null)
   }
-  return (split.fast)
+  return (split.null)
 }
 get.outcome <- function (outcome) {
   if (is.null(outcome)) {
@@ -307,6 +332,26 @@ is.hidden.impute.only <-  function (user.option) {
     return (as.logical(as.character(user.option[index])))
   }
 }
+is.hidden.miss.tree.only <-  function (user.option) {
+  index = match("miss.tree", names(user.option), 0)
+  if(index == 0) {
+    return (0)
+  }
+  else {
+    miss.value <- as.character(user.option[index])
+    if (is.na(as.logical(miss.value))) {
+      return (as.numeric(miss.value))
+    }
+    else {
+      if (as.logical(miss.value)) {
+        return(1.0/3.0)
+      }
+      else {
+        return (0)
+      }
+    } 
+  }
+}
 get.impute.only <-  function (impute.only, nMiss) {
   if (impute.only) {
     if (nMiss > 0) {
@@ -369,7 +414,7 @@ get.statistics <- function (statistics) {
   }
   return (statistics)
 }
-get.rf.cores <- function() {
+get.rf.cores <- function () {
   if (is.null(getOption("rf.cores"))) {
     if(!is.na(as.numeric(Sys.getenv("RF_CORES")))) {
       options(rf.cores = as.integer(Sys.getenv("RF_CORES")))

@@ -60,16 +60,35 @@
 ////**********************************************************************
 
 
-#ifndef RSFREGR_H
-#define RSFREGR_H
+#ifndef RSFSPLITUSPV_H
+#define RSFSPLITUSPV_H
 #include "node.h"
-void getMeanResponse(uint treeID);
-void updateEnsembleMean(uint    mode, 
-                        uint    treeID, 
-                        double *ensemblePredictor);
-double getMeanSquareError(uint    size, 
-                          double *responsePtr, 
-                          double *predictedOutcome,
-                          uint   *oobCount);
-char getVariance(uint repSize, uint *repIndx, double *targetResponse, double *mean, double *variance);
+char unsupervisedSplit(uint    treeID,
+                       Node   *parent, 
+                       uint   *repMembrIndx,
+                       uint    repMembrSize,
+                       uint   *allMembrIndx,
+                       uint    allMembrSize,
+                       uint   *splitParameterMax,
+                       double *splitValueMaxCont,
+                       uint   *splitValueMaxFactSize,
+                       uint  **splitValueMaxFactPtr,
+                       double *splitStatistic,
+                       char  **splitIndicator,
+                       char  **omitMembrFlag,
+                       char    multImpFlag);
+char multivariateSplit (uint    treeID, 
+                        Node   *parent, 
+                        uint   *repMembrIndx,
+                        uint    repMembrSize,
+                        uint   *allMembrIndx,
+                        uint    allMembrSize,
+                        uint   *splitParameterMax, 
+                        double *splitValueMaxCont, 
+                        uint   *splitValueMaxFactSize, 
+                        uint  **splitValueMaxFactPtr,
+                        double *splitStatistic,
+                        char  **splitIndicator,
+                        char  **omitMembrFlag,
+                        char    multImpFlag);
 #endif

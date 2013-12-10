@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -73,7 +73,10 @@ char regressionSplit(uint    treeID,
                      double *splitValueMaxCont,
                      uint   *splitValueMaxFactSize,
                      uint  **splitValueMaxFactPtr,
-                     double *splitStatistic);
+                     double *splitStatistic,
+                     char  **splitIndicator,
+                     char  **omitMembrFlag,
+                     char    multImpFlag);
 char regressionHwghtSplit(uint    treeID,
                           Node   *parent, 
                           uint   *repMembrIndx,
@@ -84,7 +87,10 @@ char regressionHwghtSplit(uint    treeID,
                           double *splitValueMaxCont,
                           uint   *splitValueMaxFactSize,
                           uint  **splitValueMaxFactPtr,
-                          double *splitStatistic);
+                          double *splitStatistic,
+                          char  **splitIndicator,
+                          char  **omitMembrFlag,
+                          char    multImpFlag);
 char regressionUwghtSplit(uint    treeID,
                           Node   *parent, 
                           uint   *repMembrIndx,
@@ -95,7 +101,10 @@ char regressionUwghtSplit(uint    treeID,
                           double *splitValueMaxCont,
                           uint   *splitValueMaxFactSize,
                           uint  **splitValueMaxFactPtr,
-                          double *splitStatistic);
+                          double *splitStatistic,
+                          char  **splitIndicator,
+                          char  **omitMembrFlag,
+                          char    multImpFlag);
 char mvRegressionSplit(uint    treeID, 
                        Node   *parent, 
                        uint   *repMembrIndx,
@@ -106,5 +115,47 @@ char mvRegressionSplit(uint    treeID,
                        double *splitValueMaxCont, 
                        uint   *splitValueMaxFactSize, 
                        uint  **splitValueMaxFactPtr,
-                       double *splitStatistic);
+                       double *splitStatistic,
+                       char  **splitIndicator,
+                       char  **omitMembrFlag,
+                       char    multImpFlag);
+uint stackAndSelectRandomCovariatesNew(uint     treeID,
+                                       Node     *parent,
+                                       uint     *repMembrIndx,
+                                       uint      repMembrSize,
+                                       uint    **covariateIndex,
+                                       double ***permissibleSplit,
+                                       uint    **permissibleSplitSize,
+                                       uint   ***indxx,
+                                       char   ***missMembrFlag,
+                                       uint    **nonMissMembrSize,
+                                       uint   ***nonMissMembrIndx,
+                                       char      multImpFlag);
+void unstackRandomCovariatesNew(uint     treeID,
+                                uint     repMembrSize, 
+                                uint    *covariateIndex,
+                                uint     covariateCount,
+                                double **permissibleSplit,
+                                uint    *permissibleSplitSize,
+                                uint   **indxx,
+                                char   **missMembrFlag,
+                                uint    *nonMissMembrSize,
+                                uint   **nonMissMembrIndx);
+uint virtuallySplitNodeNew(uint  treeID,
+                           char  factorFlag,
+                           uint  mwcpSizeAbsolute,
+                           uint  randomCovariate,
+                           uint *repMembrIndx,
+                           uint  repMembrSize,
+                           uint *nonMissMembrIndx,
+                           uint  nonMissMembrSize,
+                           uint *indxx,
+                           void *permissibleSplitPtr,
+                           uint  offset,
+                           char *localSplitIndicator,
+                           uint *leftSize,
+                           char *missMembrFlag,
+                           uint  priorMembrIter,
+                           uint *currentMembrIter);
+void indexxx(unsigned int n, double *arr, char *omit, unsigned int *indx);
 #endif
