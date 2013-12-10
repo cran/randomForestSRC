@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,7 +63,7 @@
 #ifndef RSFCLASS_H
 #define RSFCLASS_H
 #include "node.h"
-void getMultiClassProb (uint mode, uint treeID);
+void getMultiClassProb (uint treeID);
 void updateMultiClassProb (uint mode, uint treeID, double *ensemblePredictor);
 void updateEnsembleMultiClass(uint mode, uint treeID, double  *ensembleOutcome);
 double getBrierScore(uint     obsSize,

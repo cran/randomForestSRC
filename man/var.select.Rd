@@ -207,7 +207,7 @@
   \command{\link{vimp}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## ------------------------------------------------------------
 ## Minimal depth variable selection
 ## survival analysis
@@ -304,7 +304,7 @@ if (library("survival", logical.return = TRUE)
   data(vdv, package = "randomForestSRC")
   rfsrc.f <- as.formula(Surv(Time, Censoring) ~ .)
   cox.wts <- cox.weights(rfsrc.f, vdv)
-  breast.obj <- rfsrc(rfsrc.f, vdv, nsplit = 10, split.wt = cox.wts)
+  breast.obj <- rfsrc(rfsrc.f, vdv, nsplit = 10, xvar.wt = cox.wts)
   md.breast.splitwt <- var.select(object = breast.obj) 
 }
 

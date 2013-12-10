@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -76,12 +76,9 @@ uint stackDefinedOutputObjects(char      mode,
                                double  **pRF_proximity,
                                double  **pRF_importance,
                                int     **pRF_seed,
-                               double  **pRF_oobImputation,
                                double  **p_imputation,
                                double ***pRF_sImputeResponsePtr,
                                double ***pRF_sImputePredictorPtr,
-                               double ***pRF_sOOBImputeResponsePtr,
-                               double ***pRF_sOOBImputePredictorPtr,
                                uint    **pRF_varUsed,
                                uint   ***pRF_varUsedPtr,
                                double  **p_splitDepth,
@@ -115,6 +112,7 @@ uint stackDefinedOutputObjects(char      mode,
   uint     ensbDimOne;
   uint     ensbDimTwo;
   uint     dpthDimOne;
+  char     perfFlag;
   uint i,j,k,p;
   sexpIndex      = 0;  
   ensembleSize   = 0;  
@@ -132,34 +130,7 @@ uint stackDefinedOutputObjects(char      mode,
   predictorPtr   = NULL;  
   mRecordIndex   = NULL;  
   rspSize        = 0;     
-  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    if (RF_opt & OPT_COMP_RISK) {
-      perfDim = ensbDimOne = RF_eventTypeSize;
-    }
-    else {
-      perfDim = ensbDimOne = 1;
-    }
-  }
-  else {
-    if (RF_rFactorCount > 0) {
-      perfDim = RF_rFactorSize[1] + 1;
-      ensbDimOne = 1;
-    }
-    else {
-      perfDim = ensbDimOne = 1;
-    }
-  }
-  if (RF_timeIndex > 0) {
-    ensbDimTwo = RF_sortedTimeInterestSize;
-  }
-  else {
-    if (RF_rFactorCount > 0) {
-      ensbDimTwo = RF_rFactorSize[1];
-    }
-    else {
-      ensbDimTwo = 1;
-    }
-  }
+  perfDim = ensbDimOne = ensbDimTwo = 0;
   if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
     if (RF_opt & OPT_SPLDPTH_F) {
       dpthDimOne = 1;
@@ -176,8 +147,70 @@ uint stackDefinedOutputObjects(char      mode,
     responsePtr  = RF_fresponseIn;
     predictorPtr = RF_fobservationIn;
     mRecordIndex = RF_fmRecordIndex;
-    *stackCount = 2;
+    if (RF_rSize > 0) {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        if (RF_opt & OPT_COMP_RISK) {
+          if (RF_frSize > 0) {
+            perfDim = ensbDimOne = RF_eventTypeSize;
+          }
+          else {
+            ensbDimOne = RF_eventTypeSize;
+            perfDim    = 0;
+          }
+        }
+        else {
+          if (RF_frSize > 0) {
+            perfDim = ensbDimOne = 1;
+          }
+          else {
+            ensbDimOne = 1;
+            perfDim    = 0;
+          }
+        }
+      }
+      else {
+        if ((RF_rTarget < 1) || (RF_rTarget > RF_rSize)) {
+          Rprintf("\nRF-SRC:  *** ERROR *** ");
+          Rprintf("\nRF-SRC:  Target response is out of range for [C+], [R+], [M+]:  %10d  ", RF_rTarget);
+          Rprintf("\nRF-SRC:  The application will now exit.\n");
+          error("\nRF-SRC:  The application will now exit.\n");
+        }
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          if (RF_frSize > 0) {
+            perfDim = RF_rFactorSize[RF_rFactorMap[RF_rTarget]] + 1;
+          }
+          else {
+            perfDim = 0;
+          }
+          ensbDimOne = 1;
+        }
+        else {
+          if (RF_frSize > 0) {
+            perfDim = ensbDimOne = 1;
+          }
+          else {
+            ensbDimOne = 1;
+            perfDim    = 0;
+          }
+        }
+      }
+      if (RF_timeIndex > 0) {
+        ensbDimTwo = RF_sortedTimeInterestSize;
+      }
+      else {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          ensbDimTwo = RF_rFactorSize[RF_rFactorMap[RF_rTarget]];
+        }
+        else {
+          ensbDimTwo = 1;
+        }
+      }
+    }
+    else {
+    }
+    *stackCount = 1;
     if (RF_opt & OPT_FENS) {
+      (*stackCount) += 1;
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
         if (!(RF_opt & OPT_COMP_RISK)) {
           (*stackCount) += 2;
@@ -190,7 +223,7 @@ uint stackDefinedOutputObjects(char      mode,
     if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)){
       (*stackCount) += 1;
     }
-    if (RF_opt & OPT_PROX) {
+    if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
       proximitySize = ((obsSize + 1)  * obsSize) / 2; 
       (*stackCount) += 1;
     }
@@ -230,6 +263,85 @@ uint stackDefinedOutputObjects(char      mode,
     responsePtr  = RF_responseIn;
     predictorPtr = RF_observationIn;
     mRecordIndex = RF_mRecordIndex;
+    if (RF_rSize == 0) {
+      perfFlag = FALSE;
+    }
+    else {
+      if (mode == RF_GROW) {
+        if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+          perfFlag = TRUE;
+        }
+        else {
+          if (RF_rSize > 1) {
+            perfFlag = FALSE;
+          }
+          else {
+            perfFlag = TRUE;
+          }
+        }
+      }
+      else {
+        if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+          perfFlag = TRUE;
+        }
+        else {
+          if (RF_rSize > 0) {
+            if ((RF_rTarget < 1) || (RF_rTarget > RF_rSize)) {
+              perfFlag = FALSE;  
+              Rprintf("\nRF-SRC:  *** ERROR *** ");
+              Rprintf("\nRF-SRC:  Target response is out of range for [C+], [R+], [M+]:  %10d  ", RF_rTarget);
+              Rprintf("\nRF-SRC:  The application will now exit.\n");
+              error("\nRF-SRC:  The application will now exit.\n");
+            }
+            else {
+              perfFlag = TRUE;
+            }
+          }
+          else {
+            perfFlag = FALSE;
+          }
+        }
+      }
+    }
+    if (!perfFlag) {
+      RF_opt                  = RF_opt & (~OPT_PERF);  
+      RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
+      RF_opt                  = RF_opt & (~OPT_VIMP);  
+      RF_opt                  = RF_opt & (~OPT_OENS);
+      RF_opt                  = RF_opt & (~OPT_FENS);
+      RF_rTarget = 0;
+      perfDim = ensbDimOne = ensbDimTwo = 0;
+    }
+    else {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        if (RF_opt & OPT_COMP_RISK) {
+          perfDim = ensbDimOne = RF_eventTypeSize;
+        }
+        else {
+          perfDim = ensbDimOne = 1;
+        }
+      }
+      else {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          perfDim = RF_rFactorSize[RF_rFactorMap[RF_rTarget]] + 1;
+          ensbDimOne = 1;
+        }
+        else {
+          perfDim = ensbDimOne = 1;
+        }
+      }
+      if (RF_timeIndex > 0) {
+        ensbDimTwo = RF_sortedTimeInterestSize;
+      }
+      else {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          ensbDimTwo = RF_rFactorSize[RF_rFactorMap[RF_rTarget]];
+        }
+        else {
+          ensbDimTwo = 1;
+        }
+      }
+    }
     *stackCount = 0;
     if (RF_opt & OPT_LEAF) {
       (*stackCount) += 1;
@@ -263,7 +375,7 @@ uint stackDefinedOutputObjects(char      mode,
         }
       }
     }
-    if (RF_opt & OPT_PROX) {
+    if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
       proximitySize = ((obsSize + 1)  * obsSize) / 2; 
       (*stackCount) += 1;
     }
@@ -281,14 +393,9 @@ uint stackDefinedOutputObjects(char      mode,
     if (RF_opt & OPT_NODE_STAT) {
       (*stackCount) += 1;
     }
-    if ((RF_opt & OPT_MISS) | (RF_opt & OPT_OMIS)) {
+    if (RF_opt & OPT_MISS) {
       imputationSize = (RF_xSize + rspSize + 1) * mRecordSize;
-      if (RF_opt & OPT_MISS) {
-        (*stackCount) += 1;
-      }
-      if (RF_opt & OPT_OMIS) {
-        (*stackCount) += 1;
-      }
+      (*stackCount) += 1;
     }
     if (RF_opt & OPT_VUSE) {
       if (RF_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
@@ -496,7 +603,7 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
   }
-  if (RF_opt & OPT_PROX) {
+  if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
     PROTECT(sexpVector[RF_PROX_ID] = NEW_NUMERIC(proximitySize));
     SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_PROX_ID]);
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_PROX_ID]));
@@ -558,40 +665,21 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
   }
-  if (RF_opt & OPT_OMIS) {
-    PROTECT(sexpVector[RF_OMIS_ID] = NEW_NUMERIC(imputationSize));
-    SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_OMIS_ID]);
-    SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_OMIS_ID]));
-    *pRF_oobImputation = NUMERIC_POINTER(sexpVector[RF_OMIS_ID]);
-    sexpIndex ++;
-    if (rspSize > 0) {
-      *pRF_sOOBImputeResponsePtr = (double **) vvector(1, rspSize);
-      for (i = 1; i <= rspSize; i++) {
-        (*pRF_sOOBImputeResponsePtr)[i] = (*pRF_oobImputation)  + (i * mRecordSize) - 1;
-      }
-    }
-    *pRF_sOOBImputePredictorPtr = (double **) vvector(1, RF_xSize);
-    for (i = 1; i <= RF_xSize; i++) {
-      (*pRF_sOOBImputePredictorPtr)[i] = (*pRF_oobImputation)  + ((rspSize + i) * mRecordSize) - 1;
-    }
-    for (i = 1; i <= mRecordSize; i++) {
-      (*pRF_oobImputation)[i-1] = (double) mRecordIndex[i];
-      if (rspSize > 0) {
-        for (j = 1; j <= rspSize; j++) {
-          (*pRF_sOOBImputeResponsePtr)[j][i] = responsePtr[j][mRecordIndex[i]];
-        }
-      }
-      for (j = 1; j <= RF_xSize; j++) {
-        (*pRF_sOOBImputePredictorPtr)[j][i] = predictorPtr[j][mRecordIndex[i]];
-      }
-    }
-  }
   if (RF_opt & OPT_VIMP) {
     PROTECT(sexpVector[RF_VIMP_ID] = NEW_NUMERIC(importanceSize));
     SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_VIMP_ID]);
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_VIMP_ID]));
     *pRF_importance = NUMERIC_POINTER(sexpVector[RF_VIMP_ID]);
     sexpIndex ++;
+    RF_vimpMembership = (Node ****) vvector(1, xVimpSize);
+    for (k = 1; k <= xVimpSize; k++) {
+      RF_vimpMembership[k] = (Node ***) vvector(1,  RF_forestSize);
+    }
+    for (k = 1; k <= xVimpSize; k++) {
+      for (i = 1; i <= RF_forestSize; i++) {
+        RF_vimpMembership[k][i] = NULL;
+      }
+    }
     RF_importancePtr = (double **) vvector(1, xVimpSize);
     for (k = 1; k <= xVimpSize; k++) {
       RF_importancePtr[k]  = (*pRF_importance)  + ((k-1) * perfDim) - 1;
@@ -639,7 +727,7 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
     else {
-      if (RF_rFactorCount > 0) {
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
         RF_cVimpEnsemble = dmatrix3(1, xVimpSize, 1, ensbDimTwo, 1, obsSize);
         for (p = 1; p <= xVimpSize; p++) {
           for (i = 1; i <= obsSize; i++) {
@@ -751,39 +839,13 @@ void unstackDefinedOutputObjects(char      mode,
   uint     ensbDimOne;
   uint     ensbDimTwo;
   uint     dpthDimOne;
-  uint i, j;
+  char     perfFlag;
+  uint i, j, k;
   obsSize        = 0;  
   xVimpSize      = 0;  
   rspSize        = 0;  
   dpthDimOne     = 0;  
-  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    if (RF_opt & OPT_COMP_RISK) {
-      perfDim = ensbDimOne = RF_eventTypeSize;
-    }
-    else {
-      perfDim = ensbDimOne = 1;
-    }
-  }
-  else {
-    if (RF_rFactorCount > 0) {
-      perfDim = RF_rFactorSize[1] + 1;
-      ensbDimOne = 1;
-    }
-    else {
-      perfDim = ensbDimOne = 1;
-    }
-  }
-  if (RF_timeIndex > 0) {
-    ensbDimTwo = RF_sortedTimeInterestSize;
-  }
-  else {
-    if (RF_rFactorCount > 0) {
-      ensbDimTwo = RF_rFactorSize[1];
-    }
-    else {
-      ensbDimTwo = 1;
-    }
-  }
+  perfDim = ensbDimOne = ensbDimTwo = 0;
   if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
     if (RF_opt & OPT_SPLDPTH_F) {
       dpthDimOne = 1;
@@ -796,6 +858,61 @@ void unstackDefinedOutputObjects(char      mode,
   case RF_PRED:
     obsSize = RF_fobservationSize;
     rspSize = RF_frSize;
+    if (RF_rSize > 0) {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        if (RF_opt & OPT_COMP_RISK) {
+          if (RF_frSize > 0) {
+            perfDim = ensbDimOne = RF_eventTypeSize;
+          }
+          else {
+            ensbDimOne = RF_eventTypeSize;
+            perfDim    = 0;
+          }
+        }
+        else {
+          if (RF_frSize > 0) {
+            perfDim = ensbDimOne = 1;
+          }
+          else {
+            ensbDimOne = 1;
+            perfDim    = 0;
+          }
+        }
+      }
+      else {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          if (RF_frSize > 0) {
+            perfDim = RF_rFactorSize[RF_rFactorMap[RF_rTarget]] + 1;
+          }
+          else {
+            perfDim = 0;
+          }
+          ensbDimOne = 1;
+        }
+        else {
+          if (RF_frSize > 0) {
+            perfDim = ensbDimOne = 1;
+          }
+          else {
+            ensbDimOne = 1;
+            perfDim    = 0;
+          }
+        }
+      }
+      if (RF_timeIndex > 0) {
+        ensbDimTwo = RF_sortedTimeInterestSize;
+      }
+      else {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          ensbDimTwo = RF_rFactorSize[RF_rFactorMap[RF_rTarget]];
+        }
+        else {
+          ensbDimTwo = 1;
+        }
+      }
+    }
+    else {
+    }
     if (RF_opt & OPT_VIMP) {
       if (RF_opt & OPT_VIMP_JOIN) {
         xVimpSize = 1;
@@ -808,6 +925,70 @@ void unstackDefinedOutputObjects(char      mode,
   default:
     obsSize = RF_observationSize;
     rspSize = RF_rSize;
+    if (RF_rSize == 0) {
+      perfFlag = FALSE;
+    }
+    else {
+      if (mode == RF_GROW) {
+        if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+          perfFlag = TRUE;
+        }
+        else {
+          if (RF_rSize > 1) {
+            perfFlag = FALSE;
+          }
+          else {
+            perfFlag = TRUE;
+          }
+        }
+      }
+      else {
+        if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+          perfFlag = TRUE;
+        }
+        else {
+          if (RF_rSize > 0) {
+            perfFlag = TRUE;
+          }
+          else {
+            perfFlag = FALSE;
+          }
+        }
+      }
+    }
+    if (!perfFlag) {
+      perfDim = ensbDimOne = ensbDimTwo = 0;
+    }
+    else {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        if (RF_opt & OPT_COMP_RISK) {
+          perfDim = ensbDimOne = RF_eventTypeSize;
+        }
+        else {
+          perfDim = ensbDimOne = 1;
+        }
+      }
+      else {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          perfDim = RF_rFactorSize[RF_rFactorMap[RF_rTarget]] + 1;
+          ensbDimOne = 1;
+        }
+        else {
+          perfDim = ensbDimOne = 1;
+        }
+      }
+      if (RF_timeIndex > 0) {
+        ensbDimTwo = RF_sortedTimeInterestSize;
+      }
+      else {
+        if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+          ensbDimTwo = RF_rFactorSize[RF_rFactorMap[RF_rTarget]];
+        }
+        else {
+          ensbDimTwo = 1;
+        }
+      }
+    }
     if (RF_opt & OPT_VIMP) {
       if (RF_opt & OPT_VIMP_JOIN) {
         xVimpSize = 1;
@@ -870,13 +1051,11 @@ void unstackDefinedOutputObjects(char      mode,
     }
     free_vvector(RF_sImputePredictorPtr, 1, RF_xSize);
   }
-  if (RF_opt & OPT_OMIS) {
-    if (rspSize > 0) {
-      free_vvector(RF_sOOBImputeResponsePtr, 1, rspSize);
-    }
-    free_vvector(RF_sOOBImputePredictorPtr, 1, RF_xSize);
-  }
   if (RF_opt & OPT_VIMP) {
+    for (k = 1; k <= xVimpSize; k++) {
+      free_vvector(RF_vimpMembership[k], 1,  RF_forestSize);
+    }
+    free_vvector(RF_vimpMembership, 1, xVimpSize);
     for (j = 1; j <= xVimpSize; j++) {
       free_uivector(RF_vimpEnsembleDen[j], 1, obsSize);
     }
@@ -891,7 +1070,7 @@ void unstackDefinedOutputObjects(char      mode,
       free_dmatrix3(RF_sVimpOutcome, 1, xVimpSize, 1, ensbDimOne, 1, obsSize);
     }
     else {
-      if (RF_rFactorCount > 0) {
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
         free_dmatrix3(RF_cVimpEnsemble, 1, xVimpSize, 1, ensbDimTwo, 1, obsSize);
       }
     }

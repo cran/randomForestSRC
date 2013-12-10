@@ -30,11 +30,11 @@
     \item{outcome}{Determines whether the y-outcomes from the training
       data or the test data are used to calculate the predicted value.
       The default and natural choice is \code{train} which uses the
-      original training data.  Note that this option is ignored when
-      \code{newdata} is missing since the training data is used for
-      the test data (see above).  The option is also ignored whenever
-      the test data is devoid of y-outcomes.  See the details and
-      examples below for more information.}
+      original training data.  Option is ignored when \code{newdata} is
+      missing as the training data is used for the test data in such
+      settings.  The option is also ignored whenever the test data is
+      devoid of y-outcomes.  See the details and examples below for more
+      information.}
     \item{proximity}{Should proximity measure between
         test observations be calculated? Can be large.}
     \item{var.used}{Record the number of times a variable is split?}
@@ -57,13 +57,19 @@
   that calculating VIMP can be computationally expensive (especially
   when the dimension is high), thus if VIMP is not needed, computational
   times can be significantly improved by setting
-  \option{importance="none"} which turns VIMP off entirely.
+  \option{importance="none"} which turns VIMP off.
   
   Setting \option{na.action="na.impute"} imputes missing
   test data (x-variables and/or y-outcomes).  Imputation uses the
   grow-forest such that only training data is used when imputing test
   data to avoid biasing error rates and VIMP (Ishwaran et al. 2008).
-   
+
+  If no test data is provided, then the original training data is used
+  and the code reverts to restore mode allowing the user to restore the
+  original grow forest.  This is useful because it gives the user the
+  ability to extract outputs from the forest that were not asked for in
+  the original grow call.  See the examples below for illustration.
+     
   If \option{outcome="test"}, the predictor is calculated by using
   y-outcomes from the test data (outcome information must be present).
   In this case, the terminal nodes from the grow-forest are recalculated
@@ -96,6 +102,8 @@
      \item{inbag}{Matrix recording inbag membership for the test data
        where each column contains the number of times that a case
        appears in the bootstrap sample for that tree.}
+     \item{var.used}{Count of the number of times a variable was used in
+       growing the forest.}
      \item{imputed.indv}{Vector of indices of records in test data with
          missing values.}
      \item{imputed.data}{Data frame comprising imputed test data.  First
@@ -177,8 +185,7 @@ veteran.pred <- predict(veteran.grow, veteran[-train , ])
 print(veteran.grow)
 print(veteran.pred)
 
-
-\dontrun{
+\donttest{
 ## ------------------------------------------------------------
 ## predicted probability and predicted class labels are returned
 ## in the predict object for classification analyses
@@ -187,9 +194,34 @@ print(veteran.pred)
 data(breast, package = "randomForestSRC")
 breast.obj <- rfsrc(status ~ ., data = breast[(1:100), ], nsplit = 10)
 breast.pred <- predict(breast.obj, breast[-(1:100), ])
-head(breast.pred$predicted)
-breast.pred$class
+print(head(breast.pred$predicted))
+print(breast.pred$class)
 
+## ------------------------------------------------------------
+## example illustrating restore mode
+## if predict is called without specifying the test data
+## the original training data is used and the forest is restored
+## ------------------------------------------------------------
+
+# first we make the grow call
+airq.obj <- rfsrc(Ozone ~ ., data = airquality)
+
+# now we restore it and compare it to the original call
+# they are identical
+predict(airq.obj)
+print(airq.obj)
+
+# we can retrieve various outputs that were not asked for in
+# in the original call
+
+#here we extract the proximity matrix
+prox <- predict(airq.obj, proximity = TRUE)$proximity
+print(prox[1:10,1:10])
+
+#here we extract the number of times a variable was used to grow
+#the grow forest
+var.used <- predict(airq.obj, var.used = "by.tree")$var.used
+print(head(var.used))
 
 ## ------------------------------------------------------------
 ## unique feature of randomForestSRC
@@ -217,8 +249,7 @@ print(veteran.f.pred)
 
 ## ------------------------------------------------------------
 ## example illustrating the flexibility of outcome = "test"
-## shows how to make a call to predict to obtain the same results
-## as the original grow call
+## illustrates restoration of forest via outcome = "test"
 ## ------------------------------------------------------------
 
 # first we make the grow call
@@ -232,26 +263,23 @@ pbc.pred <- predict(pbc.grow, pbc, outcome = "test")
 print(pbc.grow)
 print(pbc.pred)
 
-# same ... but without using outcome = "test"
-# if predict is called without specifying the test data
-# the original training data is used and the predict
-# and grow results will automatically be the same
+# note this is equivalent to restoring the forest
 pbc.pred2 <- predict(pbc.grow)
 print(pbc.grow)
 print(pbc.pred)
 print(pbc.pred2)
 
 # similar example, but with na.action = "na.impute"
-# note that the predict call must also use na.action = "na.impute"
-# for the results to be the same
 airq.obj <- rfsrc(Ozone ~ ., data = airquality, na.action = "na.impute")
 print(airq.obj)
-print(predict(airq.obj, na.action = "na.impute"))
+print(predict(airq.obj))
+# ... also equivalent to outcome="test" but na.action = "na.impute" required
+print(predict(airq.obj, airquality, outcome = "test", na.action = "na.impute"))
 
 # classification example
 iris.obj <- rfsrc(Species ~., data = iris)
 print(iris.obj)
-print(predict.rfsrc(iris.obj))
+print(predict.rfsrc(iris.obj, iris, outcome = "test"))
 
 ## ------------------------------------------------------------
 ## another example illustrating outcome = "test"

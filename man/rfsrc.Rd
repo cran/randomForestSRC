@@ -12,7 +12,7 @@
   parsed using additional functions (see the examples below).  This is
   the main entry point to the \pkg{randomForestSRC} package.
 
-  
+
   
   The package implements OpenMP shared-memory parallel programming.
   However, the default installation will only execute serially.  Users
@@ -30,7 +30,7 @@ rfsrc(formula, data, ntree = 1000,
   nodedepth = NULL,
   splitrule = NULL,
   nsplit = 0,
-  split.fast = FALSE,
+  split.null = FALSE,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
   na.action = c("na.omit", "na.impute"),
   nimpute = 1,
@@ -47,7 +47,10 @@ rfsrc(formula, data, ntree = 1000,
   ...)
 }
 \arguments{
+  
     \item{formula}{A symbolic description of the model to be fit.}
+
+  
     \item{data}{Data frame containing the y-outcome and x-variables in
       the model.}
     \item{ntree}{Number of trees in the forest.}
@@ -64,41 +67,43 @@ rfsrc(formula, data, ntree = 1000,
       For regression it is \code{p}/3.  Values are rounded up.}
     \item{nodesize}{Minimum number of unique cases (data points) in a
       terminal node.  The defaults are: survival (3), competing
-      risk (6), regression (5), classification (1).}
+      risk (6), regression (5), classification (1), mixed outcomes (3).}
     \item{nodedepth}{Maximum depth to which a tree should be grown.  The
       default behaviour is that this parameter is ignored.}
     \item{splitrule}{Splitting rule used to grow trees.  Available rules
       for the different familes are as follows:
       \describe{	
 
-	\item{\kbd{Regression:}}{The default rule is weighted mean-squared error
+	\item{\kbd{Regression analysis:}}{The default rule is weighted mean-squared error
 	 splitting (Breiman et al. 1984, Chapter 8.4).  }
 
 
        
-	\item{\kbd{Classification:}}{The default rule is Gini index splitting (Breiman
-	  et al. 1984, Chapter 4.3).}
+	\item{\kbd{Classification analysis:}}{The default rule is Gini
+	  index splitting (Breiman et al. 1984, Chapter 4.3).}
 
 	
-	\item{\kbd{Survival:}}{Two rules are available. (1) The default rule is
+	\item{\kbd{Survival analysis:}}{Two rules are available. (1) The default rule is
 	  \code{logrank} which implements log-rank splitting (Segal, 1988;
 	  Leblanc and Crowley, 1993); (2) \code{logrankscore} implements
 	  log-rank score splitting (Hothorn and Lausen, 2003).}
 	
-	\item{\kbd{Competing risks:}}{Two rules are available. (1) The default rule is
-	  \code{logrankCR} which implements a modified weighted log-rank splitting rule 
-	  modeled after Gray's test (Gray, 1988); (2) \code{logrank}
-	  implements weighted log-rank splitting where each event type
-	  is treated as the event of interest and all other events are
-	  treated as censored.  The split rule is the weighted value of
-	  each of log-rank statistics, standardized by the variance.
-	  For more details see Ishwaran et al. (2013).}
+	\item{\kbd{Competing risk analysis:}}{Two rules are available. (1) The
+	  default rule is \code{logrankCR} which implements a modified
+	  weighted log-rank splitting rule modeled after Gray's test
+	  (Gray, 1988); (2) \code{logrank} implements weighted log-rank
+	  splitting where each event type is treated as the event of
+	  interest and all other events are treated as censored.  The
+	  split rule is the weighted value of each of log-rank
+	  statistics, standardized by the variance.  For more details
+	  see Ishwaran et al. (2013).}
     }}
     \item{nsplit}{Non-negative integer value.  If non-zero, the
       specified tree splitting rule is randomized which can
       significantly increase speed.}
-    \item{split.fast}{Set this value to TRUE when speed more than
-      accuracy is important in growing a forest.}
+    \item{split.null}{Set this value to TRUE when testing the null
+      hypothesis.  In particular, this assumes there is no relationship
+      between y and x.}
     \item{importance}{Method for computing variable importance (VIMP).
       Calculating VIMP can be computationally expensive when the
       number of variables is high, thus if VIMP is not needed consider
@@ -147,7 +152,9 @@ rfsrc(formula, data, ntree = 1000,
 	  used to parse the RF-SRC object.}
     \item{proximity}{Should the proximity between observations be
         calculated?  Creates an \code{n}x\code{n} matrix, which can be
-        large.}
+        large.  Choices are \code{"inbag"}, \code{"oob"}, \code{"all"},
+	\code{TRUE}, or \code{FALSE}.  Note that setting \code{proximity
+	  = TRUE} is equivalent to \code{proximity = "inbag"}.}
     \item{var.used}{Should a record of which variables were used for
         splitting be kept?  Default is \code{FALSE}.  Possible values
         are \code{all.trees} and \code{by.tree}.}
@@ -179,7 +186,8 @@ rfsrc(formula, data, ntree = 1000,
     \item Regression forests (\code{regr}) for continuous responses.
   
     \item Classification forests (\code{class}) for factor responses.
-  
+
+    
     \item Survival forest (\code{surv}) for right-censored survival settings.
 
     \item Competing risk survival forests (\code{surv-CR}) for competing risk scenarios.  
@@ -216,13 +224,10 @@ rfsrc(formula, data, ntree = 1000,
   to grow a forest.  When non-random splitting is in effect
   (\option{nsplit=0}), iterating over each split point can sometimes be
   CPU intensive.  However, when \code{nsplit} > 0, or when pure random
-  splitting is in effect, CPU times are drastically reduced.  Further,
-  under such settings, the time to sort covariates is a significant
-  portion of the overall grow process. Setting \option{split.fast=TRUE}
-  in such cases omits the sorting/uniquifying of covariates and may
-  further decrease execution times. This option should only be used when
-  the data set is considered to contain unique values along
-  covariates. In such situations sorting/uniquifying becomes redundant.
+  splitting is in effect, CPU times are drastically reduced.
+
+              
+  
 
   \item \emph{Variable Importance (VIMP)}
 
@@ -230,15 +235,15 @@ rfsrc(formula, data, ntree = 1000,
   VIMP.  The default \code{permute} returns Breiman-Cutler permutation
   VIMP as described in Breiman (2001).  For each tree, the prediction
   error on the out-of-bag (OOB) data is recorded.  Then for a given
-  variable \emph{x}, out-of-bag (OOB) cases are randomly permuted in
-  \emph{x} and the prediction error is recorded.  The VIMP for \emph{x}
-  is defined as the difference between the perturbed and unperturbed
-  error rate averaged over all trees.  If \code{random} is used, then
-  \emph{x} is not permuted, but rather an OOB case is assigned a
-  daughter node randomly whenever a split on \emph{x} is encountered in
-  the in-bag tree.  The OOB error rate is compared to the OOB error rate
-  without randomly splitting on \emph{x}.  The VIMP is the difference
-  averaged over the forest.  If the options \code{permute.ensemble} or
+  variable \emph{x}, OOB cases are randomly permuted in \emph{x} and the
+  prediction error is recorded.  The VIMP for \emph{x} is defined as the
+  difference between the perturbed and unperturbed error rate averaged
+  over all trees.  If \code{random} is used, then \emph{x} is not
+  permuted, but rather an OOB case is assigned a daughter node randomly
+  whenever a split on \emph{x} is encountered in the in-bag tree.  The
+  OOB error rate is compared to the OOB error rate without randomly
+  splitting on \emph{x}.  The VIMP is the difference averaged over the
+  forest.  If the options \code{permute.ensemble} or
   \code{random.ensemble} are used, then VIMP is calculated by comparing
   the error rate for the perturbed OOB forest ensemble to the
   unperturbed OOB forest ensemble where the perturbed ensemble is
@@ -274,10 +279,15 @@ rfsrc(formula, data, ntree = 1000,
   
   \item \emph{Survival, Competing Risks}
 
-  \itemize{
+  \enumerate{
   \item Survival settings require a time and censoring variable which
   should be identifed in the formula as the response using the standard
-  \code{Surv} formula specification (see examples below).
+  \code{Surv} formula specification.  A typical formula call looks like:
+
+  Surv(my.time, my.status) ~ .
+
+  where \code{my.time} and \code{my.status} are the variables names for
+  the event time and status variable in the users data set.
     
   \item For survival forests (Ishwaran et al. 2008), the censoring
   variable must be coded as a non-negative integer with 0 reserved for
@@ -299,31 +309,41 @@ rfsrc(formula, data, ntree = 1000,
     in a survival analysis in which all events are treated as if they
     are the same type (indeed, they will coerced as such).
 
-    \item Generally, \code{nodesize} should be set larger for competing
-    risks than survival settings.
+    \item Generally, competing risks requires a larger \code{nodesize} than
+    survival settings.
   }
   }
-              
-  
-  \item \emph{Imputation}
 
-  Setting \option{na.action="na.impute"} implements a tree imputation
-  method whereby missing data (x-variables or y-responses) are imputed
-  dynamically as a tree is grown by randomly sampling from the
-  distribution within the current node (Ishwaran et al. 2008).  OOB data
-  is not used in imputation to avoid biasing prediction error and VIMP
-  estimates.  Final imputation for integer valued variables and
-  censoring indicators use a maximal class rule, whereas continuous
-  variables and survival time use a mean rule.  Records in which all
-  outcome and x-variable information are missing are removed.  Variables
-  having all missing values are removed.  The algorithm can be iterated
-  by setting \code{nimpute} to a positive integer greater than 1.  A few
-  iterations should be used in heavy missing data settings to improve
-  accuracy of imputed values (see Ishwaran et al., 2008).  Note if the
-  algorithm is iterated, a side effect is that missing values in the
-  returned objects \code{xvar}, \code{yvar} are replaced by imputed
-  values.  Further, imputed objects such as \code{imputed.data} are set
-  to \code{NULL}.
+  \item \emph{Missing data imputation}
+
+  Setting \option{na.action="na.impute"} implements the missing data
+  algorithm of Ishwaran et al. (2008) in which missing data (x-variables
+  or y-responses) are imputed dynamically as a tree is grown.  Prior to
+  splitting a node, data is imputed by randomly drawing values from
+  non-missing in-bag data.  OOB data is not used for imputation to avoid
+  biasing prediction error and VIMP estimates.  Following a node split,
+  imputed data are reset to missing and the process is repeated until
+  terminal nodes are reached.  The missing data algorithm can be
+  iterated by setting \code{nimpute} to a positive integer greater than
+  1.  A few iterations should be used in heavy missing data settings to
+  improve accuracy of imputed values (see Ishwaran et al., 2008).  When
+  the algorithm is iterated, at the completion of each iteration,
+  missing data is imputed using OOB non-missing terminal node data.  For
+  integer valued variables and censoring indicators, imputation uses a
+  maximal class rule, whereas continuous variables and survival time use
+  a mean rule.  The imputed data from the OOB imputation are then used
+  to grow a forest (this forest has no missing data).  At the
+  completion, missing data is reset to missing and imputed using OOB
+  non-missing terminal node data.  This process is repeated with the
+  caveat that on completing the final cycle, missing data is not reset
+  to missing (and it is not imputed from OOB non-missing terminal node
+  data).  Note if the algorithm is iterated, a side effect is that
+  missing values in the returned objects \code{xvar}, \code{yvar} are
+  replaced by imputed values.  Further, imputed objects such as
+  \code{imputed.data} are set to \code{NULL}.  Note also that records in
+  which all outcome and x-variable information are missing are removed
+  from the forest analysis.  Variables having all missing values are
+  also removed.
 
   See the function \command{impute.rfsrc} for a fast impute interface.
 
@@ -359,8 +379,8 @@ rfsrc(formula, data, ntree = 1000,
 
   All x-variables other than factors are coerced and treated as real
   valued.
-  }
-  \emph{Miscellanea}
+
+  \item \emph{Miscellanea}
   \enumerate{
     \item Setting \option{var.used="all.trees"} returns a vector of size
     \code{p} where each element is a count of the number of times a split
@@ -380,7 +400,7 @@ rfsrc(formula, data, ntree = 1000,
     entry [i][j][k] is the minimal depth for case [i] for variable [j]
     for tree [k].
   }
-}   
+}}
 \value{
      An object of class \code{(rfsrc, grow)} with the following
      components:
@@ -392,7 +412,7 @@ rfsrc(formula, data, ntree = 1000,
      \item{ntree}{Number of trees grown.}
      \item{mtry}{Number of variables randomly selected for splitting at each node.}
      \item{nodesize}{Minimum size of terminal nodes.}
-     \item{nodesize}{Maximum depth allowed for a tree.}
+     \item{nodedepth}{Maximum depth allowed for a tree.}
      \item{splitrule}{Splitting rule used.}
      \item{nsplit}{Number of randomly selected split points.}
      \item{yvar}{y-outcome values.}
@@ -412,7 +432,7 @@ rfsrc(formula, data, ntree = 1000,
          This object is used for prediction with new test data
 	 sets and is required for other R-wrappers.}
      \item{proximity}{If \option{proximity=TRUE}, matrix 
-         recording the frequency pairs of data points
+         recording the frequency of pairs of data points
          occur within the same terminal node.}
      \item{membership}{Matrix recording terminal node membership where
        each column contains the node number that a case falls in for that tree.}
@@ -464,7 +484,7 @@ rfsrc(formula, data, ntree = 1000,
     particular, \code{predicted} and \code{predicted.oob} are the
     following values calculated using in-bag and OOB data.
     
-    \itemize{
+    \enumerate{
       \item For regression, a vector of predicted y-responses.
 
       \item For classification, a matrix with columns containing the
@@ -489,7 +509,8 @@ rfsrc(formula, data, ntree = 1000,
       three-dimensional array, with the third dimension used for the
       event type, each time point in \code{time.interest} making up the
       second dimension (columns), and the case (individual) being the
-      first dimension (rows).  }
+      first dimension (rows).
+    }
   
     \item Different R-wrappers are provided to aid in parsing the grow
     object.
@@ -563,7 +584,6 @@ rfsrc(formula, data, ntree = 1000,
   \command{\link{predict.rfsrc}},
   \command{\link{print.rfsrc}}, 
   \command{\link{rf2rfz}},
-  \command{\link{restore}},
   \command{\link{var.select}},
   \command{\link{vimp}}
 }
@@ -589,17 +609,22 @@ matplot(v.obj$time.interest, 100 * t(v.obj$survival[1:10, ]),
 # indirect way: using plot.survival (also generates hazard plots)
 plot.survival(v.obj, subset = 1:10, haz.model = "ggamma")
 
-\dontrun{
+\donttest{
 ## Primary biliary cirrhosis (PBC) of the liver
 
 data(pbc, package = "randomForestSRC") 
 pbc.obj <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
-pbc.obj
+print(pbc.obj)
 
-# imputation
+
+##------------------------------------------------------------
+## Example of imputation in survival analysis
+##------------------------------------------------------------
+
+data(pbc, package = "randomForestSRC") 
 pbc.obj2 <- rfsrc(Surv(days, status) ~ ., pbc, 
            nsplit = 10, na.action = "na.impute")
-pbc.obj2
+
 
 # here's a nice wrapper to combine original data + imputed data
 combine.impute <- function(object) {
@@ -611,65 +636,22 @@ combine.impute <- function(object) {
 }
 
 # combine original data + imputed data
-pbc.imputed.data <- combine.impute(pbc.obj2)
+pbc.imp.data <- combine.impute(pbc.obj2)
 
-# iterate the missing data algorithm
-# compare to non-iterated algorithm
+# same as above but we iterate the missing data algorithm
 pbc.obj3 <- rfsrc(Surv(days, status) ~ ., pbc, nsplit=10,  
          na.action = "na.impute", nimpute = 3)
-pbc.iterate.imputed.data <- combine.impute(pbc.obj3)
-tail(pbc.imputed.data)
-tail(pbc.iterate.imputed.data)
+pbc.iterate.imp.data <- combine.impute(pbc.obj3)
 
-# fast way to impute the data: no inference is done
+# fast way to impute the data (no inference is done)
 # see impute.rfsc for more details
-pbc.fast.impute.data <- impute.rfsrc(Surv(days, status) ~ ., pbc,
-          nsplit = 10, nimpute = 3)
-tail(pbc.fast.impute.data)
+pbc.fast.imp.data <- impute.rfsrc(data = pbc, nsplit = 10, nimpute = 5)
 
-
-## competing risks
-## WIHS analysis
-## cumulative incidence function (CIF) for HAART and AIDS stratified by IDU
-
-data(wihs, package = "randomForestSRC")
-wihs.obj <- rfsrc(Surv(time, status) ~ ., wihs, nsplit = 3, ntree = 100)
-plot.competing.risk(wihs.obj)
-cif <- wihs.obj$cif
-Time <- wihs.obj$time.interest
-idu <- wihs$idu
-cif.haart <- cbind(apply(cif[,,1][idu == 0,], 2, mean), apply(cif[,,1][idu == 1,], 2, mean))
-cif.aids  <- cbind(apply(cif[,,2][idu == 0,], 2, mean), apply(cif[,,2][idu == 1,], 2, mean))
-matplot(Time, cbind(cif.haart, cif.aids), type = "l", 
-        lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3,
-        ylab = "Cumulative Incidence")  
-legend("topleft",
-       legend = c("HAART (Non-IDU)", "HAART (IDU)", "AIDS (Non-IDU)", "AIDS (IDU)"),
-       lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3, cex = 1.5)
-
-
-## competing risks
-## illustrates the various splitting rules
-## use the pbc data from the survival package
-## events are transplant (1) and death (2)
-if (library("survival", logical.return = TRUE)) {
-  data(pbc, package = "survival")
-  pbc$id <- NULL
-  pbc.cr <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10)
-  pbc.log1 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
-              splitrule = "logrank", cause = c(1,0))
-  pbc.log2 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
-              splitrule = "logrank", cause = c(0,1))
-  var.perf <- data.frame(md = max.subtree(pbc.cr)$order[, 1],
-                         vimp1 = pbc.log1$importance[,1],
-                         vimp2 = pbc.log2$importance[,2])
-  var.perf[order(var.perf$md), ]
-}
-
-
-
-## compare RF-SRC to cox regression
-## assumes "pec" and "survival" libraries are loaded 
+##------------------------------------------------------------
+## Compare RF-SRC to Cox regression
+## Illustrates C-index and Brier score measures of performance
+## assumes "pec" and "survival" libraries are loaded
+##------------------------------------------------------------
 
 if (library("survival", logical.return = TRUE)
     & library("pec", logical.return = TRUE))
@@ -717,9 +699,63 @@ if (library("survival", logical.return = TRUE)
     } else NA 
   })
   cat("\n\tOOB error rates\n\n")
-  cat("\tRandom Forests [S]RC: ", rfsrc.obj$err.rate[rfsrc.obj$ntree], "\n")
-  cat("\tCox regression      : ", mean(cox.err, na.rm = TRUE), "\n")
+  cat("\tRSF            : ", rfsrc.obj$err.rate[rfsrc.obj$ntree], "\n")
+  cat("\tCox regression : ", mean(cox.err, na.rm = TRUE), "\n")
 }
+
+##------------------------------------------------------------
+## Competing risks
+##------------------------------------------------------------
+
+## WIHS analysis
+## cumulative incidence function (CIF) for HAART and AIDS stratified by IDU
+
+data(wihs, package = "randomForestSRC")
+wihs.obj <- rfsrc(Surv(time, status) ~ ., wihs, nsplit = 3, ntree = 100)
+plot.competing.risk(wihs.obj)
+cif <- wihs.obj$cif
+Time <- wihs.obj$time.interest
+idu <- wihs$idu
+cif.haart <- cbind(apply(cif[,,1][idu == 0,], 2, mean), apply(cif[,,1][idu == 1,], 2, mean))
+cif.aids  <- cbind(apply(cif[,,2][idu == 0,], 2, mean), apply(cif[,,2][idu == 1,], 2, mean))
+matplot(Time, cbind(cif.haart, cif.aids), type = "l", 
+        lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3,
+        ylab = "Cumulative Incidence")  
+legend("topleft",
+       legend = c("HAART (Non-IDU)", "HAART (IDU)", "AIDS (Non-IDU)", "AIDS (IDU)"),
+       lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3, cex = 1.5)
+
+
+## illustrates the various splitting rules
+## illustrates event specific and non-event specific variable selection
+if (library("survival", logical.return = TRUE)) {
+
+  ## use the pbc data from the survival package
+  ## events are transplant (1) and death (2)
+  data(pbc, package = "survival")
+  pbc$id <- NULL
+
+  ## modified Gray's weighted log-rank splitting
+  pbc.cr <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10)
+
+  ## log-rank event-one specific splitting
+  pbc.log1 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
+              splitrule = "logrank", cause = c(1,0))
+
+  ## log-rank event-two specific splitting
+  pbc.log2 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
+              splitrule = "logrank", cause = c(0,1))
+
+  ## extract vimp from the log-rank forests: event-specific
+  ## extract minimal depth from the Gray log-rank forest: non-event specific
+  var.perf <- data.frame(md = max.subtree(pbc.cr)$order[, 1],
+                         vimp1 = pbc.log1$importance[,1],
+                         vimp2 = pbc.log2$importance[,2])
+  print(var.perf[order(var.perf$md), ])
+
+}
+
+
 
 ## ------------------------------------------------------------
 ## Regression analysis
@@ -727,14 +763,12 @@ if (library("survival", logical.return = TRUE)
 
 ## New York air quality measurements
 airq.obj <- rfsrc(Ozone ~ ., data = airquality, na.action = "na.impute")
-airq.obj
 
 # partial plot of variables (see plot.variable for more details)
 plot.variable(airq.obj, partial = TRUE, smooth.lines = TRUE)
 
 ## motor trend cars
 mtcars.obj <- rfsrc(mpg ~ ., data = mtcars)
-mtcars.obj
 
 # minimal depth variable selection via max.subtree
 md.obj <- max.subtree(mtcars.obj)
@@ -752,12 +786,10 @@ vs.obj <- var.select(object = mtcars.obj)
 
 ## Edgar Anderson's iris data
 iris.obj <- rfsrc(Species ~., data = iris)
-iris.obj
 
 ## Wisconsin prognostic breast cancer data
 data(breast, package = "randomForestSRC")
 breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
-breast.obj
 plot(breast.obj)
 
 

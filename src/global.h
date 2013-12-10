@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -87,38 +87,38 @@
 #ifndef FALSE
 #define FALSE  0x00
 #endif
-#define ACTIVE   0x02
-#define INACTIVE 0xFF
+#define ACTIVE    0x02
 #define LEFT      0x01
 #define RIGHT     0x00
+#define NEITHER   0x03
 #define EPSILON 1.0e-7
-#define OPT_FENS      0x000001  
-#define OPT_OENS      0x000002  
-#define OPT_PERF      0x000004  
-#define OPT_PROX      0x000008  
-#define OPT_LEAF      0x000010  
-#define OPT_TREE      0x000020  
-#define OPT_SEED      0x000040  
-#define OPT_MISS      0x000080  
-#define OPT_OMIS      0x000100  
-#define OPT_VIMP_TYPE 0x000200  
-#define OPT_VIMP_JOIN 0x000400  
-#define OPT_MEMB      0x000800  
-#define OPT_VUSE_TYPE 0x001000  
-#define OPT_VUSE      0x002000  
-#define OPT_REST      0x004000  
-#define OPT_PERF_CALB 0x008000  
-#define OPT_IMPU_ONLY 0x010000  
-#define OPT_OUTC_TYPE 0x020000  
-#define OPT_SPLT_FAST 0x040000  
-#define OPT_BOOT_NODE 0x080000  
-#define OPT_BOOT_NONE 0x100000  
-#define OPT_COMP_RISK 0x200000  
-#define OPT_SPLDPTH_F 0x400000  
-#define OPT_SPLDPTH_T 0x800000  
-#define OPT_VIMP_LEOB 0x1000000 
-#define OPT_VIMP      0x2000000 
-#define OPT_NODE_STAT 0x8000000 
+#define OPT_FENS       0x000001  
+#define OPT_OENS       0x000002  
+#define OPT_PERF       0x000004  
+#define OPT_LEAF       0x000010  
+#define OPT_TREE       0x000020  
+#define OPT_SEED       0x000040  
+#define OPT_MISS       0x000080  
+#define OPT_VIMP_TYPE  0x000200  
+#define OPT_VIMP_JOIN  0x000400  
+#define OPT_MEMB       0x000800  
+#define OPT_VUSE_TYPE  0x001000  
+#define OPT_VUSE       0x002000  
+#define OPT_REST       0x004000  
+#define OPT_PERF_CALB  0x008000  
+#define OPT_IMPU_ONLY  0x010000  
+#define OPT_OUTC_TYPE  0x020000  
+#define OPT_SPLT_NULL  0x040000  
+#define OPT_BOOT_NODE  0x080000  
+#define OPT_BOOT_NONE  0x100000  
+#define OPT_COMP_RISK  0x200000  
+#define OPT_SPLDPTH_F  0x400000  
+#define OPT_SPLDPTH_T  0x800000  
+#define OPT_VIMP_LEOB  0x1000000 
+#define OPT_VIMP       0x2000000 
+#define OPT_NODE_STAT  0x8000000 
+#define OPT_PROX_TYPE 0x10000000 
+#define OPT_PROX      0x20000000 
 #define RF_OUTP_ID   0  
 #define RF_STRG_ID   1  
 #define RF_FENS_ID   2  
@@ -164,17 +164,18 @@
 #define CLAS_WT_NRM  9  
 #define CLAS_WT_OFF 10  
 #define CLAS_WT_HVY 11  
-#define MVRG_SPLIT  12
-#define MVCL_SPLIT  13
-#define MAXM_SPLIT  13 
+#define USPV_SPLIT  12
+#define MVRG_SPLIT  13
+#define MVCL_SPLIT  14
+#define MAXM_SPLIT  14 
 #define APROX 0
 #define EXACT 1
 #define SIZE_OF_INTEGER sizeof(uint)
 #define MAX_EXACT_LEVEL SIZE_OF_INTEGER * 8
 #define SAFE_FACTOR_SIZE 8
-#define P_DOMINANT 1
-#define N_DOMINANT 2
 typedef unsigned int   uint;
 typedef unsigned long  ulong; 
 typedef unsigned char  uchar; 
+#define SPLIT_STATISTIC_OVERRIDE FALSE
+#define SPLIT_RANDOM_OVERRIDE FALSE
 #endif

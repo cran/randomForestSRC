@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,7 +67,7 @@
 #include      "nrutil.h"
 #include <R_ext/Print.h>
 #include <Rdefines.h>
-extern unsigned int getTraceFlag(unsigned int tree);
+extern unsigned int getTraceFlag();
 extern unsigned int getNumrDefTraceFlag();
 extern unsigned int getSummUsrTraceFlag();
 extern void increaseMemoryAllocation(size_t amount);
@@ -182,15 +182,19 @@ void hpsortui(unsigned int *ra, unsigned int n) {
 #define M 7
 #define NSTACK 50
 void indexx(unsigned int n, double *arr, unsigned int *indx) {
-  unsigned int i, j, k, l=1;
-  unsigned int indxt, itemp, ir=n;
-  unsigned int *istack, jstack=0;
+  unsigned int i, j, k, l;
+  unsigned int indxt, itemp, ir;
+  unsigned int *istack, jstack;
   double a;
+  if (n < 1) nrerror("\n n of zero (0) length in indexx().");
+  l  = 1;
+  ir = n;
+  jstack = 0;
   istack = uivector(1, NSTACK);
   for (j=1; j<=n; j++) indx[j]=j;
   for (;;) {
     if (ir-l < M) {
-      for (j=l+1; j<=ir; j++) {
+      for (j = l+1; j <= ir; j++) {
         indxt = indx[j];
         a = arr[indxt];
         for (i=j-1; i>=l; i--) {
@@ -201,20 +205,20 @@ void indexx(unsigned int n, double *arr, unsigned int *indx) {
       }
       if (jstack == 0) break;
       ir = istack[jstack--];
-      l = istack[jstack--];
+      l  = istack[jstack--];
     }
     else {
       k = (l+ir) >> 1;
       SWAP(indx[k], indx[l+1]);
       if (arr[indx[l]] > arr[indx[ir]]) {
         SWAP(indx[l], indx[ir])
-          }
+      }
       if (arr[indx[l+1]] > arr[indx[ir]]) {
         SWAP(indx[l+1], indx[ir])
-          }
+      }
       if (arr[indx[l]] > arr[indx[l+1]]) {
         SWAP(indx[l], indx[l+1])
-          }
+      }
       i = l+1;
       j = ir;
       indxt = indx[l+1];
@@ -224,11 +228,11 @@ void indexx(unsigned int n, double *arr, unsigned int *indx) {
         do j--; while (arr[indx[j]] > a);
         if (j < i) break;
         SWAP(indx[i], indx[j])
-          }
+      }
       indx[l+1] = indx[j];
       indx[j] = indxt;
       jstack += 2;
-      if (jstack > NSTACK) nrerror("NSTACK too small in indexx.");
+      if (jstack > NSTACK) nrerror("NSTACK too small in indexx().");
       if (ir-i+1 >= j-l) {
         istack[jstack] = ir;
         istack[jstack-1] = i;

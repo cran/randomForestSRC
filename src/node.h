@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -108,17 +108,14 @@ struct node {
   unsigned int fmpIndexSize;
   int *mpSign;
   int *fmpSign;
+  char imputed;
   unsigned int *lmpIndex;
-  unsigned int  lmpIndexAllocSize;
-  unsigned int  lmpIndexActualSize;
+  unsigned int  lmpIndexAllocSize, lmpIndexActualSize;
   unsigned int *flmpIndex;
-  unsigned int  flmpIndexAllocSize;
-  unsigned int  flmpIndexActualSize;
+  unsigned int  flmpIndexAllocSize, flmpIndexActualSize;
   unsigned int *lmrIndex;
-  unsigned int  lmrIndexAllocSize;
-  unsigned int  lmrIndexActualSize;
+  unsigned int  lmrIndexAllocSize, lmrIndexActualSize;
   unsigned int *flmrIndex;
-  unsigned int  flmrIndexAllocSize;
-  unsigned int  flmrIndexActualSize;
+  unsigned int  flmrIndexAllocSize, flmrIndexActualSize;
 };
 #endif

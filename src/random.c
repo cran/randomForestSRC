@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -83,34 +83,32 @@ int      *seed1Value;
 int      *seed2Value;
 int      *seed3Value;
 void randomStack(uint bSize, uint pSize) {
-  uint b, p;
-  ran1_iy = ivector(0, bSize-1);
-  ran1_iv = imatrix(0, bSize-1, 0, NTAB-1);
-  ran2_iy = ivector(0, bSize-1);
-  ran2_iv = imatrix(0, bSize-1, 0, NTAB-1);
-  ran3_iy = ivector(0, pSize-1);
-  ran3_iv = imatrix(0, pSize-1, 0, NTAB-1);
+  uint b;
+  ran1_iy = ivector(0, bSize);
+  ran1_iv = imatrix(0, bSize, 0, NTAB-1);
+  ran2_iy = ivector(0, bSize);
+  ran2_iv = imatrix(0, bSize, 0, NTAB-1);
+  ran3_iy = ivector(0, bSize);
+  ran3_iv = imatrix(0, bSize, 0, NTAB-1);
   for (b = 0; b < bSize; b++) {
     ran1_iy[b] = 0;
     ran2_iy[b] = 0;
+    ran3_iy[b] = 0;
   }
-  for (p = 0; p < pSize; p++) {
-    ran3_iy[p] = 0;
-  }
-  seed1Value = ivector(0, bSize-1);
-  seed2Value = ivector(0, bSize-1);
-  seed3Value = ivector(0, pSize-1);
+  seed1Value = ivector(0, bSize);
+  seed2Value = ivector(0, bSize);
+  seed3Value = ivector(0, bSize);
 }
 void randomUnstack(uint bSize, uint pSize) {
-  free_ivector(ran1_iy, 0, bSize-1);
-  free_imatrix(ran1_iv, 0, bSize-1, 0, NTAB-1);
-  free_ivector(ran2_iy, 0, bSize-1);
-  free_imatrix(ran2_iv, 0, bSize-1, 0, NTAB-1);
-  free_ivector(ran3_iy, 0, pSize-1);
-  free_imatrix(ran3_iv, 0, pSize-1, 0, NTAB-1);
-  free_ivector(seed1Value, 0, bSize-1);
-  free_ivector(seed2Value, 0, bSize-1);
-  free_ivector(seed3Value, 0, pSize-1);
+  free_ivector(ran1_iy, 0, bSize);
+  free_imatrix(ran1_iv, 0, bSize, 0, NTAB-1);
+  free_ivector(ran2_iy, 0, bSize);
+  free_imatrix(ran2_iv, 0, bSize, 0, NTAB-1);
+  free_ivector(ran3_iy, 0, bSize);
+  free_imatrix(ran3_iv, 0, bSize, 0, NTAB-1);
+  free_ivector(seed1Value, 0, bSize);
+  free_ivector(seed2Value, 0, bSize);
+  free_ivector(seed3Value, 0, bSize);
 }
 void randomSetChainParallel(uint b, int value) {
   seed1Value[b-1] = value;
@@ -118,8 +116,8 @@ void randomSetChainParallel(uint b, int value) {
 void randomSetUChainParallel(uint b, int value) {
   seed2Value[b-1] = value;
 }
-void randomSetUChainParallelCov(uint p, int value) {
-  seed3Value[p-1] = value;
+void randomSetUChainParallelCov(uint b, int value) {
+  seed3Value[b-1] = value;
 }
 void randomSetChainSerial(uint b, int value) {
   seed1Value[0] = value;
@@ -127,7 +125,7 @@ void randomSetChainSerial(uint b, int value) {
 void randomSetUChainSerial(uint b, int value) {
   seed2Value[0] = value;
 }
-void randomSetUChainSerialCov(uint p, int value) {
+void randomSetUChainSerialCov(uint b, int value) {
   seed3Value[0] = value;
 }
 int randomGetChainParallel(uint b) {
@@ -136,8 +134,8 @@ int randomGetChainParallel(uint b) {
 int randomGetUChainParallel(uint b) {
   return seed2Value[b-1];
 }
-int randomGetUChainParallelCov(uint p) {
-  return seed3Value[p-1];
+int randomGetUChainParallelCov(uint b) {
+  return seed3Value[b-1];
 }
 int randomGetChainSerial(uint b) {
   return seed1Value[0];
@@ -145,7 +143,7 @@ int randomGetChainSerial(uint b) {
 int randomGetUChainSerial(uint b) {
   return seed2Value[0];
 }
-int randomGetUChainSerialCov(uint p) {
+int randomGetUChainSerialCov(uint b) {
   return seed3Value[0];
 }
 float randomChainParallel(uint b) {
@@ -154,8 +152,8 @@ float randomChainParallel(uint b) {
 float randomUChainParallel(uint b) {
   return  ran1_generic(& ran2_iy[b-1], ran2_iv[b-1], & seed2Value[b-1]);
 }
-float randomUChainParallelCov(uint p) {
-  return  ran1_generic(& ran3_iy[p-1], ran3_iv[p-1], & seed3Value[p-1]);
+float randomUChainParallelCov(uint b) {
+  return  ran1_generic(& ran3_iy[b-1], ran3_iv[b-1], & seed3Value[b-1]);
 }
 float randomChainSerial(uint b) {
   return  ran1_generic(& ran1_iy[0], ran1_iv[0], & seed1Value[0]);
@@ -163,7 +161,7 @@ float randomChainSerial(uint b) {
 float randomUChainSerial(uint b) {
   return  ran1_generic(& ran2_iy[0], ran2_iv[0], & seed2Value[0]);
 }
-float randomUChainSerialCov(uint p) {
+float randomUChainSerialCov(uint b) {
   return  ran1_generic(& ran3_iy[0], ran3_iv[0], & seed3Value[0]);
 }
 float ran1_generic(int *iy, int *iv, int *idum) {

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -67,6 +67,9 @@ plot.competing.risk.rfsrc <- function (x, plots.one.page = FALSE, ...) {
   if (sum(inherits(x, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
     stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, predict)'.")
+  }
+  if (x$family != "surv-CR") {
+    stop("this function only supports competing risk settings")
   }
   matPlot <- function(matx, ylab = "", legend = "", pos = 1) {
      m <- dim(cbind(matx))[2]

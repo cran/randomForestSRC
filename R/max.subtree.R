@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -237,22 +237,27 @@ max.subtree.rfsrc <- function(object,
   }
   if (conservative == TRUE) {
     parseDepthOrderObj <- parseDepthOrder(result, max.order)
-    result$threshold <- parseDepthOrderObj$first.moment
-    result$threshold.1se <- result$threshold + parseDepthOrderObj$sd / sqrt(numSamp)
-    result$density <- parseDepthOrderObj$prob
-    result$second.order.threshold <- parseDepthOrderObj$second.order.moment
+    if (!is.null(parseDepthOrderObj)) {
+      result$threshold <- parseDepthOrderObj$first.moment
+      result$threshold.1se <- result$threshold + parseDepthOrderObj$sd / sqrt(numSamp)
+      result$density <- parseDepthOrderObj$prob
+      result$second.order.threshold <- parseDepthOrderObj$second.order.moment
+    }
   }
   else {
     parseDepthOrderObj <- parseDepthOrder(result, 0)
-    #continuity correction due to using a single tree
-    threshold.con <- parseDepthOrder(result, 1)$first.moment
-    threshold.lib <- mean(parseDepthOrderObj$first.moment, na.rm = TRUE)
-    result$threshold <- ifelse(threshold.lib - 0.5 > threshold.con, threshold.lib - 0.5, threshold.lib)
-    result$threshold.1se <- result$threshold + mean(parseDepthOrderObj$sd, na.rm = TRUE) / sqrt(numSamp)
-    result$density <- apply(parseDepthOrderObj$prob, 1, mean, na.rm = TRUE)
-    result$second.order.threshold <- mean(parseDepthOrderObj$second.order.moment, na.rm = TRUE)
+    if (!is.null(parseDepthOrderObj)) {
+      threshold.con <- parseDepthOrder(result, 1)$first.moment
+      threshold.lib <- mean(parseDepthOrderObj$first.moment, na.rm = TRUE)
+      result$threshold <- ifelse(threshold.lib - 0.5 > threshold.con, threshold.lib - 0.5, threshold.lib)
+      result$threshold.1se <- result$threshold + mean(parseDepthOrderObj$sd, na.rm = TRUE) / sqrt(numSamp)    
+      result$density <- apply(parseDepthOrderObj$prob, 1, mean, na.rm = TRUE)
+      result$second.order.threshold <- mean(parseDepthOrderObj$second.order.moment, na.rm = TRUE)
+    }
   }
-  names(result$density) <- paste(0:(length(result$density) - 1))
+  if (!is.null(result$density)) {
+    names(result$density) <- paste(0:(length(result$density) - 1))
+  }
   if (max.order > 0) {
     minDepthVar <- result$order[, 1]
   }

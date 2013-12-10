@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -136,32 +136,39 @@ void stackFactorGeneric(uint    size,
                         uint  **p_factorIndex,
                         uint  **p_factorSize) {
   uint i, j;
-  *p_factorMap = uivector(1, size);
-  *factorCount = 0;
-  for (i = 1; i <= size; i++) {
-    (*p_factorMap)[i] = 0;
-    if (strcmp(type[i], "C") == 0) {
-      (*factorCount) ++;
-      (*p_factorMap)[i] = *factorCount;
-    }
-  }
-  if (*factorCount > 0) {
-    *p_factorIndex = uivector(1, *factorCount);
-    j = 0;
+  if (size > 0) {
+    *p_factorMap = uivector(1, size);
+    *factorCount = 0;
     for (i = 1; i <= size; i++) {
-      if ((*p_factorMap)[i] > 0) {
-        (*p_factorIndex)[++j] = i;
+      (*p_factorMap)[i] = 0;
+      if (strcmp(type[i], "C") == 0) {
+        (*factorCount) ++;
+        (*p_factorMap)[i] = *factorCount;
       }
     }
-    *p_factorSize = uivector(1, *factorCount);
+    if (*factorCount > 0) {
+      *p_factorIndex = uivector(1, *factorCount);
+      j = 0;
+      for (i = 1; i <= size; i++) {
+        if ((*p_factorMap)[i] > 0) {
+          (*p_factorIndex)[++j] = i;
+        }
+      }
+      *p_factorSize = uivector(1, *factorCount);
+    }
+  }
+  else {
+    *factorCount = 0;
   }
 }
 void unstackFactorArrays() {
   uint j, k;
-  free_uivector(RF_rFactorMap, 1, RF_rSize);
-  if (RF_rFactorCount > 0) {
-    free_uivector(RF_rFactorIndex, 1, RF_rFactorCount);
-    free_uivector(RF_rFactorSize, 1, RF_rFactorCount);
+  if (RF_rSize > 0) {
+    free_uivector(RF_rFactorMap, 1, RF_rSize);
+    if (RF_rFactorCount > 0) {
+      free_uivector(RF_rFactorIndex, 1, RF_rFactorCount);
+      free_uivector(RF_rFactorSize, 1, RF_rFactorCount);
+    }
   }
   free_uivector(RF_xFactorMap, 1, RF_xSize);
   if (RF_xFactorCount > 0) {
@@ -187,8 +194,7 @@ char stackMissingArrays(char mode) {
   char mFlag;
   char dualUseFlag;
   uint recordSize;
-  uint vIndexSize;
-  uint i, j, k;
+  uint i, j;
   result = TRUE;
   for (j = 1; j <= RF_rSize; j++) {
     if (j == RF_timeIndex) {
@@ -279,22 +285,35 @@ char stackMissingArrays(char mode) {
     }
   }  
   RF_response = (double ***) vvector(1, RF_forestSize);
-  for (i = 1 ; i <= RF_forestSize; i++) {
-    RF_response[i] = RF_responseIn;
-  }
-  if (RF_timeIndex > 0) {
-    RF_time = (double **) vvector(1, RF_forestSize);
-    RF_masterTimeIndex = (uint **) vvector(1, RF_forestSize);
+  if (RF_rSize > 0) {
     for (i = 1 ; i <= RF_forestSize; i++) {
-      RF_time[i] = RF_responseIn[RF_timeIndex];
-      RF_masterTimeIndex[i] = RF_masterTimeIndexIn;
+      RF_response[i] = RF_responseIn;
     }
-    updateTimeIndexArray(0, NULL, NULL, RF_observationSize, RF_responseIn[RF_timeIndex], TRUE, FALSE, RF_masterTimeIndexIn);
+    if (RF_timeIndex > 0) {
+      RF_time = (double **) vvector(1, RF_forestSize);
+      RF_masterTimeIndex = (uint **) vvector(1, RF_forestSize);
+      for (i = 1 ; i <= RF_forestSize; i++) {
+        RF_time[i] = RF_responseIn[RF_timeIndex];
+        RF_masterTimeIndex[i] = RF_masterTimeIndexIn;
+      }
+      updateTimeIndexArray(0, 
+                           NULL, 
+                           RF_observationSize, 
+                           RF_responseIn[RF_timeIndex], 
+                           TRUE, 
+                           FALSE, 
+                           RF_masterTimeIndexIn);
+    }
+    if (RF_statusIndex > 0) {
+      RF_status = (double **) vvector(1, RF_forestSize);
+      for (i = 1 ; i <= RF_forestSize; i++) {
+        RF_status[i] = RF_responseIn[RF_statusIndex];
+      }
+    }
   }
-  if (RF_statusIndex > 0) {
-    RF_status = (double **) vvector(1, RF_forestSize);
+  else {
     for (i = 1 ; i <= RF_forestSize; i++) {
-      RF_status[i] = RF_responseIn[RF_statusIndex];
+      RF_response[i] = NULL;
     }
   }
   RF_observation = (double ***) vvector(1, RF_forestSize);
@@ -303,14 +322,11 @@ char stackMissingArrays(char mode) {
   }
   RF_mRecordMap = uivector(1, RF_observationSize);
   RF_mRecordSize = getRecordMap(RF_mRecordMap, 
-                              RF_observationSize, 
-                              RF_responseIn, 
-                              RF_observationIn);
+                                RF_observationSize, 
+                                RF_responseIn, 
+                                RF_observationIn);
   if (RF_mRecordSize == 0) {
     RF_mStatusFlag = RF_mTimeFlag = RF_mResponseFlag = RF_mPredictorFlag = FALSE;
-    if (mode == RF_GROW) {
-      RF_imputeSize = 1;
-    }
   }
   else {
     stackMissingSignatures(RF_observationSize,
@@ -355,8 +371,8 @@ char stackMissingArrays(char mode) {
       RF_fobservation[i] = RF_fobservationIn;
     }
     RF_fmRecordMap = uivector(1, RF_fobservationSize);
+    RF_fresponse = (double ***) vvector(1, RF_forestSize);
     if (RF_frSize > 0) {
-      RF_fresponse = (double ***) vvector(1, RF_forestSize);
       for (i = 1 ; i <= RF_forestSize; i++) {
         RF_fresponse[i] = RF_fresponseIn;
       }
@@ -374,7 +390,9 @@ char stackMissingArrays(char mode) {
       }
     }
     else {
-      RF_fresponseIn = NULL;
+      for (i = 1 ; i <= RF_forestSize; i++) {
+        RF_fresponse[i] = NULL;
+      }
     }
     RF_fmRecordSize = getRecordMap(RF_fmRecordMap, 
                                  RF_fobservationSize, 
@@ -427,9 +445,18 @@ char stackMissingArrays(char mode) {
   case RF_PRED:
     if (RF_fmRecordSize > 0) {
       recordSize = RF_fmRecordSize;
-      vIndexSize = RF_fmpIndexSize;
       dualUseFlag = TRUE;
       mFlag = ACTIVE;
+    }
+    else {
+      RF_opt = RF_opt & (~OPT_MISS);
+    }
+    break;
+  case RF_REST:
+    if (RF_mRecordSize > 0) {
+      recordSize = RF_mRecordSize;
+      dualUseFlag = TRUE;
+      mFlag = FALSE;
     }
     else {
       RF_opt = RF_opt & (~OPT_MISS);
@@ -438,13 +465,12 @@ char stackMissingArrays(char mode) {
   default:
     if (RF_mRecordSize > 0) {
       recordSize = RF_mRecordSize;
-      vIndexSize = RF_mpIndexSize;
       dualUseFlag = TRUE;
       mFlag = FALSE;
     }
     else {
       RF_opt = RF_opt & (~OPT_MISS);
-      RF_opt = RF_opt & (~OPT_OMIS);
+      RF_nImpute = 1;
     }
     break;
   }  
@@ -457,12 +483,6 @@ char stackMissingArrays(char mode) {
     }
     RF_mTermList = (Terminal ***) vvector(1, RF_forestSize);
     RF_mTermMembership = (Terminal ***) vvector(1, RF_forestSize);
-    for (i = 1; i <= RF_forestSize; i++) {
-      for (j = 1; j <= recordSize; j++) {
-        for (k = 1; k <= vIndexSize; k++) {
-        }
-      }
-    }
   }
   if (RF_rFactorCount + RF_xFactorCount > 0) {
     initializeFactorArrays(mode);
@@ -473,12 +493,14 @@ void unstackMissingArrays(char mode) {
   char dualUseFlag;
   uint recordSize;
   free_vvector(RF_response, 1, RF_forestSize);
-  if (RF_timeIndex > 0) {
-    free_vvector(RF_time, 1, RF_forestSize);
-    free_vvector(RF_masterTimeIndex, 1, RF_forestSize);
-  }
-  if (RF_statusIndex > 0) {
-    free_vvector(RF_status, 1, RF_forestSize);
+  if (RF_rSize > 0) {
+    if (RF_timeIndex > 0) {
+      free_vvector(RF_time, 1, RF_forestSize);
+      free_vvector(RF_masterTimeIndex, 1, RF_forestSize);
+    }
+    if (RF_statusIndex > 0) {
+      free_vvector(RF_status, 1, RF_forestSize);
+    }
   }
   free_vvector(RF_observation, 1, RF_forestSize);
   free_uivector(RF_mRecordMap, 1, RF_observationSize);
@@ -499,8 +521,8 @@ void unstackMissingArrays(char mode) {
   if (mode == RF_PRED) {
     free_vvector(RF_fobservation, 1, RF_forestSize);
     free_uivector(RF_fmRecordMap, 1, RF_fobservationSize);
+    free_vvector(RF_fresponse, 1, RF_forestSize);
     if (RF_frSize > 0) {
-      free_vvector(RF_fresponse, 1, RF_forestSize);
       if (RF_timeIndex > 0) {
         free_vvector(RF_ftime, 1, RF_forestSize);
       }
@@ -827,6 +849,13 @@ char stackCompetingArrays(char mode) {
                    & RF_mStatusSize,
                    RF_eventType);
   if (mode == RF_GROW) {
+    if (RF_splitRule == RAND_SPLIT) {
+      if (RF_eventTypeSize == 1) {
+      }
+      else {
+        RF_opt = RF_opt | OPT_COMP_RISK;
+      }
+    }
     if ((RF_splitRule == SURV_CR_LAU) || (RF_splitRule == SURV_CR_LOG)) {
       if (RF_eventTypeSize == 1) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -866,7 +895,6 @@ char stackCompetingArrays(char mode) {
       }
     }
   }
-  if (RF_eventTypeSize > 1) {
     RF_eventTypeIndex  = uivector(1, RF_eventType[RF_eventTypeSize]);
     for (j = 1; j <= RF_eventType[RF_eventTypeSize]; j++) {
       RF_eventTypeIndex[j] = 0;
@@ -874,7 +902,6 @@ char stackCompetingArrays(char mode) {
     for (j = 1; j <= RF_eventTypeSize; j++) {
       RF_eventTypeIndex[RF_eventType[j]] = j;
     }
-  }
   switch (mode) { 
   case RF_PRED: 
     if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB) | (RF_opt & OPT_VIMP)) { 
@@ -1086,9 +1113,7 @@ void unstackCompetingArrays(char mode) {
     Rprintf("\nRF-SRC: Please Contact Technical Support."); 
     error("\nRF-SRC: The application will now exit.\n"); 
   }
-  if (RF_eventTypeSize > 1) {  
     free_uivector(RF_eventTypeIndex, 1, RF_eventType[RF_eventTypeSize]);
-  }
   free_uivector(RF_eventType, 1, RF_observationSize);
   if (RF_eventTypeSize > 1) { 
     if (mode == RF_PRED) { 

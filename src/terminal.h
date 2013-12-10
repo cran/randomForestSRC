@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,9 +67,7 @@ struct terminal {
   unsigned int nodeID;
   unsigned int *lmiIndex;
   unsigned int  lmiSize;
-  unsigned int **lmiRaggedIndex;
-  double       **lmiRaggedValue;
-  unsigned int  *lmiRaggedSize;
+  double       *lmiRaggedValue;
   unsigned int  dominant;
 };
 #endif

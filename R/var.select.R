@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -195,8 +195,9 @@ var.select.rfsrc <-
     if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2) {
        stop("This function only works for objects of class `(rfsrc, grow)'")
     }
-    if (is.null(object$forest)) 
+    if (is.null(object$forest)) {
       stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'")
+    }
     rfsrc.all.f <- object$formula
   }
   else {
@@ -212,19 +213,36 @@ var.select.rfsrc <-
   }
   if (missing(object)) {
     formulaDetail <- finalizeFormula(parseFormula(rfsrc.all.f, data), data)
-    fmly <- formulaDetail$family 
+    fmly <- formulaDetail$family
     xvar.names <- formulaDetail$xvar.names
     yvar.names <- formulaDetail$yvar.names
-    data <- cbind(data[, yvar.names], data[, match(xvar.names, names(data))])
+    if (fmly != "unsupv") {
+      data <- cbind(data[, yvar.names, drop = FALSE], data[, match(xvar.names, names(data))])
+      yvar <- data[, yvar.names]
+      r.dim <- ncol(cbind(yvar))
+    }
+    else {
+      data <- data[, match(xvar.names, names(data))]
+      r.dim <- 0
+      method <- "md"
+    }
   }
   else {
     fmly <- object$family
     xvar.names <- object$xvar.names
-    yvar.names <- object$yvar.names
-    data <- data.frame(object$yvar, object$xvar)
+    if (fmly != "unsupv") {
+      yvar.names <- object$yvar.names
+      data <- data.frame(object$yvar, object$xvar)
+      colnames(data) <- c(yvar.names, xvar.names)
+      yvar <- data[, yvar.names]
+      r.dim <- ncol(cbind(yvar))
+    }
+    else {
+      data <- object$xvar
+      r.dim <- 0
+      method <- "md"
+    }
   }
-  colnames(data) <- c(yvar.names, xvar.names)
-  yvar <- data[, yvar.names]
   if (missing(cause)) {
     cause <- 1
   }
@@ -240,10 +258,10 @@ var.select.rfsrc <-
        "surv-CR"= as.formula(paste("Surv(",yvar.names[1],",",yvar.names[2],") ~ .")),
        "regr"   = as.formula(paste(yvar.names, "~ .")),
        "class"  = as.formula(paste(yvar.names, "~ .")),
+       "unsupv" = NULL,
   )
   n <- nrow(data)
   P <- length(xvar.names)
-  r.dim <- ncol(cbind(yvar))
   target.dim <- 1
   var.columns <- (1 + r.dim):ncol(data)
   if (!is.null(always.use)) {
@@ -275,7 +293,7 @@ var.select.rfsrc <-
   prefit.flag  <- prefit$action
   if (method == "md") {
     if (prefit.flag && is.null(xvar.wt) && missing(object)) {
-      if (verbose) cat("Using forests to select a variables likelihood of splitting a node...\n")
+      if (verbose) cat("Using forests to preweight each variable's chance of splitting a node...\n")
       rfsrc.prefit.obj  <- rfsrc(rfsrc.all.f,
                                  data = data,
                                  ntree = prefit$ntree,

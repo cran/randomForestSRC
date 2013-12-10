@@ -133,8 +133,8 @@ R-side forking (accessed via \command{mclapply} in package
   \item It is important NOT to write programs that fork R processes
         containing OpenMP threads.  That is, one should not use
         \command{mclapply} around the functions \command{rfsrc},
-        \command{predict.rfsrc}, \command{restore.rfsrc},
-        \command{vimp.rfsc}, \command{var.select.rfsrc}, and
+        \command{predict.rfsrc}, \command{vimp.rfsc},
+        \command{var.select.rfsrc}, and
         \command{find.interaction.rfsrc}.  In such a scenario, program
         execution is not guaranteed.
 
@@ -215,7 +215,6 @@ R-side forking (accessed via \command{mclapply} in package
   \command{\link{predict.rfsrc}},
   \command{\link{print.rfsrc}},
   \command{\link{rfsrc}},
-  \command{\link{restore}},
   \command{\link{var.select}},
   \command{\link{vimp}}
 }

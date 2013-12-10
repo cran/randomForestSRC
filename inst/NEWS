@@ -1,11 +1,25 @@
 Package: randomForestSRC
-Version: 1.3
-BUILD: bld20130718
+Version: 1.4
+BUILD: bld20131210b
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.3
+CHANGES TO RELEASE 1.4
 ---------------------------------------------------------------------------------
-RELEASE 1.3
+RELEASE 1.4
+Modification of terminal node imputation protocol.  We now assign all
+individuals the same value rather than sampling from the distribution.
+Implementation of split.null option.  Implementation of unsupervised
+splitting for missing data in impute.rfsrc().  Modification of nipmute
+> 1 protocols.  In-bag, OOB, and all now depend on the mode.
+Reduction in impute memory footprint.  Modification of proximity
+option to allow in-bag, OOB, and all.  Fixed bug in predict involving
+manual formula calls.  Fixed bug in find.interaction involving
+specifying covariate names.  Changes relating to Undefined Behaviour
+Sanitizer.
+
+
+---------------------------------------------------------------------------------
+RELEASE 1.3.0
 
 Initial re-engineering of memory footprint for imputation.
 Performance enhancements to split rules.

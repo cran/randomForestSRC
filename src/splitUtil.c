@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,17 +67,21 @@
 #include     "factorOps.h"
 #include    "regression.h"
 #include     "splitUtil.h"
-void updateMaximumSplit(double  delta, 
+char updateMaximumSplit(uint    treeID,
+                        double  delta, 
                         uint    randomCovariate,
                         uint    index,
                         char    factorFlag,
                         uint    mwcpSizeAbsolute,
+                        uint    repMembrSize,
+                        char   *localSplitIndicator,
                         double *deltaMax,
                         uint   *splitParameterMax,
                         double *splitValueMaxCont,
                         uint   *splitValueMaxFactSize,
                         uint  **splitValueMaxFactPtr,
-                        void   *permissibleSplitPtr) {
+                        void   *permissibleSplitPtr,
+                        char  **splitIndicator) {
   char flag;
   uint k;
   delta = delta * RF_splitWeight[randomCovariate];
@@ -123,9 +127,16 @@ void updateMaximumSplit(double  delta,
       }
       *splitValueMaxCont = ((double*) permissibleSplitPtr)[index];
     }
+    if (*splitIndicator == NULL) {
+     *splitIndicator = cvector(1, repMembrSize);
+    }
+   for (k=1; k <= repMembrSize; k++) {
+     (*splitIndicator)[k] = localSplitIndicator[k];
+   }
   }
   else {
   }
+  return flag;
 }
 uint stackAndSelectRandomCovariates(uint     treeID,
                                     Node     *parent,
@@ -207,7 +218,9 @@ void unstackRandomCovariates(uint     treeID,
   free_dmatrix(permissibleSplit, 1, RF_randomCovariateCount, 1, repMembrSize);
   free_uivector(permissibleSplitSize, 1, RF_randomCovariateCount);
   for (i = 1; i <= actualCovariateCount; i++) {
-    free_uivector(repMembrIndxx[i], 1, repMembrSize);
+    if (repMembrIndxx[i] != NULL) {
+      free_uivector(repMembrIndxx[i], 1, repMembrSize);
+    }
   }
   free_vvector(repMembrIndxx, 1, RF_randomCovariateCount);
 }
@@ -544,91 +557,14 @@ uint virtuallySplitNode(uint  treeID,
                         uint  mwcpSizeAbsolute,
                         uint  randomCovariate,
                         uint *repMembrIndx,
+                        uint *repMembrIndxx,
                         uint  repMembrSize,
                         void *permissibleSplitPtr,
                         uint  offset,
-                        uint  localEventTimeSize,
-                        uint *localEventTimeIndex,
-                        uint *nodeParentAtRisk,
-                        uint *nodeParentEvent,
-                        uint *nodeLeftAtRisk,
-                        uint *nodeLeftEvent,
-                        uint *leftEventTimeSize,
-                        uint *nodeRightAtRisk,
-                        uint *nodeRightEvent,
-                        uint *rightEventTimeSize,
-                        char *localSplitIndicator) {
-  char daughterFlag;
-  uint leftSize;
-  uint index, k, m;
-  leftSize = 0;
-  if (localEventTimeSize > 0) {
-    *leftEventTimeSize = *rightEventTimeSize = 0;
-    for (k=1; k <= localEventTimeSize; k++) {
-      nodeLeftEvent[k] = nodeLeftAtRisk[k] = 0;
-    }
-  }
-  for (k=1; k <= repMembrSize; k++) {
-    daughterFlag = RIGHT;
-    if (factorFlag == TRUE) {
-      daughterFlag = splitOnFactor((uint) RF_observation[treeID][randomCovariate][repMembrIndx[k]], (uint*) permissibleSplitPtr + ((offset - 1) * mwcpSizeAbsolute));
-    }
-    else {
-      if (RF_observation[treeID][randomCovariate][repMembrIndx[k]] <= ((double*) permissibleSplitPtr)[offset]) {
-        daughterFlag = LEFT;
-      }
-    }
-    if (localSplitIndicator != NULL) {
-      localSplitIndicator[k] = daughterFlag;
-    }
-    if (daughterFlag == LEFT) {
-      leftSize ++;
-      if (localEventTimeSize > 0) {
-        index = 0;  
-        for (m = 1; m <= localEventTimeSize; m++) {
-          if (localEventTimeIndex[m] <= RF_masterTimeIndex[treeID][repMembrIndx[k]]) {
-            nodeLeftAtRisk[m] ++;
-            index = m;
-          }
-          else {
-            m = localEventTimeSize;
-          }
-        }
-        if (RF_status[treeID][repMembrIndx[k]] > 0) {
-          nodeLeftEvent[index] ++;
-        }
-      }
-    }  
-    else {
-    }
-  }  
-  if (localEventTimeSize > 0) {
-    for (k=1; k <= localEventTimeSize; k++) {
-      nodeRightEvent[k] = nodeParentEvent[k] - nodeLeftEvent[k];
-      nodeRightAtRisk[k] = nodeParentAtRisk[k] - nodeLeftAtRisk[k];
-      if (nodeLeftEvent[k] > 0) {
-        (*leftEventTimeSize) ++;
-      }
-      if (nodeRightEvent[k] > 0) {
-        (*rightEventTimeSize) ++;
-      }
-    }
-  }
-  return (leftSize);
-}
-uint virtuallySplitNodeNew(uint  treeID,
-                           char  factorFlag,
-                           uint  mwcpSizeAbsolute,
-                           uint  randomCovariate,
-                           uint *repMembrIndx,
-                           uint *repMembrIndxx,
-                           uint  repMembrSize,
-                           void *permissibleSplitPtr,
-                           uint  offset,
-                           char *localSplitIndicator,
-                           uint *leftSize,
-                           uint  priorMembrIter,
-                           uint *currentMembrIter) {
+                        char *localSplitIndicator,
+                        uint *leftSize,
+                        uint  priorMembrIter,
+                        uint *currentMembrIter) {
   char daughterFlag;
   char iterFlag;
   iterFlag = TRUE;

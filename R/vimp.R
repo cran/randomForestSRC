@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -71,7 +71,12 @@ vimp.rfsrc <- function(object,
                  do.trace = FALSE,
                  ...)
 {
-  if (missing(object)) stop("Object is missing")
+  if (missing(object)) {
+    stop("object is missing")
+  }
+  if (object$family == "unsupv") {
+    stop("vimp does not apply to unsupervised forests: consider using max.subtree and var.select")
+  }
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
       sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2)
     stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'.")

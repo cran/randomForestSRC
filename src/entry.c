@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -72,6 +72,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP splitRule,  
                SEXP splitRandomCount,  
                SEXP randomCovariateCount,  
+               SEXP randomResponseCount,  
                SEXP minimumNodeSize,
                SEXP maximumNodeDepth,
                SEXP crWeight,
@@ -89,7 +90,8 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP xData,
                SEXP timeInterestSize,
                SEXP timeInterest,
-               SEXP imputeSize,
+               SEXP missTree,
+               SEXP nImpute,
                SEXP numThreads) {
   uint i;
   int seedValue           = INTEGER(seedPtr)[0];
@@ -97,6 +99,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_splitRule            = INTEGER(splitRule)[0];
   RF_splitRandomCount      = INTEGER(splitRandomCount)[0];
   RF_randomCovariateCount = INTEGER(randomCovariateCount)[0];
+  RF_randomResponseCount = INTEGER(randomResponseCount)[0];
   RF_minimumNodeSize      = INTEGER(minimumNodeSize)[0];
   RF_maximumNodeDepth     = INTEGER(maximumNodeDepth)[0];
   RF_crWeight             = REAL(crWeight);  RF_crWeight--;
@@ -114,7 +117,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_xData                = REAL(xData);
   RF_timeInterestSize     = INTEGER(timeInterestSize)[0];
   RF_timeInterest         = REAL(timeInterest);  RF_timeInterest--;
-  RF_imputeSize           = INTEGER(imputeSize)[0];
+  RF_nImpute           = INTEGER(nImpute)[0];
   RF_numThreads           = INTEGER(numThreads)[0];
   if (RF_opt & OPT_IMPU_ONLY) {
     RF_opt                  = OPT_IMPU_ONLY | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE);
@@ -124,18 +127,11 @@ SEXP rfsrcGrow(SEXP traceFlag,
     RF_opt                  = RF_opt | OPT_OENS;
   }
   RF_opt                  = RF_opt | OPT_MISS;
-  RF_opt                  = RF_opt | OPT_OMIS;
   if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
     RF_opt                  = RF_opt & (~OPT_PERF);  
     RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
     RF_opt                  = RF_opt & (~OPT_VIMP);  
     RF_opt                  = RF_opt & (~OPT_OENS);
-    RF_opt                  = RF_opt & (~OPT_OMIS);
-  }
-  if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)){
-  }
-  else {
-    RF_opt                  = RF_opt & (~OPT_VIMP);
   }
   if (RF_opt & OPT_TREE) {
     RF_opt = RF_opt | OPT_SEED;
@@ -143,12 +139,16 @@ SEXP rfsrcGrow(SEXP traceFlag,
   else {
     RF_opt = RF_opt & (~OPT_SEED);
   }
-  if(RF_rSize == 0) {
-    RF_opt                  = RF_opt & (~OPT_PERF);  
-    RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
-    RF_opt                  = RF_opt & (~OPT_VIMP);  
-    RF_opt                  = RF_opt & (~OPT_OENS);
-    RF_opt                  = RF_opt & (~OPT_FENS);
+  if ( RF_splitRule == USPV_SPLIT) {
+    RF_rSize = 0;
+  }
+  else {
+    RF_randomResponseCount = 0;
+  }
+  if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)){
+  }
+  else {
+    RF_opt                  = RF_opt & (~OPT_VIMP);
   }
   RF_intrPredictorSize    = RF_xSize;
   RF_ptnCount             = 0;
@@ -171,13 +171,32 @@ SEXP rfsrcGrow(SEXP traceFlag,
     Rprintf("\nRF-SRC:  The application will now exit.\n");
     return R_NilValue;
   }
-  if ( ((RF_randomCovariateCount < 1) || (RF_randomCovariateCount > RF_xSize)) ) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  Parameter verification failed.");
-    Rprintf("\nRF-SRC:  Number of random covariate parameters must be greater");
-    Rprintf("\nRF-SRC:  than zero and less than the total number of covariates:  %10d \n", RF_randomCovariateCount);
-    Rprintf("\nRF-SRC:  The application will now exit.\n");
-    return R_NilValue;
+  if (!(RF_splitRule == USPV_SPLIT)) {
+    if (RF_rSize == 0) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Parameter verification failed.");
+      Rprintf("\nRF-SRC:  Number of response variables must be greater than zero:  %10d \n", RF_rSize);
+      Rprintf("\nRF-SRC:  The application will now exit.\n");
+      return R_NilValue;
+    }
+    if ( ((RF_randomCovariateCount < 1) || (RF_randomCovariateCount > RF_xSize)) ) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Parameter verification failed.");
+      Rprintf("\nRF-SRC:  Number of random covariate parameters must be greater");
+      Rprintf("\nRF-SRC:  than zero and less than or equal to the total number of covariates:  %10d \n", RF_randomCovariateCount);
+      Rprintf("\nRF-SRC:  The application will now exit.\n");
+      return R_NilValue;
+    }
+  }
+  else {
+    if ( ((int) (RF_randomCovariateCount - RF_randomResponseCount) < 1) || (RF_randomCovariateCount > RF_xSize) ) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Parameter verification failed.");
+      Rprintf("\nRF-SRC:  Number of random covariate parameters");
+      Rprintf("\nRF-SRC:  must be within range:  %10d \n", RF_randomCovariateCount);
+      Rprintf("\nRF-SRC:  The application will now exit.\n");
+      return R_NilValue;
+    }
   }
   if (RF_minimumNodeSize < 1) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -267,32 +286,52 @@ SEXP rfsrcPredict(SEXP traceFlag,
   RF_intrPredictor        = (uint*) INTEGER(intrPredictor);  RF_intrPredictor --;
   RF_ptnCount             = INTEGER(ptnCount)[0];
   RF_numThreads           = INTEGER(numThreads)[0];
+  RF_opt                  = RF_opt & (~OPT_OENS);  
   RF_opt                  = RF_opt | OPT_FENS;  
   RF_opt                  = RF_opt | OPT_MISS;
-  RF_opt                  = RF_opt & (~OPT_OMIS);  
-  RF_opt                  = RF_opt & (~OPT_OENS);  
   if (RF_opt & OPT_OUTC_TYPE) {
     RF_opt = RF_opt | OPT_REST;
     RF_opt = RF_opt & (~OPT_BOOT_NODE) & (~OPT_BOOT_NONE);
     RF_frSize = 0;
   }
   if (RF_opt & OPT_REST) {
-    if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+    if(RF_rSize == 0) {
       RF_opt                  = RF_opt & (~OPT_PERF);  
       RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
       RF_opt                  = RF_opt & (~OPT_VIMP);  
-      RF_opt                  = RF_opt & (~OPT_OENS);  
-      RF_opt                  = RF_opt & (~OPT_OMIS);  
+      RF_opt                  = RF_opt & (~OPT_OENS);
+      RF_opt                  = RF_opt & (~OPT_FENS);
     }
     else {
-      RF_opt                  = RF_opt | OPT_OENS;  
-      RF_opt                  = RF_opt | OPT_OMIS;  
+      if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+        RF_opt                  = RF_opt & (~OPT_PERF);  
+        RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
+        RF_opt                  = RF_opt & (~OPT_OENS);  
+        if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
+          RF_opt = RF_opt | (RF_opt & OPT_PROX) | (RF_opt & OPT_PROX_TYPE);
+        }
+      }
+      else {
+        RF_opt                  = RF_opt | OPT_OENS;  
+      }
     }
   }
   else {
-    if (RF_frSize == 0) {
+    if (RF_rSize == 0) {
       RF_opt                  = RF_opt & (~OPT_PERF);  
-      RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
+      RF_opt                  = RF_opt & (~OPT_PERF_CALB);
+      RF_opt                  = RF_opt & (~OPT_VIMP);
+      RF_opt                  = RF_opt & (~OPT_FENS);    
+    }
+    else {
+      if (RF_frSize == 0) {
+        RF_opt                  = RF_opt & (~OPT_PERF);  
+        RF_opt                  = RF_opt & (~OPT_PERF_CALB);
+        RF_opt                  = RF_opt & (~OPT_VIMP);    
+      }
+    }
+    if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
+      RF_opt = RF_opt | (RF_opt & OPT_PROX) | (RF_opt & OPT_PROX_TYPE);
     }
   }
   if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
@@ -303,18 +342,10 @@ SEXP rfsrcPredict(SEXP traceFlag,
   if (RF_ptnCount > 0) {
     RF_opt = RF_opt | OPT_NODE_STAT;
   }
-  if(RF_rSize == 0) {
-    RF_opt                  = RF_opt & (~OPT_PERF);  
-    RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
-    RF_opt                  = RF_opt & (~OPT_VIMP);  
-    RF_opt                  = RF_opt & (~OPT_OENS);
-    RF_opt                  = RF_opt & (~OPT_FENS);
-  }
+  RF_opt = RF_opt & (~OPT_IMPU_ONLY);
   RF_opt = RF_opt & (~OPT_TREE);    
   RF_opt = RF_opt & (~OPT_SEED);  
-  RF_opt = RF_opt & (~OPT_IMPU_ONLY);
-  RF_opt = RF_opt & (~OPT_SPLT_FAST);
-  RF_imputeSize = 1;
+  RF_nImpute = 1;
   RF_opt                  = RF_opt | OPT_LEAF;  
   if (!(RF_opt & OPT_REST)) {
     if (RF_fobservationSize < 1) {

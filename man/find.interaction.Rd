@@ -108,7 +108,7 @@
   \command{\link{vimp}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## ------------------------------------------------------------
 ## find interactions, survival setting
 ## ------------------------------------------------------------

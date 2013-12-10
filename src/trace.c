@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -99,6 +99,9 @@ unsigned int updateTimeStamp(unsigned int before) {
     Rprintf("\nRF-SRC:  CPU process time:  %20.3f \n", cpuTimeUsed);
   }
   return stamp;
+}
+unsigned int getNodeDefTraceFlag() {
+  return(NODE_DEF_TRACE);
 }
 unsigned int getForkDefTraceFlag() {
   return(FORK_DEF_TRACE);

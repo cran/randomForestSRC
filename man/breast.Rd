@@ -53,7 +53,7 @@
   \url{http://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Prognostic)}.
 }
 \examples{
-\dontrun{
+\donttest{
 data(breast, package = "randomForestSRC")
 breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
 print(breast.obj)

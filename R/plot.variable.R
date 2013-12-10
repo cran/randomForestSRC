@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -84,25 +84,33 @@ plot.variable.rfsrc <- function(
       sum(inherits(object, c("rfsrc", "plot.variable"), TRUE) == c(1,2)) != 2) {
     stop("This function only works for objects of class `(rfsrc, grow)', '(rfsrc, predict)' or '(rfsrc, plot.variable)'.")
   }
+  if (object$family == "unsupv") {
+    stop("this function does not apply to unsupervised forests")
+  }
   if (partial && is.null(object$forest)) {
     stop("forest is empty:  re-run rfsrc (grow) call with forest=TRUE")
   }
+  xvar <- object$xvar
+  if (!is.null(object$imputed.indv)) {
+    xvar[object$imputed.indv, ] <- object$imputed.data[, object$xvar.names]
+  }
+  n <- nrow(xvar)
   if (!inherits(object, "plot.variable")) {
     if (missing(subset)) {
-      subset <- 1:nrow(object$xvar)
+      subset <- 1:n
     }
     else {
       if (is.logical(subset)) subset <- which(subset)
-      subset <- unique(subset[subset >= 1 & subset <= nrow(object$xvar)])
+      subset <- unique(subset[subset >= 1 & subset <= n])
       if (length(subset) == 0) {
         stop("'subset' not set properly.")
       }
     }
-    object$xvar <- object$xvar[subset,, drop = FALSE]
+    xvar <- xvar[subset,, drop = FALSE]
+    n <- nrow(xvar)
     fmly <- object$family
     if (grepl("surv", fmly)) {
       event.info <- get.event.info(object, subset)
-      yvar.dim <- event.info$r.dim
       cens <- event.info$cens
       event.type <- event.info$event.type
       if (missing(time)) {
@@ -151,24 +159,17 @@ plot.variable.rfsrc <- function(
           }
         }
         pred.type <- "prob"
-        yvar.dim <- 1
         VIMP <- object$importance[, 1 + which.outcome]
         ylabel <- paste("probability", levels(object$yvar)[which.outcome])
       }
       else {
         pred.type <- "y"
-        yvar.dim <- 1
         which.outcome <- NULL
         VIMP <- object$importance
         ylabel <- expression(hat(y))
       }
     }
     outcome.target <- get.outcome.target(object$family, outcome.target)
-    xvar <- object$xvar
-    if (!is.null(object$imputed.indv)) {
-      xvar[object$imputed.indv, ] <- object$imputed.data[, -(1:yvar.dim)]
-    }
-    n <- nrow(xvar)
     if (missing(xvar.names)) {
       xvar.names <- object$xvar.names
     }
@@ -193,7 +194,7 @@ plot.variable.rfsrc <- function(
       class(object$forest) <- c("rfsrc", "partial", class(object)[3])
       if (npts < 1) npts <- 1 else npts <- round(npts)
       prtl <- lapply(1:nvar, function(k) {
-        x <- xvar[, object$xvar.names == xvar.names[k]]
+        x <- na.omit(object$xvar[, object$xvar.names == xvar.names[k]])#x does not have to be subsetted
         if (is.factor(x)) x <- factor(x, exclude = NULL)          
         n.x <- length(unique(x))
         if (!is.factor(x) & n.x > npts) {
@@ -208,7 +209,8 @@ plot.variable.rfsrc <- function(
         factor.x <- !(!is.factor(x) & (n.x > granule))
         for (l in 1:n.x) {        
           newdata.x[, object$xvar.names == xvar.names[k]] <- rep(x.uniq[l], n)
-          pred.temp <- extract.pred(predict.rfsrc(object$forest, newdata.x), pred.type, 1:n, time, which.outcome)
+          pred.temp <- extract.pred(predict.rfsrc(object$forest, newdata.x, importance = "none"),
+                                    pred.type, 1:n, time, which.outcome)
           mean.temp <- mean(pred.temp , na.rm = TRUE)
           if (!factor.x) {
             yhat <- c(yhat, mean.temp)
@@ -234,7 +236,6 @@ plot.variable.rfsrc <- function(
                     event.info = event.info,
                     which.outcome = which.outcome,
                     ylabel = ylabel,
-                    yvar.dim = yvar.dim,
                     n = n,
                     xvar.names = xvar.names,
                     nvar = nvar, 

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.3
+////  Version 1.4
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -158,22 +158,34 @@ void getRawNodeSize(uint  type,
     }
   }
 }
-char forkAndUpdate(uint   treeID,
-                   Node  *parent,
-                   uint  *allMembrIndx,
-                   uint   allMembrSize,
-                   uint   splitParameterMax,
-                   double splitValueMaxCont,
-                   uint   splitValueMaxFactSize,
-                   uint  *splitValueMaxFactPtr,
-                   double splitStatistic,
-                   uint  *membershipIndicator,
-                   uint  *leftDaughterSize,
-                   uint  *rghtDaughterSize) {
+char forkAndUpdate(uint    treeID,
+                   Node   *parent,
+                   uint   *repMembrIndx,
+                   uint    repMembrSize,
+                   uint   *allMembrIndx,
+                   uint    allMembrSize,
+                   uint    splitParameterMax,
+                   double  splitValueMaxCont,
+                   uint    splitValueMaxFactSize,
+                   uint   *splitValueMaxFactPtr,
+                   double  splitStatistic,
+                   char   *localSplitIndicator,
+                   char   *localOmitMembrFlag,
+                   char    multImpFlag,
+                   char   *membershipIndicator,
+                   uint   *leftDaughterSize,
+                   uint   *rghtDaughterSize) {
   char factorFlag;
   char daughterFlag;
-  uint i;
+  char *omitMembrFlag;
   char result;
+  uint nonMissAllMembrSize;
+  double leftProbability;
+  char mPredictorFlag;
+  uint offset;
+  uint i;
+  factorFlag = FALSE; 
+  omitMembrFlag = cvector(1, allMembrSize);
   result = forkNode(parent, 
                     splitParameterMax, 
                     splitValueMaxCont,
@@ -185,6 +197,8 @@ char forkAndUpdate(uint   treeID,
     }
     parent -> splitStatistic = splitStatistic;
     RF_tLeafCount[treeID]++;
+    ((parent -> left) -> nodeID) = (parent -> nodeID);
+    ((parent -> right) -> nodeID) = RF_tLeafCount[treeID];
     factorFlag = FALSE;
     if (strcmp(RF_xType[splitParameterMax], "C") == 0) {
       factorFlag = TRUE;
@@ -194,44 +208,70 @@ char forkAndUpdate(uint   treeID,
     }
     *leftDaughterSize = *rghtDaughterSize = 0;
     for (i = 1; i <= allMembrSize; i++) {
-      daughterFlag = RIGHT;
-      if (factorFlag == TRUE) {
-        if (RF_observation[treeID][splitParameterMax][allMembrIndx[i]] != 0) {
-          daughterFlag = splitOnFactor((uint) RF_observation[treeID][splitParameterMax][allMembrIndx[i]], splitValueMaxFactPtr);
-        }
-        else {
-          Rprintf("\nRF-SRC:  *** ERROR *** ");
-          Rprintf("\nRF-SRC:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", allMembrIndx[i], splitParameterMax);
-          Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-          error("\nRF-SRC:  The application will now exit.\n");
+      membershipIndicator[allMembrIndx[i]] = NEITHER;
+    }
+    for (i = 1; i <= repMembrSize; i++) {
+      membershipIndicator[repMembrIndx[i]] = localSplitIndicator[i];
+    }
+    offset = RF_rSize + splitParameterMax;
+    for (i = 1; i <= allMembrSize; i++) {
+      mPredictorFlag = FALSE;
+      if (RF_mRecordSize > 0) {
+        if (RF_mRecordMap[allMembrIndx[i]] > 0) {
+          if (RF_mpSign[offset][RF_mRecordMap[allMembrIndx[i]]] == 1) {
+            if ((SPLIT_RANDOM_OVERRIDE) && (!multImpFlag)) {
+              mPredictorFlag = TRUE;
+            }
+          }
         }
       }
-      else {
-        if (!ISNA(RF_observation[treeID][splitParameterMax][allMembrIndx[i]])) {
-          if (RF_observation[treeID][splitParameterMax][allMembrIndx[i]] <= splitValueMaxCont) {
-            daughterFlag = LEFT;
+      omitMembrFlag[i] = mPredictorFlag;
+    }
+    for (i = 1; i <= allMembrSize; i++) {
+      if (omitMembrFlag[i] == FALSE) {
+        if(membershipIndicator[allMembrIndx[i]] == NEITHER) {
+          daughterFlag = RIGHT;
+          if (factorFlag == TRUE) {
+            if (RF_observation[treeID][splitParameterMax][allMembrIndx[i]] != 0) {
+              daughterFlag = splitOnFactor((uint) RF_observation[treeID][splitParameterMax][allMembrIndx[i]], splitValueMaxFactPtr);
+            }
+            else {
+              Rprintf("\nRF-SRC:  *** ERROR *** ");
+              Rprintf("\nRF-SRC:  Attempt to fork on NA factor value on (index, parameter):  (%10d, %10d)", allMembrIndx[i], splitParameterMax);
+              Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+              error("\nRF-SRC:  The application will now exit.\n");
+            }
+          }
+          else {
+            if (!ISNA(RF_observation[treeID][splitParameterMax][allMembrIndx[i]])) {
+              if (RF_observation[treeID][splitParameterMax][allMembrIndx[i]] <= splitValueMaxCont) {
+                daughterFlag = LEFT;
+              }
+            }
+            else {
+              Rprintf("\nRF-SRC:  *** ERROR *** ");
+              Rprintf("\nRF-SRC:  Attempt to fork on NA real value on (index, parameter):  (%10d, %10d)", allMembrIndx[i], splitParameterMax);
+              Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+              error("\nRF-SRC:  The application will now exit.\n");
+            }
           }
         }
         else {
-          Rprintf("\nRF-SRC:  *** ERROR *** ");
-          Rprintf("\nRF-SRC:  Attempt to fork on NA value on (index, parameter):  (%10d, %10d)", allMembrIndx[i], splitParameterMax);
-          Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-          error("\nRF-SRC:  The application will now exit.\n");
+          daughterFlag = membershipIndicator[allMembrIndx[i]];
         }
-      }
-      if (daughterFlag == LEFT) {
-        membershipIndicator[allMembrIndx[i]] = LEFT;
-        (*leftDaughterSize) ++;
-        RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
-        ((parent -> left) -> nodeID) = (parent -> nodeID);
-      }
+        membershipIndicator[allMembrIndx[i]] = daughterFlag;
+        if (daughterFlag == LEFT) {
+          (*leftDaughterSize) ++;
+          RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
+        }
+        else {
+          (*rghtDaughterSize) ++;
+          RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
+        }
+      }  
       else {
-        membershipIndicator[allMembrIndx[i]] = RIGHT;
-        (*rghtDaughterSize) ++;
-        RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
-        ((parent -> right) -> nodeID) = RF_tLeafCount[treeID];
-      }
-    }
+      }  
+    }  
   }
   else {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -239,6 +279,34 @@ char forkAndUpdate(uint   treeID,
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
+  nonMissAllMembrSize = (*leftDaughterSize) + (*rghtDaughterSize);
+  leftProbability = (double) *leftDaughterSize / (double) nonMissAllMembrSize;
+  for (i = 1; i <= allMembrSize; i++) {
+    if (omitMembrFlag[i] == TRUE) {
+      if (ran1(treeID) <= leftProbability) {
+        daughterFlag = LEFT;
+        membershipIndicator[allMembrIndx[i]] = LEFT;
+        (*leftDaughterSize) ++;
+        RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
+      }
+      else {
+        daughterFlag = RIGHT;
+        membershipIndicator[allMembrIndx[i]] = RIGHT;
+        (*rghtDaughterSize) ++;
+        RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
+      }
+    }
+  }
+  if (localSplitIndicator != NULL) {
+    free_cvector(localSplitIndicator, 1, repMembrSize);
+  }
+  else {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  NULL Local Split Indicator encountered in forkAndUpdate().");
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  free_cvector(omitMembrFlag, 1, allMembrSize);
   return result;
 }
 char growTree (char     rootFlag,
@@ -273,11 +341,15 @@ char growTree (char     rootFlag,
   uint     splitValueMaxFactSize;
   uint    *splitValueMaxFactPtr;
   double   splitStatistic;
+  char    *splitIndicator;
+  char    *omitMembrFlag;
   uint i, p;
   parent -> depth = depth;
   bootResult = TRUE;
   tnUpdateFlag = TRUE;
   bsUpdateFlag = FALSE;
+  splitIndicator = NULL;
+  omitMembrFlag = NULL;
   if (rootFlag | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
     bootMembrIndx  = uivector(1, allMembrSize);
     bootMembrSize = allMembrSize;
@@ -316,7 +388,7 @@ char growTree (char     rootFlag,
     if (multImpFlag == FALSE) {
       if (RF_mRecordSize > 0) {
         imputeNode(RF_GROW,
-                   TRUE,
+                   FALSE,
                    TRUE,
                    treeID,
                    parent,
@@ -327,7 +399,6 @@ char growTree (char     rootFlag,
         if (RF_timeIndex > 0) {
           if (RF_mTimeFlag == TRUE) {
             updateTimeIndexArray(treeID, 
-                                 parent, 
                                  allMembrIndx, 
                                  allMembrSize, 
                                  RF_time[treeID], 
@@ -357,12 +428,17 @@ char growTree (char     rootFlag,
                                  & splitValueMaxCont,
                                  & splitValueMaxFactSize,
                                  & splitValueMaxFactPtr,
-                                 & splitStatistic);
+                                 & splitStatistic,
+                                 & splitIndicator,
+                                 & omitMembrFlag,
+                                 multImpFlag);
       if (splitResult == TRUE) {
         tnUpdateFlag = FALSE;
-        uint *membershipIndicator = uivector(1, RF_observationSize);
+        char *membershipIndicator = cvector(1, RF_observationSize);
         forkResult = forkAndUpdate(treeID,
                                    parent,
+                                   bootMembrIndx,
+                                   bootMembrSize,
                                    allMembrIndx,
                                    allMembrSize,
                                    splitParameterMax,
@@ -370,6 +446,9 @@ char growTree (char     rootFlag,
                                    splitValueMaxFactSize, 
                                    splitValueMaxFactPtr,
                                    splitStatistic,
+                                   splitIndicator,
+                                   omitMembrFlag,
+                                   multImpFlag,
                                    membershipIndicator,
                                    &leftAllMembrSize,
                                    &rghtAllMembrSize);
@@ -445,7 +524,7 @@ char growTree (char     rootFlag,
           Rprintf("\nRF-SRC:  Please Contact Technical Support.");
           error("\nRF-SRC:  The application will now exit.\n");
         }
-        free_uivector(membershipIndicator, 1, RF_observationSize);
+        free_cvector(membershipIndicator, 1, RF_observationSize);
       }  
       else {
         parent -> splitFlag = FALSE;

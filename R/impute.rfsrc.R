@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.3
+####  Version 1.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -66,7 +66,7 @@ impute.rfsrc <- function(formula,
                          mtry = NULL,
                          nodesize = NULL,
                          splitrule = NULL,
-                         nsplit = 0,
+                         nsplit = 1,
                          nimpute = 1,
                          xvar.wt = NULL,
                          seed = NULL,
@@ -80,19 +80,11 @@ impute.rfsrc <- function(formula,
   var.used <- FALSE
   split.depth <- FALSE
   membership <- FALSE
+  miss.tree <- FALSE
   if (missing(data)) {
     stop("data is missing")
   }
   row.names.data <- rownames(data)
-  if (missing(formula) | (!missing(formula) && is.null(formula))) {
-    formula <- as.formula("junkFAKEYjunkjunkFAKEYjunk ~ .")
-    data$junkFAKEYjunkjunkFAKEYjunk <- rnorm(nrow(data))
-    missing.formula <- TRUE
-    splitrule <- "random"
-  }
-  else {
-    missing.formula <- FALSE
-  }
   object <- rfsrc(formula = formula,
                   data = data,
                   ntree = ntree,
@@ -111,15 +103,20 @@ impute.rfsrc <- function(formula,
                   var.used = var.used,
                   split.depth = split.depth,
                   membership = membership,
-                  impute.only = TRUE)
-  imputed.result <- cbind(object$yvar, object$xvar)
+                  impute.only = TRUE,
+                  miss.tree = miss.tree)
+  if(is.null(object$yvar.names)) {
+    imputed.result <- object$xvar
+  }
+  else {
+    imputed.result <- cbind(object$yvar, object$xvar)
+  }
   colnames(imputed.result) <- c(object$yvar.names, object$xvar.names)
   if (nimpute == 1) {
     imputed.result[object$imputed.indv, ] <- object$imputed.data
   }
-  if (missing.formula) {
-    imputed.result$junkFAKEYjunkjunkFAKEYjunk <- NULL
+  if (nrow(imputed.result) == length(row.names.data)) {
+    rownames(imputed.result) <- row.names.data
   }
-  rownames(imputed.result) <- row.names.data
   invisible(imputed.result) 
 }
