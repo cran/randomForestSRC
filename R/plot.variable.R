@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -82,7 +82,7 @@ plot.variable.rfsrc <- function(
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(object, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(object, c("rfsrc", "plot.variable"), TRUE) == c(1,2)) != 2) {
-    stop("This function only works for objects of class `(rfsrc, grow)', '(rfsrc, predict)' or '(rfsrc, plot.variable)'.")
+    stop("this function only works for objects of class `(rfsrc, grow)', '(rfsrc, predict)' or '(rfsrc, plot.variable)'")
   }
   if (object$family == "unsupv") {
     stop("this function does not apply to unsupervised forests")
@@ -103,12 +103,13 @@ plot.variable.rfsrc <- function(
       if (is.logical(subset)) subset <- which(subset)
       subset <- unique(subset[subset >= 1 & subset <= n])
       if (length(subset) == 0) {
-        stop("'subset' not set properly.")
+        stop("'subset' not set properly")
       }
     }
     xvar <- xvar[subset,, drop = FALSE]
     n <- nrow(xvar)
     fmly <- object$family
+    outcome.target <- get.outcome.target(object$family, outcome.target)
     if (grepl("surv", fmly)) {
       event.info <- get.event.info(object, subset)
       cens <- event.info$cens
@@ -146,21 +147,23 @@ plot.variable.rfsrc <- function(
     }
     else {
       event.info <- time <- NULL
-      if (fmly == "class") {
+      if (fmly == "class" || fmly == "class+" || (fmly ==  "mix+" && is.factor(object$yvar[, outcome.target]))) {
+        object.yvar <- data.frame(object$yvar)[, outcome.target]
         if (missing(which.outcome)) {
           which.outcome <- 1
         }
         else if (is.character(which.outcome)) {
-          which.outcome <- match(match.arg(which.outcome, levels(object$yvar)), levels(object$yvar))
+          which.outcome <- match(match.arg(which.outcome, levels(object.yvar)), levels(object.yvar))
         }
         else {
-          if (which.outcome > length(levels(object$yvar)) | which.outcome < 1) {
+          if (which.outcome > length(levels(object.yvar)) | which.outcome < 1) {
             stop("which.outcome is specified incorrectly:", which.outcome)
           }
         }
         pred.type <- "prob"
         VIMP <- object$importance[, 1 + which.outcome]
-        ylabel <- paste("probability", levels(object$yvar)[which.outcome])
+        ylabel <- paste("probability", levels(object.yvar)[which.outcome])
+        remove(object.yvar)
       }
       else {
         pred.type <- "y"
@@ -169,15 +172,14 @@ plot.variable.rfsrc <- function(
         ylabel <- expression(hat(y))
       }
     }
-    outcome.target <- get.outcome.target(object$family, outcome.target)
     if (missing(xvar.names)) {
       xvar.names <- object$xvar.names
     }
     else {
-      if (length(setdiff(xvar.names, object$xvar.names)) >  0){
-        stop("x-variable names supplied does not match available list:\n", object$xvar.names)
+      xvar.names <- intersect(xvar.names, object$xvar.names)
+      if (length(xvar.names) ==  0){
+        stop("none of the x-variable supplied match available ones:\n", object$xvar.names)
       }
-      xvar.names <- unique(xvar.names)
     }
     if (sorted & !is.null(VIMP)) {
       xvar.names <- xvar.names[rev(order(VIMP[xvar.names]))]
@@ -193,8 +195,8 @@ plot.variable.rfsrc <- function(
     else {
       class(object$forest) <- c("rfsrc", "partial", class(object)[3])
       if (npts < 1) npts <- 1 else npts <- round(npts)
-      prtl <- lapply(1:nvar, function(k) {
-        x <- na.omit(object$xvar[, object$xvar.names == xvar.names[k]])#x does not have to be subsetted
+      prtl <- lapply(1:nvar, function(k) {        
+        x <- na.omit(object$xvar[, object$xvar.names == xvar.names[k]])
         if (is.factor(x)) x <- factor(x, exclude = NULL)          
         n.x <- length(unique(x))
         if (!is.factor(x) & n.x > npts) {

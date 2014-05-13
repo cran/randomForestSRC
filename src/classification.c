@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -72,12 +72,12 @@ void getMultiClassProb (uint treeID) {
   uint leaf, i, j, k;
   uint *membershipIndex;
   if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-    membershipIndex = RF_trivialBootMembershipIndex;
+    membershipIndex = RF_identityMembershipIndex;
   }
   else {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
-  for (leaf=1; leaf <= RF_tLeafCount[treeID]; leaf++) {
+  for (leaf = 1; leaf <= RF_tLeafCount[treeID]; leaf++) {
     parent = RF_tNodeList[treeID][leaf];
     stackMultiClassProb(parent, RF_rFactorCount, RF_rFactorSize);
     for (j=1; j <= RF_rFactorCount; j++) {
@@ -86,12 +86,12 @@ void getMultiClassProb (uint treeID) {
       }
     }
     parent -> membrCount = 0;
-    for (i=1; i <= RF_observationSize; i++) {
+    for (i = 1; i <= RF_observationSize; i++) {
       if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
         for (j=1; j <= RF_rFactorCount; j++) {
           (parent -> multiClassProb)[j][(uint) RF_response[treeID][RF_rFactorIndex[j]][membershipIndex[i]]] ++;
         }
-        parent -> membrCount ++; 
+        parent -> membrCount ++;
       }
     }
     if ((parent -> membrCount) > 0) {
@@ -116,7 +116,7 @@ void getMultiClassProb (uint treeID) {
     }
   }  
 }
-void updateEnsembleMultiClass(uint     mode, 
+void updateEnsembleMultiClass(uint     mode,
                               uint     treeID,
                               double  *ensembleOutcome) {
   uint obsSize;
@@ -155,7 +155,7 @@ void updateEnsembleMultiClass(uint     mode,
     nodeMembershipPtr = RF_tNodeMembership;
     break;
   }
-  while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
+  while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
     if (oobFlag == TRUE) {
       ensemblePtr = RF_oobEnsemblePtr;
       ensembleDenPtr = RF_oobEnsembleDen;
@@ -223,7 +223,7 @@ void updateEnsembleMultiClass(uint     mode,
   }  
 }
 double getBrierScore(uint     obsSize,
-                     double  *responsePtr, 
+                     double  *responsePtr,
                      double **ensemblePtr,
                      uint    *denomCount,
                      double  *condPerformance) {
@@ -272,8 +272,8 @@ double getBrierScore(uint     obsSize,
   free_uivector(oaaResponse, 1, obsSize);
   return result;
 }
-void getConditionalClassificationIndex(uint    size, 
-                                       double *responsePtr, 
+void getConditionalClassificationIndex(uint    size,
+                                       double *responsePtr,
                                        double *predictedOutcome,
                                        uint   *denomCount,
                                        double *condPerformance) {
@@ -293,7 +293,7 @@ void getConditionalClassificationIndex(uint    size,
       if (responsePtr[i] == predictedOutcome[i]) {
         condPerformance[(uint) responsePtr[i]] += 1.0;
       }
-    }  
+    }
   }  
   if (cumDenomCount == 0) {
     for (j=1; j <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; j++) {
@@ -313,8 +313,8 @@ void getConditionalClassificationIndex(uint    size,
   free_uivector(condClassificationCount, 1, RF_rFactorSize[RF_rFactorMap[RF_rTarget]]);
   return;
 }
-double getClassificationIndex(uint    size, 
-                              double *responsePtr, 
+double getClassificationIndex(uint    size,
+                              double *responsePtr,
                               double *predictedOutcome,
                               uint   *denomCount) {
   uint i;
@@ -328,7 +328,7 @@ double getClassificationIndex(uint    size,
       if (responsePtr[i] == predictedOutcome[i]) {
         result += 1.0;
       }
-    }  
+    }
   }  
   if (cumDenomCount == 0) {
     result = NA_REAL;

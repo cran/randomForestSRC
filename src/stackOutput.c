@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -74,6 +74,7 @@ uint stackDefinedOutputObjects(char      mode,
                                double  **p_performance,
                                uint    **pRF_tLeafCount,
                                double  **pRF_proximity,
+                               double  **pRF_weight,
                                double  **pRF_importance,
                                int     **pRF_seed,
                                double  **p_imputation,
@@ -97,6 +98,7 @@ uint stackDefinedOutputObjects(char      mode,
   uint ensembleSize;
   uint performanceSize;
   uint proximitySize;
+  uint weightSize;
   uint imputationSize;
   uint importanceSize;
   uint xVimpSize;
@@ -118,6 +120,7 @@ uint stackDefinedOutputObjects(char      mode,
   ensembleSize   = 0;  
   performanceSize= 0;  
   proximitySize  = 0;  
+  weightSize     = 0;  
   imputationSize = 0;  
   importanceSize = 0;  
   xVimpSize      = 0;  
@@ -223,8 +226,12 @@ uint stackDefinedOutputObjects(char      mode,
     if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)){
       (*stackCount) += 1;
     }
-    if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
-      proximitySize = ((obsSize + 1)  * obsSize) / 2; 
+    if (RF_opt & OPT_PROX) {
+      proximitySize = ((obsSize + 1)  * obsSize) / 2;
+      (*stackCount) += 1;
+    }
+    if (RF_optHigh & OPT_WGHT) {
+      weightSize = obsSize * RF_observationSize;
       (*stackCount) += 1;
     }
     if (RF_opt & OPT_NODE_STAT) {
@@ -304,9 +311,9 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
     if (!perfFlag) {
-      RF_opt                  = RF_opt & (~OPT_PERF);  
-      RF_opt                  = RF_opt & (~OPT_PERF_CALB);  
-      RF_opt                  = RF_opt & (~OPT_VIMP);  
+      RF_opt                  = RF_opt & (~OPT_PERF);
+      RF_opt                  = RF_opt & (~OPT_PERF_CALB);
+      RF_opt                  = RF_opt & (~OPT_VIMP);
       RF_opt                  = RF_opt & (~OPT_OENS);
       RF_opt                  = RF_opt & (~OPT_FENS);
       RF_rTarget = 0;
@@ -375,8 +382,12 @@ uint stackDefinedOutputObjects(char      mode,
         }
       }
     }
-    if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
-      proximitySize = ((obsSize + 1)  * obsSize) / 2; 
+    if (RF_opt & OPT_PROX) {
+      proximitySize = ((obsSize + 1)  * obsSize) >> 1;
+      (*stackCount) += 1;
+    }
+    if (RF_optHigh & OPT_WGHT) {
+      weightSize = obsSize * RF_observationSize;
       (*stackCount) += 1;
     }
     if (RF_opt & OPT_SEED) {
@@ -584,7 +595,7 @@ uint stackDefinedOutputObjects(char      mode,
             }
           }
         }
-      }     
+      }
     }
   }
   if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
@@ -603,15 +614,33 @@ uint stackDefinedOutputObjects(char      mode,
       }
     }
   }
-  if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
+  if (RF_opt & OPT_PROX) {
     PROTECT(sexpVector[RF_PROX_ID] = NEW_NUMERIC(proximitySize));
     SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_PROX_ID]);
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_PROX_ID]));
     *pRF_proximity = NUMERIC_POINTER(sexpVector[RF_PROX_ID]);
     sexpIndex ++;
+    RF_proximityDen = dvector(1, proximitySize);
     (*pRF_proximity) --;
     for (i = 1; i <= proximitySize; i++) {
       (*pRF_proximity)[i] = 0;
+      RF_proximityDen[i]  = 0;
+    }
+  }
+  if (RF_optHigh & OPT_WGHT) {
+    PROTECT(sexpVector[RF_WGHT_ID] = NEW_NUMERIC(weightSize));
+    SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_WGHT_ID]);
+    SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_WGHT_ID]));
+    *pRF_weight = NUMERIC_POINTER(sexpVector[RF_WGHT_ID]);
+    sexpIndex ++;
+    RF_weightPtr = (double **) vvector(1, obsSize);
+    for (i = 1; i <= obsSize; i++) {
+      RF_weightPtr[i]  = (*pRF_weight)  + ((i-1) * RF_observationSize) - 1;
+    }
+    for (j = 1; j <= obsSize; j++) {
+      for (k = 1; k <= RF_observationSize; k++) {
+        RF_weightPtr[j][k] = 0.0;
+      }
     }
   }
   if (RF_opt & OPT_LEAF) {
@@ -696,7 +725,7 @@ uint stackDefinedOutputObjects(char      mode,
         RF_vimpEnsembleDen[j][i] = 0;
       }
     }
-    if(RF_opt & OPT_VIMP_LEOB) { 
+    if(RF_opt & OPT_VIMP_LEOB) {
       RF_vimpLeo = dmatrix3(1, RF_forestSize, 1, xVimpSize, 1, perfDim);
       RF_perfLeo = dmatrix(1, RF_forestSize, 1,  perfDim);
       for (i = 1; i <= RF_forestSize; i++) {
@@ -834,6 +863,7 @@ void unstackDefinedOutputObjects(char      mode,
                                  Node    **root) {
   uint obsSize;
   uint xVimpSize;
+  uint proximitySize;
   uint rspSize;
   uint     perfDim;
   uint     ensbDimOne;
@@ -843,6 +873,7 @@ void unstackDefinedOutputObjects(char      mode,
   uint i, j, k;
   obsSize        = 0;  
   xVimpSize      = 0;  
+  proximitySize  = 0;  
   rspSize        = 0;  
   dpthDimOne     = 0;  
   perfDim = ensbDimOne = ensbDimTwo = 0;
@@ -912,6 +943,9 @@ void unstackDefinedOutputObjects(char      mode,
       }
     }
     else {
+    }
+    if (RF_opt & OPT_PROX) {
+      proximitySize = ((obsSize + 1)  * obsSize) / 2;
     }
     if (RF_opt & OPT_VIMP) {
       if (RF_opt & OPT_VIMP_JOIN) {
@@ -989,6 +1023,9 @@ void unstackDefinedOutputObjects(char      mode,
         }
       }
     }
+    if (RF_opt & OPT_PROX) {
+      proximitySize = ((obsSize + 1)  * obsSize) / 2;
+    }
     if (RF_opt & OPT_VIMP) {
       if (RF_opt & OPT_VIMP_JOIN) {
         xVimpSize = 1;
@@ -1037,8 +1074,14 @@ void unstackDefinedOutputObjects(char      mode,
       }
     }
   }
-  if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF)) {
+  if (RF_opt & OPT_PERF) {
     free_vvector(RF_performancePtr, 1, RF_forestSize);
+  }
+  if (RF_opt & OPT_PROX) {
+    free_dvector(RF_proximityDen, 1, proximitySize);
+  }
+  if (RF_optHigh & OPT_WGHT) {
+    free_vvector(RF_weightPtr, 1, obsSize);
   }
   if (RF_opt & OPT_TREE) {
     for (i = 1; i <= RF_forestSize; i++) {
@@ -1061,7 +1104,7 @@ void unstackDefinedOutputObjects(char      mode,
     }
     free_vvector(RF_vimpEnsembleDen, 1, xVimpSize);
     free_vvector(RF_importancePtr, 1, xVimpSize);
-    if(RF_opt & OPT_VIMP_LEOB) { 
+    if(RF_opt & OPT_VIMP_LEOB) {
       free_dmatrix3(RF_vimpLeo, 1, RF_forestSize, 1, xVimpSize, 1, perfDim);
       free_dmatrix(RF_perfLeo, 1, RF_forestSize, 1, perfDim);
     }
@@ -1082,13 +1125,13 @@ void unstackDefinedOutputObjects(char      mode,
     else {
       free_uimatrix(RF_varUsedPtr, 1, RF_forestSize, 1, RF_xSize);
     }
-  }  
+  }
   if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
     for (j = 1; j <= dpthDimOne; j++) {
       free_vvector(RF_splitDepthPtr[j], 1, RF_xSize);
     }
     free_vvector(RF_splitDepthPtr, 1, dpthDimOne);
-  }  
+  }
   if (RF_opt & OPT_MEMB) {
     free_vvector(RF_tNodeMembershipIndexPtr, 1, RF_forestSize);
     free_vvector(RF_bootstrapMembershipPtr,  1, RF_forestSize);
@@ -1102,7 +1145,7 @@ uint stackVariableOutputObjects(char     mode,
                                 uint     totalMWCPCount,
                                 uint   **pRF_treeID,
                                 uint   **pRF_nodeID,
-                                uint   **pRF_parmID,                                   
+                                uint   **pRF_parmID,
                                 double **pRF_contPT,
                                 uint   **pRF_mwcpSZ,
                                 uint   **pRF_mwcpPT,
@@ -1113,7 +1156,7 @@ uint stackVariableOutputObjects(char     mode,
                                 SEXP    *sexpVector) {
   if (mode == RF_GROW) {
     if (RF_opt & OPT_TREE) {
-      PROTECT(sexpVector[RF_MWCP_PT] = NEW_INTEGER(totalMWCPCount));  
+      PROTECT(sexpVector[RF_MWCP_PT] = NEW_INTEGER(totalMWCPCount));
       *pRF_mwcpPT = (uint*) INTEGER_POINTER(sexpVector[RF_MWCP_PT]);
       SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_MWCP_PT]);
       SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex++, mkChar(sexpString[RF_MWCP_PT]));
@@ -1121,8 +1164,8 @@ uint stackVariableOutputObjects(char     mode,
       PROTECT(sexpVector[RF_TREE_ID] = NEW_INTEGER(totalNodeCount));
       PROTECT(sexpVector[RF_NODE_ID] = NEW_INTEGER(totalNodeCount));
       PROTECT(sexpVector[RF_PARM_ID] = NEW_INTEGER(totalNodeCount));
-      PROTECT(sexpVector[RF_CONT_PT] = NEW_NUMERIC(totalNodeCount));    
-      PROTECT(sexpVector[RF_MWCP_SZ] = NEW_INTEGER(totalNodeCount));  
+      PROTECT(sexpVector[RF_CONT_PT] = NEW_NUMERIC(totalNodeCount));
+      PROTECT(sexpVector[RF_MWCP_SZ] = NEW_INTEGER(totalNodeCount));
       *pRF_treeID = (uint*) INTEGER_POINTER(sexpVector[RF_TREE_ID]);
       *pRF_nodeID = (uint*) INTEGER_POINTER(sexpVector[RF_NODE_ID]);
       *pRF_parmID = (uint*) INTEGER_POINTER(sexpVector[RF_PARM_ID]);

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -106,7 +106,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     nodeMembershipPtr = RF_tNodeMembership;
     break;
   }
-  while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
+  while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
     if (oobFlag == TRUE) {
       ensemblePtr    = RF_oobEnsemblePtr;
       ensembleDenPtr = RF_oobEnsembleDen;
@@ -181,7 +181,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     }
   }  
 }
-void getEnsembleMortalityCR(uint      mode, 
+void getEnsembleMortalityCR(uint      mode,
                             uint      treeID,
                             uint      obsSize,
                             double  **ensemblePtr,
@@ -196,10 +196,10 @@ void getEnsembleMortalityCR(uint      mode,
       else {
         crMortality[j][i] = NA_REAL;
       }
-    } 
+    }
   }
 }
-void getEnsembleMortality(uint      mode, 
+void getEnsembleMortality(uint      mode,
                           uint      treeID,
                           uint      obsSize,
                           double  **ensemblePtr,
@@ -213,12 +213,12 @@ void getEnsembleMortality(uint      mode,
     else {
       mortality[i] = NA_REAL;
     }
-  } 
+  }
 }
-void getConditionalConcordanceArrays(uint     j, 
-                                     double  *timePtr, 
-                                     double  *statusPtr, 
-                                     double  *mortalityPtr, 
+void getConditionalConcordanceArrays(uint     j,
+                                     double  *timePtr,
+                                     double  *statusPtr,
+                                     double  *mortalityPtr,
                                      uint    *genericEnsembleDenPtr,
                                      uint    *meIndividualSize,
                                      uint   **eIndividual,
@@ -241,9 +241,9 @@ void getConditionalConcordanceArrays(uint     j,
   }
 }
 double getConcordanceIndex(int     polarity,
-                           uint    size, 
-                           double *timePtr, 
-                           double *statusPtr, 
+                           uint    size,
+                           double *timePtr,
+                           double *statusPtr,
                            double *predictedOutcome,
                            uint   *denCount) {
   uint i,j;
@@ -257,12 +257,12 @@ double getConcordanceIndex(int     polarity,
         if ( ((timePtr[i] - timePtr[j] > EPSILON) && (statusPtr[j] > 0)) ||
              ((fabs(timePtr[i] - timePtr[j]) <= EPSILON) && (statusPtr[j] > 0) && (statusPtr[i] == 0)) ) {
           concordancePairSize += 2;
-          if (predictedOutcome[j] - predictedOutcome[i] > EPSILON) { 
+          if (predictedOutcome[j] - predictedOutcome[i] > EPSILON) {
             concordanceWorseCount += 2;
           }
           else if (fabs(predictedOutcome[j] - predictedOutcome[i]) < EPSILON) {
             concordanceWorseCount += 1;
-          }  
+          }
         }
         else if ( ((timePtr[j] - timePtr[i]) > EPSILON  && (statusPtr[i] > 0)) ||
                   ((fabs(timePtr[j] - timePtr[i]) <= EPSILON)  && (statusPtr[i] > 0) && (statusPtr[j] == 0)) ) {
@@ -272,7 +272,7 @@ double getConcordanceIndex(int     polarity,
           }
           else if (fabs(predictedOutcome[i] - predictedOutcome[j]) < EPSILON) {
             concordanceWorseCount += 1;
-          }  
+          }
         }
         else if ( (fabs(timePtr[i]- timePtr[j]) <= EPSILON) && (statusPtr[i] > 0) && (statusPtr[j] > 0) ) {
           concordancePairSize += 2;
@@ -314,7 +314,7 @@ void getCRPerformance (uint     mode,
     error("\nRF-SRC:  The application will now exit.\n");
   }
   if (RF_mStatusSize > 0) {
-    if ((mode == RF_GROW) || (mode == RF_REST)) {
+    if (mode != RF_PRED) {
       mRecordSize = RF_mRecordSize;
       mpSign = RF_mpSign;
       mRecordIndex = RF_mRecordIndex;
@@ -340,9 +340,9 @@ void getCRPerformance (uint     mode,
   double *subsettedMortality = dvector(1, obsSize);
   uint *subsettedEnsembleDen = uivector(1, obsSize);
   for (j = 1; j <= RF_eventTypeSize; j++) {
-    getConditionalConcordanceArrays(j, 
-                                    responsePtr[RF_timeIndex], 
-                                    responsePtr[RF_statusIndex], 
+    getConditionalConcordanceArrays(j,
+                                    responsePtr[RF_timeIndex],
+                                    responsePtr[RF_statusIndex],
                                     conditionalMortality[j],
                                     ensembleDenPtr,
                                     meIndividualSize,
@@ -352,7 +352,7 @@ void getCRPerformance (uint     mode,
                                     subsettedMortality,
                                     subsettedEnsembleDen);
     concordanceIndex = getConcordanceIndex(1,
-                                           meIndividualSize[j], 
+                                           meIndividualSize[j],
                                            subsettedTime,
                                            subsettedStatus,
                                            subsettedMortality,

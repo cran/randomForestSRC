@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -72,8 +72,8 @@
 #include     "splitUspv.h"
 #include    "regression.h"
 #include         "split.h"
-char getBestSplit(uint    treeID, 
-                  Node   *parent, 
+char getBestSplit(uint    treeID,
+                  Node   *parent,
                   uint   *repMembrIndx,
                   uint    repMembrSize,
                   uint   *allMembrIndx,
@@ -84,233 +84,218 @@ char getBestSplit(uint    treeID,
                   uint  **splitValueMaxFactPtr,
                   double *splitStatistic,
                   char  **splitIndicator,
-                  char  **omitMembrFlag,
                   char    multImpFlag) {
   char  result;
   result = FALSE;  
   switch(RF_splitRule) {
   case SURV_LGRNK:
-    result = logRank(treeID, 
-                     parent, 
-                     repMembrIndx, 
-                     repMembrSize, 
-                     allMembrIndx,
-                     allMembrSize,
-                     splitParameterMax, 
-                     splitValueMaxCont, 
-                     splitValueMaxFactSize, 
-                     splitValueMaxFactPtr,
-                     splitStatistic,
-                     splitIndicator,
-                     omitMembrFlag,
-                     multImpFlag);
+    result = logRankNCR(treeID,
+                        parent,
+                        repMembrIndx,
+                        repMembrSize,
+                        allMembrIndx,
+                        allMembrSize,
+                        splitParameterMax,
+                        splitValueMaxCont,
+                        splitValueMaxFactSize,
+                        splitValueMaxFactPtr,
+                        splitStatistic,
+                        splitIndicator,
+                        multImpFlag);
     break;
   case SURV_LRSCR:
-    result = logRankScore(treeID, 
-                          parent, 
-                          repMembrIndx, 
-                          repMembrSize, 
-                          allMembrIndx,
-                          allMembrSize,
-                          splitParameterMax, 
-                          splitValueMaxCont, 
-                          splitValueMaxFactSize, 
-                          splitValueMaxFactPtr,
-                          splitStatistic,
-                          splitIndicator,
-                          omitMembrFlag,
-                          multImpFlag);
+    result = logRankNCR(treeID,
+                        parent,
+                        repMembrIndx,
+                        repMembrSize,
+                        allMembrIndx,
+                        allMembrSize,
+                        splitParameterMax,
+                        splitValueMaxCont,
+                        splitValueMaxFactSize,
+                        splitValueMaxFactPtr,
+                        splitStatistic,
+                        splitIndicator,
+                        multImpFlag);
     break;
   case SURV_CR_LAU:
-    result = logRankLauCR(treeID, 
-                          parent, 
-                          repMembrIndx, 
-                          repMembrSize, 
-                          allMembrIndx,
-                          allMembrSize,
-                          splitParameterMax, 
-                          splitValueMaxCont, 
-                          splitValueMaxFactSize, 
-                          splitValueMaxFactPtr,
-                          splitStatistic,
-                          splitIndicator,
-                          omitMembrFlag,
-                          multImpFlag);
-    break;
-  case SURV_CR_LOG:
-    result = logRankCR(treeID, 
-                       parent, 
-                       repMembrIndx, 
-                       repMembrSize, 
+    result = logRankCR(treeID,
+                       parent,
+                       repMembrIndx,
+                       repMembrSize,
                        allMembrIndx,
                        allMembrSize,
-                       splitParameterMax, 
-                       splitValueMaxCont, 
-                       splitValueMaxFactSize, 
+                       splitParameterMax,
+                       splitValueMaxCont,
+                       splitValueMaxFactSize,
                        splitValueMaxFactPtr,
                        splitStatistic,
                        splitIndicator,
-                       omitMembrFlag,
+                       multImpFlag);
+    break;
+  case SURV_CR_LOG:
+    result = logRankCR(treeID,
+                       parent,
+                       repMembrIndx,
+                       repMembrSize,
+                       allMembrIndx,
+                       allMembrSize,
+                       splitParameterMax,
+                       splitValueMaxCont,
+                       splitValueMaxFactSize,
+                       splitValueMaxFactPtr,
+                       splitStatistic,
+                       splitIndicator,
                        multImpFlag);
     break;
   case RAND_SPLIT:
-    result = randomSplit(treeID, 
-                         parent, 
-                         repMembrIndx, 
-                         repMembrSize, 
+    result = randomSplit(treeID,
+                         parent,
+                         repMembrIndx,
+                         repMembrSize,
                          allMembrIndx,
                          allMembrSize,
-                         splitParameterMax, 
-                         splitValueMaxCont, 
-                         splitValueMaxFactSize, 
+                         splitParameterMax,
+                         splitValueMaxCont,
+                         splitValueMaxFactSize,
                          splitValueMaxFactPtr,
                          splitStatistic,
                          splitIndicator,
-                         omitMembrFlag,
                          multImpFlag);
     break;
   case REGR_WT_NRM:
-       result = regressionSplit(treeID, 
-                                parent, 
-                                repMembrIndx, 
-                                repMembrSize, 
-                                allMembrIndx,
-                                allMembrSize,
-                                splitParameterMax, 
-                                splitValueMaxCont, 
-                                splitValueMaxFactSize, 
-                                splitValueMaxFactPtr,
-                                splitStatistic,
-                                splitIndicator,
-                                omitMembrFlag,
-                                multImpFlag);
+    result = regressionXwghtSplit(treeID,
+                                  parent,
+                                  repMembrIndx,
+                                  repMembrSize,
+                                  allMembrIndx,
+                                  allMembrSize,
+                                  splitParameterMax,
+                                  splitValueMaxCont,
+                                  splitValueMaxFactSize,
+                                  splitValueMaxFactPtr,
+                                  splitStatistic,
+                                  splitIndicator,
+                                  multImpFlag);
        break;
   case REGR_WT_OFF:
-       result = regressionUwghtSplit(treeID, 
-                                     parent, 
-                                     repMembrIndx, 
-                                     repMembrSize, 
+       result = regressionXwghtSplit(treeID,
+                                     parent,
+                                     repMembrIndx,
+                                     repMembrSize,
                                      allMembrIndx,
                                      allMembrSize,
-                                     splitParameterMax, 
-                                     splitValueMaxCont, 
-                                     splitValueMaxFactSize, 
+                                     splitParameterMax,
+                                     splitValueMaxCont,
+                                     splitValueMaxFactSize,
                                      splitValueMaxFactPtr,
                                      splitStatistic,
                                      splitIndicator,
-                                     omitMembrFlag,
                                      multImpFlag);
        break;
   case REGR_WT_HVY:
-       result = regressionHwghtSplit(treeID, 
-                                     parent, 
-                                     repMembrIndx, 
-                                     repMembrSize, 
+       result = regressionXwghtSplit(treeID,
+                                     parent,
+                                     repMembrIndx,
+                                     repMembrSize,
                                      allMembrIndx,
                                      allMembrSize,
-                                     splitParameterMax, 
-                                     splitValueMaxCont, 
-                                     splitValueMaxFactSize, 
+                                     splitParameterMax,
+                                     splitValueMaxCont,
+                                     splitValueMaxFactSize,
                                      splitValueMaxFactPtr,
                                      splitStatistic,
                                      splitIndicator,
-                                     omitMembrFlag,
                                      multImpFlag);
        break;
   case CLAS_WT_NRM:
-    result = classificationSplit(treeID, 
-                                 parent, 
-                                 repMembrIndx, 
-                                 repMembrSize, 
-                                 allMembrIndx,
-                                 allMembrSize,
-                                 splitParameterMax, 
-                                 splitValueMaxCont, 
-                                 splitValueMaxFactSize, 
-                                 splitValueMaxFactPtr,
-                                 splitStatistic,
-                                 splitIndicator,
-                                 omitMembrFlag,
-                                 multImpFlag);
-    break;
-  case CLAS_WT_OFF:
-    result = classificationUwghtSplit(treeID, 
-                                      parent, 
-                                      repMembrIndx, 
-                                      repMembrSize, 
+    result = classificationXwghtSplit(treeID,
+                                      parent,
+                                      repMembrIndx,
+                                      repMembrSize,
                                       allMembrIndx,
                                       allMembrSize,
-                                      splitParameterMax, 
-                                      splitValueMaxCont, 
-                                      splitValueMaxFactSize, 
+                                      splitParameterMax,
+                                      splitValueMaxCont,
+                                      splitValueMaxFactSize,
                                       splitValueMaxFactPtr,
                                       splitStatistic,
                                       splitIndicator,
-                                      omitMembrFlag,
+                                      multImpFlag);
+    break;
+  case CLAS_WT_OFF:
+    result = classificationXwghtSplit(treeID,
+                                      parent,
+                                      repMembrIndx,
+                                      repMembrSize,
+                                      allMembrIndx,
+                                      allMembrSize,
+                                      splitParameterMax,
+                                      splitValueMaxCont,
+                                      splitValueMaxFactSize,
+                                      splitValueMaxFactPtr,
+                                      splitStatistic,
+                                      splitIndicator,
                                       multImpFlag);
     break;
   case CLAS_WT_HVY:
-    result = classificationHwghtSplit(treeID, 
-                                      parent, 
-                                      repMembrIndx, 
-                                      repMembrSize, 
+    result = classificationXwghtSplit(treeID,
+                                      parent,
+                                      repMembrIndx,
+                                      repMembrSize,
                                       allMembrIndx,
                                       allMembrSize,
-                                      splitParameterMax, 
-                                      splitValueMaxCont, 
-                                      splitValueMaxFactSize, 
+                                      splitParameterMax,
+                                      splitValueMaxCont,
+                                      splitValueMaxFactSize,
                                       splitValueMaxFactPtr,
                                       splitStatistic,
                                       splitIndicator,
-                                      omitMembrFlag,
                                       multImpFlag);
     break;
   case MVRG_SPLIT:
-    result = multivariateSplit(treeID, 
-                               parent, 
-                               repMembrIndx, 
-                               repMembrSize, 
+    result = multivariateSplit(treeID,
+                               parent,
+                               repMembrIndx,
+                               repMembrSize,
                                allMembrIndx,
                                allMembrSize,
-                               splitParameterMax, 
-                               splitValueMaxCont, 
-                               splitValueMaxFactSize, 
+                               splitParameterMax,
+                               splitValueMaxCont,
+                               splitValueMaxFactSize,
                                splitValueMaxFactPtr,
                                splitStatistic,
                                splitIndicator,
-                               omitMembrFlag,
                                multImpFlag);
     break;
   case MVCL_SPLIT:
-    result = multivariateSplit(treeID, 
-                               parent, 
-                               repMembrIndx, 
-                               repMembrSize, 
+    result = multivariateSplit(treeID,
+                               parent,
+                               repMembrIndx,
+                               repMembrSize,
                                allMembrIndx,
                                allMembrSize,
-                               splitParameterMax, 
-                               splitValueMaxCont, 
-                               splitValueMaxFactSize, 
+                               splitParameterMax,
+                               splitValueMaxCont,
+                               splitValueMaxFactSize,
                                splitValueMaxFactPtr,
                                splitStatistic,
                                splitIndicator,
-                               omitMembrFlag,
                                multImpFlag);
     break;
   case USPV_SPLIT:
-    result = unsupervisedSplit(treeID, 
-                               parent, 
-                               repMembrIndx, 
-                               repMembrSize, 
+    result = unsupervisedSplit(treeID,
+                               parent,
+                               repMembrIndx,
+                               repMembrSize,
                                allMembrIndx,
                                allMembrSize,
-                               splitParameterMax, 
-                               splitValueMaxCont, 
-                               splitValueMaxFactSize, 
+                               splitParameterMax,
+                               splitValueMaxCont,
+                               splitValueMaxFactSize,
                                splitValueMaxFactPtr,
                                splitStatistic,
                                splitIndicator,
-                               omitMembrFlag,
                                multImpFlag);
     break;
   default:
@@ -322,76 +307,35 @@ char getBestSplit(uint    treeID,
   }
   return result;
 }
-char randomSplit(uint    treeID, 
-                 Node   *parent, 
+char randomSplit(uint    treeID,
+                 Node   *parent,
                  uint   *repMembrIndx,
                  uint    repMembrSize,
                  uint   *allMembrIndx,
                  uint    allMembrSize,
-                 uint   *splitParameterMax, 
-                 double *splitValueMaxCont, 
-                 uint   *splitValueMaxFactSize, 
+                 uint   *splitParameterMax,
+                 double *splitValueMaxCont,
+                 uint   *splitValueMaxFactSize,
                  uint  **splitValueMaxFactPtr,
                  double *splitStatistic,
                  char  **splitIndicator,
-                 char  **omitMembrFlag,
                  char    multImpFlag) {
-  char result;
-  if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-    result = randomSurvivalSplit(treeID, 
-                                 parent, 
-                                 repMembrIndx, 
-                                 repMembrSize, 
-                                 allMembrIndx,
-                                 allMembrSize,
-                                 splitParameterMax, 
-                                 splitValueMaxCont, 
-                                 splitValueMaxFactSize, 
-                                 splitValueMaxFactPtr,
-                                 splitStatistic,
-                                 splitIndicator,
-                                 omitMembrFlag,
-                                 multImpFlag);
-  }
-  else {
-    result = randomNonSurvivalSplit(treeID, 
-                                    parent, 
-                                    repMembrIndx, 
-                                    repMembrSize, 
-                                    allMembrIndx,
-                                    allMembrSize,
-                                    splitParameterMax, 
-                                    splitValueMaxCont, 
-                                    splitValueMaxFactSize, 
-                                    splitValueMaxFactPtr,
-                                    splitStatistic,
-                                    splitIndicator,
-                                    omitMembrFlag,
-                                    multImpFlag);
-  }
-  return result;
-}
-char randomNonSurvivalSplit(uint    treeID, 
-                            Node   *parent, 
-                            uint   *repMembrIndx,
-                            uint    repMembrSize,
-                            uint   *allMembrIndx,
-                            uint    allMembrSize,
-                            uint   *splitParameterMax, 
-                            double *splitValueMaxCont, 
-                            uint   *splitValueMaxFactSize, 
-                            uint  **splitValueMaxFactPtr,
-                            double *splitStatistic,
-                            char  **splitIndicator,
-                            char  **omitMembrFlag,
-                            char    multImpFlag) {
+  char    *randomCovariateFlag;
   uint    *randomCovariateIndex;
-  double **permissibleSplit;
-  uint    *permissibleSplitSize;
-  char **missMembrFlag;
-  uint *nonMissMembrSize;
-  uint **nonMissMembrIndx;
-  uint   **indxx;
+  uint    uniformCovariateIndex;
+  uint    uniformCovariateSize;
+  double *cdf;
+  uint    cdfSize;
+  uint   *cdfSort;
+  uint   *density;
+  uint    densitySize;
+  uint  **densitySwap;
+  uint     covariate;
+  double  *permissibleSplit;
+  uint     permissibleSplitSize;
+  uint nonMissMembrSize, nonMissMembrSizeStatic;
+  uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
+  uint   *indxx;
   uint priorMembrIter, currentMembrIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
@@ -402,58 +346,65 @@ char randomNonSurvivalSplit(uint    treeID,
   uint mwcpSizeAbsolute;
   char deterministicSplitFlag;
   char result;
-  uint i, j;
+  uint j;
   mwcpSizeAbsolute = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
   *splitValueMaxCont     = NA_REAL;
   deltaMax               = NA_REAL;
-  if (repMembrSize >= (2 * RF_minimumNodeSize)) {
-    result = TRUE;
-  }
-  else {
-    result = FALSE;
-  }
-  if (result) {
-    if (RF_maximumNodeDepth < 0) {
-      result = TRUE;
-    }
-    else {
-      if (parent -> depth < (uint) RF_maximumNodeDepth) {
-        result = TRUE;
-      }
-      else {
-        result = FALSE;
-      }
-    }
-  }
-  if (result) {
-    result = getVariance(repMembrSize, repMembrIndx, RF_response[treeID][1], NULL, NULL);
-  }
+  result = getPreSplitResult(treeID,
+                             parent,
+                             repMembrSize,
+                             repMembrIndx,
+                             & nonMissMembrSizeStatic,
+                             & nonMissMembrIndxStatic,
+                             & permissibleSplit,
+                             multImpFlag);
   if(result) {
     stackSplitIndicator(repMembrSize, & localSplitIndicator);
-    char *covariateStatus = NULL;  
-    uint actualCovariateCount = stackAndSelectRandomCovariatesNew(treeID,
-                                                                  parent, 
-                                                                  repMembrIndx, 
-                                                                  repMembrSize, 
-                                                                  & randomCovariateIndex, 
-                                                                  & permissibleSplit, 
-                                                                  & permissibleSplitSize,
-                                                                  & indxx,
-                                                                  & missMembrFlag,
-                                                                  & nonMissMembrSize,
-                                                                  & nonMissMembrIndx,
-                                                                  multImpFlag);
-    if (actualCovariateCount > 0) {
-      covariateStatus = cvector(1, actualCovariateCount);
-    }
-    for (i = 1; i <= actualCovariateCount; i++) {
-      covariateStatus[i] = TRUE;
-    }
-    i = getSelectableElement(treeID, actualCovariateCount, covariateStatus, NULL);
-    while ((i != 0) && ((*splitParameterMax) == 0)) {
+    stackRandomCovariates(treeID,
+                          parent,
+                          repMembrSize,
+                          multImpFlag,
+                          & randomCovariateFlag,
+                          & randomCovariateIndex,
+                          & uniformCovariateSize,
+                          & uniformCovariateIndex,
+                          & cdf,
+                          & cdfSize,
+                          & cdfSort,
+                          & density,
+                          & densitySize,
+                          & densitySwap);
+    uint actualCovariateCount = 0;
+    uint candidateCovariateCount = 0;
+    while ( ((*splitParameterMax) == 0) &&
+            selectRandomCovariates(treeID,
+                                   parent,
+                                   repMembrIndx,
+                                   repMembrSize,
+                                   randomCovariateFlag,
+                                   randomCovariateIndex,
+                                   & uniformCovariateSize,
+                                   & uniformCovariateIndex,
+                                   cdf,
+                                   & cdfSize,
+                                   cdfSort,
+                                   density,
+                                   & densitySize,
+                                   densitySwap,
+                                   & covariate,
+                                   & actualCovariateCount,
+                                   & candidateCovariateCount,
+                                   permissibleSplit,
+                                   & permissibleSplitSize,
+                                   & indxx,
+                                   nonMissMembrSizeStatic,
+                                   nonMissMembrIndxStatic,
+                                   & nonMissMembrSize,
+                                   & nonMissMembrIndx,
+                                   multImpFlag)) {
       for (j = 1; j <= repMembrSize; j++) {
         localSplitIndicator[j] = NEITHER;
       }
@@ -461,16 +412,16 @@ char randomNonSurvivalSplit(uint    treeID,
       priorMembrIter = 0;
       splitLength = stackAndConstructSplitVector(treeID,
                                                  repMembrSize,
-                                                 randomCovariateIndex[i], 
-                                                 permissibleSplit[i], 
-                                                 permissibleSplitSize[i],
+                                                 covariate,
+                                                 permissibleSplit,
+                                                 permissibleSplitSize,
                                                  & factorFlag,
                                                  & deterministicSplitFlag,
                                                  & mwcpSizeAbsolute,
                                                  & permissibleSplitPtr);
       if (factorFlag == FALSE) {
-        for (j = 1; j <= nonMissMembrSize[i]; j++) {
-          localSplitIndicator[ nonMissMembrIndx[i][indxx[i][j]] ] = RIGHT;
+        for (j = 1; j <= nonMissMembrSize; j++) {
+          localSplitIndicator[ nonMissMembrIndx[indxx[j]] ] = RIGHT;
         }
       }
       for (j = 1; j < splitLength; j++) {
@@ -478,27 +429,26 @@ char randomNonSurvivalSplit(uint    treeID,
           priorMembrIter = 0;
           leftSize = 0;
         }
-        virtuallySplitNodeNew(treeID,
+        virtuallySplitNode(treeID,
                               factorFlag,
                               mwcpSizeAbsolute,
-                              randomCovariateIndex[i],
+                              covariate,
                               repMembrIndx,
                               repMembrSize,
-                              nonMissMembrIndx[i],
-                              nonMissMembrSize[i],
-                              indxx[i],
+                              nonMissMembrIndx,
+                              nonMissMembrSize,
+                              indxx,
                               permissibleSplitPtr,
                               j,
                               localSplitIndicator,
                               & leftSize,
-                              missMembrFlag[i],                                 
                               priorMembrIter,
                               & currentMembrIter);
-        rghtSize = nonMissMembrSize[i] - leftSize;
+        rghtSize = nonMissMembrSize - leftSize;
         if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
           updateMaximumSplit(treeID,
                              0,  
-                             randomCovariateIndex[i],
+                             covariate,
                              j,
                              factorFlag,
                              mwcpSizeAbsolute,
@@ -512,36 +462,39 @@ char randomNonSurvivalSplit(uint    treeID,
                              permissibleSplitPtr,
                              splitIndicator);
           j = splitLength;
-        }  
+        }
       }  
       unstackSplitVector(treeID,
-                         permissibleSplitSize[i],
+                         permissibleSplitSize,
                          splitLength,
                          factorFlag,
                          deterministicSplitFlag,
                          mwcpSizeAbsolute,
                          permissibleSplitPtr);
-      if(*splitParameterMax == 0) {
-        covariateStatus[i] = FALSE;
-        i = getSelectableElement(treeID, actualCovariateCount, covariateStatus, NULL);
-      }
-    }  
-    unstackRandomCovariatesNew(treeID,
-                               repMembrSize, 
-                               randomCovariateIndex, 
-                               actualCovariateCount,
-                               permissibleSplit, 
-                               permissibleSplitSize,
+      unselectRandomCovariates(treeID,
+                               parent,
+                               repMembrSize,
                                indxx,
-                               missMembrFlag,
-                               nonMissMembrSize,
-                               nonMissMembrIndx);
-    if (actualCovariateCount > 0) {
-      free_cvector(covariateStatus, 1, actualCovariateCount);
-    }
+                               nonMissMembrSizeStatic,
+                               nonMissMembrIndx,
+                               multImpFlag);
+    }  
+    unstackRandomCovariates(treeID,
+                            randomCovariateFlag,
+                            randomCovariateIndex,
+                            uniformCovariateSize,
+                            cdf,
+                            cdfSize,
+                            cdfSort,
+                            density,
+                            densitySize,
+                            densitySwap,
+                            repMembrSize,
+                            nonMissMembrIndxStatic,
+                            permissibleSplit);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
   }  
-  result = summarizeSplitResult(*splitParameterMax, 
+  result = summarizeSplitResult(*splitParameterMax,
                                 *splitValueMaxCont,
                                 *splitValueMaxFactSize,
                                 *splitValueMaxFactPtr,

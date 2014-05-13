@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -84,8 +84,8 @@ Node *getTerminalNode(uint treeID, uint leaf) {
     Rprintf("\nDiagnostic Trace of (individual, boot, node, leaf) vectors in data set:  ");
     Rprintf("\n        index         boot         node         leaf \n");
     for (i = 1; i <= RF_observationSize; i++) {
-      Rprintf(" %12d %12d %12x %12d \n", i, 
-              RF_bootMembershipFlag[treeID][i], RF_tNodeMembership[treeID][i], 
+      Rprintf(" %12d %12d %12x %12d \n", i,
+              RF_bootMembershipFlag[treeID][i], RF_tNodeMembership[treeID][i],
               RF_tNodeMembership[treeID][i] -> nodeID);
     }
     Rprintf("\nDiagnostic State of TRAIN (SHADOW) data:  ");
@@ -124,8 +124,8 @@ Node *getTerminalNode(uint treeID, uint leaf) {
   return parent;
 }
 void getRawNodeSize(uint  type,
-                    uint  treeID, 
-                    Node *parent, 
+                    uint  treeID,
+                    Node *parent,
                     uint *repMembrIndx,
                     uint *repMembrSize,
                     uint *allMembrIndx,
@@ -140,7 +140,7 @@ void getRawNodeSize(uint  type,
     obsSize = RF_fobservationSize;
     nodeMembershipPtr = RF_ftNodeMembership;
     break;
-  default: 
+  default:
     obsSize = RF_observationSize;
     nodeMembershipPtr = RF_tNodeMembership;
     break;
@@ -170,14 +170,13 @@ char forkAndUpdate(uint    treeID,
                    uint   *splitValueMaxFactPtr,
                    double  splitStatistic,
                    char   *localSplitIndicator,
-                   char   *localOmitMembrFlag,
                    char    multImpFlag,
                    char   *membershipIndicator,
                    uint   *leftDaughterSize,
                    uint   *rghtDaughterSize) {
   char factorFlag;
   char daughterFlag;
-  char *omitMembrFlag;
+  char *randomMembrFlag;
   char result;
   uint nonMissAllMembrSize;
   double leftProbability;
@@ -185,14 +184,14 @@ char forkAndUpdate(uint    treeID,
   uint offset;
   uint i;
   factorFlag = FALSE; 
-  omitMembrFlag = cvector(1, allMembrSize);
-  result = forkNode(parent, 
-                    splitParameterMax, 
+  randomMembrFlag = cvector(1, allMembrSize);
+  result = forkNode(parent,
+                    splitParameterMax,
                     splitValueMaxCont,
-                    splitValueMaxFactSize, 
+                    splitValueMaxFactSize,
                     splitValueMaxFactPtr);
   if (result == TRUE) {
-    if (RF_opt & OPT_TREE) {    
+    if (RF_opt & OPT_TREE) {
       RF_nodeCount[treeID] += 2;
     }
     parent -> splitStatistic = splitStatistic;
@@ -219,16 +218,16 @@ char forkAndUpdate(uint    treeID,
       if (RF_mRecordSize > 0) {
         if (RF_mRecordMap[allMembrIndx[i]] > 0) {
           if (RF_mpSign[offset][RF_mRecordMap[allMembrIndx[i]]] == 1) {
-            if ((SPLIT_RANDOM_OVERRIDE) && (!multImpFlag)) {
+            if ((RF_optHigh & OPT_MISS_RAND) && (!multImpFlag)) {
               mPredictorFlag = TRUE;
             }
           }
         }
       }
-      omitMembrFlag[i] = mPredictorFlag;
+      randomMembrFlag[i] = mPredictorFlag;
     }
     for (i = 1; i <= allMembrSize; i++) {
-      if (omitMembrFlag[i] == FALSE) {
+      if (randomMembrFlag[i] == FALSE) {
         if(membershipIndicator[allMembrIndx[i]] == NEITHER) {
           daughterFlag = RIGHT;
           if (factorFlag == TRUE) {
@@ -268,7 +267,7 @@ char forkAndUpdate(uint    treeID,
           (*rghtDaughterSize) ++;
           RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
         }
-      }  
+      }
       else {
       }  
     }  
@@ -282,8 +281,8 @@ char forkAndUpdate(uint    treeID,
   nonMissAllMembrSize = (*leftDaughterSize) + (*rghtDaughterSize);
   leftProbability = (double) *leftDaughterSize / (double) nonMissAllMembrSize;
   for (i = 1; i <= allMembrSize; i++) {
-    if (omitMembrFlag[i] == TRUE) {
-      if (ran1(treeID) <= leftProbability) {
+    if (randomMembrFlag[i] == TRUE) {
+      if (ran1A(treeID) <= leftProbability) {
         daughterFlag = LEFT;
         membershipIndicator[allMembrIndx[i]] = LEFT;
         (*leftDaughterSize) ++;
@@ -306,7 +305,7 @@ char forkAndUpdate(uint    treeID,
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
-  free_cvector(omitMembrFlag, 1, allMembrSize);
+  free_cvector(randomMembrFlag, 1, allMembrSize);
   return result;
 }
 char growTree (char     rootFlag,
@@ -326,12 +325,12 @@ char growTree (char     rootFlag,
   char leftResult, rghtResult;
   char tnUpdateFlag;
   char bsUpdateFlag;
-  uint *bootMembrIndx;  
-  uint *leftRepMembrIndx; 
+  uint *bootMembrIndx;
+  uint *leftRepMembrIndx;
   uint *rghtRepMembrIndx;
   uint *leftAllMembrIndx;
   uint *rghtAllMembrIndx;
-  uint bootMembrSize; 
+  uint bootMembrSize;
   uint leftAllMembrSize;
   uint rghtAllMembrSize;
   uint leftRepMembrSize, jLeft;
@@ -342,19 +341,17 @@ char growTree (char     rootFlag,
   uint    *splitValueMaxFactPtr;
   double   splitStatistic;
   char    *splitIndicator;
-  char    *omitMembrFlag;
   uint i, p;
   parent -> depth = depth;
   bootResult = TRUE;
   tnUpdateFlag = TRUE;
   bsUpdateFlag = FALSE;
   splitIndicator = NULL;
-  omitMembrFlag = NULL;
   if (rootFlag | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
     bootMembrIndx  = uivector(1, allMembrSize);
     bootMembrSize = allMembrSize;
     bootResult = bootstrap (RF_GROW,
-                            treeID, 
+                            treeID,
                             parent,
                             allMembrIndx,
                             allMembrSize,
@@ -374,7 +371,7 @@ char growTree (char     rootFlag,
             if (parent -> mpSign[p] == -1) {
               (parent -> permissibleSplit)[RF_mpIndex[p]] = FALSE;
             }
-          }         
+          }
         }
       }
     }
@@ -385,6 +382,7 @@ char growTree (char     rootFlag,
     parent -> mpSign = (parent -> parent) -> mpSign;
   }
   if (bootResult) {
+    if (!(RF_optHigh & OPT_MISS_RAND)) {
     if (multImpFlag == FALSE) {
       if (RF_mRecordSize > 0) {
         imputeNode(RF_GROW,
@@ -392,145 +390,140 @@ char growTree (char     rootFlag,
                    TRUE,
                    treeID,
                    parent,
-                   bootMembrIndx, 
-                   bootMembrSize, 
+                   bootMembrIndx,
+                   bootMembrSize,
                    allMembrIndx,
                    allMembrSize);
         if (RF_timeIndex > 0) {
           if (RF_mTimeFlag == TRUE) {
-            updateTimeIndexArray(treeID, 
-                                 allMembrIndx, 
-                                 allMembrSize, 
-                                 RF_time[treeID], 
-                                 FALSE, 
-                                 FALSE, 
+            updateTimeIndexArray(treeID,
+                                 allMembrIndx,
+                                 allMembrSize,
+                                 RF_time[treeID],
+                                 (RF_optHigh & OPT_MISS_RAND) ? TRUE : FALSE,
+                                 FALSE,
                                  RF_masterTimeIndex[treeID]);
           }
         }
       }
     }  
+    }
   }  
   if (bootResult) {
-    if (parent -> splitFlag == TRUE) {
-      if (rootFlag) {
-        if (RF_opt & OPT_TREE) {
-          RF_nodeCount[treeID] = 1;
-        }
-        RF_tLeafCount[treeID] = 1;
+    if (rootFlag) {
+      if (RF_opt & OPT_TREE) {
+        RF_nodeCount[treeID] = 1;
       }
-      splitResult = getBestSplit(treeID, 
-                                 parent, 
-                                 bootMembrIndx, 
-                                 bootMembrSize, 
+      RF_tLeafCount[treeID] = 1;
+    }
+    splitResult = getBestSplit(treeID,
+                               parent,
+                               bootMembrIndx,
+                               bootMembrSize,
+                               allMembrIndx,
+                               allMembrSize,
+                               & splitParameterMax,
+                               & splitValueMaxCont,
+                               & splitValueMaxFactSize,
+                               & splitValueMaxFactPtr,
+                               & splitStatistic,
+                               & splitIndicator,
+                               multImpFlag);
+    if (splitResult == TRUE) {
+      tnUpdateFlag = FALSE;
+      char *membershipIndicator = cvector(1, RF_observationSize);
+      forkResult = forkAndUpdate(treeID,
+                                 parent,
+                                 bootMembrIndx,
+                                 bootMembrSize,
                                  allMembrIndx,
                                  allMembrSize,
-                                 & splitParameterMax,
-                                 & splitValueMaxCont,
-                                 & splitValueMaxFactSize,
-                                 & splitValueMaxFactPtr,
-                                 & splitStatistic,
-                                 & splitIndicator,
-                                 & omitMembrFlag,
-                                 multImpFlag);
-      if (splitResult == TRUE) {
-        tnUpdateFlag = FALSE;
-        char *membershipIndicator = cvector(1, RF_observationSize);
-        forkResult = forkAndUpdate(treeID,
-                                   parent,
-                                   bootMembrIndx,
-                                   bootMembrSize,
-                                   allMembrIndx,
-                                   allMembrSize,
-                                   splitParameterMax,
-                                   splitValueMaxCont,
-                                   splitValueMaxFactSize, 
-                                   splitValueMaxFactPtr,
-                                   splitStatistic,
-                                   splitIndicator,
-                                   omitMembrFlag,
-                                   multImpFlag,
-                                   membershipIndicator,
-                                   &leftAllMembrSize,
-                                   &rghtAllMembrSize);
-        if (forkResult == TRUE) {
-          leftAllMembrIndx  = uivector(1, leftAllMembrSize);
-          rghtAllMembrIndx  = uivector(1, rghtAllMembrSize);
-          jLeft = jRght = 0;
-          for (i = 1; i <= allMembrSize; i++) {
-            if (membershipIndicator[allMembrIndx[i]] == LEFT) {
-              leftAllMembrIndx[++jLeft] = allMembrIndx[i];
-            }
-            else {
-              rghtAllMembrIndx[++jRght] = allMembrIndx[i];
-            }
-          }
-          if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-            leftRepMembrIndx = leftAllMembrIndx;
-            leftRepMembrSize = leftAllMembrSize;
-            rghtRepMembrIndx = rghtAllMembrIndx;
-            rghtRepMembrSize = rghtAllMembrSize;
+                                 splitParameterMax,
+                                 splitValueMaxCont,
+                                 splitValueMaxFactSize,
+                                 splitValueMaxFactPtr,
+                                 splitStatistic,
+                                 splitIndicator,
+                                 multImpFlag,
+                                 membershipIndicator,
+                                 &leftAllMembrSize,
+                                 &rghtAllMembrSize);
+      if (forkResult == TRUE) {
+        leftAllMembrIndx  = uivector(1, leftAllMembrSize);
+        rghtAllMembrIndx  = uivector(1, rghtAllMembrSize);
+        jLeft = jRght = 0;
+        for (i = 1; i <= allMembrSize; i++) {
+          if (membershipIndicator[allMembrIndx[i]] == LEFT) {
+            leftAllMembrIndx[++jLeft] = allMembrIndx[i];
           }
           else {
-            leftRepMembrIndx  = uivector(1, bootMembrSize);
-            rghtRepMembrIndx  = uivector(1, bootMembrSize);
-            leftRepMembrSize = rghtRepMembrSize = 0;
-            for (i = 1; i <= bootMembrSize; i++) {
-              if (membershipIndicator[bootMembrIndx[i]] == LEFT) {
-                leftRepMembrIndx[++leftRepMembrSize] = bootMembrIndx[i];
-              }
-              else {
-                rghtRepMembrIndx[++rghtRepMembrSize] = bootMembrIndx[i];
-              }
-            }
+            rghtAllMembrIndx[++jRght] = allMembrIndx[i];
           }
-          leftResult = growTree (FALSE,
-                                 multImpFlag,
-                                 treeID,
-                                 parent -> left,
-                                 leftRepMembrIndx,
-                                 leftRepMembrSize,
-                                 leftAllMembrIndx,
-                                 leftAllMembrSize,
-                                 (parent -> depth) + 1,
-                                 maximumDepth,
-                                 bootMembrIndxIter);
-          if(!leftResult) {
-          }
-          rghtResult = growTree (FALSE,
-                                 multImpFlag,
-                                 treeID,
-                                 parent -> right,
-                                 rghtRepMembrIndx,
-                                 rghtRepMembrSize,
-                                 rghtAllMembrIndx,
-                                 rghtAllMembrSize,
-                                 (parent -> depth) + 1,
-                                 maximumDepth,
-                                 bootMembrIndxIter);
-          if(!rghtResult) {
-          }
-          free_uivector(leftAllMembrIndx, 1, leftAllMembrSize);
-          free_uivector(rghtAllMembrIndx, 1, rghtAllMembrSize);
-          if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-          }
-          else {
-            free_uivector(leftRepMembrIndx, 1, bootMembrSize);
-            free_uivector(rghtRepMembrIndx, 1, bootMembrSize);
-          }
+        }
+        if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+          leftRepMembrIndx = leftAllMembrIndx;
+          leftRepMembrSize = leftAllMembrSize;
+          rghtRepMembrIndx = rghtAllMembrIndx;
+          rghtRepMembrSize = rghtAllMembrSize;
         }
         else {
-          Rprintf("\nRF-SRC:  *** ERROR *** ");
-          Rprintf("\nRF-SRC:  forkAndUpdate(%10d) failed.", treeID);
-          Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-          error("\nRF-SRC:  The application will now exit.\n");
+          leftRepMembrIndx  = uivector(1, bootMembrSize);
+          rghtRepMembrIndx  = uivector(1, bootMembrSize);
+          leftRepMembrSize = rghtRepMembrSize = 0;
+          for (i = 1; i <= bootMembrSize; i++) {
+            if (membershipIndicator[bootMembrIndx[i]] == LEFT) {
+              leftRepMembrIndx[++leftRepMembrSize] = bootMembrIndx[i];
+            }
+            else {
+              rghtRepMembrIndx[++rghtRepMembrSize] = bootMembrIndx[i];
+            }
+          }
         }
-        free_cvector(membershipIndicator, 1, RF_observationSize);
-      }  
-      else {
-        parent -> splitFlag = FALSE;
+        leftResult = growTree (FALSE,
+                               multImpFlag,
+                               treeID,
+                               parent -> left,
+                               leftRepMembrIndx,
+                               leftRepMembrSize,
+                               leftAllMembrIndx,
+                               leftAllMembrSize,
+                               (parent -> depth) + 1,
+                               maximumDepth,
+                               bootMembrIndxIter);
+        if(!leftResult) {
+        }
+        rghtResult = growTree (FALSE,
+                               multImpFlag,
+                               treeID,
+                               parent -> right,
+                               rghtRepMembrIndx,
+                               rghtRepMembrSize,
+                               rghtAllMembrIndx,
+                               rghtAllMembrSize,
+                               (parent -> depth) + 1,
+                               maximumDepth,
+                               bootMembrIndxIter);
+        if(!rghtResult) {
+        }
+        free_uivector(leftAllMembrIndx, 1, leftAllMembrSize);
+        free_uivector(rghtAllMembrIndx, 1, rghtAllMembrSize);
+        if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+        }
+        else {
+          free_uivector(leftRepMembrIndx, 1, bootMembrSize);
+          free_uivector(rghtRepMembrIndx, 1, bootMembrSize);
+        }
       }
+      else {
+        Rprintf("\nRF-SRC:  *** ERROR *** ");
+        Rprintf("\nRF-SRC:  forkAndUpdate(%10d) failed.", treeID);
+        Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+        error("\nRF-SRC:  The application will now exit.\n");
+      }
+      free_cvector(membershipIndicator, 1, RF_observationSize);
     }  
     else {
+      parent -> splitFlag = FALSE;
     }
   }  
   else {
@@ -557,11 +550,12 @@ char growTree (char     rootFlag,
       RF_bootMembershipIndex[treeID][++(*bootMembrIndxIter)] = bootMembrIndx[i];
       RF_bootMembershipFlag[treeID][bootMembrIndx[i]] = TRUE;
       RF_oobMembershipFlag[treeID][bootMembrIndx[i]]  = FALSE;
+      RF_bootMembershipCount[treeID][bootMembrIndx[i]] ++;
     }
   }
   if (rootFlag | (RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
     free_uivector(bootMembrIndx, 1, allMembrSize);
-  }  
+  }
   return bootResult;
 }
 char restoreTree(uint    b,
@@ -599,7 +593,7 @@ char restoreTree(uint    b,
   if ((parent -> splitParameter) != 0) {
     if (strcmp(RF_xType[parent -> splitParameter], "C") == 0) {
       parent -> splitValueFactSize = mwcpSZ[*offset];
-      parent -> splitValueFactPtr = uivector(1, mwcpSZ[*offset]);    
+      parent -> splitValueFactPtr = uivector(1, mwcpSZ[*offset]);
       for (i = 1; i <= parent -> splitValueFactSize; i++) {
         (*mwcpPtr) ++;
         (parent -> splitValueFactPtr)[i] = **mwcpPtr;
@@ -622,11 +616,11 @@ char restoreTree(uint    b,
     notTerminal = TRUE;
     parent -> left  = makeNode(parent -> xSize);
     setParent(parent ->  left, parent);
-    restoreTree(b, 
-                parent -> left, 
-                offset, 
-                treeID, 
-                nodeID, 
+    restoreTree(b,
+                parent -> left,
+                offset,
+                treeID,
+                nodeID,
                 parmID,
                 contPT,
                 mwcpSZ,
@@ -635,11 +629,11 @@ char restoreTree(uint    b,
                 maximumDepth);
     parent -> right = makeNode(parent -> xSize);
     setParent(parent -> right, parent);
-    restoreTree(b, 
+    restoreTree(b,
                 parent -> right,
-                offset, 
-                treeID, 
-                nodeID, 
+                offset,
+                treeID,
+                nodeID,
                 parmID,
                 contPT,
                 mwcpSZ,
@@ -679,7 +673,7 @@ void saveTree(uint    b,
     if (strcmp(RF_xType[parent -> splitParameter], "C") == 0) {
       mwcpSZ[*offset] = parent -> splitValueFactSize;
       for (i = 1; i <= mwcpSZ[*offset]; i++) {
-        (*mwcpPtr) ++; 
+        (*mwcpPtr) ++;
         **mwcpPtr = (parent -> splitValueFactPtr)[i];
       }
       contPT[*offset] = NA_REAL;
@@ -688,7 +682,7 @@ void saveTree(uint    b,
       contPT[*offset] = parent -> splitValueCont;
       mwcpSZ[*offset] = 0;
     }
-  }  
+  }
   else {
     contPT[*offset] = NA_REAL;
     mwcpSZ[*offset] = 0;
@@ -728,7 +722,7 @@ void getSplitDepth(Node *parent, uint *maximumDepth) {
       }
       (parent -> splitDepth)[(parent -> depth) - i + 1] = (reversePtr -> parent) -> splitParameter;
       reversePtr = reversePtr -> parent;
-    }    
+    }
   }
 }
 void freeSplitDepth(uint treeID) {

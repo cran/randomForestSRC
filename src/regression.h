@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,12 +64,18 @@
 #define RSFREGR_H
 #include "node.h"
 void getMeanResponse(uint treeID);
-void updateEnsembleMean(uint    mode, 
-                        uint    treeID, 
+void updateEnsembleMean(uint    mode,
+                        uint    treeID,
                         double *ensemblePredictor);
-double getMeanSquareError(uint    size, 
-                          double *responsePtr, 
+double getMeanSquareError(uint    size,
+                          double *responsePtr,
                           double *predictedOutcome,
                           uint   *oobCount);
-char getVariance(uint repSize, uint *repIndx, double *targetResponse, double *mean, double *variance);
+char getVariance(uint    repMembrSize,
+                 uint   *repMembrIndx,
+                 uint    nonMissMembrSize,
+                 uint   *nonMissMembrIndx,
+                 double *targetResponse,
+                 double *mean,
+                 double *variance);
 #endif

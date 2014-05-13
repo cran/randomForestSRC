@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -108,7 +108,8 @@ char  *sexpString[RF_SEXP_CNT] = {
   "bootMembership",
   "spltST",        
   "spltVR",        
-  "ptnMembership"  
+  "ptnMembership", 
+  "weight"         
 };
 SEXP sexpVector[RF_SEXP_CNT];
 uint     *RF_treeID_;
@@ -139,7 +140,9 @@ double   *RF_oobEnsembleSRV_;
 double   *RF_fullEnsembleMRT_;
 double   *RF_oobEnsembleMRT_;
 double     *RF_proximity_;
+double     *RF_weight_;
 uint      RF_opt;
+uint      RF_optHigh;
 uint      RF_splitRule;
 uint      RF_splitRandomCount;
 uint      RF_nImpute;
@@ -177,13 +180,19 @@ uint      RF_timeIndex;
 uint      RF_statusIndex;
 uint     *RF_yIndex;
 uint      RF_ySize;
-uint     *RF_testMembershipFlag;  
+char     *RF_testMembershipFlag;  
 uint      RF_intrPredictorSize;
 uint     *RF_intrPredictor;
-uint     *RF_intrIndividual;
+uint      RF_sobservationSize;
+uint     *RF_sobservationIndv;
+uint     *RF_gobservationIndv; 
 char     *RF_importanceFlag;   
+uint      RF_xWeightType;
+uint     *RF_xWeightSorted;
+uint     *RF_xWeightDensity;
+uint      RF_xWeightDensitySize;
 uint      RF_eventTypeSize;
-uint      RF_mStatusSize; 
+uint      RF_mStatusSize;
 uint     *RF_eventType;
 uint     *RF_eventTypeIndex;
 uint     *RF_eIndividualSize;
@@ -217,13 +226,13 @@ uint     *RF_fmxFactorIndex;
 uint      RF_rMaxFactorLevel;
 uint      RF_xMaxFactorLevel;
 uint      RF_maxFactorLevel;
-char      RF_mStatusFlag; 
-char      RF_mTimeFlag; 
-char      RF_mResponseFlag; 
-char      RF_mPredictorFlag; 
-char      RF_fmStatusFlag; 
+char      RF_mStatusFlag;
+char      RF_mTimeFlag;
+char      RF_mResponseFlag;
+char      RF_mPredictorFlag;
+char      RF_fmStatusFlag;
 char      RF_fmTimeFlag;
-char      RF_fmResponseFlag; 
+char      RF_fmResponseFlag;
 char      RF_fmPredictorFlag;
 uint     *RF_mRecordMap;
 uint     *RF_fmRecordMap;
@@ -237,6 +246,7 @@ int     **RF_mpSign;
 int     **RF_fmpSign;
 int      *RF_mpIndex;
 int      *RF_fmpIndex;
+double **RF_weightPtr;
 double   **RF_importancePtr;
 double **RF_sImputeResponsePtr;
 double **RF_sImputePredictorPtr;
@@ -245,6 +255,10 @@ double **RF_sOOBImputePredictorPtr;
 uint  **RF_tNodeMembershipIndexPtr;
 uint  **RF_bootstrapMembershipPtr;
 uint  **RF_pNodeMembershipIndexPtr;
+double *RF_proximityDen;
+uint    RF_rejectedTreeCount;
+uint    RF_validTreeCount;
+uint    RF_stumpedTreeCount;
 double ***RF_oobEnsemblePtr;
 double ***RF_fullEnsemblePtr;
 double ***RF_oobCIFPtr;
@@ -262,8 +276,8 @@ double  ***RF_cVimpEnsemble;
 double  ***RF_vimpLeo;
 double   **RF_perfLeo;
 double ***RF_splitDepthPtr;
-uint    *RF_serialTreeIndex;  
-uint     RF_serialTreeCount;  
+uint    *RF_serialTreeIndex;
+uint     RF_serialTreeCount;
 char    **RF_dmRecordBootFlag;
 double ***RF_dmvImputation;
 Terminal ***RF_mTermList;
@@ -271,7 +285,7 @@ Terminal ***RF_mTermMembership;
 double **RF_performancePtr;
 uint   **RF_varUsedPtr;
 uint    *RF_oobSize;
-uint    *RF_foobSize;
+uint    *RF_soobSize;
 uint    *RF_tLeafCount;
 uint    *RF_nodeCount;
 uint    *RF_mwcpCount;
@@ -282,9 +296,10 @@ Node   ***RF_tNodeMembership;
 Node   ***RF_ftNodeMembership;
 Node   ***RF_pNodeMembership;
 uint    **RF_bootMembershipIndex;
-uint     *RF_trivialBootMembershipIndex;
-uint    **RF_bootMembershipFlag;
-uint    **RF_oobMembershipFlag;
+uint     *RF_identityMembershipIndex;
+char    **RF_bootMembershipFlag;
+uint    **RF_bootMembershipCount;
+char    **RF_oobMembershipFlag;
 Node   ***RF_tNodeList;
 Node   ***RF_pNodeList;
 uint     *RF_orderedLeafCount;
@@ -299,23 +314,24 @@ double ***RF_observation;
 double ***RF_fobservation;
 uint    **RF_masterTimeIndex;
 Factor ***RF_factorList;
-float (*ran1) (uint);
+float (*ran1A) (uint);
 void  (*randomSetChain) (uint, int);
 int   (*randomGetChain) (uint);
-float (*ran2) (uint);
+float (*ran1B) (uint);
 void  (*randomSetUChain) (uint, int);
 int   (*randomGetUChain) (uint);
-float (*ran3) (uint);
+float (*ran1C) (uint);
 void  (*randomSetUChainCov) (uint, int);
 int   (*randomGetUChainCov) (uint);
 SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   uint sexpIndex;
   uint **mwcpPtrPtr;
   uint  *mwcpPtr;
-  uint   totalMWCPCount, rejectedTreeCount;  
+  uint   totalMWCPCount;
   uint recordSize;
-  uint i, j, k, r;
+  uint i, j, r;
   int vimpCount, intrIndex, b, p;
+  uint seedValueLC;
   totalMWCPCount = 0; 
   if (RF_nImpute < 1) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -383,6 +399,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                         & RF_performance_,
                                         & RF_tLeafCount_,
                                         & RF_proximity_,
+                                        & RF_weight_,
                                         & RF_importance_,
                                         & RF_seed_,
                                         & RF_imputation_,
@@ -404,9 +421,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                         sexpVector
                                         );
 #ifdef SUPPORT_OPENMP
-  ran1 = &randomChainParallel;
-  ran2 = &randomUChainParallel;
-  ran3 = &randomUChainParallelCov;
+  ran1A = &randomChainParallel;
+  ran1B = &randomUChainParallel;
+  ran1C = &randomUChainParallelCov;
   randomSetChain = &randomSetChainParallel;
   randomSetUChain = &randomSetUChainParallel;
   randomSetUChainCov = &randomSetUChainParallelCov;
@@ -415,32 +432,28 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   randomGetUChainCov = &randomGetUChainParallelCov;
   randomStack(RF_forestSize, RF_xSize);
   if (mode == RF_GROW) {
-    randomSetChain(1, seedValue);
+    seedValueLC = abs(seedValue);
+    lcgenerator(&seedValueLC, TRUE);
     for (b = 1; b <= RF_forestSize; b++) {
-      randomSetChain(b, -abs(randomGetChain(1) * 3));
-      ran1(1);
-      ran1(1);
+      lcgenerator(&seedValueLC, FALSE);
+      lcgenerator(&seedValueLC, FALSE);
+      randomSetChain(b, -seedValueLC);
     }
-    randomSetChain(1, -abs(randomGetChain(1) * 3));
   }
-  randomSetUChain(1, seedValue);
   for (b = 1; b <= RF_forestSize; b++) {
-    randomSetUChain(b, -abs(randomGetUChain(1) * 7));
-    ran2(1);
-    ran2(1);
+    lcgenerator(&seedValueLC, FALSE);
+    lcgenerator(&seedValueLC, FALSE);
+    randomSetUChain(b, -seedValueLC);
   }
-  randomSetUChain(1, -abs(randomGetUChain(1) * 7));
-  randomSetUChainCov(1, seedValue);
   for (b = 1; b <= RF_forestSize; b++) {
-    randomSetUChainCov(b, -abs(randomGetUChainCov(1) * 11));
-    ran3(1);
-    ran3(1);
+    lcgenerator(&seedValueLC, FALSE);
+    lcgenerator(&seedValueLC, FALSE);
+    randomSetUChainCov(b, -seedValueLC);
   }
-  randomSetUChainCov(1, -abs(randomGetUChainCov(1) * 11));
 #else
-  ran1 = &randomChainSerial;
-  ran2 = &randomUChainSerial;
-  ran3 = &randomUChainSerialCov;
+  ran1A = &randomChainSerial;
+  ran1B = &randomUChainSerial;
+  ran1C = &randomUChainSerialCov;
   randomSetChain = &randomSetChainSerial;
   randomSetUChain = &randomSetUChainSerial;
   randomSetUChainCov = &randomSetUChainSerialCov;
@@ -449,19 +462,18 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   randomGetUChainCov = &randomGetUChainSerialCov;
   randomStack(1, 1);
   if (mode == RF_GROW) {
-    randomSetChain(1, seedValue);
-    ran1(1);
-    ran1(1);
-    randomSetChain(1, -abs(randomGetChain(1)));
+    seedValueLC = abs(seedValue);
+    lcgenerator(&seedValueLC, TRUE);
+    lcgenerator(&seedValueLC, FALSE);
+    lcgenerator(&seedValueLC, FALSE);
+    randomSetChain(1, -seedValueLC);
   }
-  randomSetUChain(1, seedValue);
-  ran2(1);
-  ran2(1);
-  randomSetUChain(1, -abs(randomGetUChain(1)) * 7);
-  randomSetUChainCov(1, seedValue);
-  ran3(1);
-  ran3(1);
-  randomSetUChainCov(1, -abs(randomGetUChainCov(1)) * 11);
+  lcgenerator(&seedValueLC, FALSE);
+  lcgenerator(&seedValueLC, FALSE);
+  randomSetUChain(1, -seedValueLC);
+  lcgenerator(&seedValueLC, FALSE);
+  lcgenerator(&seedValueLC, FALSE);
+  randomSetUChainCov(1, -seedValueLC);
 #endif
   if (mode != RF_GROW) {
     for (b = 1; b <= RF_forestSize; b++) {
@@ -503,9 +515,13 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     if (r == RF_nImpute) {
 #ifdef SUPPORT_OPENMP
       if (mode == RF_GROW) {
-        if (RF_opt & OPT_SEED) { 
+        if (RF_opt & OPT_SEED) {
           for (b = 1; b <= RF_forestSize; b++) {
-            randomSetChain(b , -abs(randomGetChain(b)));
+            if (r > 1) {
+              lcgenerator(&seedValueLC, FALSE);
+              lcgenerator(&seedValueLC, FALSE);
+              randomSetChain(b, -seedValueLC);
+            }
             RF_seed_[b] = randomGetChain(b);
           }
         }
@@ -517,8 +533,12 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
 #else
       if (mode == RF_GROW) {
-        if (RF_opt & OPT_SEED) { 
-          randomSetChain(1, -abs(randomGetChain(1)));
+        if (RF_opt & OPT_SEED) {
+          if (r > 1) {
+            lcgenerator(&seedValueLC, FALSE);
+            lcgenerator(&seedValueLC, FALSE);
+            randomSetChain(1, -seedValueLC);
+          }
           RF_seed_[1] = randomGetChain(1);
         }
       }
@@ -545,10 +565,20 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
     }
     if (r == RF_nImpute) {
-      if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
-        for (b = 1; b <= RF_forestSize; b++) {
-          updateProximity(mode, b);
+      RF_rejectedTreeCount = RF_validTreeCount = RF_stumpedTreeCount = 0;
+      for (b = 1; b <= RF_forestSize; b++) {
+        if (RF_tLeafCount[b] == 0) {
+          RF_rejectedTreeCount ++;
         }
+        else {
+          RF_validTreeCount ++;
+          if (RF_tLeafCount[b] == 1) {
+            RF_stumpedTreeCount ++;
+          }
+        }
+      }
+      if (RF_opt & OPT_PROX) {
+        getProximity(mode);
       }
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
         for (b = 1; b <= RF_forestSize; b++) {
@@ -563,7 +593,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     }  
     if (r == RF_nImpute) {
       if (!(RF_opt & OPT_IMPU_ONLY)) {
-        if ((RF_opt & OPT_PERF) | 
+        if ((RF_opt & OPT_PERF) |
             (RF_opt & OPT_PERF_CALB) |
             (RF_opt & OPT_OENS) |
             (RF_opt & OPT_FENS)) {
@@ -572,7 +602,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
           if (mode == RF_GROW) {
             if (r > 1) {
               multipleImputeFlag = TRUE;
-            } 
+            }
           }
           if (RF_numThreads > 0) {
 #ifdef SUPPORT_OPENMP
@@ -591,6 +621,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
     }  
     if (r == RF_nImpute) {
+      if (RF_optHigh & OPT_WGHT) {
+        getWeight(mode);
+      }
       if (RF_opt & OPT_VIMP) {
         if (RF_opt & OPT_VIMP_JOIN) {
           vimpCount = 1;
@@ -704,7 +737,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         default:
           recordSize = RF_mRecordSize;
           break;
-        } 
+        }
         for (b = 1; b <= RF_forestSize; b++) {
           for (j = 1; j <= RF_tLeafCount[b]; j++) {
             freeTerminal(RF_mTermList[b][j]);
@@ -731,16 +764,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     unstackAuxiliary(mode, b);
     unstackShadow(mode, b, TRUE, FALSE);
   }
-  rejectedTreeCount = k = 0;
-  for (b = 1; b <= RF_forestSize; b++) {
-    if (RF_tLeafCount[b] == 0) {
-      rejectedTreeCount ++;
-    }
-    if (RF_tLeafCount[b] == 1) {
-      k ++;
-    }
-  }
-  if (rejectedTreeCount < RF_forestSize) {
+  if (RF_rejectedTreeCount < RF_forestSize) {
     if (RF_opt & OPT_VIMP) {
       if (RF_opt & OPT_VIMP_JOIN) {
         vimpCount = 1;
@@ -765,9 +789,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
           }
         }
       }
-      finalizeVimpPerformance(mode, rejectedTreeCount);
+      finalizeVimpPerformance(mode, RF_rejectedTreeCount);
     }
-    finalizeEnsembleEstimates(mode, rejectedTreeCount);
+    finalizeEnsembleEstimates(mode);
     if (RF_opt & OPT_VUSE) {
       if (RF_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
       }
@@ -784,7 +808,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       if (RF_opt & OPT_SPLDPTH_F) {
         for (j = 1; j <= RF_xSize; j++) {
           for (i = 1; i <= RF_observationSize; i++) {
-            RF_splitDepthPtr[1][j][i] = RF_splitDepthPtr[1][j][i] / (RF_forestSize - rejectedTreeCount);
+            RF_splitDepthPtr[1][j][i] = RF_splitDepthPtr[1][j][i] / (RF_forestSize - RF_rejectedTreeCount);
           }
         }
       }
@@ -810,7 +834,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
     }
   }
-  sexpIndex = 
+  sexpIndex =
     stackVariableOutputObjects(mode,
                                RF_totalNodeCount,    
                                totalMWCPCount,       
@@ -822,7 +846,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                & RF_mwcpPT_,         
                                & RF_spltST_,         
                                & RF_spltVR_,         
-                               sexpIndex, 
+                               sexpIndex,
                                sexpString,
                                sexpVector);
   if (RF_opt & OPT_TREE) {
@@ -830,12 +854,12 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     mwcpPtrPtr = & mwcpPtr;
     RF_totalNodeCount = 1;
     for (b = 1; b <= RF_forestSize; b++) {
-      saveTree(b, 
-               RF_root[b], 
-               & RF_totalNodeCount, 
-               RF_treeID_, 
-               RF_nodeID_, 
-               RF_parmID_, 
+      saveTree(b,
+               RF_root[b],
+               & RF_totalNodeCount,
+               RF_treeID_,
+               RF_nodeID_,
+               RF_parmID_,
                RF_contPT_,
                RF_mwcpSZ_,
                mwcpPtrPtr);
@@ -846,9 +870,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     RF_totalNodeCount = 1;
     for (b = 1; b <= RF_forestSize; b++) {
       saveStatistics(mode,
-                     b, 
-                     RF_root[b], 
-                     & RF_totalNodeCount, 
+                     b,
+                     RF_root[b],
+                     & RF_totalNodeCount,
                      RF_spltST_,         
                      RF_spltVR_          
                      );
@@ -863,7 +887,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     default:
       recordSize = RF_mRecordSize;
       break;
-    } 
+    }
     for (b = 1; b <= RF_forestSize; b++) {
       for (j = 1; j <= RF_tLeafCount[b]; j++) {
         freeTerminal(RF_mTermList[b][j]);

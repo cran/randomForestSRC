@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -66,7 +66,7 @@ vimp.rfsrc <- function(object,
                  joint = FALSE,
                  newdata,
                  subset,
-                 na.action = c("na.omit", "na.impute"),
+                 na.action = c("na.omit", "na.impute", "na.random"),
                  seed = NULL,
                  do.trace = FALSE,
                  ...)
@@ -115,33 +115,34 @@ vimp.rfsrc <- function(object,
     object$yvar <- as.data.frame(object$yvar)
     colnames(object$yvar) <- object$yvar.names
     newdata <- cbind(object$yvar, object$xvar)
-    outcome.type <- "test"
+    outcome <- "test"
   }
   else {
     if (!is.data.frame(newdata)) {
       stop("newdata must be a data frame")
     }
-    outcome.type <- "train"
+    outcome <- "train"
   }
-  n <- nrow(newdata)
+  n <- nrow(object$xvar)
   if (missing(subset)) {
-    subset <- 1:n
+    subset <- NULL
   }
   else {
-    if (is.logical(subset)) subset <- which(subset)
+    if (is.logical(subset)) {
+      subset <- which(subset)
+    }
     subset <- unique(subset[subset >= 1 & subset <= n])
     if (length(subset) == 0) {
-      stop("'subset' not set properly.")
+      stop("'subset' not set properly")
     }
   }
-  newdata <- newdata[subset,, drop = FALSE]
   result <- generic.predict.rfsrc(object,
                                   newdata = newdata,
                                   na.action = na.action,
                                   outcome.target = outcome.target,
                                   importance = importance,
                                   importance.xvar = xvar.names,
-                                  outcome = outcome.type,
+                                  outcome = outcome,
                                   proximity = FALSE,
                                   var.used = FALSE,
                                   split.depth = FALSE,
@@ -150,6 +151,7 @@ vimp.rfsrc <- function(object,
                                   do.trace = do.trace,
                                   membership = FALSE,
                                   restore.only = FALSE,
+                                  subset = subset,
                                   ...)
  return(result)
 }

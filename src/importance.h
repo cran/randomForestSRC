@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -84,11 +84,9 @@ void getVimpMembership(uint      mode,
                        uint      treeID,
                        Node    **vimpMembership,
                        uint      p);
-void updateGenericVimpEnsemble (uint       treeID,
+void updateGenericVimpEnsemble (uint       mode,
+                                uint       treeID,
                                 uint       targetIndex,
-                                uint       obsSize,
-                                uint       selectionFlag,
-                                uint      *membershipFlag,
                                 Node     **noiseMembership,
                                 char       ensembleFlag,
                                 double   **outcome,
@@ -109,14 +107,18 @@ void summarizeVimpPerformance(uint       mode,
 void finalizeVimpPerformance(uint mode, uint rejectedTreeCount);
 void  stackVimpMembership(uint mode, Node ***membership);
 void  unstackVimpMembership(uint mode, Node **membership);
-void stackTreeEnsemble(uint        mode,
-                      double    ***treeOutcome,
-                      double   ****sTreeOutcome,
-                      double   ****mcTreeOutcome);
+void stackTreeEnsemble(uint         mode,
+                       uint         treeID,
+                       uint       **denomTree,
+                       double    ***treeOutcome,
+                       double   ****sTreeOutcome,
+                       double   ****mcTreeOutcome);
 void unstackTreeEnsemble(uint       mode,
-                        double    **treeOutcome,
-                        double   ***sTreeOutcome,
-                        double   ***mcTreeOutcome);
+                         uint       treeID,
+                         uint      *denomTree,
+                         double    **treeOutcome,
+                         double   ***sTreeOutcome,
+                         double   ***mcTreeOutcome);
 void updateVimpCalculations (uint mode, uint b, uint intrIndex, Node **vimpMembership);
 void summarizeTreePerformance(uint mode, uint treeID);
 uint getEnsembleDim ();

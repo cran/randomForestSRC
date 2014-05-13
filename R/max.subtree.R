@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -93,7 +93,7 @@ max.subtree.rfsrc <- function(object,
   if (max.order == 0) {
     conservative <- FALSE
   }
-  MAX.DEPTH <- 1000
+  MAX.DEPTH <- 10000
   numTree <- length(as.vector(unique(nativeArray$treeID)))
   numParm <- length(xvar.names)
   numSamp <- nrow(object$xvar)

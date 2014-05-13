@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -64,7 +64,7 @@ plot.survival.rfsrc <- function (x,
                           plots.one.page = TRUE,
                           show.plots = TRUE,
                           subset, collapse = FALSE,
-                          haz.model = c("spline", "ggamma", "nonpar"),
+                          haz.model = c("spline", "ggamma", "nonpar", "none"),
                           k = 25,
                           span = "cv",
                           cens.model = c("km", "rfsrc"),
@@ -89,7 +89,7 @@ plot.survival.rfsrc <- function (x,
   if (is.null(x$predicted.oob)) {
     pred.flag <- TRUE
   }
-  haz.model <- match.arg(haz.model, c("spline", "ggamma", "nonpar"))
+  haz.model <- match.arg(haz.model, c("spline", "ggamma", "nonpar", "none"))
   if (!missing(subset) && haz.model == "spline") {
     if (!available(glmnet)) {
       warning("the 'glmnet' package is required for this option: reverting to 'ggamma' method instead")
@@ -305,6 +305,9 @@ plot.survival.rfsrc <- function (x,
         ll <- supsmu(x, y, span = "cv")
         supsmu(x = ll$x[-length(x)], y = diff(ll$y) / diff(ll$x), span = span)
       }
+      else if (haz.model == "none") {
+        NULL
+      }
     })
   }
   if (show.plots) {
@@ -319,7 +322,12 @@ plot.survival.rfsrc <- function (x,
         }
       }
       else {
-        par(mfrow = c(2,2))
+        if (haz.model != "none") {
+          par(mfrow = c(2,2))
+        }
+        else {
+          par(mfrow = c(1,2))
+        }
       }
     }
     else {
@@ -363,17 +371,19 @@ plot.survival.rfsrc <- function (x,
               type = "l",
               col = 1,
               lty = 3, ...)
-      matlines(haz.list[[1]]$x,
-               do.call(cbind, mclapply(haz.list, function(ll){cumsum(ll$y * c(0, diff(ll$x)))})),
-               type = "l",
-               col = 4,
-               lty = 3, ...)
-      rug(event.info$time.interest, ticksize=-0.03)
+      if(haz.model != "none") {
+        matlines(haz.list[[1]]$x,
+                 do.call(cbind, mclapply(haz.list, function(ll){cumsum(ll$y * c(0, diff(ll$x)))})),
+                 type = "l",
+                 col = 4,
+                 lty = 3, ...)
+        rug(event.info$time.interest, ticksize=-0.03)
+      }
       if (plots.one.page) {
         title(title.2, cex.main = 1.25)
       }
     }
-    if (subset.provided) {
+    if (subset.provided && haz.model != "none") {
       plot(range(haz.list[[1]]$x, na.rm = TRUE),
            range(unlist(mclapply(haz.list, function(ll) {ll$y})), na.rm = TRUE),
            type = "n",

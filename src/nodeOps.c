@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -81,12 +81,11 @@ Terminal *makeTerminal() {
   Terminal *parent = (Terminal*) gblock((size_t) sizeof(Terminal));
   parent -> lmiIndex      = NULL;
   parent -> lmiSize       = 0;
-  parent -> lmiRaggedValue  = NULL;
+  parent -> lmiValue  = NULL;
   parent -> nodeID     = 0;
   return parent;
 }
 void freeTerminal(Terminal        *parent) {
-  unstackTermLMIRagged(parent);
   unstackTermLMIIndex(parent);
   free_gblock(parent, sizeof(Terminal));
 }
@@ -99,12 +98,12 @@ Node *makeNode(unsigned int xSize) {
     (parent -> permissibleSplit)[i] = TRUE;
   }
   parent -> mate               = NULL;
-  parent -> left               = NULL; 
-  parent -> right              = NULL;  
-  parent -> splitFlag            = TRUE;  
-  parent -> predictedOutcome     = NA_REAL;  
+  parent -> left               = NULL;
+  parent -> right              = NULL;
+  parent -> splitFlag            = TRUE;
+  parent -> predictedOutcome     = NA_REAL;
   parent -> splitParameter       = 0;
-  parent -> splitValueCont       = NA_REAL;  
+  parent -> splitValueCont       = NA_REAL;
   parent -> splitValueFactSize   = 0;
   parent -> splitValueFactPtr    = NULL;
   parent -> splitStatistic       = NA_REAL;
@@ -133,6 +132,7 @@ Node *makeNode(unsigned int xSize) {
   parent -> rfCount              = 0;
   parent -> rfSize               = NULL;
   parent -> multiClassProb       = NULL;
+  parent -> weight               = 0.0;
   parent -> membrCount           = 0;
   parent -> mpIndexSize          = 0;
   parent -> fmpIndexSize         = 0;
@@ -183,8 +183,7 @@ void freeNode(Node         *parent) {
   }
   free_gblock(parent, sizeof(Node));
 }
-void freeTerminalNodeSurvivalStructures(Node *terminalNode) {
-  unstackAtRisk(terminalNode);
+void freeTerminalNodeLocalSurvivalStructures(Node *terminalNode) {
   unstackLocalRatio(terminalNode);
   unstackLocalSurvival(terminalNode);
   unstackLocalNelsonAalen(terminalNode);
@@ -192,6 +191,11 @@ void freeTerminalNodeSurvivalStructures(Node *terminalNode) {
     unstackLocalCSH(terminalNode);
     unstackLocalCIF(terminalNode);
   }
+}
+void freeTerminalNodeSurvivalStructures(Node *terminalNode) {
+  if (terminalNode -> eTypeSize > 1) {
+  }
+  unstackEventTimeIndex(terminalNode);
   unstackNelsonAalen(terminalNode);
   unstackSurvival(terminalNode);
   if (terminalNode -> eTypeSize > 1) {
@@ -312,7 +316,7 @@ char forkNode(Node         *parent,
   parent -> splitFlag = FALSE;
   return TRUE;
 }
-void stackAtRisk(Node *tNode, unsigned int eTypeSize, unsigned int mTimeSize) {
+void stackAtRiskAndEventCounts(Node *tNode, unsigned int eTypeSize, unsigned int mTimeSize) {
   if (tNode -> eTypeSize > 0) {
     if (tNode -> eTypeSize != eTypeSize) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
@@ -337,9 +341,22 @@ void stackAtRisk(Node *tNode, unsigned int eTypeSize, unsigned int mTimeSize) {
   }
   tNode -> atRiskCount     = uivector(1, mTimeSize);
   tNode -> eventCount      = uimatrix(1, eTypeSize, 1, mTimeSize);
-  tNode -> eventTimeIndex  = uivector(1, mTimeSize);
 }
-void unstackAtRisk(Node *tNode) {
+void stackEventTimeIndex(Node *tNode, unsigned int eTimeSize) {
+  if (tNode -> eTimeSize > 0) {
+    if (tNode -> eTimeSize != eTimeSize) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  eTimeSize has been previously defined:  %10d vs %10d", tNode -> eTimeSize, eTimeSize);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
+  else {
+    tNode -> eTimeSize = eTimeSize;
+  }
+  tNode -> eventTimeIndex  = uivector(1, eTimeSize + 1);
+}
+void unstackAtRiskAndEventCounts(Node *tNode) {
   if (tNode -> atRiskCount != NULL) {
     free_uivector(tNode -> atRiskCount, 1, tNode -> mTimeSize);
     tNode -> atRiskCount = NULL;
@@ -348,8 +365,10 @@ void unstackAtRisk(Node *tNode) {
     free_uimatrix(tNode -> eventCount, 1, tNode -> eTypeSize, 1, tNode -> mTimeSize);
     tNode -> eventCount = NULL;
   }
+}
+void unstackEventTimeIndex(Node *tNode) {
   if (tNode -> eventTimeIndex != NULL) {
-    free_uivector(tNode -> eventTimeIndex, 1, tNode -> mTimeSize);
+    free_uivector(tNode -> eventTimeIndex, 1, tNode -> eTimeSize + 1);
     tNode -> eventTimeIndex = NULL;
   }
 }
@@ -767,7 +786,7 @@ void stackTermLMIIndex(Terminal *tNode, unsigned int size) {
     tNode -> lmiSize = size;
   }
   tNode -> lmiIndex = uivector(1, tNode -> lmiSize);
-  tNode -> lmiRaggedValue = dvector(1, tNode -> lmiSize);
+  tNode -> lmiValue = dvector(1, tNode -> lmiSize);
 }
 void unstackTermLMIIndex(Terminal *tNode) {
   if(tNode -> lmiSize > 0) {
@@ -775,32 +794,10 @@ void unstackTermLMIIndex(Terminal *tNode) {
       free_uivector(tNode -> lmiIndex, 1, tNode -> lmiSize);
       tNode -> lmiIndex = NULL;
     }
-    if (tNode -> lmiRaggedValue != NULL) {
-      free_dvector(tNode -> lmiRaggedValue, 1, tNode -> lmiSize);
-      tNode -> lmiRaggedValue = NULL;
+    if (tNode -> lmiValue != NULL) {
+      free_dvector(tNode -> lmiValue, 1, tNode -> lmiSize);
+      tNode -> lmiValue = NULL;
     }
-  }
-}
-void stackTermLMIRagged(Terminal *tNode) {
-  unsigned int i;
-  if (!(tNode -> lmiSize > 0)) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  Attempt to allocate lmiRagged with no local missingness:  %20x", tNode);
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-    error("\nRF-SRC:  The application will now exit.\n");
-  }
-  for (i = 1; i <= tNode -> lmiSize; i++) {
-  }
-}
-void unstackTermLMIRagged(Terminal *tNode) {
-  unsigned int i;
-  if(tNode -> lmiSize > 0) {
-    if (tNode -> lmiRaggedValue != NULL) { 
-      for (i = 1; i <= tNode -> lmiSize; i++) {
-      }
-    }
-  }
-  else {
   }
 }
 void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize) {
@@ -823,7 +820,7 @@ void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize
     (tNode -> multiClassProb)[j] = uivector(1, (tNode -> rfSize)[j]);
   }
 }
-void unstackMultiClassProb(Node *tNode) { 
+void unstackMultiClassProb(Node *tNode) {
   unsigned int j;
   if (tNode -> rfCount > 0) {
     if (tNode -> rfSize != NULL) {

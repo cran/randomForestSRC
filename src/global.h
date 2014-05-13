@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -117,8 +117,14 @@
 #define OPT_VIMP_LEOB  0x1000000 
 #define OPT_VIMP       0x2000000 
 #define OPT_NODE_STAT  0x8000000 
-#define OPT_PROX_TYPE 0x10000000 
-#define OPT_PROX      0x20000000 
+#define OPT_PROX      0x10000000 
+#define OPT_PROX_TYP1 0x20000000 
+#define OPT_PROX_TYP2 0x40000000 
+#define OPT_WGHT      0x00000001 
+#define OPT_WGHT_TYP1 0x00000002 
+#define OPT_WGHT_TYP2 0x00000004 
+#define OPT_MISS_SKIP 0x00000010 
+#define OPT_MISS_RAND 0x00000020 
 #define RF_OUTP_ID   0  
 #define RF_STRG_ID   1  
 #define RF_FENS_ID   2  
@@ -149,33 +155,35 @@
 #define RF_SPLT_ST  27  
 #define RF_SPLT_VR  28  
 #define RF_PMBR_ID  29  
-#define RF_SEXP_CNT 30  
+#define RF_WGHT_ID  30  
+#define RF_SEXP_CNT 31  
 #define RF_GROW   0x01
 #define RF_PRED   0x02
 #define RF_REST   0x08
-#define SURV_LGRNK   1  
+#define SURV_LGRNK   1
 #define SURV_LRSCR   2
-#define SURV_CR_LAU  3  
+#define SURV_CR_LAU  3
 #define SURV_CR_LOG  4
 #define RAND_SPLIT   5
-#define REGR_WT_NRM  6  
-#define REGR_WT_OFF  7  
-#define REGR_WT_HVY  8  
-#define CLAS_WT_NRM  9  
-#define CLAS_WT_OFF 10  
-#define CLAS_WT_HVY 11  
+#define REGR_WT_NRM  6
+#define REGR_WT_OFF  7
+#define REGR_WT_HVY  8
+#define CLAS_WT_NRM  9
+#define CLAS_WT_OFF 10
+#define CLAS_WT_HVY 11
 #define USPV_SPLIT  12
-#define MVRG_SPLIT  13
-#define MVCL_SPLIT  14
+#define MVRG_SPLIT  13 
+#define MVCL_SPLIT  14 
 #define MAXM_SPLIT  14 
 #define APROX 0
 #define EXACT 1
 #define SIZE_OF_INTEGER sizeof(uint)
 #define MAX_EXACT_LEVEL SIZE_OF_INTEGER * 8
 #define SAFE_FACTOR_SIZE 8
+#define RF_WGHT_UNIFORM 1
+#define RF_WGHT_INTEGER 2
+#define RF_WGHT_GENERIC 3
 typedef unsigned int   uint;
-typedef unsigned long  ulong; 
-typedef unsigned char  uchar; 
-#define SPLIT_STATISTIC_OVERRIDE FALSE
-#define SPLIT_RANDOM_OVERRIDE FALSE
+typedef unsigned long  ulong;
+typedef unsigned char  uchar;
 #endif

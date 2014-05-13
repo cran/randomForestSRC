@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,9 +67,10 @@
 #include      "nrutil.h"
 #include <R_ext/Print.h>
 #include <Rdefines.h>
+#include <time.h>
 extern unsigned int getTraceFlag();
 extern unsigned int getNumrDefTraceFlag();
-extern unsigned int getSummUsrTraceFlag();
+extern unsigned int getTimeDefTraceFlag();
 extern void increaseMemoryAllocation(size_t amount);
 extern void decreaseMemoryAllocation(size_t amount);
 extern size_t getMaxMemoryAllocation();
@@ -82,7 +83,7 @@ extern size_t getMinMemoryAllocation();
 #endif
 unsigned int upower (unsigned int x, unsigned int n) {
   unsigned int p;
-  if ((x >= 2) & (n > (sizeof(unsigned int) * 8))) {
+  if ((x >= 2) & (n > (sizeof(unsigned int) * 8) - 1)) {
     nrerror("Overflow in upower(), exponent too large.");
   }
   for (p = 1; n > 0; --n) {
@@ -92,10 +93,10 @@ unsigned int upower (unsigned int x, unsigned int n) {
 }
 unsigned int upower2 (unsigned int n) {
   unsigned int p;
-  if (n > (sizeof(unsigned int) * 8)) {
+  if (n > (sizeof(unsigned int) * 8) - 1) {
     nrerror("Overflow in upower2(), exponent too large.");
   }
-  p = 1 << n;
+  p = ((unsigned int) 1) << n;
   return p;
 }
 unsigned int ulog2 (unsigned int n) {
@@ -403,24 +404,24 @@ void free_dmatrix4(double ****v, unsigned long n4l, unsigned long n4h, unsigned 
 #undef NR_END
 void nrCopyMatrix(unsigned int **new, unsigned int **old, unsigned int nrow, unsigned int ncol) {
   unsigned int i,j;
-  for (i = 1; i <= nrow; i++) {  
-    for (j = 1; j <= ncol; j++) {  
+  for (i = 1; i <= nrow; i++) {
+    for (j = 1; j <= ncol; j++) {
       new[i][j] = old[i][j];
     }
   }
 }
 void nrCopyVector(char *new, char *old, unsigned int ncol) {
   unsigned int j;
-  for (j = 1; j <= ncol; j++) {  
+  for (j = 1; j <= ncol; j++) {
     new[j] = old[j];
   }
 }
 void testEndianness() {
   unsigned int     test = 0x12345678;
   unsigned int *testPtr = & test;
-  Rprintf("\n %2x %2x %2x %2x \n", 
-          *((char *) testPtr), 
-          *((char *) testPtr + 1), 
-          *((char *) testPtr + 2), 
+  Rprintf("\n %2x %2x %2x %2x \n",
+          *((char *) testPtr),
+          *((char *) testPtr + 1),
+          *((char *) testPtr + 2),
           *((char *) testPtr + 3));
 }

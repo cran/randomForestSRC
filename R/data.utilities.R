@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -117,7 +117,7 @@ atmatrix <- function(x, d, names, keep.names = FALSE) {
       c(x)
     }
     else {
-      x.names <- rownames(x) 
+      x.names <- rownames(x)
       x <- c(x)
       names(x) <- x.names
       x
@@ -144,7 +144,7 @@ avector <- function(x, name = FALSE) {
     x
   }
 }
-available <- function (package, lib.loc = NULL, quietly = TRUE) 
+available <- function (package, lib.loc = NULL, quietly = TRUE)
 {
   package <- as.character(substitute(package))
   installed <- package %in% installed.packages()
@@ -165,6 +165,11 @@ bayes.rule <- function(prob) {
       NA
     }
   })], levels = levels.class)
+}
+brier <- function(ytest, pred) {
+  cl <- colnames(pred)
+  mean(sapply(1:length(cl), function(k)
+     {mean((1 * (ytest == cl[k]) - pred[, k]) ^ 2, na.rm = TRUE)}), na.rm = TRUE)
 }
 data.matrix <- function(x) {
   as.data.frame(lapply(x, function(xi) {
@@ -206,7 +211,7 @@ extract.pred <- function(obj, type, subset, time, which.outcome, oob = FALSE) {
   else if (obj$family == "surv-CR") {
     n <- length(pred)
     if (missing(subset)) subset <- 1:n
-    if (missing(which.outcome)) which.outcome <- 1  
+    if (missing(which.outcome)) which.outcome <- 1
     cr.type <- match.arg(type, c("years.lost", "cif", "chf"))
     time.idx <-  max(which(obj$time.interest <= time))
     return(switch(cr.type,
@@ -215,7 +220,7 @@ extract.pred <- function(obj, type, subset, time, which.outcome, oob = FALSE) {
              "chf" = chf[subset, time.idx, which.outcome]
     ))
   }
-  else if (obj$family == "class") {
+  else if (obj$family == "class" || obj$family == "class+" || (obj$family ==  "mix+" && ncol(pred) > 1)) {
     class.type <- match.arg(type, c("response", "prob"))
     if (missing(subset)) subset <- 1:nrow(pred)
     if (missing(which.outcome)) which.outcome <- 1
@@ -244,6 +249,9 @@ finalizeFormula <- function(formula.obj, data) {
   index      <- length(yvar.names)
   fmly       <- formula.obj$family
   ytry       <- formula.obj$ytry
+  if (length(all.names) <= index) {
+    stop("formula is misspecified: total number of variables does not exceed total number of y-variables")
+  }
   if (all.names[index + 1] == ".") {
     if(index == 0) {
       xvar.names <- names(data)
@@ -253,7 +261,7 @@ finalizeFormula <- function(formula.obj, data) {
     }
   }
   else {
-    if(index == 0) {    
+    if(index == 0) {
       xvar.names <- all.names
     }
     else {
@@ -261,19 +269,32 @@ finalizeFormula <- function(formula.obj, data) {
     }
     not.specified <- !is.element(xvar.names, names(data))
     if (sum(not.specified) > 0) {
-      stop("formula appears misspecified, object ", xvar.names[not.specified], " not found")
+      stop("formula is misspecified, object ", xvar.names[not.specified], " not found")
     }
   }
   return (list(family=fmly, yvar.names=yvar.names, xvar.names=xvar.names, ytry=ytry))
 }
-finalizeData <- function(fnames, data, na.action) {
+finalizeData <- function(fnames, data, na.action, miss.flag = TRUE) {
   data <- data[ , is.element(names(data), fnames), drop = FALSE]
-  data <- as.data.frame(data.matrix(data))
-  if (na.action == "na.omit") {
-    data <- na.omit(data)
+  factor.names <- unlist(lapply(data, is.factor))
+  if (sum(factor.names) > 0) {
+    data[, factor.names] <- data.matrix(data[, factor.names, drop = FALSE])
+  }
+  if (miss.flag == TRUE && na.action == "na.omit") {
+    if (any(is.na(data))) {
+      data <- na.omit(data)
+    }
   }
   if (nrow(data) == 0) {
-    stop("No records in the NA-processed data.  Consider na.impute.")
+    stop("no records in the NA-processed data: consider using 'na.action=na.impute'")
+  }
+  logical.names <- unlist(lapply(data, is.logical))
+  if (sum(logical.names) > 0) {
+    data[, logical.names] <- 1 * data[, logical.names, drop = FALSE]
+  }
+  character.names <- unlist(lapply(data, is.character))
+  if (sum(character.names) > 0) {
+    stop("data types cannot be character: please convert all characters to factors")
   }
   return (data)
 }
@@ -342,7 +363,7 @@ get.grow.nodesize <- function(fmly, nodesize) {
     stop("family is misspecified")
   }
   nodesize <- round(nodesize)
-}  
+}
 get.sexp.dim <- function(fmly, event.type, yfactor, splitrule = NULL) {
   if (grepl("surv", fmly)) {
     if (!is.null(splitrule)) {
@@ -363,22 +384,11 @@ get.sexp.dim <- function(fmly, event.type, yfactor, splitrule = NULL) {
     }
   }
   else {
-    sexp.dim <- 0
-    if (fmly == "class") {
-      if (!is.null(yfactor$levels)) {
-        sexp.dim <- length(yfactor$levels[[1]]) + 1
-      }
-      else {
-        if (!is.null(yfactor$order.levels)) {
-          sexp.dim <- length(yfactor$order.levels[[1]]) + 1
-        }
-      }
-      if (sexp.dim == 0) {
-        stop("The classification outcome is not a factor")
-      }
+    if (fmly == "unsupv") {
+      sexp.dim <- 0
     }
     else {
-      sexp.dim <- 1
+      sexp.dim <- yfactor$nlevels + 1
     }
   }
   sexp.dim
@@ -419,7 +429,7 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
     if (!all(floor(cens) == abs(cens), na.rm = TRUE)) {
       stop("for survival families censoring variable must be coded as a non-negative integer (perhaps the formula is set incorrectly?)")
     }
-    if (need.deaths & all(na.omit(cens) == 0)) {
+    if (need.deaths & (all(na.omit(cens) == 0))) {
       stop("no deaths in data!")
     }
     if (!all(na.omit(time) >= 0)) {
@@ -427,7 +437,7 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
     }
     event.type <- unique(na.omit(cens))
     if (sum(event.type >= 0) != length(event.type)) {
-      stop("censoring variable must be coded as NA, 0, or greater than 0.")    
+      stop("censoring variable must be coded as NA, 0, or greater than 0.")
     }
     event <- na.omit(cens)[na.omit(cens) > 0]
     event.type <- unique(event)
@@ -448,7 +458,7 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
       }
     event <- event.type <- cens <- time.interest <- cens <- time <- NULL
   }
-  return(list(event = event, event.type = event.type, cens = cens, 
+  return(list(event = event, event.type = event.type, cens = cens,
               time.interest = time.interest,
               time = time, r.dim = r.dim))
 }
@@ -468,9 +478,9 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
   fmly <- formula.detail$family
   nsplit <- round(nsplit)
   if (nsplit < 0) {
-    stop("Invalid nsplit value specified.")    
+    stop("Invalid nsplit value specified.")
   }
-  if (grepl("surv", fmly)) {    
+  if (grepl("surv", fmly)) {
     if (is.null(splitrule)) {
       if (length(event.type) ==  1) {
         splitrule.idx <- which(splitrule.names == "logrank")
@@ -493,10 +503,10 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
       }
     }
   }
-  if (fmly == "class") {    
+  if (fmly == "class") {
     if (is.null(splitrule)) {
       splitrule.idx <- which(splitrule.names == "class")
-      splitrule <- splitrule.names[splitrule.idx]      
+      splitrule <- splitrule.names[splitrule.idx]
     }
     else {
       if ((splitrule != "class") &
@@ -508,10 +518,10 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
       splitrule.idx <- which(splitrule.names == splitrule)
     }
   }
-  if (fmly == "regr") {    
+  if (fmly == "regr") {
     if (is.null(splitrule)) {
       splitrule.idx <- which(splitrule.names == "regr")
-      splitrule <- splitrule.names[splitrule.idx]      
+      splitrule <- splitrule.names[splitrule.idx]
     }
     else {
       if ((splitrule != "regr") &
@@ -526,7 +536,7 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
   if (fmly == "unsupv") {
     if (is.null(splitrule)) {
       splitrule.idx <- which(splitrule.names == "unsupv")
-      splitrule <- splitrule.names[splitrule.idx]      
+      splitrule <- splitrule.names[splitrule.idx]
     }
     else {
       if ((splitrule != "unsupv")) {
@@ -543,17 +553,17 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
 }
 get.grow.x.wt <- function(weight, n.xvar) {
   if (is.null(weight)) {
-    weight <- rep(1/n.xvar, n.xvar)
+    weight <- rep(1, n.xvar)
   }
   else {
     if (any(weight < 0) | length(weight) != n.xvar | all(weight == 0)) {
-      weight <- rep(1/n.xvar, n.xvar)
+      weight <- rep(1, n.xvar)
     }
     else {
-      weight <-weight/sum(weight)
+      weight <- round(weight / min(weight, na.rm = TRUE))
     }
   }
-  return (weight)
+  weight
 }
 get.grow.mtry <- function (mtry = NULL, n.xvar, fmly) {
   if (!is.null(mtry)) {
@@ -561,11 +571,11 @@ get.grow.mtry <- function (mtry = NULL, n.xvar, fmly) {
     if (mtry < 1 | mtry > n.xvar) mtry <- max(1, min(mtry, n.xvar))
   }
   else {
-    if (grepl("surv", fmly) | (fmly == "class")) {
-      mtry <- max(ceiling(sqrt(n.xvar)), 1)
+    if (grepl("regr", fmly)) {
+      mtry <- max(ceiling(n.xvar/3), 1)
     }
     else {
-      mtry <- max(ceiling(n.xvar/3), 1)
+      mtry <- max(ceiling(sqrt(n.xvar)), 1)
     }
   }
   return (mtry)
@@ -580,7 +590,7 @@ get.yvar.type <- function(fmly, yvar) {
          )
 }
 get.yvar.target <- function(fmly, yvar.types, outcome.idx) {
-    outcome.idx = 0
+    outcome.idx <- 0
   return(outcome.idx)
 }
 parseFormula <- function(f, data) {
@@ -595,7 +605,7 @@ parseFormula <- function(f, data) {
   }
   fmly <- all.names(f, max.names = 1e7)[2]
   all.names <- all.vars(f, max.names = 1e7)
-  yvar.names <- all.vars(formula(paste(as.character(f)[2], "~ .")), max.names = 1e7)    
+  yvar.names <- all.vars(formula(paste(as.character(f)[2], "~ .")), max.names = 1e7)
   yvar.names <- yvar.names[-length(yvar.names)]
   if ((fmly == "Surv")) {
     if (sum(is.element(yvar.names, names(data))) != 2) {
@@ -630,21 +640,22 @@ parseFormula <- function(f, data) {
   }
   return (list(all.names=all.names, family=family, yvar.names=yvar.names, ytry=ytry))
 }
+is.all.na <- function(x) {all(is.na(x))}
 parseMissingData <- function(formula.obj, data) {
   yvar.names <- formula.obj$yvar.names
   if (length(yvar.names) > 0) {
     resp <- data[, yvar.names, drop = FALSE]
-    col.resp.na <- apply(data[, yvar.names, drop = FALSE], 2, function(x) {all(is.na(x))})
+    col.resp.na <- unlist(lapply(data[, yvar.names, drop = FALSE], is.all.na))
     if (any(col.resp.na)) {
       stop("All records are missing for the yvar(s)")
     }
   }
-  colPt <- apply(data, 2, function(x){all(is.na(x))})
+  colPt <- unlist(lapply(data, is.all.na))
   if (sum(colPt) > 0 && sum(colPt) >= (ncol(data) - length(yvar.names))) {
     stop("All x-variables have all missing data:  analysis not meaningful.")
   }
   data <- data[, !colPt, drop = FALSE]
-  rowPt <- apply(data, 1, function(x){all(is.na(x))})
+  rowPt <- apply(data, 1, is.all.na)
   if (sum(rowPt) == nrow(data)) {
     stop("Rows of the data have all missing data:  analysis not meaningful.")
   }
@@ -657,7 +668,7 @@ resample <- function(x, size, ...) {
     }
     else {
       sample(x, size, ...)
-    }  
+    }
 }
 get.ytry <- function(f) {
 }

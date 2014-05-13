@@ -16,9 +16,12 @@
   ...)
 }
 \arguments{
+  
   \item{x}{An object of class \code{(rfsrc, grow)},
     \code{(rfsrc, predict)}, or \code{(rfsrc, plot.variable)}.  See the
     examples below for illustration of the latter.}
+  
+  
   \item{xvar.names}{Names of the x-variables to be used.} 
   \item{which.outcome}{For classification families, an integer or
     character value specifying the class to focus on (defaults to the
@@ -27,15 +30,16 @@
     the number of event types.  The default is to use the first event
     type.}
 
-  \item{time}{For survival families, the value of time used for plotting}
+  \item{time}{For survival families, the time at which the predicted
+    survival value is evaluated at (depends on \code{surv.type}).}
   \item{surv.type}{For survival families, specifies the predicted value.
     See details below.}
   \item{partial}{Should partial plots be used?}
   \item{show.plots}{Should plots be displayed?}
   \item{plots.per.page}{Integer value controlling page layout.}
   \item{granule}{Integer value controlling whether a plot for a
-    specific variable should be given as a boxplot or scatter 
-    plot. Larger values coerce boxplots.}
+    specific variable should be treated as a factor and therefore given
+    as a boxplot. Larger values coerce boxplots.}
   \item{sorted}{Should variables be sorted by importance values.}
   \item{nvar}{Number of variables to be plotted. Default is all.}
   \item{npts}{Maximum number of points used when generating partial
@@ -114,17 +118,18 @@
     (2008).  Random survival forests, \emph{Ann. App.
       Statist.}, 2:841-860.
 
-    Ishwaran H., Gerds, T.A. Kogalur U.B., Moore R.D., Gange S.J. and Lau
-    B.M. (2012). Random survival forests for competing risks.
+    Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
+    B.M. (2014). Random survival forests for competing risks.  To appear
+    in \emph{Biostatistics}.
 }
 \seealso{
-  \command{\link{rfsrc}},
+  \command{\link{rfsrc}}, 
   \command{\link{predict.rfsrc}}
 }
 \examples{
 \donttest{
 ## ------------------------------------------------------------
-## survival/competing risk examples
+## survival/competing risk
 ## ------------------------------------------------------------
 
 ## survival
@@ -149,7 +154,7 @@ follic.obj <- rfsrc(Surv(time, status) ~ ., follic, nsplit = 3, ntree = 100)
 plot.variable(follic.obj, which.outcome = 2)
 
 ## ------------------------------------------------------------
-## regression examples
+## regression
 ## ------------------------------------------------------------
 
 ## airquality
@@ -161,7 +166,7 @@ mtcars.obj <- rfsrc(mpg ~ ., data = mtcars)
 plot.variable(mtcars.obj, partial = TRUE, smooth.lines = TRUE)
 
 ## ------------------------------------------------------------
-## classification examples
+## classification
 ## ------------------------------------------------------------
 
 ## iris

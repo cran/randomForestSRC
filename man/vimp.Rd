@@ -8,7 +8,7 @@
 }
 \usage{\method{vimp}{rfsrc}(object, xvar.names,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-  joint = FALSE, newdata, subset, na.action = c("na.omit", "na.impute"),
+  joint = FALSE, newdata, subset, na.action = c("na.omit", "na.impute", "na.random"),
   seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
@@ -22,10 +22,12 @@
   \item{joint}{Individual or joint VIMP?}
   \item{newdata}{Test data.  Default is to use the original grow
     (training) data.}
-  \item{subset}{Vector indicating which rows of the data to use.  If no
-    test data is supplied, applies to the rows of \code{object$xvar}.
-    Otherwise, it applies to the rows of \code{newdata}.  All rows are
-    used if not specified.}
+  \item{subset}{Vector indicating which rows of the grow data to
+    restrict VIMP calculations to; i.e. this option yields VIMP which is
+    restricted to a specific subset of the data.  Note that the vector
+    should correspond to the rows of \code{object$xvar} and not the
+    original data passed in the grow call.  All rows used if not
+    specified.}
   \item{na.action}{Action to be taken if the data contains \code{NA} values.}
   \item{seed}{Negative integer specifying seed for the random number
       generator.} 
@@ -75,17 +77,17 @@
 iris.obj <- rfsrc(Species ~ ., data = iris)
 
 # Breiman-Cutler permutation vimp
-vimp(iris.obj)$importance
+print(vimp(iris.obj)$importance)
 
 # Breiman-Cutler random daughter vimp
-vimp(iris.obj, importance = "random")$importance
+print(vimp(iris.obj, importance = "random")$importance)
 
 # Breiman-Cutler joint permutation vimp 
-vimp(iris.obj, joint = TRUE)$importance
+print(vimp(iris.obj, joint = TRUE)$importance)
 
 # Breiman-Cuter paired vimp
-vimp(iris.obj, c("Petal.Length", "Petal.Width"), joint = TRUE)$importance
-vimp(iris.obj, c("Sepal.Length", "Petal.Width"), joint = TRUE)$importance
+print(vimp(iris.obj, c("Petal.Length", "Petal.Width"), joint = TRUE)$importance)
+print(vimp(iris.obj, c("Sepal.Length", "Petal.Width"), joint = TRUE)$importance)
 
 
 ## ------------------------------------------------------------
@@ -110,11 +112,11 @@ train <- sample(1:nrow(airquality), size = 80)
 airq.obj <- rfsrc(Ozone~., airquality[train, ])
 
 #training data vimp
-airq.obj$importance
-vimp(airq.obj)$importance
+print(airq.obj$importance)
+print(vimp(airq.obj)$importance)
 
 #test data vimp
-vimp(airq.obj, newdata = airquality[-train, ])$importance
+print(vimp(airq.obj, newdata = airquality[-train, ])$importance)
 
 ## ------------------------------------------------------------
 ## survival example
@@ -136,7 +138,7 @@ pbc.obj <- rfsrc(Surv(days,status) ~ ., pbc, nsplit = 3,
 # note the option na.action="na.impute" in the vimp() call
 vimp.not.na <- vimp(pbc.obj, subset = !which.na, na.action = "na.impute")$importance
 vimp.na <- vimp(pbc.obj, subset = which.na, na.action = "na.impute")$importance
-data.frame(vimp.not.na, vimp.na)
+print(data.frame(vimp.not.na, vimp.na))
 }
 }
 \keyword{variable selection}

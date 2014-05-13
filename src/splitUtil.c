@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,248 +67,37 @@
 #include     "factorOps.h"
 #include    "regression.h"
 #include     "splitUtil.h"
-char updateMaximumSplit(uint    treeID,
-                        double  delta, 
-                        uint    randomCovariate,
-                        uint    index,
-                        char    factorFlag,
-                        uint    mwcpSizeAbsolute,
-                        uint    repMembrSize,
-                        char   *localSplitIndicator,
-                        double *deltaMax,
-                        uint   *splitParameterMax,
-                        double *splitValueMaxCont,
-                        uint   *splitValueMaxFactSize,
-                        uint  **splitValueMaxFactPtr,
-                        void   *permissibleSplitPtr,
-                        char  **splitIndicator) {
-  char flag;
-  uint k;
-  delta = delta * RF_splitWeight[randomCovariate];
-  if(ISNA(*deltaMax)) {
-    flag = TRUE;
+void stackSplitIndicator(uint   nodeSize,
+                         char **localSplitIndicator) {
+  if (nodeSize > 0) {
+    *localSplitIndicator = cvector(1, nodeSize);
   }
-  else {
-    if (delta > *deltaMax) {
-      flag = TRUE;
-    }
-    else {
-      flag = FALSE;
-    }
-  }
-  if (flag) {
-    *deltaMax = delta;
-    *splitParameterMax = randomCovariate;
-    if (factorFlag == TRUE) {
-      if (*splitValueMaxFactSize > 0) {
-        if (*splitValueMaxFactSize != mwcpSizeAbsolute) {
-          free_uivector(*splitValueMaxFactPtr, 1, *splitValueMaxFactSize);
-          *splitValueMaxFactSize = mwcpSizeAbsolute;
-          *splitValueMaxFactPtr = uivector(1, *splitValueMaxFactSize);
-        }
-      }
-      else {
-        *splitValueMaxFactSize = mwcpSizeAbsolute;
-        *splitValueMaxFactPtr = uivector(1, *splitValueMaxFactSize);
-      }
-      *splitValueMaxCont = NA_REAL;
-      for (k=1; k <= *splitValueMaxFactSize; k++) {
-        (*splitValueMaxFactPtr)[k] = 
-          ((uint*) permissibleSplitPtr + ((index - 1) * (*splitValueMaxFactSize)))[k];
-      }
-    }
-    else {
-      if (*splitValueMaxFactSize > 0) {
-        free_uivector(*splitValueMaxFactPtr, 1, *splitValueMaxFactSize);
-        *splitValueMaxFactSize = 0;
-        *splitValueMaxFactPtr = NULL;
-      }
-      else {
-      }
-      *splitValueMaxCont = ((double*) permissibleSplitPtr)[index];
-    }
-    if (*splitIndicator == NULL) {
-     *splitIndicator = cvector(1, repMembrSize);
-    }
-   for (k=1; k <= repMembrSize; k++) {
-     (*splitIndicator)[k] = localSplitIndicator[k];
-   }
-  }
-  else {
-  }
-  return flag;
 }
-uint stackAndSelectRandomCovariates(uint     treeID,
-                                    Node     *parent,
-                                    uint     *repMembrIndx,
-                                    uint      repMembrSize,
-                                    uint    **covariateIndex,
-                                    double ***permissibleSplit,
-                                    uint    **permissibleSplitSize,
-                                    uint   ***repMembrIndxx) {
-  uint i;
-  uint actualCovariateCount;
-  uint candidateCovariate;
-  *covariateIndex = uivector(1, RF_xSize);
-  *permissibleSplit = dmatrix(1, RF_randomCovariateCount, 1, repMembrSize);
-  *permissibleSplitSize = uivector(1, RF_randomCovariateCount);
-  *repMembrIndxx = (uint**) vvector(1, RF_randomCovariateCount);
-  char *randomSplitVector = cvector(1, RF_xSize);
-  double *nonUniquePermissibleSplit = dvector(1, repMembrSize);
-  if (repMembrSize < 1) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  Invalid repMembrSize encountered in stackAndSelectRandomCovariates():  %10d", repMembrSize);
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-    error("\nRF-SRC:  The application will now exit.\n");
-  }
-  nrCopyVector(randomSplitVector, parent -> permissibleSplit, RF_xSize);
-  for(i=1; i <= RF_randomCovariateCount; i++) {
-    (*covariateIndex)[i] = 0;
-    (*repMembrIndxx)[i] = NULL;
-  }
-  actualCovariateCount =  1;
-  candidateCovariate   = -1;
-  while ((actualCovariateCount  <= RF_randomCovariateCount) && (candidateCovariate != 0)) {
-    candidateCovariate = getSelectableElement(treeID, RF_xSize, randomSplitVector, RF_xWeight);
-    if (candidateCovariate != 0) {
-      (*repMembrIndxx)[actualCovariateCount] = uivector(1, repMembrSize);
-      for (i = 1; i <= repMembrSize; i++) {
-        nonUniquePermissibleSplit[i] = RF_observation[treeID][candidateCovariate][repMembrIndx[i]];
-      }
-      indexx(repMembrSize, 
-             nonUniquePermissibleSplit,
-             (*repMembrIndxx)[actualCovariateCount]);
-      for (i = 1; i <= repMembrSize; i++) {
-        (*permissibleSplit)[actualCovariateCount][i] = nonUniquePermissibleSplit[(*repMembrIndxx)[actualCovariateCount][i]];
-      }
-      (*permissibleSplitSize)[actualCovariateCount] = 1;
-      for (i = 2; i <= repMembrSize; i++) {
-        if ((*permissibleSplit)[actualCovariateCount][i] > (*permissibleSplit)[actualCovariateCount][(*permissibleSplitSize)[actualCovariateCount]]) {
-          (*permissibleSplitSize)[actualCovariateCount] ++;
-          (*permissibleSplit)[actualCovariateCount][(*permissibleSplitSize)[actualCovariateCount]] = (*permissibleSplit)[actualCovariateCount][i];
-        }
-      }
-      if((*permissibleSplitSize)[actualCovariateCount] >= 2) {
-        randomSplitVector[candidateCovariate] = ACTIVE;
-        (*covariateIndex)[actualCovariateCount] = candidateCovariate;
-        actualCovariateCount ++;
-      }
-      else {
-        (parent -> permissibleSplit)[candidateCovariate] = FALSE;
-        randomSplitVector[candidateCovariate] = FALSE;
-        free_uivector((*repMembrIndxx)[actualCovariateCount], 1, repMembrSize);
-        (*repMembrIndxx)[actualCovariateCount] = NULL;
-      }
+void unstackSplitIndicator(uint  nodeSize,
+                           char *localSplitIndicator) {
+  if (nodeSize > 0) {
+    if (nodeSize > 0) {
+      free_cvector(localSplitIndicator, 1, nodeSize);
     }
   }
-  actualCovariateCount --;
-  free_cvector(randomSplitVector, 1, RF_xSize);
-  free_dvector(nonUniquePermissibleSplit, 1, repMembrSize);
-  return actualCovariateCount;
 }
-void unstackRandomCovariates(uint     treeID,
-                             uint     repMembrSize, 
-                             uint    *covariateIndex,
-                             uint     actualCovariateCount,
-                             double **permissibleSplit,
-                             uint    *permissibleSplitSize,
-                             uint   **repMembrIndxx) {
-  uint i;
-  free_uivector(covariateIndex, 1, RF_xSize);
-  free_dmatrix(permissibleSplit, 1, RF_randomCovariateCount, 1, repMembrSize);
-  free_uivector(permissibleSplitSize, 1, RF_randomCovariateCount);
-  for (i = 1; i <= actualCovariateCount; i++) {
-    if (repMembrIndxx[i] != NULL) {
-      free_uivector(repMembrIndxx[i], 1, repMembrSize);
-    }
-  }
-  free_vvector(repMembrIndxx, 1, RF_randomCovariateCount);
+void stackSplitEventTime(uint **localEventTimeCount,
+                         uint **localEventTimeIndex) {
+  *localEventTimeCount = uivector(1, RF_masterTimeSize);
+  *localEventTimeIndex = uivector(1, RF_masterTimeSize);
 }
-uint getSelectableElement (uint    treeID,
-                           uint    length,
-                           char   *permissible,
-                           double *weight) {
-  char   *localPermissible = NULL;  
-  double *cdf = NULL;  
-  uint selectableCount;
-  uint covariateIndex;
-  double randomValue;
-  uint i, j, k, p, index;
-  if (length > 0) {
-    localPermissible = cvector(1, length);
-    cdf = dvector(1, length);
-  }
-  selectableCount = 0;
-  for (i=1; i <= length; i++) {
-    if (permissible[i] == TRUE) {
-      if (weight != NULL) {
-        if (weight[i] > 0) {
-          localPermissible[i] = TRUE;
-          selectableCount ++;
-        }
-        else {
-          localPermissible[i] = FALSE;
-        }
-      }
-      else {
-        localPermissible[i] = TRUE;
-        selectableCount ++;
-      }
-    }
-    else {
-      localPermissible[i] = FALSE;
-    }
-  }
-  if (selectableCount > 0) {
-    if (weight != NULL) { 
-      covariateIndex = 0;
-      for (k=1; k <= RF_xSize; k++) {
-        if (localPermissible[k] == TRUE) {
-          cdf[++covariateIndex] = weight[k];
-        }
-      }
-      for (k=2; k <= covariateIndex; k++) {
-        cdf[k] += cdf[k-1];
-      }
-      randomValue = ran2(treeID) * cdf[covariateIndex];
-      j=1;
-      while (randomValue > cdf[j]) {
-        j++;
-      }
-      for (index = 1; j > 0; index++) {
-        if (localPermissible[index] == TRUE) {
-          j--;
-        }
-      }
-      index --;
-    }
-    else {
-      p = (uint) ceil(ran2(treeID) * (selectableCount * 1.0));
-      index = 1;
-      while (p > 0) {
-        if (permissible[index] == TRUE) {
-          p --;
-        }
-        index ++;
-      }
-      index --;
-    }
-  }  
-  else {
-    index = 0;
-  }
-  if (length > 0) {
-    free_cvector(localPermissible, 1, length);
-    free_dvector(cdf, 1, length);
-  }
-  return index;
+void unstackSplitEventTime(uint *localEventTimeCount,
+                           uint *localEventTimeIndex) {
+  free_uivector(localEventTimeCount, 1, RF_masterTimeSize);
+  free_uivector(localEventTimeIndex, 1, RF_masterTimeSize);
 }
-uint getEventTimeSize(uint   treeID, 
-                      Node   *parent, 
-                      uint   *repMembrIndx,
-                      uint    repMembrSize,
-                      uint   *localEventTimeCount, 
-                      uint   *localEventTimeIndex) {
+uint getSplitEventTime(uint   treeID,
+                       uint   *repMembrIndx,
+                       uint    repMembrSize,
+                       uint   *nonMissMembrIndx,
+                       uint    nonMissMembrSize,
+                       uint   *localEventTimeCount,
+                       uint   *localEventTimeIndex) {
   uint parentEventCount;
   uint i;
   uint eventTimeSize;
@@ -317,9 +106,9 @@ uint getEventTimeSize(uint   treeID,
   for (i=1; i <= RF_masterTimeSize; i++) {
     localEventTimeCount[i] = 0;
   }
-  for (i=1; i <= repMembrSize; i++) {
-    if (RF_status[treeID][repMembrIndx[i]] > 0) {
-      localEventTimeCount[RF_masterTimeIndex[treeID][repMembrIndx[i]]] ++;
+  for (i = 1; i <= nonMissMembrSize; i++) {
+    if (RF_status[treeID][ repMembrIndx[nonMissMembrIndx[i]] ] > 0) {
+      localEventTimeCount[RF_masterTimeIndex[treeID][ repMembrIndx[nonMissMembrIndx[i]] ]] ++;
       parentEventCount ++;
     }
   }
@@ -330,27 +119,13 @@ uint getEventTimeSize(uint   treeID,
   }
   return (eventTimeSize);
 }
-void stackSplitTime(uint **localEventTimeCount, 
-                    uint **localEventTimeIndex) {
-  if ((localEventTimeCount != NULL) && (localEventTimeIndex != NULL)) {
-    *localEventTimeCount = uivector(1, RF_masterTimeSize);
-    *localEventTimeIndex = uivector(1, RF_masterTimeSize);
-  }
-}
-void unstackSplitTime(uint *localEventTimeCount, 
-                      uint *localEventTimeIndex) {
-  if ((localEventTimeCount != NULL) && (localEventTimeIndex != NULL)) {
-    free_uivector(localEventTimeCount, 1, RF_masterTimeSize);
-    free_uivector(localEventTimeIndex, 1, RF_masterTimeSize);
-  }
-}
-void stackSplitCompactEventAndRisk(uint   eventTimeSize,
-                                   uint **nodeParentEvent,
-                                   uint **nodeParentAtRisk,
-                                   uint **nodeLeftEvent,
-                                   uint **nodeLeftAtRisk,
-                                   uint **nodeRightEvent,
-                                   uint **nodeRightAtRisk) {
+void stackSplitEventAndRisk(uint   eventTimeSize,
+                            uint **nodeParentEvent,
+                            uint **nodeParentAtRisk,
+                            uint **nodeLeftEvent,
+                            uint **nodeLeftAtRisk,
+                            uint **nodeRightEvent,
+                            uint **nodeRightAtRisk) {
   if (eventTimeSize > 0) {
     *nodeParentEvent  = uivector(1, eventTimeSize);
     *nodeParentAtRisk = uivector(1, eventTimeSize);
@@ -363,13 +138,13 @@ void stackSplitCompactEventAndRisk(uint   eventTimeSize,
     *nodeParentEvent = *nodeParentAtRisk = *nodeLeftEvent  = *nodeLeftAtRisk = *nodeRightEvent  = *nodeRightAtRisk = NULL;
   }
 }
-void unstackSplitCompactEventAndRisk(uint  eventTimeSize,
-                                     uint *nodeParentEvent,
-                                     uint *nodeParentAtRisk,
-                                     uint *nodeLeftEvent,
-                                     uint *nodeLeftAtRisk,
-                                     uint *nodeRightEvent,
-                                     uint *nodeRightAtRisk) {
+void unstackSplitEventAndRisk(uint  eventTimeSize,
+                              uint *nodeParentEvent,
+                              uint *nodeParentAtRisk,
+                              uint *nodeLeftEvent,
+                              uint *nodeLeftAtRisk,
+                              uint *nodeRightEvent,
+                              uint *nodeRightAtRisk) {
   if (eventTimeSize > 0) {
     free_uivector(nodeParentEvent, 1, eventTimeSize);
     free_uivector(nodeParentAtRisk, 1, eventTimeSize);
@@ -379,38 +154,85 @@ void unstackSplitCompactEventAndRisk(uint  eventTimeSize,
     free_uivector(nodeRightAtRisk, 1, eventTimeSize);
   }
 }
-void stackSplitIndicator(uint   nodeSize,
-                         char **localSplitIndicator) {
-  if (nodeSize > 0) {
-    *localSplitIndicator = cvector(1, nodeSize);
-  } 
-}
-void unstackSplitIndicator(uint  nodeSize,
-                           char *localSplitIndicator) {
-  if (nodeSize > 0) {
-    if (nodeSize > 0) {
-      free_cvector(localSplitIndicator, 1, nodeSize);
-    } 
-  }
-}
-void getEventAndRisk(uint    treeID,
-                uint   *repMembrIndx,
-                uint    repMembrSize,
-                uint   *localEventTimeCount,
-                uint   *localEventTimeIndex,
-                uint    localEventTimeSize,
-                uint   *nodeParentEvent,
-                uint   *nodeParentAtRisk) {
+void getSplitEventAndRisk(uint    treeID,
+                          uint   *repMembrIndx,
+                          uint    repMembrSize,
+                          uint   *nonMissMembrIndx,
+                          uint    nonMissMembrSize,
+                          uint   *localEventTimeCount,
+                          uint   *localEventTimeIndex,
+                          uint    localEventTimeSize,
+                          uint   *nodeParentEvent,
+                          uint   *nodeParentAtRisk) {
   uint i, j;
   for (i=1; i <= localEventTimeSize; i++) {
     nodeParentAtRisk[i] = 0;
     nodeParentEvent[i] = localEventTimeCount[localEventTimeIndex[i]];
-    for (j=1; j <= repMembrSize; j++) {
-      if (localEventTimeIndex[i] <= RF_masterTimeIndex[treeID][repMembrIndx[j]]) {
+    for (j = 1; j <= nonMissMembrSize; j++) {
+      if (localEventTimeIndex[i] <= RF_masterTimeIndex[treeID][ repMembrIndx[nonMissMembrIndx[j]] ]) {
         nodeParentAtRisk[i] ++;
       }
     }
   }
+}
+void stackAndGetSplitSurv(uint    treeID,
+                          uint   *repMembrIndx,
+                          uint    repMembrSize,
+                          uint   *nonMissMembrIndx,
+                          uint    nonMissMembrSize,
+                          uint  **localEventTimeCount,
+                          uint  **localEventTimeIndex,
+                          uint   *localEventTimeSize,
+                          uint  **nodeParentEvent,
+                          uint  **nodeParentAtRisk,
+                          uint  **nodeLeftEvent,
+                          uint  **nodeLeftAtRisk,
+                          uint  **nodeRightEvent,
+                          uint  **nodeRightAtRisk) {
+  stackSplitEventTime(localEventTimeCount, localEventTimeIndex);
+  *localEventTimeSize = getSplitEventTime( treeID,
+                                           repMembrIndx,
+                                           repMembrSize,
+                                           nonMissMembrIndx,
+                                           nonMissMembrSize,
+                                          *localEventTimeCount,
+                                          *localEventTimeIndex);
+  stackSplitEventAndRisk(*localEventTimeSize,
+                          nodeParentEvent,
+                          nodeParentAtRisk,
+                          nodeLeftEvent,
+                          nodeLeftAtRisk,
+                          nodeRightEvent,
+                          nodeRightAtRisk);
+  getSplitEventAndRisk( treeID,
+                        repMembrIndx,
+                        repMembrSize,
+                        nonMissMembrIndx,
+                        nonMissMembrSize,
+                       *localEventTimeCount,
+                       *localEventTimeIndex,
+                       *localEventTimeSize,
+                       *nodeParentEvent,
+                       *nodeParentAtRisk);
+}
+void unstackSplitSurv(uint *localEventTimeCount,
+                      uint *localEventTimeIndex,
+                      uint  eventTimeSize,
+                      uint *nodeParentEvent,
+                      uint *nodeParentAtRisk,
+                      uint *nodeLeftEvent,
+                      uint *nodeLeftAtRisk,
+                      uint *nodeRightEvent,
+                      uint *nodeRightAtRisk) {
+  unstackSplitEventTime(localEventTimeCount,
+                        localEventTimeIndex);
+  unstackSplitEventAndRisk(eventTimeSize,
+                           nodeParentEvent,
+                           nodeParentAtRisk,
+                           nodeLeftEvent,
+                           nodeLeftAtRisk,
+                           nodeRightEvent,
+                           nodeRightAtRisk);
 }
 uint stackAndConstructSplitVector (uint     treeID,
                                    uint     repMembrSize,
@@ -482,8 +304,8 @@ uint stackAndConstructSplitVector (uint     treeID,
           ++j2;
           relativePair = (RF_factorList[treeID][permissibleSplitSize] -> cardinalGroupBinary)[j][k2];
           convertRelToAbsBinaryPair(treeID,
-                                    permissibleSplitSize, 
-                                    factorSizeAbsolute, 
+                                    permissibleSplitSize,
+                                    factorSizeAbsolute,
                                     relativePair,
                                     permissibleSplit,
                                     (uint*) (*permissibleSplitPtr) + ((j2 - 1) * (*mwcpSizeAbsolute)));
@@ -524,10 +346,10 @@ uint stackAndConstructSplitVector (uint     treeID,
       (*permissibleSplitPtr) = dvector(1, splitLength);
       ((double*) (*permissibleSplitPtr))[splitLength] = 0;
       for (j = 1; j < splitLength; j++) {
-        ((double*) (*permissibleSplitPtr))[j]  = permissibleSplit[(uint) ceil(ran2(treeID) * ((permissibleSplitSize - 1) * 1.0))];
+        ((double*) (*permissibleSplitPtr))[j]  = permissibleSplit[(uint) ceil(ran1B(treeID) * ((permissibleSplitSize - 1) * 1.0))];
       }
       hpsort(((double*) (*permissibleSplitPtr)), splitLength-1);
-    }  
+    }
   }  
   return splitLength;
 }
@@ -552,19 +374,521 @@ void unstackSplitVector(uint   treeID,
     }
   }
 }
+void stackRandomCovariates(uint      treeID,
+                           Node     *parent,
+                           uint      repMembrSize,
+                           char      multImpFlag,
+                           char    **covariateFlag,
+                           uint    **covariateIndex,
+                           uint     *uniformCovariateSize,
+                           uint     *uniformCovariateIndex,
+                           double  **cdf,
+                           uint     *cdfSize,
+                           uint    **cdfSort,
+                           uint    **density,
+                           uint     *densitySize,
+                           uint   ***densitySwap) {
+  *covariateFlag = cvector(1, RF_xSize);
+  *covariateIndex = uivector(1, RF_xSize);
+  initializeCDF(treeID,
+                parent,
+                *covariateFlag,
+                *covariateIndex,
+                uniformCovariateSize,
+                uniformCovariateIndex,
+                cdf,
+                cdfSize,
+                cdfSort,
+                density,
+                densitySize,
+                densitySwap);
+}
+void unstackRandomCovariates(uint     treeID,
+                             char    *covariateFlag,
+                             uint    *covariateIndex,
+                             uint     uniformSize,
+                             double  *cdf,
+                             uint     cdfSize,
+                             uint    *cdfSort,
+                             uint    *density,
+                             uint     densitySize,
+                             uint   **densitySwap,
+                             uint     repMembrSize,
+                             uint    *nonMissMembrIndxStatic,
+                             double  *permissibleSplit) {
+  uint k;
+  free_cvector(covariateFlag, 1, RF_xSize);
+  free_uivector(covariateIndex, 1, RF_xSize);
+  switch (RF_xWeightType) {
+  case RF_WGHT_UNIFORM:
+    break;
+  case RF_WGHT_INTEGER:
+    free_uivector(density, 1, RF_xWeightDensitySize);
+    for (k = 1; k <= RF_xSize; k++) {
+      if (densitySwap[k] != NULL) {
+        free_uivector(densitySwap[k], 1, (uint) RF_xWeight[k]);
+        densitySwap[k] = NULL;
+      }
+    }
+    free_vvector(densitySwap, 1, RF_xSize);
+    break;
+  case RF_WGHT_GENERIC:
+    free_dvector(cdf, 1, RF_xSize);
+    free_uivector(cdfSort, 1, RF_xSize);
+    break;
+  }
+  if (TRUE) {
+    free_uivector(nonMissMembrIndxStatic, 1, repMembrSize);
+    free_dvector(permissibleSplit, 1, repMembrSize);
+  }
+}
+void initializeCDF(uint     treeID,
+                   Node    *parent,
+                   char    *covariateFlag,
+                   uint    *covariateIndex,
+                   uint    *uniformCovariateSize,
+                   uint     *uniformCovariateIndex,
+                   double **cdf,
+                   uint    *cdfSize,
+                   uint   **cdfSort,
+                   uint   **density,
+                   uint    *densitySize,
+                   uint  ***densitySwap) {
+  uint i, j, k, kk;
+  *uniformCovariateSize = 0;
+  *uniformCovariateIndex = 0;
+  *cdf = NULL;
+  *cdfSize = 0;
+  *cdfSort = NULL;
+  *density = NULL;
+  *densitySize = 0;
+  *densitySwap = NULL;
+  switch (RF_xWeightType) {
+  case RF_WGHT_UNIFORM:
+    *uniformCovariateSize = 0;
+    for (k=1; k <= RF_xSize; k++) {
+      covariateFlag[k] = (parent -> permissibleSplit)[k];
+      if (covariateFlag[k]) {
+        covariateIndex[++(*uniformCovariateSize)] = k;
+      }
+    }
+    break;
+  case RF_WGHT_INTEGER:
+    (*density) = uivector(1, RF_xWeightDensitySize);
+    (*densitySize) = 0;
+    *densitySwap = (uint**) vvector(1, RF_xSize);
+    for (k = RF_xSize; k >= 1; k--) {
+      kk = RF_xWeightSorted[k];
+      covariateFlag[kk] = (parent -> permissibleSplit)[kk];
+      if (covariateFlag[kk]) {
+        j = (uint) RF_xWeight[kk];
+        if (j > 0) {
+          (*densitySwap)[kk] = uivector(1, j);
+          for (i = 1; i <= j; i++) {
+            (*density)[++(*densitySize)] = kk;
+            (*densitySwap)[kk][i] = (*densitySize);
+          }
+        }
+        else {
+          (*densitySwap)[kk] = NULL;
+        }
+      }
+      else {
+        (*densitySwap)[kk] = NULL;
+      }
+    }
+    break;
+  case RF_WGHT_GENERIC:
+    i = 0;
+    *cdf     = dvector(1, RF_xSize);
+    *cdfSort = uivector(1, RF_xSize);
+    *cdfSize = 0;
+    for (k = 1; k <= RF_xSize; k++) {
+      kk = RF_xWeightSorted[k];
+      covariateFlag[kk] = (parent -> permissibleSplit)[kk];
+      if (covariateFlag[kk]) {
+        covariateIndex[kk] = ++ i;
+        (*cdfSize) ++;
+        (*cdfSort)[(*cdfSize)] = kk;
+        (*cdf)[(*cdfSize)] = RF_xWeight[k];
+      }
+      else {
+        covariateIndex[kk] = 0;
+      }
+    }
+    for (k = 2; k <= (*cdfSize); k++) {
+      (*cdf)[k] += (*cdf)[k-1];
+    }
+    break;
+  }
+}
+void updateCDF(uint    treeID,
+               char   *covariateFlag,
+               uint   *covariateIndex,
+               uint   *uniformCovariateSize,
+               uint    uniformCovariateIndex,
+               double *cdf,
+               uint   *cdfSize,
+               uint   *cdfSort,
+               uint   *density,
+               uint   *densitySize,
+               uint  **densitySwap,
+               uint    index) {
+  double stepValue;
+  uint sourcePt;
+  uint stepIndex;
+  uint currCov, nextCov;
+  uint   i, j, k;
+  switch (RF_xWeightType) {
+  case RF_WGHT_UNIFORM:
+    covariateFlag[covariateIndex[uniformCovariateIndex]] = FALSE;
+    covariateIndex[uniformCovariateIndex] = covariateIndex[(*uniformCovariateSize)];
+    (*uniformCovariateSize) --;
+    break;
+  case RF_WGHT_INTEGER:
+    covariateFlag[index] = FALSE;
+    currCov = nextCov = density[*densitySize];
+    i = 0;
+    j = (uint) RF_xWeight[currCov];
+    k = (uint) RF_xWeight[index];
+    while(i < k) {
+      if (density[(*densitySize)] == index) {
+        density[(*densitySize)] = 0;
+        (*densitySize) --;
+        densitySwap[index][k] = 0;
+        k--;
+        currCov = nextCov = density[(*densitySize)];
+        j = (uint) RF_xWeight[currCov];
+      }
+      else {
+        i++;
+        sourcePt = densitySwap[index][i];
+        density[sourcePt] = density[(*densitySize)];
+        density[(*densitySize)] = 0;
+        (*densitySize) --;
+        densitySwap[currCov][j] = densitySwap[index][i];
+        densitySwap[index][i] = 0;
+        nextCov = density[(*densitySize)];
+        if (nextCov == currCov) {
+          j--;
+        }
+        else {
+          hpsortui(densitySwap[currCov], (uint) RF_xWeight[currCov]);
+          currCov = nextCov = density[(*densitySize)];
+          j = (uint) RF_xWeight[currCov];
+        }
+      }
+    }
+    if (nextCov == currCov) {
+      hpsortui(densitySwap[currCov], (uint) RF_xWeight[currCov]);
+    }
+    break;
+  case RF_WGHT_GENERIC:
+    covariateFlag[index] = FALSE;
+    stepIndex = covariateIndex[index];
+    stepValue = cdf[stepIndex];
+    if (stepIndex > 1) {
+      stepValue -= cdf[stepIndex-1];
+    }
+    for (k = stepIndex; k <= (*cdfSize); k++) {
+      cdf[k] = cdf[k] - stepValue;
+    }
+    break;
+  }
+}
+uint getSelectableElementNew (uint    treeID,
+                              char   *covariateFlag,
+                              uint   *covariateIndex,
+                              uint    uniformCovariateSize,
+                              uint   *uniformCovariateIndex,
+                              double *cdf,
+                              uint    cdfSize,
+                              uint   *cdfSort,
+                              uint   *density,
+                              uint    densitySize) {
+  double randomValue;
+  uint low, mid, high, index, p;
+  index = 0;  
+  switch (RF_xWeightType) {
+  case RF_WGHT_UNIFORM:
+    if (uniformCovariateSize > 0) {
+      (*uniformCovariateIndex) = (uint) ceil(ran1B(treeID) * (uniformCovariateSize * 1.0));
+      index = covariateIndex[(*uniformCovariateIndex)];
+    }
+    else {
+      index = 0;
+    }
+    break;
+  case RF_WGHT_INTEGER:
+    if (densitySize > 0) {
+      p = (uint) ceil(ran1B(treeID) * (densitySize * 1.0));
+      index = density[p];
+    }
+    else {
+      index = 0;
+    }
+    break;
+  case RF_WGHT_GENERIC:
+    if (cdf[cdfSize] > 0) {
+      randomValue = ran1B(treeID) * cdf[cdfSize];
+      low  = 1;
+      high = cdfSize;
+      while (low < high) {
+        mid  = (low + high) >> 1;
+        if (randomValue > cdf[mid]) {
+          if (low == mid) {
+            low = high;
+          }
+          else {
+            low = mid;
+          }
+        }
+        else {
+          if (low == mid) {
+            low = high;
+          }
+          else {
+            high = mid;
+          }
+        }
+      }
+      index = high;
+    }
+    else {
+      index = 0;
+    }
+    break;
+  }
+  return index;
+}
+uint sampleWithoutReplacement (uint    treeID,
+                               uint   *index,
+                               uint    size,
+                               uint   *sampleIndex) {
+  uint absoluteIndex;
+  if (size > 0) {
+    (*sampleIndex) = (uint) ceil(ran1B(treeID) * (size * 1.0));
+    absoluteIndex = index[*sampleIndex];
+  }
+  else {
+    absoluteIndex = 0;
+  }
+  return absoluteIndex;
+}
+uint getSelectableElement (uint    treeID,
+                           uint    length,
+                           char   *permissible) {
+  char   *localPermissible = NULL;  
+  uint selectableCount;
+  uint i, p, index;
+  if (length > 0) {
+    localPermissible = cvector(1, length);
+  }
+  selectableCount = 0;
+  for (i=1; i <= length; i++) {
+    if (permissible[i] == TRUE) {
+      localPermissible[i] = TRUE;
+      selectableCount ++;
+    }
+    else {
+      localPermissible[i] = FALSE;
+    }
+  }
+  if (selectableCount > 0) {
+    p = (uint) ceil(ran1B(treeID) * (selectableCount * 1.0));
+    index = 1;
+    while (p > 0) {
+      if (localPermissible[index] == TRUE) {
+        p --;
+      }
+      index ++;
+    }
+    index --;
+  }  
+  else {
+    index = 0;
+  }
+  if (length > 0) {
+    free_cvector(localPermissible, 1, length);
+  }
+  return index;
+}
+char selectRandomCovariates(uint     treeID,
+                            Node     *parent,
+                            uint     *repMembrIndx,
+                            uint      repMembrSize,
+                            char     *covariateFlag,
+                            uint     *covariateIndex,
+                            uint     *uniformCovariateSize,
+                            uint     *uniformCovariateIndex,
+                            double   *cdf,
+                            uint     *cdfSize,
+                            uint     *cdfSort,
+                            uint     *density,
+                            uint     *densitySize,
+                            uint    **densitySwap,
+                            uint     *covariate,
+                            uint     *actualCovariateCount,
+                            uint     *candidateCovariateCount,
+                            double   *permissibleSplit,
+                            uint     *permissibleSplitSize,
+                            uint    **indxx,
+                            uint      nonMissMembrSizeStatic,
+                            uint     *nonMissMembrIndxStatic,
+                            uint     *nonMissMembrSize,
+                            uint    **nonMissMembrIndx,
+                            char      multImpFlag) {
+  uint i;
+  uint candidateCovariate;
+  uint offset;
+  uint indx;
+  double *nonMissSplit;
+  char mPredictorFlag;
+  char splittable;
+  if (nonMissMembrSizeStatic < 1) {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Invalid nonMissMembrSizeStatic encountered in selectRandomCovariates():  %10d", nonMissMembrSizeStatic);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+  nonMissSplit = dvector(1, repMembrSize);
+  (*covariate) = candidateCovariate = -1;
+  splittable = FALSE;
+  (*indxx) = uivector(1, repMembrSize);
+  if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+    *nonMissMembrSize = nonMissMembrSizeStatic;
+    *nonMissMembrIndx = nonMissMembrIndxStatic;
+  }
+  else {
+    *nonMissMembrSize = 0;
+    *nonMissMembrIndx = uivector(1, nonMissMembrSizeStatic);
+  }
+  while ( ((*candidateCovariateCount) < RF_randomCovariateCount) &&
+          (candidateCovariate != 0) && (splittable == FALSE)) {
+    candidateCovariate = getSelectableElementNew(treeID,
+                                                 covariateFlag,
+                                                 covariateIndex,
+                                                 *uniformCovariateSize,
+                                                 uniformCovariateIndex,
+                                                 cdf,
+                                                 *cdfSize,
+                                                 cdfSort,
+                                                 density,
+                                                 *densitySize);
+    if (candidateCovariate != 0) {
+      updateCDF(treeID,
+                covariateFlag,
+                covariateIndex,
+                uniformCovariateSize,
+                *uniformCovariateIndex,
+                cdf,
+                cdfSize,
+                cdfSort,
+                density,
+                densitySize,
+                densitySwap,
+                candidateCovariate);
+      (*actualCovariateCount) ++;
+      (*candidateCovariateCount) ++;
+      splittable = TRUE;
+      if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+        for (i = 1; i <= repMembrSize; i++) {
+          nonMissSplit[i] = RF_observation[treeID][candidateCovariate][repMembrIndx[i]];
+        }
+        *nonMissMembrSize = nonMissMembrSizeStatic;
+        *nonMissMembrIndx = nonMissMembrIndxStatic;
+      }
+      else {
+        offset = RF_rSize + candidateCovariate;
+        (*nonMissMembrSize) = 0;
+        for (i = 1; i <= nonMissMembrSizeStatic; i++) {
+          mPredictorFlag = FALSE;
+          if (RF_mRecordMap[repMembrIndx[nonMissMembrIndxStatic[i]]] > 0) {
+            if (RF_mpSign[offset][RF_mRecordMap[repMembrIndx[nonMissMembrIndxStatic[i]]]] == 1) {
+                mPredictorFlag = TRUE;
+            }
+          }
+          if (!mPredictorFlag) {
+            (*nonMissMembrSize) ++;
+            (*nonMissMembrIndx)[*nonMissMembrSize] = nonMissMembrIndxStatic[i];
+            nonMissSplit[*nonMissMembrSize] = RF_observation[treeID][candidateCovariate][repMembrIndx[(*nonMissMembrIndx)[*nonMissMembrSize]]];
+          }
+        }  
+      }  
+      if ((*nonMissMembrSize) == 0) {
+        splittable = FALSE;
+      }
+      if (splittable) {
+        indexx((*nonMissMembrSize),
+               nonMissSplit,
+               (*indxx));
+        for (i = 1; i <= (*nonMissMembrSize); i++) {
+          indx = (*indxx)[i];
+          permissibleSplit[i] = nonMissSplit[indx];
+        }
+        (*permissibleSplitSize) = 1;
+        for (i = 2; i <= (*nonMissMembrSize); i++) {
+          if (permissibleSplit[i] > permissibleSplit[(*permissibleSplitSize)]) {
+            (*permissibleSplitSize) ++;
+            permissibleSplit[(*permissibleSplitSize)] = permissibleSplit[i];
+          }
+        }
+        if((*permissibleSplitSize) >= 2) {
+          (*covariate) = candidateCovariate;
+        }
+        else {
+          splittable = FALSE;
+        }
+      }  
+      if (!splittable) {
+        (parent -> permissibleSplit)[candidateCovariate] = FALSE;
+        (*actualCovariateCount) --;
+      }
+    }  
+    else {
+    }
+  }  
+  if (!splittable) {
+    free_uivector(*indxx, 1, repMembrSize);
+    if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+      *nonMissMembrSize = 0;
+      *nonMissMembrIndx = NULL;
+    }
+    else {
+      *nonMissMembrSize = 0;
+      free_uivector(*nonMissMembrIndx, 1, nonMissMembrSizeStatic);
+    }
+  }
+  free_dvector(nonMissSplit, 1, repMembrSize);
+  return splittable;
+}
+void unselectRandomCovariates(uint      treeID,
+                              Node     *parent,
+                              uint      repMembrSize,
+                              uint     *indxx,
+                              uint     nonMissMembrSizeStatic,
+                              uint    *nonMissMembrIndx,
+                              char      multImpFlag) {
+  free_uivector((indxx), 1, repMembrSize);
+  if (!((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP)))) {
+    free_uivector(nonMissMembrIndx, 1, nonMissMembrSizeStatic);
+  }
+}
 uint virtuallySplitNode(uint  treeID,
-                        char  factorFlag,
-                        uint  mwcpSizeAbsolute,
-                        uint  randomCovariate,
-                        uint *repMembrIndx,
-                        uint *repMembrIndxx,
-                        uint  repMembrSize,
-                        void *permissibleSplitPtr,
-                        uint  offset,
-                        char *localSplitIndicator,
-                        uint *leftSize,
-                        uint  priorMembrIter,
-                        uint *currentMembrIter) {
+                           char  factorFlag,
+                           uint  mwcpSizeAbsolute,
+                           uint  randomCovariate,
+                           uint *repMembrIndx,
+                           uint  repMembrSize,
+                           uint *nonMissMembrIndx,
+                           uint  nonMissMembrSize,
+                           uint *indxx,
+                           void *permissibleSplitPtr,
+                           uint  offset,
+                           char *localSplitIndicator,
+                           uint *leftSize,
+                           uint  priorMembrIter,
+                           uint *currentMembrIter) {
   char daughterFlag;
   char iterFlag;
   iterFlag = TRUE;
@@ -572,14 +896,14 @@ uint virtuallySplitNode(uint  treeID,
   while (iterFlag) {
     (*currentMembrIter) ++;
     if (factorFlag == TRUE) {
-      daughterFlag = splitOnFactor((uint)  RF_observation[treeID][randomCovariate][repMembrIndx[repMembrIndxx[*currentMembrIter]]], 
+      daughterFlag = splitOnFactor((uint)  RF_observation[treeID][randomCovariate][    repMembrIndx[nonMissMembrIndx[indxx[*currentMembrIter]]]     ],
                                    (uint*) permissibleSplitPtr + ((offset - 1) * mwcpSizeAbsolute));
-      if ((*currentMembrIter) == repMembrSize) {
+      if ((*currentMembrIter) == nonMissMembrSize) {
         iterFlag = FALSE;
       }
     }
     else {
-      if (RF_observation[treeID][randomCovariate][repMembrIndx[repMembrIndxx[*currentMembrIter]]] <= ((double*) permissibleSplitPtr)[offset]) {
+      if (RF_observation[treeID][randomCovariate][   repMembrIndx[nonMissMembrIndx[indxx[*currentMembrIter]]]    ] <= ((double*) permissibleSplitPtr)[offset]) {
         daughterFlag = LEFT;
       }
       else {
@@ -587,9 +911,7 @@ uint virtuallySplitNode(uint  treeID,
         iterFlag = FALSE;
       }
     }
-    if (localSplitIndicator != NULL) {
-      localSplitIndicator[repMembrIndxx[*currentMembrIter]] = daughterFlag;
-    }
+    localSplitIndicator[     nonMissMembrIndx[indxx[*currentMembrIter]]   ] = daughterFlag;
     if (daughterFlag == LEFT) {
       (*leftSize) ++;
     }  
@@ -597,11 +919,11 @@ uint virtuallySplitNode(uint  treeID,
     }
   }  
   return (*leftSize);
-}
-void getReweightedRandomPair (uint    treeID, 
-                              uint    relativeFactorSize, 
-                              uint    absoluteFactorSize, 
-                              double *absoluteLevel, 
+ }
+void getReweightedRandomPair (uint    treeID,
+                              uint    relativeFactorSize,
+                              uint    absoluteFactorSize,
+                              double *absoluteLevel,
                               uint   *result) {
   uint randomGroupIndex;
   if(RF_factorList[treeID][relativeFactorSize] == NULL) {
@@ -610,7 +932,7 @@ void getReweightedRandomPair (uint    treeID,
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
-  randomGroupIndex = (uint) ceil(ran2(treeID) * ((RF_factorList[treeID][relativeFactorSize] -> cardinalGroupCount) * 1.0));
+  randomGroupIndex = (uint) ceil(ran1B(treeID) * ((RF_factorList[treeID][relativeFactorSize] -> cardinalGroupCount) * 1.0));
   createRandomBinaryPair(treeID, relativeFactorSize, absoluteFactorSize, randomGroupIndex, absoluteLevel, result);
 }
 void getRandomPair (uint treeID, uint relativeFactorSize, uint absoluteFactorSize, double *absoluteLevel, uint *result) {
@@ -637,7 +959,7 @@ void getRandomPair (uint treeID, uint relativeFactorSize, uint absoluteFactorSiz
   for (k=2; k <= RF_factorList[treeID][relativeFactorSize] -> cardinalGroupCount; k++) {
     cdf[k] += cdf[k-1];
   }
-  randomValue = ceil((ran2(treeID) * cdf[RF_factorList[treeID][relativeFactorSize] -> cardinalGroupCount]));
+  randomValue = ceil((ran1B(treeID) * cdf[RF_factorList[treeID][relativeFactorSize] -> cardinalGroupCount]));
   randomGroupIndex = 1;
   while (randomValue > cdf[randomGroupIndex]) {
     randomGroupIndex ++;
@@ -645,11 +967,11 @@ void getRandomPair (uint treeID, uint relativeFactorSize, uint absoluteFactorSiz
   free_dvector(cdf, 1, RF_factorList[treeID][relativeFactorSize] -> cardinalGroupCount);
   createRandomBinaryPair(treeID, relativeFactorSize, absoluteFactorSize, randomGroupIndex, absoluteLevel, result);
 }
-void createRandomBinaryPair(uint    treeID, 
-                            uint    relativeFactorSize, 
+void createRandomBinaryPair(uint    treeID,
+                            uint    relativeFactorSize,
                             uint    absoluteFactorSize,
-                            uint    groupIndex, 
-                            double *absoluteLevel, 
+                            uint    groupIndex,
+                            double *absoluteLevel,
                             uint   *pair) {
   uint mwcpLevelIdentifier;
   uint mwcpSizeAbsolute;
@@ -661,7 +983,7 @@ void createRandomBinaryPair(uint    treeID,
     localPermissible[k] = TRUE;
   }
   for (k = 1; k <= groupIndex; k++) {
-    randomLevel[k] = getSelectableElement(treeID, relativeFactorSize, localPermissible, NULL);
+    randomLevel[k] = getSelectableElement(treeID, relativeFactorSize, localPermissible);
     localPermissible[randomLevel[k]] = FALSE;
   }
   for (k = 1; k <= groupIndex; k++) {
@@ -678,10 +1000,10 @@ void createRandomBinaryPair(uint    treeID,
   free_uivector(randomLevel, 1, groupIndex);
 }
 void convertRelToAbsBinaryPair(uint    treeID,
-                               uint    relativeFactorSize, 
+                               uint    relativeFactorSize,
                                uint    absoluteFactorSize,
                                uint    relativePair,
-                               double *absoluteLevel, 
+                               double *absoluteLevel,
                                uint   *pair) {
   uint mwcpLevelIdentifier;
   uint mwcpSizeAbsolute;
@@ -700,7 +1022,7 @@ void convertRelToAbsBinaryPair(uint    treeID,
     relativePair = relativePair >> 1;
   }
 }
-char summarizeSplitResult(uint    splitParameterMax, 
+char summarizeSplitResult(uint    splitParameterMax,
                           double  splitValueMaxCont,
                           uint    splitValueMaxFactSize,
                           uint   *splitValueMaxFactPtr,
@@ -715,4 +1037,194 @@ char summarizeSplitResult(uint    splitParameterMax,
     result = FALSE;
   }
   return result;
+}
+char getPreSplitResult (uint      treeID,
+                        Node     *parent,
+                        uint      repMembrSize,
+                        uint     *repMembrIndx,
+                        uint     *nonMissMembrSize,
+                        uint    **nonMissMembrIndx,
+                        double  **permissibleSplit,
+                        char      multImpFlag) {
+  uint i, r;
+  char mPredictorFlag;
+  char result;
+  if (repMembrSize >= (2 * RF_minimumNodeSize)) {
+    result = TRUE;
+  }
+  else {
+    result = FALSE;
+  }
+  if (result) {
+    if (RF_maximumNodeDepth < 0) {
+      result = TRUE;
+    }
+    else {
+      if (parent -> depth < (uint) RF_maximumNodeDepth) {
+        result = TRUE;
+      }
+      else {
+        result = FALSE;
+      }
+    }
+  }
+  if (result) {
+    *nonMissMembrIndx = uivector(1, repMembrSize);
+    *permissibleSplit = dvector(1, repMembrSize);
+    if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP)) || (repMembrIndx == NULL)) {
+      (*nonMissMembrSize) = repMembrSize;
+      for (i = 1; i <= repMembrSize; i++) {
+        (*nonMissMembrIndx)[i] = i;
+      }
+    }
+    else {
+      (*nonMissMembrSize) = 0;
+      for (i = 1; i <= repMembrSize; i++) {
+        mPredictorFlag = FALSE;
+        if (RF_mRecordMap[repMembrIndx[i]] > 0) {
+          for (r = 1; r<= RF_rSize; r++) {
+            if (RF_mpSign[r][RF_mRecordMap[repMembrIndx[i]]] == 1) {
+              mPredictorFlag = TRUE;
+            }
+          }
+        }
+        if (!mPredictorFlag) {
+          (*nonMissMembrSize) ++;
+          (*nonMissMembrIndx)[(*nonMissMembrSize)] = i;
+        }
+      }  
+    }  
+    if (repMembrIndx != NULL) {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        uint q,k,m;
+        uint *evntProp = uivector(1, RF_eventTypeSize + 1);
+        for (q=1; q <= RF_eventTypeSize + 1; q++) {
+          evntProp[q] = 0;
+        }
+        for (i = 1; i <= (*nonMissMembrSize); i++) {
+          m = (uint) RF_status[treeID][repMembrIndx[(*nonMissMembrIndx)[i]]];
+          if (m > 0) {
+            evntProp[RF_eventTypeIndex[m]] ++;
+          }
+          else {
+            evntProp[RF_eventTypeSize + 1] ++;
+          }
+        }
+        k = 0;
+        for (q = 1; q <= RF_eventTypeSize + 1; q++) {
+          if(evntProp[q] > 0) {
+            k ++;
+          }
+        }
+        if (k == 0) {
+          result = FALSE;
+        }
+        else {
+          if (k == 1) {
+            if (evntProp[RF_eventTypeSize + 1] > 0) {
+              result = FALSE;
+            }
+            else {
+              result = getVariance(repMembrSize,
+                                   repMembrIndx,
+                                   *nonMissMembrSize,
+                                   *nonMissMembrIndx,
+                                   RF_time[treeID],
+                                   NULL,
+                                   NULL);
+            }
+          }
+        }
+        free_uivector(evntProp, 1, RF_eventTypeSize + 1);
+      }
+      else {
+        if (RF_rSize == 1) {
+          result = getVariance(repMembrSize,
+                               repMembrIndx,
+                               *nonMissMembrSize,
+                               *nonMissMembrIndx,
+                               RF_response[treeID][1],
+                               NULL,
+                               NULL);
+        }
+      }
+    }
+    if (!result) {
+      (*nonMissMembrSize) = 0;
+      free_uivector(*nonMissMembrIndx, 1, repMembrSize);
+      free_dvector(*permissibleSplit, 1, repMembrSize);
+    }
+  }
+  return result;
+}
+char updateMaximumSplit(uint    treeID,
+                        double  delta,
+                        uint    randomCovariate,
+                        uint    index,
+                        char    factorFlag,
+                        uint    mwcpSizeAbsolute,
+                        uint    repMembrSize,
+                        char   *localSplitIndicator,
+                        double *deltaMax,
+                        uint   *splitParameterMax,
+                        double *splitValueMaxCont,
+                        uint   *splitValueMaxFactSize,
+                        uint  **splitValueMaxFactPtr,
+                        void   *permissibleSplitPtr,
+                        char  **splitIndicator) {
+  char flag;
+  uint k;
+  delta = delta * RF_splitWeight[randomCovariate];
+  if(ISNA(*deltaMax)) {
+    flag = TRUE;
+  }
+  else {
+    if (delta > *deltaMax) {
+      flag = TRUE;
+    }
+    else {
+      flag = FALSE;
+    }
+  }
+  if (flag) {
+    *deltaMax = delta;
+    *splitParameterMax = randomCovariate;
+    if (factorFlag == TRUE) {
+      if (*splitValueMaxFactSize > 0) {
+        if (*splitValueMaxFactSize != mwcpSizeAbsolute) {
+          free_uivector(*splitValueMaxFactPtr, 1, *splitValueMaxFactSize);
+          *splitValueMaxFactSize = mwcpSizeAbsolute;
+          *splitValueMaxFactPtr = uivector(1, *splitValueMaxFactSize);
+        }
+      }
+      else {
+        *splitValueMaxFactSize = mwcpSizeAbsolute;
+        *splitValueMaxFactPtr = uivector(1, *splitValueMaxFactSize);
+      }
+      *splitValueMaxCont = NA_REAL;
+      for (k=1; k <= *splitValueMaxFactSize; k++) {
+        (*splitValueMaxFactPtr)[k] =
+          ((uint*) permissibleSplitPtr + ((index - 1) * (*splitValueMaxFactSize)))[k];
+      }
+    }
+    else {
+      if (*splitValueMaxFactSize > 0) {
+        free_uivector(*splitValueMaxFactPtr, 1, *splitValueMaxFactSize);
+        *splitValueMaxFactSize = 0;
+        *splitValueMaxFactPtr = NULL;
+      }
+      else {
+      }
+      *splitValueMaxCont = ((double*) permissibleSplitPtr)[index];
+    }
+    if (*splitIndicator == NULL) {
+     *splitIndicator = cvector(1, repMembrSize);
+    }
+   for (k=1; k <= repMembrSize; k++) {
+     (*splitIndicator)[k] = localSplitIndicator[k];
+   }
+  }
+  else {
+  }
+  return flag;
 }

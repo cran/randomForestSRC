@@ -6,7 +6,8 @@
   missing data.  No ensemble estimates or error rates are calculated.
 }
 \usage{\method{impute}{rfsrc}(formula, data, ntree = 1000, mtry = NULL,
-  nodesize = NULL, splitrule = NULL, nsplit = 1, nimpute = 1,
+  nodesize = NULL, splitrule = NULL, nsplit = 1,
+  na.action = c("na.impute", "na.random"), nimpute = 1,
   xvar.wt = NULL, seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
@@ -19,6 +20,7 @@
     \item{nodesize}{Minimum terminal node size.}
     \item{splitrule}{Splitting rule used to grow trees.}
     \item{nsplit}{Non-negative integer value used to specify random splitting.}
+    \item{na.action}{Missing value action. See details below.}
     \item{nimpute}{Number of iterations of missing data algorithm.}
     \item{xvar.wt}{Weights for selecting variables for splitting on.}
     \item{seed}{Seed for random number generator.}
@@ -32,15 +34,27 @@
   turned off.  Use this function if your only interest is imputing the
   data.
 
+  \item Data is imputed using the default missing data algorithm,
+  however users can select \option{na.action="na.random"} for a
+  cruder, but faster imputation.  See the the \code{rfsrc} help file
+  for details.
+
   
   \item If no formula is specified, unsupervised splitting
   is implemented which treats the data as if there are no y-outcomes.
   
+  
+  
 
-  
-  
+  \item Prior to imputation, the data is processed and records with all
+  values missing are removed, as are variables having all missing values.
+
+  \item If there is no missing data, either before or after
+  processing of the data, the algorithm returns the processed
+  data and no imputation is performed.
+    
   \item All options are the same as \command{rfsrc} and the user should
-  consult the help file for \command{rfsrc} for details.
+  consult the \command{rfsrc} help file for details.
   }
 }   
 \value{

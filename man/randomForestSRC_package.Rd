@@ -201,8 +201,9 @@ R-side forking (accessed via \command{mclapply} in package
     Lauer M.S. (2010).  High-dimensional variable selection for survival
     data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
 
-    Ishwaran H., Gerds, T.A. Kogalur U.B., Moore R.D., Gange S.J. and Lau
-    B.M. (2013). Random survival forests for competing risks.
+    Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
+    B.M. (2014). Random survival forests for competing risks.  To appear
+    in \emph{Biostatistics}.
 }
 \seealso{
   \command{\link{find.interaction}},
@@ -214,7 +215,7 @@ R-side forking (accessed via \command{mclapply} in package
   \command{\link{plot.variable}},
   \command{\link{predict.rfsrc}},
   \command{\link{print.rfsrc}},
-  \command{\link{rfsrc}},
+  \command{\link{rf2rfz}},
   \command{\link{var.select}},
   \command{\link{vimp}}
 }

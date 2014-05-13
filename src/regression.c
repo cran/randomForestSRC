@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -68,43 +68,42 @@
 void getMeanResponse(uint treeID) {
   Node *parent;
   uint leaf, i;
-  uint count;
   double sumResponse;
   uint *membershipIndex;
   if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-    membershipIndex = RF_trivialBootMembershipIndex;
+    membershipIndex = RF_identityMembershipIndex;
   }
   else {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
-  for (leaf=1; leaf <= RF_tLeafCount[treeID]; leaf++) {
-    sumResponse = 0.0;
-    count = 0;
+  for (leaf = 1; leaf <= RF_tLeafCount[treeID]; leaf++) {
     parent = RF_tNodeList[treeID][leaf];
+    parent -> membrCount = 0;
+    sumResponse = 0.0;
     for (i=1; i <= RF_observationSize; i++) {
       if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
         sumResponse += RF_response[treeID][RF_rTarget][membershipIndex[i]];
-        count ++;
+        parent -> membrCount ++;
       }
     }
-    if (count > 0) {
-      parent -> predictedOutcome =  sumResponse / (double) count;
+    if (parent -> membrCount > 0) {
+      parent -> predictedOutcome =  sumResponse / (double) (parent -> membrCount);
     }
     else {
       parent -> predictedOutcome =  NA_REAL;
       if (!(RF_opt & OPT_OUTC_TYPE)) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
-        Rprintf("\nRF-SRC:  Zero regression count encountered in node during getMeanResponse():  %10d", leaf);
+        Rprintf("\nRF-SRC:  Zero regression count encountered in node during getMeanResponse():  %10d %10d", treeID, leaf);
         Rprintf("\nRF-SRC:  Please Contact Technical Support.");
         error("\nRF-SRC:  The application will now exit.\n");
       }
     }
   }  
 }
-void updateEnsembleMean(uint     mode, 
-                        uint     treeID, 
+void updateEnsembleMean(uint     mode,
+                        uint     treeID,
                         double  *ensembleOutcome) {
-  uint obsSize;
+  uint  obsSize;
   unsigned char oobFlag, fullFlag, selectionFlag, outcomeFlag;
   double ***ensemblePtr;
   Node   ***nodeMembershipPtr;
@@ -137,7 +136,7 @@ void updateEnsembleMean(uint     mode,
     nodeMembershipPtr = RF_tNodeMembership;
     break;
   }
-  while ((oobFlag == TRUE) || (fullFlag == TRUE)) { 
+  while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
     if (oobFlag == TRUE) {
       ensemblePtr = RF_oobEnsemblePtr;
       ensembleDenPtr = RF_oobEnsembleDen;
@@ -148,7 +147,7 @@ void updateEnsembleMean(uint     mode,
         ensembleDenPtr = RF_fullEnsembleDen;
       }
     }
-    for (i=1; i <= obsSize; i++) {
+    for (i = 1; i <= obsSize; i++) {
       selectionFlag = TRUE;
       if (oobFlag == TRUE) {
         if (RF_bootMembershipFlag[treeID][i] == FALSE) {
@@ -194,8 +193,8 @@ void updateEnsembleMean(uint     mode,
     }
   }  
 }
-double getMeanSquareError(uint    size, 
-                          double *responsePtr, 
+double getMeanSquareError(uint    size,
+                          double *responsePtr,
                           double *predictedOutcome,
                           uint   *denomCount) {
   uint i;
@@ -207,7 +206,7 @@ double getMeanSquareError(uint    size,
     if (denomCount[i] != 0) {
       cumDenomCount += 1;
       result += pow (responsePtr[i] - predictedOutcome[i], 2.0);
-    }  
+    }
   }  
   if (cumDenomCount == 0) {
     result = NA_REAL;
@@ -217,23 +216,33 @@ double getMeanSquareError(uint    size,
   }
   return result;
 }
-char getVariance(uint repSize, uint *repIndx, double *targetResponse, double *mean, double *variance) {
+char getVariance(uint    repMembrSize,
+                 uint   *repMembrIndx,
+                 uint    nonMissMembrSize,
+                 uint   *nonMissMembrIndx,
+                 double *targetResponse,
+                 double *mean,
+                 double *variance) {
   uint i;
   uint denom;
   double meanResult, varResult;
   char result;
-  if (repSize == 0) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  No replicates in variance calculation. ");
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-    Rprintf("\nRF-SRC:  The application will now exit.\n");
+  uint *genIndx;
+  uint  genSize;
+  if ((nonMissMembrSize == 0) || (nonMissMembrIndx == NULL)) {
+    genIndx = RF_identityMembershipIndex;
+    genSize = repMembrSize;
+  }
+  else {
+    genIndx = nonMissMembrIndx;
+    genSize = nonMissMembrSize;
   }
   denom      = 0;
   meanResult = 0.0;
-  for (i=1; i <= repSize; i++) {
-    if(!ISNA(targetResponse[repIndx[i]])) {
+  for (i = 1; i <= genSize; i++) {
+    if(!ISNA(targetResponse[repMembrIndx[genIndx[i]]])) {
       denom ++;
-      meanResult += targetResponse[repIndx[i]];
+      meanResult += targetResponse[repMembrIndx[genIndx[i]]];
     }
   }
   if (denom > 0) {
@@ -247,9 +256,9 @@ char getVariance(uint repSize, uint *repIndx, double *targetResponse, double *me
   }
   varResult = 0.0;
   if(!ISNA(meanResult)) {
-    for (i=1; i <= repSize; i++) {
-      if(!ISNA(targetResponse[repIndx[i]])) {
-        varResult += pow(meanResult - targetResponse[repIndx[i]], 2.0);
+    for (i = 1; i <= genSize; i++) {
+      if(!ISNA(targetResponse[repMembrIndx[genIndx[i]]])) {
+        varResult += pow(meanResult - targetResponse[repMembrIndx[genIndx[i]]], 2.0);
       }
     }
     varResult = varResult / (double) denom;

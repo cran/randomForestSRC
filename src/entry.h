@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,16 +63,17 @@
 #ifndef RSFENTRY_H
 #define RSFENTRY_H
 SEXP rfsrcGrow(SEXP traceFlag,
-               SEXP seedPtr,  
-               SEXP opt,  
-               SEXP splitRule,  
-               SEXP splitRandomCount,  
-               SEXP randomCovariateCount,  
-               SEXP randomResponseCount,  
+               SEXP seedPtr,
+               SEXP opt,
+               SEXP optHigh,
+               SEXP splitRule,
+               SEXP splitRandomCount,
+               SEXP randomCovariateCount,
+               SEXP randomResponseCount,
                SEXP minimumNodeSize,
                SEXP maximumNodeDepth,
                SEXP crWeight,
-               SEXP forestSize,  
+               SEXP forestSize,
                SEXP observationSize,
                SEXP rSize,
                SEXP rType,
@@ -90,9 +91,10 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP imputeSize,
                SEXP numThreads);
 SEXP rfsrcPredict(SEXP traceFlag,
-                  SEXP seedPtr,  
+                  SEXP seedPtr,
                   SEXP opt,
-                  SEXP forestSize, 
+                  SEXP optHigh,
+                  SEXP forestSize,
                   SEXP observationSize,
                   SEXP rSize,
                   SEXP rType,
@@ -103,6 +105,8 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP xType,
                   SEXP xLevels,
                   SEXP xData,
+                  SEXP sobservationSize,
+                  SEXP sobservationIndv,
                   SEXP fobservationSize,
                   SEXP frSize,
                   SEXP frData,

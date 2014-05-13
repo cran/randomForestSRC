@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -69,6 +69,7 @@
 #include     "bootstrap.h"
 #include       "nodeOps.h"
 #include      "treeUtil.h"
+#include     "splitUspv.h"
 #include    "importance.h"
 #include     "rfsrcUtil.h"
 #include          "tree.h"
@@ -102,30 +103,27 @@ void acquireTree(uint mode, uint r, uint b) {
   if (mode == RF_GROW) {
     if (r > 1) {
       multipleImputeFlag = TRUE;
-    } 
+    }
   }
 #ifdef SUPPORT_OPENMP
 #endif
-  rootPtr = makeNode(RF_xSize);  
+  rootPtr = makeNode(RF_xSize);
   RF_tNodeMembership[b] = (Node **) vvector(1, RF_observationSize);
   RF_bootMembershipIndex[b] = uivector(1, RF_observationSize);
-  RF_bootMembershipFlag[b] = uivector(1, RF_observationSize);
-  RF_oobMembershipFlag[b] = uivector(1, RF_observationSize);
+  RF_bootMembershipFlag[b] = cvector(1, RF_observationSize);
+  RF_bootMembershipCount[b] = uivector(1, RF_observationSize);
+  RF_oobMembershipFlag[b] = cvector(1, RF_observationSize);
   allMembrIndx = uivector(1, RF_observationSize);
-  if ((mode == RF_GROW) || (mode == RF_REST)) {
-    obsSize = RF_observationSize; 
+  if (mode == RF_PRED) {
+    RF_ftNodeMembership[b] = (Node **) vvector(1, RF_fobservationSize);
+  }
+  if (mode != RF_PRED) {
+    obsSize = RF_observationSize;
     gNodeMembership = RF_tNodeMembership;
   }
   else {
-    if (mode == RF_PRED) {
-      obsSize = RF_fobservationSize; 
-      gNodeMembership = RF_ftNodeMembership;
-    }
-    else {
-    }
-  }
-  if (mode == RF_PRED) {
-    RF_ftNodeMembership[b] = (Node **) vvector(1, RF_fobservationSize);
+    obsSize = RF_fobservationSize;
+    gNodeMembership = RF_ftNodeMembership;
   }
   if (mode == RF_PRED) {
     fallMembrIndx = uivector(1, RF_fobservationSize);
@@ -141,18 +139,18 @@ void acquireTree(uint mode, uint r, uint b) {
     if (RF_nImpute > 1) {
       if (r > 1) {
         if (RF_mRecordSize > 0) {
-          imputeUpdateShadow(RF_GROW, 
-                             RF_response[b], 
+          imputeUpdateShadow(RF_GROW,
+                             RF_response[b],
                              RF_observation[b]);
         }
         if (RF_timeIndex > 0) {
           if (RF_mTimeFlag == TRUE) {
-            updateTimeIndexArray(0, 
+            updateTimeIndexArray(0,
                                  NULL,
                                  RF_observationSize,
                                  RF_time[b],
                                  FALSE,
-                                 TRUE,
+                                 FALSE,
                                  RF_masterTimeIndex[b]);
           }
         }
@@ -167,33 +165,34 @@ void acquireTree(uint mode, uint r, uint b) {
   for (i=1; i <= RF_observationSize; i++) {
     allMembrIndx[i] = i;
     RF_tNodeMembership[b][i] = RF_root[b];
-    RF_bootMembershipFlag[b][i] = FALSE;
-    RF_oobMembershipFlag[b][i]  = TRUE;
+    RF_bootMembershipFlag[b][i]  = FALSE;
+    RF_bootMembershipCount[b][i] = 0;
+    RF_oobMembershipFlag[b][i]   = TRUE;
   }
   if (RF_ptnCount > 0) {
     for (i = 1; i <= obsSize; i++) {
-      RF_pNodeMembership[b][i] = gNodeMembership[b][i]; 
+      RF_pNodeMembership[b][i] = gNodeMembership[b][i];
     }
   }
   RF_orderedLeafCount[b] = 0;
   if (mode == RF_GROW) {
     RF_tLeafCount[b] = 0;
-    result = growTree (TRUE, 
-                       multipleImputeFlag, 
-                       b, 
-                       rootPtr, 
+    result = growTree (TRUE,
+                       multipleImputeFlag,
+                       b,
+                       rootPtr,
                        NULL,
-                       0, 
-                       allMembrIndx, 
-                       RF_observationSize, 
-                       0, 
+                       0,
+                       allMembrIndx,
+                       RF_observationSize,
+                       0,
                        RF_maxDepth + b,
                        & bootMembrIndxIter);
     stackNodeList(b);
     initNodeList(b);
   }  
   else {
-    if (mode != RF_REST) {
+    if (mode == RF_PRED) {
       for (i=1; i <= RF_fobservationSize; i++) {
         fallMembrIndx[i] = i;
         RF_ftNodeMembership[b][i] = RF_root[b];
@@ -218,14 +217,14 @@ void acquireTree(uint mode, uint r, uint b) {
                 mwcpPtrPtr,
                 0,
                 RF_maxDepth + b);
-    result = restoreNodeMembership(mode, 
+    result = restoreNodeMembership(mode,
                                    TRUE,
-                                   b, 
-                                   rootPtr, 
+                                   b,
+                                   rootPtr,
                                    NULL,
                                    0,
-                                   allMembrIndx, 
-                                   RF_observationSize, 
+                                   allMembrIndx,
+                                   RF_observationSize,
                                    fallMembrIndx,
                                    RF_fobservationSize,
                                    & bootMembrIndxIter);
@@ -243,7 +242,7 @@ void acquireTree(uint mode, uint r, uint b) {
         mRecordIndex = RF_mRecordIndex;
         nodeMembershipPtr = RF_tNodeMembership;
         break;
-      } 
+      }
       RF_mTermList[b] = (Terminal **) vvector(1, RF_tLeafCount[b]);
       RF_mTermMembership[b] = (Terminal **) vvector(1, mRecordSize);
       for (j = 1; j <= RF_tLeafCount[b]; j++) {
@@ -269,8 +268,8 @@ void acquireTree(uint mode, uint r, uint b) {
                      TRUE,
                      b,
                      parent,
-                     repMembrIndxImputed, 
-                     repMembrSizeImputed, 
+                     repMembrIndxImputed,
+                     repMembrSizeImputed,
                      allMembrIndxImputed,
                      allMembrSizeImputed);
         }  
@@ -294,8 +293,8 @@ void acquireTree(uint mode, uint r, uint b) {
                        FALSE,
                        b,
                        parent,
-                       repMembrIndxImputed, 
-                       repMembrSizeImputed, 
+                       repMembrIndxImputed,
+                       repMembrSizeImputed,
                        ngAllMembrIndxImputed,
                        ngAllMembrSizeImputed);
           }  
@@ -329,8 +328,8 @@ void acquireTree(uint mode, uint r, uint b) {
                        FALSE,
                        b,
                        parent,
-                       repMembrIndxImputed, 
-                       repMembrSizeImputed, 
+                       repMembrIndxImputed,
+                       repMembrSizeImputed,
                        allMembrIndxImputed,
                        allMembrSizeImputed);
           }  
@@ -344,7 +343,7 @@ void acquireTree(uint mode, uint r, uint b) {
   if (result) {
     if (RF_ptnCount > 0) {
       for (i = 1; i <= obsSize; i++) {
-        RF_pNodeMembership[b][i] = gNodeMembership[b][i]; 
+        RF_pNodeMembership[b][i] = gNodeMembership[b][i];
       }
       RF_pLeafCount[b] = pruneTree(mode, b, RF_ptnCount);
       RF_pNodeList[b] = (Node **) vvector(1, RF_pLeafCount[b] + 1);
@@ -358,7 +357,7 @@ void acquireTree(uint mode, uint r, uint b) {
         RF_oobSize[b] ++;
       }
     }
-    if ((mode == RF_GROW) || (mode == RF_REST)) {
+    if (mode != RF_PRED) {
       if (RF_mRecordSize > 0) {
         for (i = 1; i <= RF_mRecordSize; i++) {
           if (RF_bootMembershipFlag[b][RF_mRecordIndex[i]] == TRUE) {
@@ -370,6 +369,16 @@ void acquireTree(uint mode, uint r, uint b) {
         }
       }  
     }  
+    if (mode == RF_REST) {
+      if(RF_sobservationSize > 0) {
+        RF_soobSize[b] = 0;
+        for (i = 1; i <= RF_sobservationSize; i++) {
+          if (RF_bootMembershipFlag[b][RF_sobservationIndv[i]] == FALSE) {
+            RF_soobSize[b] ++;
+          }
+        }
+      }
+    }
   }  
   if (result) {
     if (RF_opt & OPT_MEMB) {
@@ -381,14 +390,6 @@ void acquireTree(uint mode, uint r, uint b) {
       }
     }
     if (r == RF_nImpute) {
-      if (!(RF_opt & OPT_IMPU_ONLY)) {
-        if ((RF_opt & OPT_PERF) | 
-            (RF_opt & OPT_PERF_CALB) |
-            (RF_opt & OPT_OENS) |
-            (RF_opt & OPT_FENS)) {
-          updateTerminalNodeOutcomes(b);
-        }
-      }
       if (RF_opt & OPT_VIMP) {
         uint vimpCount;
         if (RF_opt & OPT_VIMP_JOIN) {
@@ -411,63 +412,261 @@ void acquireTree(uint mode, uint r, uint b) {
       }
     }  
   }  
+  else {
+    if (RF_opt & OPT_PROX) {
+      anticipateProximity(mode, b);
+    }
+  }
   unstackShadow(mode, b, FALSE, TRUE);
   free_uivector(allMembrIndx, 1, RF_observationSize);
   if (mode == RF_PRED) {
     free_uivector(fallMembrIndx, 1, RF_fobservationSize);
   }
 }
-void updateProximity(uint mode, uint treeID) {
-  Node ***nodeMembership;
+void getWeight(uint mode) {
+  Node ***gNodeMembership;
   uint    obsSize;
-  char flag, selectionFlag;
-  uint i, j, k;
-  if (RF_tLeafCount[treeID] > 0) {
-    if ((mode == RF_GROW) || (mode == RF_REST)) {
-      nodeMembership = RF_tNodeMembership;
-      obsSize = RF_observationSize;
+  char    flag;
+  uint   *weightDenom;
+  uint i,j;
+  int b;
+  if (mode != RF_PRED) {
+    gNodeMembership = RF_tNodeMembership;
+    obsSize         = RF_observationSize;
+  }
+  else {
+    gNodeMembership = RF_ftNodeMembership;
+    obsSize         = RF_fobservationSize;
+  }
+  if(RF_optHigh & OPT_WGHT_TYP2) {
+    flag = ACTIVE;
+  }
+  else {
+    if(!(RF_optHigh & OPT_WGHT_TYP1)  && !(RF_optHigh & OPT_WGHT_TYP2)) {
+      flag = TRUE;
+    }
+    else if(RF_optHigh & OPT_WGHT_TYP1) {
+      flag = FALSE;
     }
     else {
-      nodeMembership = RF_ftNodeMembership;
-      obsSize = RF_fobservationSize;
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Illegal getWeight() call.");
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
     }
-    if (RF_opt & (OPT_PROX | OPT_PROX_TYPE)) {
-      flag = NEITHER;
-      if(!(RF_opt & OPT_PROX) && (RF_opt & OPT_PROX_TYPE)) {
-        flag = TRUE;
+  }
+  if ((RF_splitRule == USPV_SPLIT) || (RF_splitRule == MVRG_SPLIT) || (RF_splitRule == MVCL_SPLIT)) {
+    if (RF_numThreads > 0) {
+#ifdef SUPPORT_OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+      for (b = 1; b <= RF_forestSize; b++) {
+        getMemberCountOnly(b);
       }
-      else if((RF_opt & OPT_PROX) && !(RF_opt & OPT_PROX_TYPE)) {
-        flag = FALSE;
+    }
+    else {
+      for (b = 1; b <= RF_forestSize; b++) {
+        getMemberCountOnly(b);
       }
-      else if((RF_opt & OPT_PROX) && (RF_opt & OPT_PROX_TYPE)) {
-        flag = ACTIVE;
+    }
+  }
+  if (RF_numThreads > 0) {
+    for (b = 1; b <= RF_forestSize; b++) {
+      updateWeight(b, flag, obsSize, gNodeMembership);
+    }
+  }
+  else {
+    for (b = 1; b <= RF_forestSize; b++) {
+      updateWeight(b, flag, obsSize, gNodeMembership);
+    }
+  }
+  if (flag != ACTIVE) {
+    if (flag == TRUE) {
+      for (i = 1; i <= RF_observationSize; i++) {
+        for (j = 1; j <= obsSize; j++) {
+          RF_weightPtr[j][i] = RF_weightPtr[j][i] / RF_validTreeCount;
+        }
       }
-      k = 0;
-      for (i = 1; i <= obsSize; i++) {
-        k += i - 1;
-        for (j = 1; j <= i; j++) {
-          selectionFlag = FALSE;
-          if (flag == TRUE) {
-            if ((RF_bootMembershipFlag[treeID][i] == TRUE) && (RF_bootMembershipFlag[treeID][j] == TRUE)) {
-              selectionFlag = TRUE;
+    }
+    else {
+      weightDenom = uivector(1, RF_observationSize);
+      for (i = 1; i <= RF_observationSize; i++) {
+        weightDenom[i] = 0;
+      }
+      for (b = 1; b <= RF_forestSize; b++) {
+        for (i = 1; i <= RF_observationSize; i++) {
+          if(RF_bootMembershipCount[b][i] == 0) {
+            weightDenom[i] ++;
+          }
+        }
+      }
+      for (i = 1; i <= RF_observationSize; i++) {
+        for (j = 1; j <= RF_observationSize; j++) {
+          if (weightDenom[j] > 0) {
+            RF_weightPtr[j][i] = RF_weightPtr[j][i] / (double) weightDenom[j];
+          }
+          else {
+            RF_weightPtr[j][i] = NA_REAL;
+          }
+        }
+      }
+      free_uivector (weightDenom, 1, RF_observationSize);
+    }
+  }
+  else {
+    for (i = 1; i <= RF_observationSize; i++) {
+      for (j = 1; j <= obsSize; j++) {
+        RF_weightPtr[j][i] = RF_weightPtr[j][i] / RF_validTreeCount;
+      }
+    }
+  }
+}
+void updateWeight(uint b, char flag, uint obsSize, Node ***gNodeMembership) {
+  Node *parent;
+  uint leaf;
+  uint i, j;
+  if (RF_tLeafCount[b] > 0) {
+    if (flag != ACTIVE) {
+      if (flag == TRUE) {
+        for (i = 1; i <= RF_observationSize; i++) {
+          for (j = 1; j <= obsSize; j++) {
+            if ( RF_tNodeMembership[b][i] == gNodeMembership[b][j] ) {
+                RF_weightPtr[j][i] +=  (double) RF_bootMembershipCount[b][i] / (double) (gNodeMembership[b][j] -> membrCount);
             }
           }
-          else if (flag == FALSE) {
-            if ((RF_bootMembershipFlag[treeID][i] == FALSE) && (RF_bootMembershipFlag[treeID][j] == FALSE)) {
-              selectionFlag = TRUE;
-            }
-          }
-          else if (flag == ACTIVE) {
-            selectionFlag = TRUE;
-          }
-          if (selectionFlag) {
-            if ( (nodeMembership[treeID][i] -> nodeID) == (nodeMembership[treeID][j] -> nodeID) ) {
-              RF_proximity_[k + j] ++;
+        }
+      }
+      else {
+        for (i = 1; i <= RF_observationSize; i++) {
+          for (j = 1; j <= RF_observationSize; j++) {
+            if (RF_bootMembershipCount[b][j] == 0) {
+              if ( RF_tNodeMembership[b][i] == RF_tNodeMembership[b][j] ) {
+                RF_weightPtr[j][i] +=  (double) RF_bootMembershipCount[b][i] / (double) (RF_tNodeMembership[b][j] -> membrCount);
+              }
             }
           }
         }
       }
     }
+    else {
+      for (leaf = 1; leaf <= RF_tLeafCount[b]; leaf++) {
+        parent = RF_tNodeList[b][leaf];
+        parent -> weight = 0.0;
+        for (i = 1; i <= RF_observationSize; i++) {
+          if ( RF_tNodeMembershipIndexPtr[b][i] == leaf) {
+            (parent -> weight) ++;
+          }
+        }
+      }
+      for (i = 1; i <= RF_observationSize; i++) {
+        for (j = 1; j <= obsSize; j++) {
+          if ( RF_tNodeMembership[b][i] == gNodeMembership[b][j] ) {
+            RF_weightPtr[j][i] +=  1.0 / (double) (gNodeMembership[b][j] -> weight);
+          }
+        }
+      }
+    }
+  }  
+}
+void getProximity(uint mode) {
+  uint  obsSize;
+  char  flag;
+  uint  i, j;
+  int   b;
+  if (mode != RF_PRED) {
+    obsSize = RF_observationSize;
+  }
+  else {
+    obsSize = RF_fobservationSize;
+  }
+  uint *offset  = uivector(1, obsSize);
+  offset[1] = 0;
+  for (i = 2; i <= obsSize; i++) {
+    offset[i] = offset[i-1] + i - 1;
+  }
+  if(RF_opt & OPT_PROX_TYP2) {
+    flag = ACTIVE;
+  }
+  else {
+    if(!(RF_opt & OPT_PROX_TYP1)  && !(RF_opt & OPT_PROX_TYP2)) {
+      flag = TRUE;
+    }
+    else if(RF_opt & OPT_PROX_TYP1) {
+      flag = FALSE;
+    }
+    else {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Illegal getProximity() call.");
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
+  if (RF_numThreads > 0) {
+    for (b = 1; b <= RF_forestSize; b++) {
+      updateProximity(b, offset, obsSize, flag);
+    }
+  }
+  else {
+    for (b = 1; b <= RF_forestSize; b++) {
+      updateProximity(b, offset, obsSize, flag);
+    }
+  }
+  if (flag != ACTIVE) {
+    for (i = 1; i <= obsSize; i++) {
+      for (j = 1; j <= i; j++) {
+        if (RF_proximityDen[offset[i] + j] > 0) {
+          RF_proximity_[offset[i] + j] = RF_proximity_[offset[i] + j] /  RF_proximityDen[offset[i] + j];
+        }
+      }
+    }
+  }
+  else {
+    for (i = 1; i <= obsSize; i++) {
+      for (j = 1; j <= i; j++) {
+        RF_proximity_[offset[i] + j] = RF_proximity_[offset[i] + j] /  RF_validTreeCount;
+      }
+    }
+  }
+  free_uivector(offset, 1, obsSize);
+}
+void updateProximity(uint b, uint *offset, uint obsSize, char flag) {
+  uint i, j;
+  if (flag != ACTIVE) {
+    for (i = 1; i <= obsSize; i++) {
+      for (j = 1; j <= i; j++) {
+        if ((RF_bootMembershipFlag[b][i] == flag) && (RF_bootMembershipFlag[b][j] == flag)) {
+          RF_proximityDen[offset[i] + j] ++;
+          if ( RF_tNodeMembershipIndexPtr[b][i] == RF_tNodeMembershipIndexPtr[b][j] ) {
+            RF_proximity_[offset[i] + j] ++;
+          }
+        }
+      }
+    }
+  }
+  else {
+    for (i = 1; i <= obsSize; i++) {
+      for (j = 1; j <= i; j++) {
+        if ( RF_tNodeMembershipIndexPtr[b][i] == RF_tNodeMembershipIndexPtr[b][j] ) {
+          RF_proximity_[offset[i] + j] ++;
+        }
+      }
+    }
+  }
+}
+void anticipateProximity(char mode, uint b) {
+  uint obsSize;
+  uint i;
+  if (mode != RF_PRED) {
+    obsSize = RF_observationSize;
+    for (i = 1; i <= RF_observationSize; i++) {
+      RF_bootMembershipFlag[b][i] = ACTIVE;
+    }
+  }
+  else {
+    obsSize = RF_fobservationSize;
+  }
+  for (i=1; i <= obsSize; i++) {
+    RF_tNodeMembershipIndexPtr[b][i] = i;
   }
 }
 void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth) {
@@ -522,11 +721,11 @@ char pruneBranch(uint mode, uint treeID, Node **nodesAtDepth, uint nadCount, uin
   pruneFlag = TRUE;
   double *varianceAtDepth =  dvector(1, nadCount);
   uint   *vadSortedIndex  = uivector(1, nadCount);
-  if ((mode == RF_GROW) || (mode == RF_REST)) {
-    obsSize = RF_observationSize; 
+  if (mode != RF_PRED) {
+    obsSize = RF_observationSize;
   }
   else {
-    obsSize = RF_fobservationSize; 
+    obsSize = RF_fobservationSize;
   }
   for (i = 1; i <= nadCount; i++) {
     varianceAtDepth[i] = nodesAtDepth[i] -> variance;
@@ -597,24 +796,21 @@ uint pruneTree(uint mode, uint treeID, uint ptnTarget) {
 void unstackAuxiliary(uint mode, uint b) {
   uint obsSize;
   obsSize = 0;  
-  free_vvector(RF_tNodeMembership[b], 1, RF_observationSize); 
+  free_vvector(RF_tNodeMembership[b], 1, RF_observationSize);
   free_uivector(RF_bootMembershipIndex[b], 1, RF_observationSize);
-  free_uivector(RF_bootMembershipFlag[b], 1, RF_observationSize);
-  free_uivector(RF_oobMembershipFlag[b], 1, RF_observationSize);
+  free_cvector(RF_bootMembershipFlag[b], 1, RF_observationSize);
+  free_uivector(RF_bootMembershipCount[b], 1, RF_observationSize);
+  free_cvector(RF_oobMembershipFlag[b], 1, RF_observationSize);
   free_vvector(RF_tNodeList[b], 1, RF_tLeafCount[b] + 1);
   if (mode == RF_PRED) {
-    free_vvector((Node **) RF_ftNodeMembership[b],  1, RF_fobservationSize);  
+    free_vvector((Node **) RF_ftNodeMembership[b],  1, RF_fobservationSize);
   }
   if (RF_ptnCount > 0) {
-    if ((mode == RF_GROW) || (mode == RF_REST)) {
-      obsSize = RF_observationSize; 
+    if (mode != RF_PRED) {
+      obsSize = RF_observationSize;
     }
     else {
-      if (mode == RF_PRED) {
-        obsSize = RF_fobservationSize; 
-      }
-      else {
-      }
+      obsSize = RF_fobservationSize;
     }
     free_vvector(RF_pNodeMembership[b], 1, obsSize);
   }

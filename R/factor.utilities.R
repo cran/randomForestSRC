@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -60,26 +60,37 @@
 ####**********************************************************************
 
 
-rm.na.levels <- function(dat, xvar.names=NULL) {
-  factor.names <- names(dat)[unlist(mclapply(1:ncol(dat), function(k) {is.factor(dat[ , k])}))]
-  if (!is.null(xvar.names)) factor.names <- intersect(factor.names , xvar.names)
-  if (length(factor.names) > 0) {
-    levels.na.pt <- unlist(mclapply(1:length(factor.names), function(k) {
-        any(levels(dat[ , names(dat) == factor.names[k]]) == "NA")
-    }))
-    if (any(levels.na.pt)) {
-      factor.names <- factor.names[levels.na.pt]
-      dat[, is.element(names(dat), factor.names)] <- data.frame(mclapply(1:length(factor.names),
-       function(k) {
-         x <- dat[ , names(dat) == factor.names[k]]
-         levels(x)[levels(x) == "NA"]  <- NA
-         x
-      }))
+check.factor <- function(train, test, gfactor) {
+  if (!is.null(gfactor)) {
+    if (length(gfactor$factor) > 0) {
+      test[, match(gfactor$factor, colnames(test))] <- data.frame(
+        mclapply(1:length(gfactor$factor),
+          function(k) {
+            fk.train <- train[, colnames(train) == gfactor$factor[k]]
+            fk.test <- test[ , colnames(test) == gfactor$factor[k]]
+            if (length(setdiff(levels(na.omit(fk.test)), levels(fk.train))) > 0) {
+               stop("Factors in test and training data do not match...\n")
+            }
+            factor(as.character(fk.test), levels = gfactor$levels[[k]], exclude = NULL)
+       }))
+    }
+    if (length(gfactor$order) > 0) {
+      test[, match(gfactor$order, colnames(test))] <- data.frame(
+        mclapply(1:length(gfactor$order),
+          function(k) {
+            fk.train <- train[, colnames(train) == gfactor$order[k]]
+            fk.test <- test[ , colnames(test) == gfactor$order[k]]
+            if (length(setdiff(levels(na.omit(fk.test)), levels(fk.train))) > 0) {
+               stop("Factors in test and training data do not match...\n")
+            }
+            factor(as.character(fk.test), levels = gfactor$order.levels[[k]], ordered = TRUE)
+       }))
     }
   }
-  dat
+  test
 }
-extract.factor <- function (dat, generic.names=NULL) {
+is.factor.not.ordered <- function(x) {is.factor(x) && !is.ordered(x)}
+extract.factor <- function (dat, generic.names = NULL) {
   generic.types  <- gfactor <- gfactor.order <- gfactor.levels <- gfactor.order.levels <- NULL
   if (is.null(generic.names)) {
     target.names <- names(dat)
@@ -88,8 +99,8 @@ extract.factor <- function (dat, generic.names=NULL) {
     target.names <- generic.names
   }
   nlevels <- rep(0, length(target.names))
-  gfactor <- names(dat)[unlist(mclapply(1:ncol(dat), function(k) {is.factor(dat[ , k]) && !is.ordered(dat[ , k])}))]
-  gfactor.order <- names(dat)[unlist(mclapply(1:ncol(dat), function(k) {is.ordered(dat[ , k])}))]
+  gfactor <- names(dat)[unlist(lapply(dat, is.factor.not.ordered))]
+  gfactor.order <- names(dat)[unlist(lapply(dat, is.ordered))]
   if (!is.null(generic.names)) gfactor <- intersect(gfactor , generic.names)
   if (!is.null(generic.names)) gfactor.order <- intersect(gfactor.order , generic.names)
   if (length(gfactor) > 0) {
@@ -102,7 +113,7 @@ extract.factor <- function (dat, generic.names=NULL) {
         }
     })
     gfactor.levels <- gfactor.levels[-(1+length(gfactor))]
-    nlevels[match(gfactor, target.names)] <- unlist(mclapply(gfactor.levels, function(g){length(g)}))
+    nlevels[match(gfactor, target.names)] <- unlist(lapply(gfactor.levels, function(g){length(g)}))
   }
   if (length(gfactor.order) > 0 ) {
     gfactor.order.levels <- mclapply(1:(1+length(gfactor.order)), function(k) {
@@ -114,7 +125,7 @@ extract.factor <- function (dat, generic.names=NULL) {
         }
     })
     gfactor.order.levels <- gfactor.order.levels[-(1+length(gfactor.order))]
-    nlevels[match(gfactor.order, target.names)] <- unlist(mclapply(gfactor.order.levels, function(g){length(g)}))
+    nlevels[match(gfactor.order, target.names)] <- unlist(lapply(gfactor.order.levels, function(g){length(g)}))
   }
   if (!is.null(generic.names)) {
     generic.types <- rep("R", length(generic.names))
@@ -149,7 +160,7 @@ extract.factor <- function (dat, generic.names=NULL) {
 map.factor <- function (gvar, gfactor) {
   if (!is.null(gfactor)) {
     if (length(gfactor$factor) > 0) {
-      gvar[, is.element(colnames(gvar), gfactor$factor)] <- data.frame(
+      gvar[, match(gfactor$factor, colnames(gvar))] <- data.frame(
         mclapply(1:length(gfactor$factor),
           function(k) {            
             ptk <- (colnames(gvar) == gfactor$factor[k])
@@ -163,7 +174,7 @@ map.factor <- function (gvar, gfactor) {
       }))
     }
     if (length(gfactor$order) > 0) {
-      gvar[, is.element(colnames(gvar), gfactor$order)] <- data.frame(
+      gvar[, match(gfactor$order, colnames(gvar))] <- data.frame(
         mclapply(1:length(gfactor$order),
           function(k) {
             ptk <- (colnames(gvar) == gfactor$order[k])
@@ -178,34 +189,24 @@ map.factor <- function (gvar, gfactor) {
         }))
     }
   }
-  return (gvar)
+  gvar
 }
-check.factor <- function(train, test, gfactor) {
-  if (!is.null(gfactor)) {
-    if (length(gfactor$factor) > 0) {
-      test[, is.element(colnames(test), gfactor$factor)] <- data.frame(
-        mclapply(1:length(gfactor$factor),
-          function(k) {
-            fk.train <- train[, colnames(train) == gfactor$factor[k]]
-            fk.test <- test[ , colnames(test) == gfactor$factor[k]]
-            if (length(setdiff(levels(na.omit(fk.test)), levels(fk.train))) > 0) {
-               stop("Factors in test and training data do not match...\n")
-            }
-            factor(as.character(fk.test), levels = gfactor$levels[[k]], exclude = NULL)
-       }))
-    }
-    if (length(gfactor$order) > 0) {
-      test[, is.element(colnames(test), gfactor$order)] <- data.frame(
-        mclapply(1:length(gfactor$order),
-          function(k) {
-            fk.train <- train[, colnames(train) == gfactor$order[k]]
-            fk.test <- test[ , colnames(test) == gfactor$order[k]]
-            if (length(setdiff(levels(na.omit(fk.test)), levels(fk.train))) > 0) {
-               stop("Factors in test and training data do not match...\n")
-            }
-            factor(as.character(fk.test), levels = gfactor$order.levels[[k]], ordered = TRUE)
-       }))
+rm.na.levels <- function(dat, xvar.names=NULL) {
+  factor.names <- names(dat)[unlist(lapply(dat, is.factor))]
+  if (!is.null(xvar.names)) factor.names <- intersect(factor.names , xvar.names)
+  if (length(factor.names) > 0) {
+    levels.na.pt <- unlist(lapply(1:length(factor.names), function(k) {
+        any(levels(dat[ , names(dat) == factor.names[k]]) == "NA")
+    }))
+    if (any(levels.na.pt)) {
+      factor.names <- factor.names[levels.na.pt]
+      dat[, match(factor.names, names(dat))] <- data.frame(mclapply(1:length(factor.names),
+       function(k) {
+         x <- dat[ , names(dat) == factor.names[k]]
+         levels(x)[levels(x) == "NA"]  <- NA
+         x
+      }))
     }
   }
-  return(test)
+  dat
 }

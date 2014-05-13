@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -75,6 +75,7 @@ void hpsortui(
   unsigned int *ra,
   unsigned int n
 );
+void hpsortxx(unsigned int n, double *arr,  unsigned *indx);
 void indexx(
   unsigned int n,
   double *arr, 

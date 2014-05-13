@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,7 +63,11 @@
 #ifndef RSFTREE_H
 #define RSFTREE_H
 void acquireTree(uint mode, uint r, uint b);
-void updateProximity(uint mode, uint treeID);
+void getWeight(uint mode);
+void updateWeight(uint b, char flag, uint obsSize, Node ***gNodeMembership);
+void getProximity(uint mode);
+void updateProximity(uint b, uint *offset, uint obsSize, char flag);
+void anticipateProximity(char mode, uint b);
 void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth);
 char pruneBranch(uint mode, uint treeID, Node **nodesAtDepth, uint nadCount, uint ptnTarget, uint ptnCurrent);
 uint pruneTree(uint mode, uint treeID, uint ptnCount);

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -116,21 +116,21 @@ void initializeTimeArrays(char mode) {
   }
 }
 void stackFactorArrays() {
-  stackFactorGeneric(RF_rSize, 
-                     RF_rType, 
+  stackFactorGeneric(RF_rSize,
+                     RF_rType,
                      &RF_rFactorMap,
                      &RF_rFactorCount,
                      &RF_rFactorIndex,
                      &RF_rFactorSize);
-  stackFactorGeneric(RF_xSize, 
-                     RF_xType, 
+  stackFactorGeneric(RF_xSize,
+                     RF_xType,
                      &RF_xFactorMap,
                      &RF_xFactorCount,
                      &RF_xFactorIndex,
                      &RF_xFactorSize);
 }
-void stackFactorGeneric(uint    size, 
-                        char  **type, 
+void stackFactorGeneric(uint    size,
+                        char  **type,
                         uint  **p_factorMap,
                         uint   *factorCount,
                         uint  **p_factorIndex,
@@ -248,7 +248,6 @@ char stackMissingArrays(char mode) {
     if (result == FALSE) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
       Rprintf("\nRF-SRC:  Missingness verification failed.");
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
       error("\nRF-SRC:  The application will now exit.\n");
     }
   }  
@@ -296,12 +295,12 @@ char stackMissingArrays(char mode) {
         RF_time[i] = RF_responseIn[RF_timeIndex];
         RF_masterTimeIndex[i] = RF_masterTimeIndexIn;
       }
-      updateTimeIndexArray(0, 
-                           NULL, 
-                           RF_observationSize, 
-                           RF_responseIn[RF_timeIndex], 
-                           TRUE, 
-                           FALSE, 
+      updateTimeIndexArray(0,
+                           NULL,
+                           RF_observationSize,
+                           RF_responseIn[RF_timeIndex],
+                           TRUE,
+                           FALSE,
                            RF_masterTimeIndexIn);
     }
     if (RF_statusIndex > 0) {
@@ -321,9 +320,9 @@ char stackMissingArrays(char mode) {
     RF_observation[i] = RF_observationIn;
   }
   RF_mRecordMap = uivector(1, RF_observationSize);
-  RF_mRecordSize = getRecordMap(RF_mRecordMap, 
-                                RF_observationSize, 
-                                RF_responseIn, 
+  RF_mRecordSize = getRecordMap(RF_mRecordMap,
+                                RF_observationSize,
+                                RF_responseIn,
                                 RF_observationIn);
   if (RF_mRecordSize == 0) {
     RF_mStatusFlag = RF_mTimeFlag = RF_mResponseFlag = RF_mPredictorFlag = FALSE;
@@ -394,9 +393,9 @@ char stackMissingArrays(char mode) {
         RF_fresponse[i] = NULL;
       }
     }
-    RF_fmRecordSize = getRecordMap(RF_fmRecordMap, 
-                                 RF_fobservationSize, 
-                                 RF_fresponseIn, 
+    RF_fmRecordSize = getRecordMap(RF_fmRecordMap,
+                                 RF_fobservationSize,
+                                 RF_fresponseIn,
                                  RF_fobservationIn);
     if (RF_fmRecordSize == 0) {
       RF_fmStatusFlag = RF_fmTimeFlag = RF_fmResponseFlag = RF_fmPredictorFlag = FALSE;
@@ -447,16 +446,6 @@ char stackMissingArrays(char mode) {
       recordSize = RF_fmRecordSize;
       dualUseFlag = TRUE;
       mFlag = ACTIVE;
-    }
-    else {
-      RF_opt = RF_opt & (~OPT_MISS);
-    }
-    break;
-  case RF_REST:
-    if (RF_mRecordSize > 0) {
-      recordSize = RF_mRecordSize;
-      dualUseFlag = TRUE;
-      mFlag = FALSE;
     }
     else {
       RF_opt = RF_opt & (~OPT_MISS);
@@ -566,15 +555,15 @@ void unstackMissingArrays(char mode) {
     free_vvector(RF_mTermMembership, 1, RF_forestSize);
   }
 }
-void stackMissingSignatures(uint     obsSize, 
+void stackMissingSignatures(uint     obsSize,
                             uint     rspSize,
                             double **responsePtr,
                             double **predictorPtr,
                             uint    *recordMap,
-                            uint     recordSize, 
-                            uint   **p_recordIndex, 
+                            uint     recordSize,
+                            uint   **p_recordIndex,
                             uint    *p_pIndexSize,
-                            int   ***p_pSign, 
+                            int   ***p_pSign,
                             int    **p_pIndex,
                             uint    *pRF_mrFactorSize,
                             uint   **pRF_mrFactorIndex,
@@ -675,10 +664,10 @@ void stackMissingSignatures(uint     obsSize,
   }
 }
 void unstackMissingSignatures(uint      rspSize,
-                              uint      recordSize, 
-                              uint     *recordIndex, 
+                              uint      recordSize,
+                              uint     *recordIndex,
                               uint      vIndexSize,
-                              int     **vSign, 
+                              int     **vSign,
                               int      *vIndex,
                               uint      mrFactorSize,
                               uint     *mrFactorIndex,
@@ -840,14 +829,35 @@ char stackCompetingArrays(char mode) {
   }
   else {
   }
-  getEventTypeSize(RF_observationSize, 
-                   RF_responseIn[RF_statusIndex], 
-                   RF_mRecordMap, 
-                   RF_mpSign,  
-                   overrideFlag, 
+  getEventTypeSize(RF_observationSize,
+                   RF_responseIn[RF_statusIndex],
+                   RF_mRecordMap,
+                   RF_mpSign,
+                   overrideFlag,
                    & RF_eventTypeSize,
                    & RF_mStatusSize,
                    RF_eventType);
+  if (RF_eventTypeSize == 0) {
+    if ((mode == RF_REST) && (RF_opt & OPT_OUTC_TYPE) && !(RF_opt & OPT_PERF) && !(RF_opt & OPT_VIMP)) {
+      RF_opt                  = RF_opt & (~OPT_OENS);
+      RF_opt                  = RF_opt & (~OPT_FENS);
+    }
+    else {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Parameter verification failed.");
+      Rprintf("\nRF-SRC:  Performance or vimp has been requested.");
+      error("\nRF-SRC:  The training or pseudo-training data set does not contain any events.");
+    }
+  }
+  else {
+    RF_eventTypeIndex  = uivector(1, RF_eventType[RF_eventTypeSize]);
+    for (j = 1; j <= RF_eventType[RF_eventTypeSize]; j++) {
+      RF_eventTypeIndex[j] = 0;
+    }
+    for (j = 1; j <= RF_eventTypeSize; j++) {
+      RF_eventTypeIndex[RF_eventType[j]] = j;
+    }
+  }
   if (mode == RF_GROW) {
     if (RF_splitRule == RAND_SPLIT) {
       if (RF_eventTypeSize == 1) {
@@ -872,7 +882,6 @@ char stackCompetingArrays(char mode) {
             Rprintf("\nRF-SRC:  *** ERROR *** ");
             Rprintf("\nRF-SRC:  Parameter verification failed.");
             Rprintf("\nRF-SRC:  Competing risk weight elements must be greater than or equal to zero:  %12.4f \n", RF_crWeight[j]);
-            Rprintf("\nRF-SRC:  Please Contact Technical Support.");
             error("\nRF-SRC:  The application will now exit.\n");
           }
         }
@@ -881,7 +890,6 @@ char stackCompetingArrays(char mode) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
         Rprintf("\nRF-SRC:  Parameter verification failed.");
         Rprintf("\nRF-SRC:  Competing risk weight elements are all zero. \n");
-        Rprintf("\nRF-SRC:  Please Contact Technical Support.");
         error("\nRF-SRC:  The application will now exit.\n");
       }
     }
@@ -895,244 +903,255 @@ char stackCompetingArrays(char mode) {
       }
     }
   }
-    RF_eventTypeIndex  = uivector(1, RF_eventType[RF_eventTypeSize]);
-    for (j = 1; j <= RF_eventType[RF_eventTypeSize]; j++) {
-      RF_eventTypeIndex[j] = 0;
+  switch (mode) {
+  case RF_PRED:
+    if (RF_frSize > 0) {
+      eventAnalysisFlag = TRUE;
     }
-    for (j = 1; j <= RF_eventTypeSize; j++) {
-      RF_eventTypeIndex[RF_eventType[j]] = j;
+    else {
+      eventAnalysisFlag = FALSE;
     }
-  switch (mode) { 
-  case RF_PRED: 
-    if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB) | (RF_opt & OPT_VIMP)) { 
-      eventAnalysisFlag = TRUE;  
-    } 
-    else { 
-      eventAnalysisFlag = FALSE; 
-    } 
-    break; 
-  default: 
-    eventAnalysisFlag = FALSE; 
-    break; 
+    break;
+  default:
+    eventAnalysisFlag = FALSE;
+    break;
   } 
   if (eventAnalysisFlag == TRUE) {
-    uint *feventType = uivector(1, RF_fobservationSize); 
+    uint *feventType = uivector(1, RF_fobservationSize);
     uint feventTypeSize;
-    consistencyFlag = TRUE; 
     overrideFlag = FALSE;
-    getEventTypeSize(RF_fobservationSize, 
-                     RF_fresponseIn[RF_statusIndex], 
+    getEventTypeSize(RF_fobservationSize,
+                     RF_fresponseIn[RF_statusIndex],
                      RF_fmRecordMap,
-                     RF_fmpSign, 
-                     overrideFlag, 
-                     & feventTypeSize, 
-                     & RF_mStatusSize, 
+                     RF_fmpSign,
+                     overrideFlag,
+                     & feventTypeSize,
+                     & RF_mStatusSize,
                      feventType);
-    if (RF_eventTypeSize > 1) { 
-      for (j = 1; j <= feventTypeSize; j++) {
-        for (jgrow = 1; jgrow <= RF_eventTypeSize; jgrow++) { 
-          if (feventType[j] != RF_eventType[jgrow]) { 
-            if (jgrow == RF_eventTypeSize) { 
-              consistencyFlag = FALSE; 
-            } 
-          } 
-          else { 
-            jgrow = RF_eventTypeSize; 
-          } 
-        } 
-      } 
-    }
-    free_uivector(feventType, 1, RF_fobservationSize); 
-    if (consistencyFlag == FALSE) { 
-      Rprintf("\nRF-SRC: *** ERROR *** ");
-      Rprintf("\nRF-SRC: Unknown event type encountered in !GROW mode. "); 
-      error("\nRF-SRC: Please Contact Technical Support.");
-    }
-  }  
-  if (RF_eventTypeSize > 1) { 
-    if (mode == RF_PRED) { 
-      if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB) | (RF_opt & OPT_VIMP)) { 
-        eventSubsetFlag = TRUE; 
+    if (feventTypeSize == 0) {
+      if (!(RF_opt & OPT_PERF) && !(RF_opt & OPT_VIMP)) {
+        RF_opt                  = RF_opt & (~OPT_OENS);
+        RF_opt                  = RF_opt & (~OPT_FENS);
       }
-      else { 
-        eventSubsetFlag = FALSE; 
-      } 
-    } 
-    else { 
-      eventSubsetFlag = TRUE; 
-    } 
-  } 
-  else { 
-    eventSubsetFlag = FALSE; 
+      else {
+        Rprintf("\nRF-SRC:  *** ERROR *** ");
+        Rprintf("\nRF-SRC:  Parameter verification failed.");
+        Rprintf("\nRF-SRC:  Performance or vimp has been requested.");
+        error("\nRF-SRC:  The training or pseudo-training data set does not contain any events.");
+      }
+    }
+    else {
+      consistencyFlag = TRUE;
+      if (RF_eventTypeSize > 1) {
+        for (j = 1; j <= feventTypeSize; j++) {
+          for (jgrow = 1; jgrow <= RF_eventTypeSize; jgrow++) {
+            if (feventType[j] != RF_eventType[jgrow]) {
+              if (jgrow == RF_eventTypeSize) {
+                consistencyFlag = FALSE;
+              }
+            }
+            else {
+              jgrow = RF_eventTypeSize;
+            }
+          }
+        }
+      }
+      if (consistencyFlag == FALSE) {
+        Rprintf("\nRF-SRC: *** ERROR *** ");
+        Rprintf("\nRF-SRC: Unknown event type encountered in !GROW mode. ");
+        error("\nRF-SRC: Please Contact Technical Support.");
+      }
+    }
+    free_uivector(feventType, 1, RF_fobservationSize);
+  }  
+  if (RF_eventTypeSize > 1) {
+    if (mode == RF_PRED) {
+      if (RF_frSize > 0) {
+        eventSubsetFlag = TRUE;
+      }
+      else {
+        eventSubsetFlag = FALSE;
+      }
+    }
+    else {
+      eventSubsetFlag = TRUE;
+    }
+  }
+  else {
+    eventSubsetFlag = FALSE;
   }
   if (eventSubsetFlag == TRUE) {
-    if ((mode == RF_GROW) || (mode == RF_REST)) { 
-      obsSize = RF_observationSize; 
-      statusPtr = RF_responseIn[RF_statusIndex]; 
+    if (mode != RF_PRED) {
+      obsSize = RF_observationSize;
+      statusPtr = RF_responseIn[RF_statusIndex];
       mpSign = RF_mpSign;
-      mRecordMap = RF_mRecordMap; 
-    } 
-    else { 
+      mRecordMap = RF_mRecordMap;
+    }
+    else {
       obsSize = RF_fobservationSize;
-      statusPtr = RF_fresponseIn[RF_statusIndex]; 
-      mpSign = RF_fmpSign; 
-      mRecordMap = RF_fmRecordMap; 
+      statusPtr = RF_fresponseIn[RF_statusIndex];
+      mpSign = RF_fmpSign;
+      mRecordMap = RF_fmRecordMap;
     }
     RF_eIndividualSize = uivector(1, RF_eventTypeSize);
-    for (j = 1; j <= RF_eventTypeSize; j++) { 
-      RF_eIndividualSize[j] = 0; 
+    for (j = 1; j <= RF_eventTypeSize; j++) {
+      RF_eIndividualSize[j] = 0;
     }
     for (i = 1; i <= obsSize; i++) {
       statusFlag = FALSE;
-      if (mRecordMap[i] == 0) { 
-        statusFlag = TRUE; 
-      } 
-      else { 
-        if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) { 
-          statusFlag = TRUE; 
-        } 
+      if (mRecordMap[i] == 0) {
+        statusFlag = TRUE;
       }
-      if (statusFlag == TRUE) { 
-        if ((uint) statusPtr[i] > 0) { 
-          RF_eIndividualSize[RF_eventTypeIndex[(uint) statusPtr[i]]] ++; 
+      else {
+        if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) {
+          statusFlag = TRUE;
         }
-        else { 
+      }
+      if (statusFlag == TRUE) {
+        if ((uint) statusPtr[i] > 0) {
+          RF_eIndividualSize[RF_eventTypeIndex[(uint) statusPtr[i]]] ++;
+        }
+        else {
           for (j=1; j <= RF_eventTypeSize; j++) {
-            RF_eIndividualSize[j] ++; 
-          } 
-        } 
-      } 
+            RF_eIndividualSize[j] ++;
+          }
+        }
+      }
     } 
     RF_eIndividualIn = (uint **) vvector(1, RF_eventTypeSize);
-    for (j = 1; j <= RF_eventTypeSize; j++) { 
+    for (j = 1; j <= RF_eventTypeSize; j++) {
       RF_eIndividualIn[j] = uivector(1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
-    eventCounter = uivector(1, RF_eventTypeSize); 
-    for (j = 1; j <= RF_eventTypeSize; j++) { 
-      eventCounter[j] = 0; 
+    eventCounter = uivector(1, RF_eventTypeSize);
+    for (j = 1; j <= RF_eventTypeSize; j++) {
+      eventCounter[j] = 0;
     }
     for (i = 1; i <= obsSize; i++) {
       statusFlag = FALSE;
-      if (mRecordMap[i] == 0) { 
-        statusFlag = TRUE; 
-      } 
-      else { 
-        if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) { 
-          statusFlag = TRUE; 
-        } 
+      if (mRecordMap[i] == 0) {
+        statusFlag = TRUE;
       }
-      if (statusFlag == TRUE) { 
-        if ((uint) statusPtr[i] > 0) { 
-          j = RF_eventTypeIndex[(uint) statusPtr[i]]; 
+      else {
+        if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) {
+          statusFlag = TRUE;
+        }
+      }
+      if (statusFlag == TRUE) {
+        if ((uint) statusPtr[i] > 0) {
+          j = RF_eventTypeIndex[(uint) statusPtr[i]];
           eventCounter[j] ++;
-          RF_eIndividualIn[j][eventCounter[j]] = i; 
-        } 
-        else { 
-          for (j=1; j <= RF_eventTypeSize; j++) { 
+          RF_eIndividualIn[j][eventCounter[j]] = i;
+        }
+        else {
+          for (j=1; j <= RF_eventTypeSize; j++) {
             eventCounter[j] ++;
-            RF_eIndividualIn[j][eventCounter[j]] = i; 
-          } 
-        } 
-      } 
+            RF_eIndividualIn[j][eventCounter[j]] = i;
+          }
+        }
+      }
     }
-    free_uivector(eventCounter, 1, RF_eventTypeSize); 
+    free_uivector(eventCounter, 1, RF_eventTypeSize);
   }  
   return TRUE;
 }
-void getEventTypeSize(uint obsSize, 
-                      double *status, 
+void getEventTypeSize(uint obsSize,
+                      double *status,
                       uint *mRecordMap,
-                      int **mpSign, 
-                      char overrideFlag, 
-                      uint *eventTypeSize, 
+                      int **mpSign,
+                      char overrideFlag,
+                      uint *eventTypeSize,
                       uint *msize,
                       uint *eventType) {
   uint statusFlag;
   uint leadingIndex;
   uint i;
-  if (RF_statusIndex == 0) { 
+  if (RF_statusIndex == 0) {
     Rprintf("\nRF-SRC: *** ERROR *** ");
-    Rprintf("\nRF-SRC: Attempt to stack competing risk structures in the absence of SURV data."); 
-    Rprintf("\nRF-SRC: Please Contact Technical Support."); 
+    Rprintf("\nRF-SRC: Attempt to stack competing risk structures in the absence of SURV data.");
+    Rprintf("\nRF-SRC: Please Contact Technical Support.");
     error("\nRF-SRC: The application will now exit.\n");
   }
   *eventTypeSize = *msize = 0;
-  for (i = 1; i <= obsSize; i++) { 
-    eventType[i] = 0; 
+  for (i = 1; i <= obsSize; i++) {
+    eventType[i] = 0;
     statusFlag = FALSE;
-    if (mRecordMap[i] == 0) { 
-      statusFlag = TRUE; 
+    if (mRecordMap[i] == 0) {
+      statusFlag = TRUE;
     }
-    else { 
-      if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) { 
-        statusFlag = TRUE; 
-      } 
+    else {
+      if (mpSign[RF_statusIndex][mRecordMap[i]] == 0) {
+        statusFlag = TRUE;
+      }
     }
-    if (statusFlag == TRUE) { 
-      if ((uint) status[i] > 0) { 
-        if (overrideFlag == TRUE) { 
-        } 
-        else { 
+    if (statusFlag == TRUE) {
+      if ((uint) status[i] > 0) {
+        if (overrideFlag == TRUE) {
+        }
+        else {
           (*eventTypeSize) ++;
-          eventType[*eventTypeSize] = (uint) status[i]; 
-        } 
+          eventType[*eventTypeSize] = (uint) status[i];
+        }
       } 
-      else { 
-      } 
-    } 
-    else { 
-      (*msize) ++; 
+      else {
+      }
+    }
+    else {
+      (*msize) ++;
     }
   }  
-  if (overrideFlag == TRUE) { 
-    *eventTypeSize = 1; 
-  } 
-  else { 
+  if (overrideFlag == TRUE) {
+    *eventTypeSize = 1;
+  }
+  else {
     if(*eventTypeSize > 0) {
       hpsortui(eventType, *eventTypeSize);
       leadingIndex = 1;
-      for (i=2; i <= *eventTypeSize; i++) { 
-        if (eventType[i] > eventType[leadingIndex]) { 
+      for (i = 2; i <= *eventTypeSize; i++) {
+        if (eventType[i] > eventType[leadingIndex]) {
           leadingIndex++;
-          eventType[leadingIndex] = eventType[i]; 
-        } 
-      } 
+          eventType[leadingIndex] = eventType[i];
+        }
+      }
       *eventTypeSize = leadingIndex;
     }
-    for (i= *eventTypeSize + 1; i <= obsSize; i++) { 
-      eventType[i] = 0; 
+    for (i= *eventTypeSize + 1; i <= obsSize; i++) {
+      eventType[i] = 0;
     }
   }
 }
 void unstackCompetingArrays(char mode) {
   char eventSubsetFlag;
   uint j;
-  if (RF_statusIndex == 0) { 
+  if (RF_statusIndex == 0) {
     Rprintf("\nRF-SRC: *** ERROR *** ");
-    Rprintf("\nRF-SRC: Attempt to unstack competing risk structures in the absence of SURV data."); 
-    Rprintf("\nRF-SRC: Please Contact Technical Support."); 
-    error("\nRF-SRC: The application will now exit.\n"); 
+    Rprintf("\nRF-SRC: Attempt to unstack competing risk structures in the absence of SURV data.");
+    Rprintf("\nRF-SRC: Please Contact Technical Support.");
+    error("\nRF-SRC: The application will now exit.\n");
   }
+  if (RF_eventTypeSize == 0) {
+  }
+  else {
     free_uivector(RF_eventTypeIndex, 1, RF_eventType[RF_eventTypeSize]);
+  }
   free_uivector(RF_eventType, 1, RF_observationSize);
-  if (RF_eventTypeSize > 1) { 
-    if (mode == RF_PRED) { 
-      if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB) | (RF_opt & OPT_VIMP)) { 
-        eventSubsetFlag = TRUE; 
+  if (RF_eventTypeSize > 1) {
+    if (mode == RF_PRED) {
+      if (RF_opt & OPT_PERF) {
+        eventSubsetFlag = TRUE;
       }
-      else { 
-        eventSubsetFlag = FALSE; 
-      } 
-    } 
-    else { 
-      eventSubsetFlag = TRUE; 
-    } 
-  } 
-  else { 
-    eventSubsetFlag = FALSE; 
+      else {
+        eventSubsetFlag = FALSE;
+      }
+    }
+    else {
+      eventSubsetFlag = TRUE;
+    }
+  }
+  else {
+    eventSubsetFlag = FALSE;
   }
   if (eventSubsetFlag == TRUE) {
-    for (j = 1; j <= RF_eventTypeSize; j++) { 
+    for (j = 1; j <= RF_eventTypeSize; j++) {
       free_uivector(RF_eIndividualIn[j], 1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
     free_vvector(RF_eIndividualIn, 1, RF_eventTypeSize);
@@ -1142,51 +1161,51 @@ void unstackCompetingArrays(char mode) {
 char stackClassificationArrays(char mode) {
   char classAnalysisFlag, consistencyFlag;
   uint j, k, jgrow;
-  if (RF_rFactorCount == 0) { 
+  if (RF_rFactorCount == 0) {
     Rprintf("\nRF-SRC: *** ERROR *** ");
-    Rprintf("\nRF-SRC: Attempt to stack classification structures in the absence of CLAS data."); 
-    Rprintf("\nRF-SRC: Please Contact Technical Support."); 
+    Rprintf("\nRF-SRC: Attempt to stack classification structures in the absence of CLAS data.");
+    Rprintf("\nRF-SRC: Please Contact Technical Support.");
     error("\nRF-SRC: The application will now exit.\n");
   }
   RF_classLevel = (uint **) vvector(1, RF_rFactorCount);
   RF_classLevelSize = uivector(1, RF_rFactorCount);
-  getClassLevelSize(RF_observationSize, 
-                    RF_responseIn, 
+  getClassLevelSize(RF_observationSize,
+                    RF_responseIn,
                     RF_mRecordMap,
-                    RF_mpSign, 
-                    RF_classLevelSize, 
+                    RF_mpSign,
+                    RF_classLevelSize,
                     RF_classLevel);
-  RF_classLevelIndex = (uint **) vvector(1, RF_rFactorCount); 
+  RF_classLevelIndex = (uint **) vvector(1, RF_rFactorCount);
   for (k = 1; k <= RF_rFactorCount; k++) {
-    RF_classLevelIndex[k] = uivector(1, RF_classLevel[k][RF_classLevelSize[k]]); 
+    RF_classLevelIndex[k] = uivector(1, RF_classLevel[k][RF_classLevelSize[k]]);
     for (j = 1; j <= RF_classLevel[k][RF_classLevelSize[k]]; j++) {
-      RF_classLevelIndex[k][j] = 0; 
-    } 
+      RF_classLevelIndex[k][j] = 0;
+    }
     for (j = 1; j <= RF_classLevelSize[k]; j++) {
-      RF_classLevelIndex[k][RF_classLevel[k][j]] = j; 
+      RF_classLevelIndex[k][RF_classLevel[k][j]] = j;
     }
   }  
-  switch (mode) { 
-  case RF_PRED: 
+  switch (mode) {
+  case RF_PRED:
     if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB) | (RF_opt & OPT_VIMP)) {
-      classAnalysisFlag = TRUE; 
-    } 
-    else { 
-      classAnalysisFlag = FALSE; 
+      classAnalysisFlag = TRUE;
     }
-    break; 
-  default: 
-    classAnalysisFlag = FALSE; 
-    break; 
+    else {
+      classAnalysisFlag = FALSE;
+    }
+    break;
+  default:
+    classAnalysisFlag = FALSE;
+    break;
   } 
   if (classAnalysisFlag == TRUE) {
     uint **fclassLevel = (uint **) vvector(1, RF_rFactorCount);
     uint *fclassLevelSize = uivector(1, RF_rFactorCount);
-    getClassLevelSize(RF_fobservationSize, 
-                      RF_fresponseIn, 
-                      RF_fmRecordMap, 
-                      RF_fmpSign,  
-                      fclassLevelSize, 
+    getClassLevelSize(RF_fobservationSize,
+                      RF_fresponseIn,
+                      RF_fmRecordMap,
+                      RF_fmpSign,
+                      fclassLevelSize,
                       fclassLevel);
     consistencyFlag = TRUE;
     for (j = 1; j <= RF_rFactorCount; j++) {
@@ -1213,10 +1232,10 @@ char stackClassificationArrays(char mode) {
   }  
   return TRUE;
 }
-void getClassLevelSize(uint      obsSize, 
-                       double  **response, 
-                       uint     *mRecordMap, 
-                       int     **mpSign,  
+void getClassLevelSize(uint      obsSize,
+                       double  **response,
+                       uint     *mRecordMap,
+                       int     **mpSign,
                        uint     *classLevelSize,
                        uint    **classLevel) {
   uint *rawClassVector;
@@ -1236,7 +1255,7 @@ void getClassLevelSize(uint      obsSize,
   for (j = 1; j <= RF_rFactorCount; j++) {
     for (i = 1; i <= obsSize; i++) {
       classFlag = FALSE;
-      if (mRecordMap[i] == 0) { 
+      if (mRecordMap[i] == 0) {
         classFlag = TRUE;
       }
       else {
@@ -1269,16 +1288,16 @@ void getClassLevelSize(uint      obsSize,
 }
 void unstackClassificationArrays(char mode) {
   uint j;
-  if (RF_rFactorCount == 0) { 
+  if (RF_rFactorCount == 0) {
     Rprintf("\nRF-SRC: *** ERROR *** ");
-    Rprintf("\nRF-SRC: Attempt to unstack classification structures in the absence of CLAS data."); 
-    Rprintf("\nRF-SRC: Please Contact Technical Support."); 
+    Rprintf("\nRF-SRC: Attempt to unstack classification structures in the absence of CLAS data.");
+    Rprintf("\nRF-SRC: Please Contact Technical Support.");
     error("\nRF-SRC: The application will now exit.\n");
   }
   for (j = 1; j <= RF_rFactorCount; j++) {
-    free_uivector(RF_classLevelIndex[j], 1, RF_classLevel[j][RF_classLevelSize[j]]); 
+    free_uivector(RF_classLevelIndex[j], 1, RF_classLevel[j][RF_classLevelSize[j]]);
   }
-  free_vvector(RF_classLevelIndex, 1, RF_rFactorCount); 
+  free_vvector(RF_classLevelIndex, 1, RF_rFactorCount);
   for (j = 1; j <= RF_rFactorCount; j ++) {
     free_uivector(RF_classLevel[j], 1, RF_classLevelSize[j]);
   }

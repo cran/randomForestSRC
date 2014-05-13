@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -83,5 +83,6 @@ float randomChainSerial(uint b);
 float randomUChainSerial(uint b);
 float randomUChainSerialCov(uint b);
 float ran1_generic(int *iy, int *iv, int *idum);
+void lcgenerator(unsigned int *seed, unsigned char reset);
 float ran1_original(int *idum);
 #endif

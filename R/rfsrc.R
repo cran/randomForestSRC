@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -71,13 +71,13 @@ rfsrc <- function(formula,
                   nsplit = 0,
                   split.null = FALSE,
                   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-                  na.action = c("na.omit", "na.impute"),
+                  na.action = c("na.omit", "na.impute", "na.random"),
                   nimpute = 1,
                   ntime,
                   cause,
                   xvar.wt = NULL,
-                  forest = TRUE,
                   proximity = FALSE,
+                  forest = TRUE,
                   var.used = c(FALSE, "all.trees", "by.tree"),
                   split.depth = c(FALSE, "all.trees", "by.tree"),
                   seed = NULL,
@@ -90,7 +90,8 @@ rfsrc <- function(formula,
   miss.tree <- is.hidden.impute.only(user.option)
   bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none"))
   importance <- match.arg(importance, c("permute", "random", "permute.ensemble", "random.ensemble", "none"))
-  na.action <- match.arg(na.action, c("na.omit", "na.impute"))
+  na.action <- match.arg(na.action, c("na.omit", "na.impute", "na.random"))
+  proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
   var.used <- match.arg(as.character(var.used), c("FALSE", "all.trees", "by.tree"))
   split.depth <- match.arg(as.character(split.depth),  c("FALSE", "all.trees", "by.tree"))
   if (var.used == "FALSE") var.used <- FALSE
@@ -100,7 +101,13 @@ rfsrc <- function(formula,
   }
   if (missing(data)) stop("data is missing")
   formulaPrelim <- parseFormula(formula, data)
-  data <- parseMissingData(formulaPrelim, data)
+  if (any(is.na(data))) {
+    data <- parseMissingData(formulaPrelim, data)
+    miss.flag <- TRUE
+  }
+  else {
+    miss.flag <- FALSE
+  }
   formulaDetail <- finalizeFormula(formulaPrelim, data)
   ntree <- round(ntree)
   if (ntree < 1) stop("Invalid choice of 'ntree'.  Cannot be less than 1.")
@@ -130,22 +137,32 @@ rfsrc <- function(formula,
   yfactor <- extract.factor(data, yvar.names)
   xfactor <- extract.factor(data, xvar.names)
   yvar.types <- get.yvar.type(fmly, data[, yvar.names, drop = FALSE])
-  data <- finalizeData(c(yvar.names, xvar.names), data, na.action)
+  data <- finalizeData(c(yvar.names, xvar.names), data, na.action, miss.flag)
   xvar <- as.matrix(data[, xvar.names])
   rownames(xvar) <- colnames(xvar) <- NULL
   split.wt <- NULL
   statistics <- FALSE
+  forest.wt <- FALSE
   n <- nrow(xvar)
   n.xvar <- ncol(xvar)
   mtry <- get.grow.mtry(mtry, n.xvar, fmly)
   xvar.wt  <- get.grow.x.wt(xvar.wt, n.xvar)
-  split.wt <- get.grow.x.wt(split.wt, n.xvar)  
+  split.wt <- get.grow.x.wt(split.wt, n.xvar)
+  forest.wt <- match.arg(as.character(forest.wt), c(FALSE, TRUE, "inbag", "oob", "all"))
   yvar <- as.matrix(data[, yvar.names, drop = FALSE])
   if(dim(yvar)[2] == 0) {
-    yvar = NULL
+    yvar <- NULL
+  }
+  if (miss.flag) {
+    n.miss <- get.nmiss(xvar, yvar)
+  }
+  else {
+    n.miss <- 0
+  }
+  if (impute.only && n.miss == 0) {
+    return(data)
   }
   remove(data)
-  n.miss <- get.nmiss(xvar, yvar)
   big.data <- FALSE
   event.info <- get.grow.event.info(yvar, fmly, ntime = ntime)
   splitinfo <- get.grow.splitinfo(formulaDetail, splitrule, nsplit, event.info$event.type)
@@ -199,6 +216,7 @@ rfsrc <- function(formula,
     na.action    <- "na.impute"
     forest       <- FALSE
     proximity    <- FALSE
+    forest.wt    <- FALSE
     var.used     <- FALSE
     split.depth  <- FALSE
     membership   <- FALSE
@@ -206,17 +224,20 @@ rfsrc <- function(formula,
     importance   <- "none"
   }
   impute.only.bits <- get.impute.only(impute.only, n.miss)
-  bootstrap.bits <- get.bootstrap(bootstrap)
-  split.null.bits <- get.split.null(split.null)
-  proximity.bits <- get.proximity(TRUE, proximity)
-  forest.bits <- get.forest(forest)
-  importance.bits <- get.importance(importance)    
   var.used.bits <- get.var.used(var.used)
   split.depth.bits <- get.split.depth(split.depth)
+  importance.bits <- get.importance(importance)
+  bootstrap.bits <- get.bootstrap(bootstrap)
+  forest.bits <- get.forest(forest)
+  proximity.bits <- get.proximity(TRUE, proximity)
+  split.null.bits <- get.split.null(split.null)
   membership.bits <-  get.membership(membership)
   statistics.bits <- get.statistics(statistics)
+  # This is dependent on impute.only and the family being initialized.
   perf.flag <- get.perf(perf, impute.only, fmly)
   perf.bits <-  get.perf.bits(perf.flag)
+  forest.wt.bits <- get.forest.wt(TRUE, bootstrap, forest.wt)
+  na.action.bits <- get.na.action(na.action)
   do.trace <- get.trace(do.trace)
   nativeOutput <- .Call("rfsrcGrow",
                         as.integer(do.trace),
@@ -228,11 +249,13 @@ rfsrc <- function(formula,
                                    bootstrap.bits +
                                    forest.bits +
                                    proximity.bits +
-                                   split.null.bits +                                   
+                                   split.null.bits +
                                    perf.bits +
                                    membership.bits +
                                    statistics.bits),
-                        as.integer(splitinfo$index), 
+                        as.integer(0 +
+                                   na.action.bits),
+                        as.integer(splitinfo$index),
                         as.integer(splitinfo$nsplit),
                         as.integer(mtry),
                         as.integer(if(is.na(formulaDetail$ytry)) 0 else formulaDetail$ytry),
@@ -249,7 +272,7 @@ rfsrc <- function(formula,
                         as.character(xfactor$generic.types),
                         as.integer(xfactor$nlevels),
                         as.double(xvar.wt),
-                        as.double(split.wt),                        
+                        as.double(split.wt),
                         as.double(xvar),
                         as.integer(length(event.info$time.interest)),
                         as.double(event.info$time.interest),
@@ -266,7 +289,7 @@ rfsrc <- function(formula,
     if (n.miss == 1) imputed.data <- t(imputed.data)
     nativeOutput$imputation <- NULL
     if (nimpute > 1) {
-      if (grepl("surv", fmly)) {    
+      if (grepl("surv", fmly)) {
         yvar[imputed.indv, 1] <- imputed.data[, 1]
         yvar[imputed.indv, 2] <- imputed.data[, 2]
         xvar[imputed.indv, ] <- imputed.data[, -c(1:2)]
@@ -283,7 +306,7 @@ rfsrc <- function(formula,
       imputed.indv <- NULL
       imputed.data <- NULL
       imputedOOBData <- NULL
-    }  
+    }
     else {
       colnames(imputed.data) <- c(yvar.names, xvar.names)
       imputed.data <- as.data.frame(imputed.data)
@@ -323,7 +346,7 @@ rfsrc <- function(formula,
                        nodedepth = nodedepth,
                        split.null = split.null,
                        ntree = ntree,
-                       family = fmly,                         
+                       family = fmly,
                        yvar = yvar,
                        yvar.names = yvar.names,
                        xvar = xvar,
@@ -331,7 +354,7 @@ rfsrc <- function(formula,
                        seed = nativeOutput$seed,
                        bootstrap.bits = bootstrap.bits,
                        bootstrap = bootstrap)
-    if (grepl("surv", fmly)) {        
+    if (grepl("surv", fmly)) {
       forest.out$time.interest <- event.info$time.interest
     }
     class(forest.out) <- c("rfsrc", "forest", fmly)
@@ -342,7 +365,7 @@ rfsrc <- function(formula,
   else {
     forest.out <- NULL
   }
-  if (grepl("surv", fmly)) {  
+  if (grepl("surv", fmly)) {
     if (fmly == "surv-CR") {
       ens.names <- list(NULL, NULL, c(paste("condCHF.", 1:(sexp.dim), sep = "")))
       cif.names <- list(NULL, NULL, c(paste("CIF.", 1:(sexp.dim), sep = "")))
@@ -376,11 +399,17 @@ rfsrc <- function(formula,
       proximity.out[1:k,k] <- proximity.out[k,1:k]
       count <- count + k
     }
-    proximity.out <- proximity.out/diag(proximity.out)
     nativeOutput$proximity <- NULL
   }
   else {
     proximity.out <- NULL
+  }
+  if (forest.wt != FALSE) {
+    forest.wt.out <- matrix(nativeOutput$weight, c(n, n), byrow = TRUE)
+    nativeOutput$weight <- NULL
+  }
+  else {
+    forest.wt.out <- NULL
   }
   if (membership) {
     membership.out <- matrix(nativeOutput$nodeMembership, c(n, ntree))
@@ -444,7 +473,7 @@ rfsrc <- function(formula,
     family = fmly,
     n = n,
     ntree = ntree,
-    nimpute = nimpute,                      
+    nimpute = nimpute,
     mtry = mtry,
     nodesize = nodesize,
     nodedepth = nodedepth,
@@ -457,10 +486,10 @@ rfsrc <- function(formula,
     xvar.wt = xvar.wt,
     split.wt = split.wt,
     leaf.count = nativeOutput$leafCount,
-    forest = forest.out,
     proximity = proximity.out,
+    forest = forest.out,
     membership = membership.out,
-    inbag = inbag.out,                      
+    inbag = inbag.out,
     var.used = var.used.out,
     imputed.indv = (if (n.miss > 0) imputed.indv else NULL),
     imputed.data = (if (n.miss > 0) imputed.data else NULL),
@@ -471,8 +500,9 @@ rfsrc <- function(formula,
   remove(yvar)
   remove(xvar)
   nativeOutput$leafCount <- NULL
-  remove(forest.out)
   remove(proximity.out)
+  remove(forest.out)
+  remove(forest.wt.out)
   remove(membership.out)
   remove(inbag.out)
   remove(var.used.out)

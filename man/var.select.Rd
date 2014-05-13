@@ -11,7 +11,8 @@
   mvars = (if (method != "md") ceiling(ncol(data)/5) else NULL),
   mtry = (if (method == "md") ceiling(ncol(data)/3) else NULL),
   nodesize = 2, splitrule = NULL, nsplit = 10, xvar.wt = NULL,
-  refit = (method != "md"), fast = FALSE, na.action = c("na.omit", "na.impute"), 
+  refit = (method != "md"), fast = FALSE,
+  na.action = c("na.omit", "na.impute", "na.random"), 
   always.use = NULL, nrep = 50, K = 5, nstep = 1,
   prefit =  list(action = (method != "md"), ntree = 100,
   mtry = 500, nodesize = 3, nsplit = 1), do.trace = 0, verbose = TRUE, ...)

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -64,9 +64,9 @@ predict.rfsrc <-
   function(object,
            newdata, 
            importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-           na.action = c("na.omit", "na.impute"),
+           na.action = c("na.omit", "na.impute", "na.random"),
            outcome = c("train", "test"),
-           proximity = FALSE,
+           proximity = FALSE, 
            var.used = c(FALSE, "all.trees", "by.tree"),
            split.depth = c(FALSE, "all.trees", "by.tree"),
            seed = NULL,
@@ -76,12 +76,14 @@ predict.rfsrc <-
 {
   statistics <- FALSE
   ptn.count <- 0
+  forest.wt <- FALSE
   result.predict <- generic.predict.rfsrc(object,
                                           newdata, 
                                           importance = importance,
                                           na.action = na.action,
                                           outcome = outcome,
                                           proximity = proximity,
+                                          forest.wt = forest.wt,
                                           var.used = var.used,
                                           split.depth = split.depth,
                                           seed = seed,

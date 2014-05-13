@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,22 +63,8 @@
 #ifndef RSFSPLITCLAS_H
 #define RSFSPLITCLAS_H
 #include "node.h"
-char classificationSplit(uint    treeID,
-                         Node   *parent, 
-                         uint   *repMembrIndx,
-                         uint    repMembrSize,
-                         uint   *allMembrIndx,
-                         uint    allMembrSize,
-                         uint   *splitParameterMax,
-                         double *splitValueMaxCont,
-                         uint   *splitValueMaxFactSize,
-                         uint  **splitValueMaxFactPtr,
-                         double *splitStatistic,
-                         char  **splitIndicator,
-                         char  **omitMembrFlag,
-                         char    multImpFlag);
-char classificationHwghtSplit(uint    treeID,
-                              Node   *parent, 
+char classificationXwghtSplit(uint    treeID,
+                              Node   *parent,
                               uint   *repMembrIndx,
                               uint    repMembrSize,
                               uint   *allMembrIndx,
@@ -89,34 +75,5 @@ char classificationHwghtSplit(uint    treeID,
                               uint  **splitValueMaxFactPtr,
                               double *splitStatistic,
                               char  **splitIndicator,
-                              char  **omitMembrFlag,
                               char    multImpFlag);
-char classificationUwghtSplit(uint    treeID,
-                              Node   *parent, 
-                              uint   *repMembrIndx,
-                              uint    repMembrSize,
-                              uint   *allMembrIndx,
-                              uint    allMembrSize,
-                              uint   *splitParameterMax,
-                              double *splitValueMaxCont,
-                              uint   *splitValueMaxFactSize,
-                              uint  **splitValueMaxFactPtr,
-                              double *splitStatistic,
-                              char  **splitIndicator,
-                              char  **omitMembrFlag,
-                              char    multImpFlag);
-char mvClassificationSplit(uint    treeID, 
-                           Node   *parent, 
-                           uint   *repMembrIndx,
-                           uint    repMembrSize,
-                           uint   *allMembrIndx,
-                           uint    allMembrSize,
-                           uint   *splitParameterMax, 
-                           double *splitValueMaxCont, 
-                           uint   *splitValueMaxFactSize, 
-                           uint  **splitValueMaxFactPtr,
-                           double *splitStatistic,
-                           char  **splitIndicator,
-                           char  **omitMembrFlag,
-                           char    multImpFlag);
 #endif

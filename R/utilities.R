@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -60,26 +60,100 @@
 ####**********************************************************************
 
 
-get.seed <- function (seed) {
-  if ((is.null(seed)) || (abs(seed) < 1)) {
-    seed <- runif(1,1,1e6)
-  }
-  seed <- -round(abs(seed))
-  return (seed)
-}
-get.trace <- function (do.trace) {
-  if (!is.logical(do.trace)) {
-    if (do.trace >= 1) {
-      do.trace <- round(do.trace)
+get.bootstrap <- function (bootstrap) {
+  if (!is.null(bootstrap)) {
+    if (bootstrap == "by.root") {
+      bootstrap <- 0
+    }
+    else if (bootstrap == "by.node") {
+      bootstrap <- 2^19
+    }
+    else if (bootstrap == "none") {
+      bootstrap <- 2^20
     }
     else {
-      do.trace <- 0
+      stop("Invalid choice for 'bootstrap' option:  ", bootstrap)
     }
   }
   else {
-    do.trace <- 1 * do.trace
+    stop("Invalid choice for 'var.used' option:  ", bootstrap)
   }
-  return (do.trace)
+  return (bootstrap)
+}
+get.cr.bits <- function (fmly) {
+  if (fmly == "surv-CR") {
+    return(2^21)
+  } else {
+    return(0)
+  }
+}
+get.na.action <- function (na.action) {
+  if (na.action == "na.omit") {
+      na.action <- 0
+  }
+  else if (na.action == "na.impute") {
+      na.action <- 2^4
+  }
+  else if (na.action == "na.random") {
+      na.action <- 2^4 + 2^5
+  }
+  else {
+    stop("Invalid choice for 'na.action' option:  ", na.action)
+  }
+  return (na.action)
+}
+get.forest <- function (forest) {
+  if (!is.null(forest)) {
+    if (forest == TRUE) {
+      forest <- 2^5
+    }
+    else if (forest == FALSE) {
+      forest <- 0
+    }
+    else {
+      stop("Invalid choice for 'forest' option:  ", forest)
+    }
+  }
+  else {
+    stop("Invalid choice for 'forest' option:  ", forest)
+  }
+  return (forest)
+}
+get.forest.wt <- function (grow.equivalent, bootstrap, weight) {
+  if (!is.null(weight)) {
+    if (weight == FALSE) {
+      weight <- 0
+    }
+    else if (grow.equivalent == TRUE) {
+      if (bootstrap != "by.root") {
+        weight <- 2^0 + 2^2
+      }
+      else {
+         if (weight == TRUE) {
+           weight <- 2^0
+         }
+         else if (weight == "inbag") {
+           weight <- 2^0
+         }
+         else if (weight == "oob") {
+           weight <- 2^0 + 2^1
+         }
+         else if (weight == "all") {
+           weight <- 2^0 + 2^2
+         }
+         else {
+           stop("Invalid choice for 'weight' option:  ", weight)
+         }
+       }
+    }
+    else if (grow.equivalent == FALSE) {
+      weight <- 2^0
+    }
+  }
+  else {
+    stop("Invalid choice for 'weight' option:  ", weight)
+  }
+  return (weight)
 }
 get.importance <-  function (importance) {
   if (!is.null(importance)) {
@@ -119,101 +193,35 @@ get.importance <-  function (importance) {
   }
   return (importance)
 }
-get.bootstrap <- function (bootstrap) {
-  if (!is.null(bootstrap)) {
-    if (bootstrap == "by.root") {
-      bootstrap <- 0
-    }
-    else if (bootstrap == "by.node") {
-      bootstrap <- 2^19
-    }
-    else if (bootstrap == "none") {
-      bootstrap <- 2^20
+get.impute.only <-  function (impute.only, nMiss) {
+  if (impute.only) {
+    if (nMiss > 0) {
+      return (2^16)
     }
     else {
-      stop("Invalid choice for 'bootstrap' option:  ", bootstrap)
+      stop("Data has no missing values, using 'impute' makes no sense.")
     }
   }
   else {
-    stop("Invalid choice for 'var.used' option:  ", bootstrap)
+    return (0)
   }
-  return (bootstrap)
 }
-get.forest <- function (forest) {
-  if (!is.null(forest)) {
-    if (forest == TRUE) {
-      forest <- 2^5
+get.membership <- function (membership) {
+  if (!is.null(membership)) {
+    if (membership == TRUE) {
+      membership <- 2^11
     }
-    else if (forest == FALSE) {
-      forest <- 0
+    else if (membership == FALSE) {
+      membership <- 0
     }
     else {
-      stop("Invalid choice for 'forest' option:  ", forest)
+      stop("Invalid choice for 'membership' option:  ", membership)
     }
   }
   else {
-    stop("Invalid choice for 'forest' option:  ", forest)
+    stop("Invalid choice for 'membership' option:  ", membership)
   }
-  return (forest)
-}
-get.proximity <- function (grow.equivalent, proximity) {
-  if (!is.null(proximity)) {
-    if (proximity == FALSE) {
-      proximity <- 0
-    }
-    else if (grow.equivalent == TRUE) {
-      if (proximity == TRUE) {
-        proximity <- 2^28 
-      }
-      else if (proximity == "inbag") {
-        proximity <- 2^28
-      }
-      else if (proximity == "oob") {
-        proximity <- 2^29
-      }
-      else if (proximity == "all") {
-        proximity <- 2^28 + 2^29
-      }
-      else {
-        stop("Invalid choice for 'proximity' option:  ", proximity)
-      }
-    }
-    else if (grow.equivalent == FALSE) {
-      if (proximity == TRUE) {
-        proximity <- 2^28 + 2^29
-      }
-      else if (proximity == "all") {
-        proximity <- 2^28 + 2^29
-      }
-      else {
-        stop("Invalid choice for 'proximity' option:  ", proximity)
-      }
-    }
-    else {
-      stop("Invalid choice for 'grow.equivalent' in proximity:  ", grow.equivalent)
-    }
-  }
-  else {
-    stop("Invalid choice for 'proximity' option:  ", proximity)
-  }
-  return (proximity)
-}
-get.split.null <- function (split.null) {
-  if (!is.null(split.null)) {
-    if (split.null == TRUE) {
-      split.null <- 2^18
-    }
-    else if (split.null == FALSE) {
-      split.null <- 0
-    }
-    else {
-      stop("Invalid choice for 'split.null' option:  ", split.null)
-    }
-  }
-  else {
-    stop("Invalid choice for 'split.null' option:  ", split.null)
-  }
-  return (split.null)
+  return (membership)
 }
 get.outcome <- function (outcome) {
   if (is.null(outcome)) {
@@ -229,46 +237,6 @@ get.outcome <- function (outcome) {
     stop("Invalid choice for 'outcome' option:  ", outcome)
   }
   return (outcome)
-}
-get.var.used <- function (var.used) {
-  if (!is.null(var.used)) {
-    if (var.used == "all.trees") {
-      var.used <- 2^13 + 0
-    }
-    else if (var.used == "by.tree") {
-      var.used <- 2^13 + 2^12
-    }
-    else if (var.used == FALSE) {
-      var.used <- 0
-    }
-    else {
-      stop("Invalid choice for 'var.used' option:  ", var.used)
-    }
-  }
-  else {
-    stop("Invalid choice for 'var.used' option:  ", var.used)
-  }
-  return (var.used)
-}
-get.split.depth <- function (split.depth) {
-  if (!is.null(split.depth)) {
-    if (split.depth == "all.trees") {
-      split.depth <- 2^22
-    }
-    else if (split.depth == "by.tree") {
-      split.depth <- 2^23
-    }
-    else if (split.depth == FALSE) {
-      split.depth <- 0
-    }
-    else {
-      stop("Invalid choice for 'split.depth' option:  ", split.depth)
-    }
-  }
-  else {
-    stop("Invalid choice for 'split.depth' option:  ", split.depth)
-  }
-  return (split.depth)
 }
 get.perf <-  function (perf, impute.only, family) {
   if (impute.only != TRUE) {
@@ -291,13 +259,6 @@ get.perf <-  function (perf, impute.only, family) {
     return (FALSE)
   }
 }
-get.cr.bits <- function (fmly) {
-  if (fmly == "surv-CR") {
-    return(2^21)
-  } else {
-    return(0)
-  }
-}
 get.perf.bits <- function (perf) {
   if (perf) {
     return (2^2)
@@ -306,22 +267,182 @@ get.perf.bits <- function (perf) {
     return (0)
   }
 }
-get.membership <- function (membership) {
-  if (!is.null(membership)) {
-    if (membership == TRUE) {
-      membership <- 2^11
+get.proximity <- function (grow.equivalent, proximity) {
+  if (!is.null(proximity)) {
+    if (proximity == FALSE) {
+      proximity <- 0
     }
-    else if (membership == FALSE) {
-      membership <- 0
+    else if (grow.equivalent == TRUE) {
+      if (proximity == TRUE) {
+        proximity <- 2^28
+      }
+      else if (proximity == "inbag") {
+        proximity <- 2^28
+      }
+      else if (proximity == "oob") {
+        proximity <- 2^28 + 2^29
+      }
+      else if (proximity == "all") {
+        proximity <- 2^28 + 2^30
+      }
+      else {
+        stop("Invalid choice for 'proximity' option:  ", proximity)
+      }
+    }
+    else if (grow.equivalent == FALSE) {
+      if (proximity == TRUE) {
+        proximity <- 2^28 + 2^30
+      }
+      else if (proximity == "all") {
+        proximity <- 2^28 + 2^30
+      }
+      else {
+        stop("Invalid choice for 'proximity' option:  ", proximity)
+      }
     }
     else {
-      stop("Invalid choice for 'membership' option:  ", membership)
+      stop("Invalid choice for 'grow.equivalent' in proximity:  ", grow.equivalent)
     }
   }
   else {
-    stop("Invalid choice for 'membership' option:  ", membership)
+    stop("Invalid choice for 'proximity' option:  ", proximity)
   }
-  return (membership)
+  return (proximity)
+}
+get.restore.only <-  function (restore.only) {
+  if (!is.null(restore.only)) {
+    if (restore.only) {
+      return (2^14)
+    }
+    else if (!restore.only) {
+      return (0)
+    }
+    else {
+      stop("Invalid choice for 'restore.only' option:  ", restore.only)
+    }
+  }
+  else {
+    stop("Invalid choice for 'restore.only' option:  ", restore.only)
+  }
+}
+get.rf.cores <- function () {
+  if (is.null(getOption("rf.cores"))) {
+    if(!is.na(as.numeric(Sys.getenv("RF_CORES")))) {
+      options(rf.cores = as.integer(Sys.getenv("RF_CORES")))
+    }
+  }
+  return (getOption("rf.cores", -1L))
+}
+get.seed <- function (seed) {
+  if ((is.null(seed)) || (abs(seed) < 1)) {
+    seed <- runif(1,1,1e6)
+  }
+  seed <- -round(abs(seed))
+  return (seed)
+}
+get.split.depth <- function (split.depth) {
+  if (!is.null(split.depth)) {
+    if (split.depth == "all.trees") {
+      split.depth <- 2^22
+    }
+    else if (split.depth == "by.tree") {
+      split.depth <- 2^23
+    }
+    else if (split.depth == FALSE) {
+      split.depth <- 0
+    }
+    else {
+      stop("Invalid choice for 'split.depth' option:  ", split.depth)
+    }
+  }
+  else {
+    stop("Invalid choice for 'split.depth' option:  ", split.depth)
+  }
+  return (split.depth)
+}
+get.split.null <- function (split.null) {
+  if (!is.null(split.null)) {
+    if (split.null == TRUE) {
+      split.null <- 2^18
+    }
+    else if (split.null == FALSE) {
+      split.null <- 0
+    }
+    else {
+      stop("Invalid choice for 'split.null' option:  ", split.null)
+    }
+  }
+  else {
+    stop("Invalid choice for 'split.null' option:  ", split.null)
+  }
+  return (split.null)
+}
+get.statistics <- function (statistics) {
+  if (!is.null(statistics)) {
+    if (statistics == TRUE) {
+      statistics <- 2^27
+    }
+    else if (statistics == FALSE) {
+      statistics <- 0
+    }
+    else {
+      stop("Invalid choice for 'statistics' option:  ", statistics)
+    }
+  }
+  else {
+    stop("Invalid choice for 'statistics' option:  ", statistics)
+  }
+  return (statistics)
+}
+get.trace <- function (do.trace) {
+  if (!is.logical(do.trace)) {
+    if (do.trace >= 1) {
+      do.trace <- round(do.trace)
+    }
+    else {
+      do.trace <- 0
+    }
+  }
+  else {
+    do.trace <- 1 * do.trace
+  }
+  return (do.trace)
+}
+get.var.used <- function (var.used) {
+  if (!is.null(var.used)) {
+    if (var.used == "all.trees") {
+      var.used <- 2^13 + 0
+    }
+    else if (var.used == "by.tree") {
+      var.used <- 2^13 + 2^12
+    }
+    else if (var.used == FALSE) {
+      var.used <- 0
+    }
+    else {
+      stop("Invalid choice for 'var.used' option:  ", var.used)
+    }
+  }
+  else {
+    stop("Invalid choice for 'var.used' option:  ", var.used)
+  }
+  return (var.used)
+}
+get.vimp.only <-  function (vimp.only) {
+  if (!is.null(vimp.only)) {
+    if (vimp.only) {
+      return (2^27)
+    }
+    else if (!vimp.only) {
+      return (0)
+    }
+    else {
+      stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
+    }
+  }
+  else {
+    stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
+  }
 }
 is.hidden.impute.only <-  function (user.option) {
   index = match("impute.only", names(user.option), 0)
@@ -349,76 +470,6 @@ is.hidden.miss.tree.only <-  function (user.option) {
       else {
         return (0)
       }
-    } 
-  }
-}
-get.impute.only <-  function (impute.only, nMiss) {
-  if (impute.only) {
-    if (nMiss > 0) {
-      return (2^16)
-    }
-    else {
-      stop("Data has no missing values, using 'impute' makes no sense.")
     }
   }
-  else {
-    return (0)
-  }
-}
-get.restore.only <-  function (restore.only) {
-  if (!is.null(restore.only)) {
-    if (restore.only) {
-      return (2^14)
-    }
-    else if (!restore.only) {
-      return (0)
-    }
-    else {
-      stop("Invalid choice for 'restore.only' option:  ", restore.only)    
-    }
-  }
-  else {
-    stop("Invalid choice for 'restore.only' option:  ", restore.only)
-  }
-}
-get.vimp.only <-  function (vimp.only) {
-  if (!is.null(vimp.only)) {
-    if (vimp.only) {
-      return (2^27)
-    }
-    else if (!vimp.only) {
-      return (0)
-    }
-    else {
-      stop("Invalid choice for 'vimp.only' option:  ", vimp.only)    
-    }
-  }
-  else {
-    stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
-  }
-}
-get.statistics <- function (statistics) {
-  if (!is.null(statistics)) {
-    if (statistics == TRUE) {
-      statistics <- 2^27
-    }
-    else if (statistics == FALSE) {
-      statistics <- 0
-    }
-    else {
-      stop("Invalid choice for 'statistics' option:  ", statistics)
-    }
-  }
-  else {
-    stop("Invalid choice for 'statistics' option:  ", statistics)
-  }
-  return (statistics)
-}
-get.rf.cores <- function () {
-  if (is.null(getOption("rf.cores"))) {
-    if(!is.na(as.numeric(Sys.getenv("RF_CORES")))) {
-      options(rf.cores = as.integer(Sys.getenv("RF_CORES")))
-    }
-  }
-  return (getOption("rf.cores", -1L))
 }

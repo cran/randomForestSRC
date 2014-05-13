@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -103,5 +103,4 @@ size_t getMaxMemoryAllocation();
 size_t getMinMemoryAllocation();
 void increaseMemoryAllocation(size_t amount);
 void decreaseMemoryAllocation(size_t amount);
-void changeMemoryAllocation(size_t amount, int direction);
 #endif

@@ -22,8 +22,9 @@
     Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
-  Ishwaran H., Gerds, T.A. Kogalur U.B., Moore R.D., Gange S.J. and Lau
-  B.M. (2013). Random survival forests for competing risks.
+    Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
+    B.M. (2014). Random survival forests for competing risks.  To appear
+    in \emph{Biostatistics}.
 }
 \seealso{
   \command{\link{follic}},

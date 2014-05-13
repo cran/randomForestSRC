@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -76,7 +76,7 @@ var.select.rfsrc <-
            xvar.wt = NULL,
            refit = (method != "md"),
            fast = FALSE,
-           na.action = c("na.omit", "na.impute"),
+           na.action = c("na.omit", "na.impute", "na.random"),
            always.use = NULL,  
            nrep = 50,        
            K = 5,             
@@ -270,14 +270,7 @@ var.select.rfsrc <-
   else {
     always.use.pt <- NULL
   }
-  if (!is.null(xvar.wt)) {
-    if (any(xvar.wt < 0) | length(xvar.wt) != P | all(xvar.wt == 0)) {
-      xvar.wt <- rep(1/P, P)
-    }
-    else {
-      xvar.wt <- xvar.wt / sum(xvar.wt)
-    }
-  }
+  xvar.wt <- get.grow.x.wt(xvar.wt, P)
   if (!is.null(mtry)) {
     mtry <- round(mtry)
     if (mtry < 1 | mtry > P) mtry <- max(1, min(mtry, P))
@@ -309,7 +302,7 @@ var.select.rfsrc <-
       rfsrc.prefit.obj <- extract.imp.err(rfsrc.prefit.obj, outcome.target)
       wts <- pmax(get.imp(rfsrc.prefit.obj, target.dim), 0)
       if (any(wts > 0)) {
-        xvar.wt <- wts
+        xvar.wt <- get.grow.x.wt(wts, P)
       }
     }
     if (!missing(object) && !prefit.flag) {

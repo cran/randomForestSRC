@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,8 +67,8 @@ void updateTerminalNodeOutcomes (uint b);
 void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
                                  uint      b);
-void copyDenominator(uint mode, uint *denominatorCopy);
-void copyEnsemble(uint mode, double **ensembleCopy);
+void copyDenominator(uint mode, uint size, uint *demonPtr, uint *denominatorCopy);
+void copyEnsemble(uint mode, uint size, double **ensemblePtr, double **ensembleCopy);
 void getVariablesUsed(uint treeID, Node *rootPtr, uint *varUsedVector);
 char stackAndImputePerfResponse(uint      mode, 
                                 char      multipleImputeFlag, 
@@ -88,5 +88,5 @@ void getPerformance(uint      b,
                     double   *performancePtr);
 double *stackCondPerformance();
 void    unstackCondPerformance(double *cpv);
-void finalizeEnsembleEstimates(uint mode, uint rejectedTreeCount);
+void finalizeEnsembleEstimates(uint mode);
 #endif

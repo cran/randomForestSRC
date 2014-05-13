@@ -7,8 +7,8 @@
 }
 \usage{\method{predict}{rfsrc}(object, newdata,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-  na.action = c("na.omit", "na.impute"), outcome = c("train", "test"),
-  proximity = FALSE, var.used = c(FALSE, "all.trees", "by.tree"),
+  na.action = c("na.omit", "na.impute", "na.random"), outcome = c("train", "test"),
+  proximity = FALSE,  var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
   do.trace = FALSE, membership = TRUE, 
   ...)
@@ -25,8 +25,8 @@
       contains y-outcome values.}
     \item{na.action}{Missing value action. The default
          \code{na.omit} removes the entire record if
-        even one of its entries is \code{NA}.  Use \option{na.impute} to
-        impute the test data.}
+        even one of its entries is \code{NA}.  Selecting \option{na.impute} or
+        \option{na.random} imputes the test data.}
     \item{outcome}{Determines whether the y-outcomes from the training
       data or the test data are used to calculate the predicted value.
       The default and natural choice is \code{train} which uses the
@@ -35,8 +35,12 @@
       settings.  The option is also ignored whenever the test data is
       devoid of y-outcomes.  See the details and examples below for more
       information.}
-    \item{proximity}{Should proximity measure between
-        test observations be calculated? Can be large.}
+    \item{proximity}{Should proximity measure between test observations
+      be calculated?  Possible choices are \code{"inbag"}, \code{"oob"},
+      \code{"all"}, \code{TRUE}, or \code{FALSE} but some options may
+      not be valid and will depend on the context of the predict call.
+      The safest choice is \code{TRUE} if proximity is desired.}
+
     \item{var.used}{Record the number of times a variable is split?}
     \item{split.depth}{Return minimal depth for each variable for each case?}
     \item{seed}{Negative integer specifying seed for the random number
@@ -63,7 +67,10 @@
   test data (x-variables and/or y-outcomes).  Imputation uses the
   grow-forest such that only training data is used when imputing test
   data to avoid biasing error rates and VIMP (Ishwaran et al. 2008).
-
+  The \option{na.action="na.random"} implements a cruder, but faster
+  missing data algorithm.  See the \command{rfsrc} help file for
+  details.
+  
   If no test data is provided, then the original training data is used
   and the code reverts to restore mode allowing the user to restore the
   original grow forest.  This is useful because it gives the user the
@@ -93,8 +100,9 @@
      \item{xvar.names}{A character vector of the x-variable names.}
      \item{leaf.count}{Number of terminal nodes for each tree in the
        grow forest.  Vector of length \code{ntree}.}
-     \item{forest}{The grow forest.}
      \item{proximity}{Symmetric proximity matrix of the test data.}
+     \item{forest}{The grow forest.}
+                 
      \item{membership}{Matrix recording terminal node membership for the
        test data where each column contains the node number that a
        case falls in for that tree.}
@@ -150,7 +158,7 @@
   y-outcomes are not present.
 
   For detailed definitions of returned values (such as \code{predicted})
-  see the help file for \command{rfsrc}.
+  see the \command{rfsrc} help file.
 }
 \author{
     Hemant Ishwaran and Udaya B. Kogalur

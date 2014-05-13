@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,8 +63,9 @@
 #ifndef RSFSPLITUSPV_H
 #define RSFSPLITUSPV_H
 #include "node.h"
-char unsupervisedSplit(uint    treeID,
-                       Node   *parent, 
+void getMemberCountOnly(uint treeID);
+char unsupervisedSplitOld(uint    treeID,
+                       Node   *parent,
                        uint   *repMembrIndx,
                        uint    repMembrSize,
                        uint   *allMembrIndx,
@@ -75,20 +76,31 @@ char unsupervisedSplit(uint    treeID,
                        uint  **splitValueMaxFactPtr,
                        double *splitStatistic,
                        char  **splitIndicator,
-                       char  **omitMembrFlag,
                        char    multImpFlag);
-char multivariateSplit (uint    treeID, 
-                        Node   *parent, 
+char unsupervisedSplit(uint    treeID,
+                       Node   *parent,
+                       uint   *repMembrIndx,
+                       uint    repMembrSize,
+                       uint   *allMembrIndx,
+                       uint    allMembrSize,
+                       uint   *splitParameterMax,
+                       double *splitValueMaxCont,
+                       uint   *splitValueMaxFactSize,
+                       uint  **splitValueMaxFactPtr,
+                       double *splitStatistic,
+                       char  **splitIndicator,
+                       char    multImpFlag);
+char multivariateSplit (uint    treeID,
+                        Node   *parent,
                         uint   *repMembrIndx,
                         uint    repMembrSize,
                         uint   *allMembrIndx,
                         uint    allMembrSize,
-                        uint   *splitParameterMax, 
-                        double *splitValueMaxCont, 
-                        uint   *splitValueMaxFactSize, 
+                        uint   *splitParameterMax,
+                        double *splitValueMaxCont,
+                        uint   *splitValueMaxFactSize,
                         uint  **splitValueMaxFactPtr,
                         double *splitStatistic,
                         char  **splitIndicator,
-                        char  **omitMembrFlag,
                         char    multImpFlag);
 #endif

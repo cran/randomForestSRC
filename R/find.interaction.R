@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -70,7 +70,7 @@ find.interaction.rfsrc <- function(
     nvar = NULL, 
     nrep  = 1,
     subset,
-    na.action = c("na.omit", "na.impute"),
+    na.action = c("na.omit", "na.impute", "na.random"),
     seed = NULL,
     do.trace = FALSE,
     verbose = TRUE,

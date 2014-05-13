@@ -7,8 +7,11 @@
 }
 \usage{\method{print}{rfsrc}(x, ...)}
 \arguments{
+    
     \item{x}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
 	predict)}.}
+
+
     \item{...}{Further arguments passed to or from other methods.}
 }
 \author{
@@ -19,7 +22,7 @@
     \emph{Rnews}, 7/2:25-31.
 }
 \seealso{
-  \command{\link{rfsrc}},
+  \command{\link{rfsrc}}, 
   \command{\link{predict.rfsrc}}
 }
 \examples{

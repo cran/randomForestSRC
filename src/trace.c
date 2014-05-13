@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -115,8 +115,8 @@ unsigned int getTurnOnTraceFlag() {
 unsigned int getNumrDefTraceFlag() {
   return(NUMR_DEF_TRACE);
 }
-unsigned int getSummUsrTraceFlag() {
-  return(SUMM_USR_TRACE);
+unsigned int getTimeDefTraceFlag() {
+  return(TIME_DEF_TRACE);
 }
 void setMaxMemoryAllocation(size_t value) {
   RF_memor_maxMemoryAllocation = value;
@@ -131,24 +131,11 @@ size_t getMinMemoryAllocation() {
   return (RF_memor_minMemoryAllocation);
 }
 void increaseMemoryAllocation(size_t amount) {
-    changeMemoryAllocation(amount, 1);
-}
-void decreaseMemoryAllocation(size_t amount) {
-    changeMemoryAllocation(amount, -1);
-}
-void changeMemoryAllocation(size_t amount, int direction) {
-#ifdef SUPPORT_OPENMP
-#pragma omp critical (RF_change_memory_allocation)
-#endif
-{
-  if (direction > 0) {
-    RF_memor_minMemoryAllocation += amount;
-  }
-  else {
-    RF_memor_minMemoryAllocation -= amount;  
-  }
+  RF_memor_minMemoryAllocation += amount;
   if (RF_memor_minMemoryAllocation > RF_memor_maxMemoryAllocation) {
     RF_memor_maxMemoryAllocation = RF_memor_minMemoryAllocation;
   }
 }
+void decreaseMemoryAllocation(size_t amount) {
+    RF_memor_minMemoryAllocation -= amount;  
 }

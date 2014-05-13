@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,8 +63,8 @@
 #ifndef RSFSPLIT_H
 #define RSFSPLIT_H
 #include "node.h"
-char getBestSplit(uint    treeID, 
-                  Node   *parent, 
+char getBestSplit(uint    treeID,
+                  Node   *parent,
                   uint   *repMembrIndx,
                   uint    repMembrSize,
                   uint   *allMembrIndx,
@@ -75,10 +75,9 @@ char getBestSplit(uint    treeID,
                   uint  **splitValueMaxFactPtr,
                   double *splitStatistic,
                   char  **splitIndicator,
-                  char  **omitMembrFlag,
                   char    multImpFlag);
-char randomSplit(uint    treeID, 
-                 Node   *parent, 
+char randomSplit(uint    treeID,
+                 Node   *parent,
                  uint   *repMembrIndx,
                  uint    repMembrSize,
                  uint   *allMembrIndx,
@@ -89,20 +88,5 @@ char randomSplit(uint    treeID,
                  uint  **splitValueMaxFactPtr,
                  double *splitStatistic,
                  char  **splitIndicator,
-                 char  **omitMembrFlag,
                  char    multImpFlag);
-char randomNonSurvivalSplit(uint    treeID, 
-                            Node   *parent, 
-                            uint   *repMembrIndx,
-                            uint    repMembrSize,
-                            uint   *allMembrIndx,
-                            uint    allMembrSize,
-                            uint   *splitParameterMax,
-                            double *splitValueMaxCont,
-                            uint   *splitValueMaxFactSize,
-                            uint  **splitValueMaxFactPtr,
-                            double *splitStatistic,
-                            char  **splitIndicator,
-                            char  **omitMembrFlag,
-                            char    multImpFlag);
 #endif

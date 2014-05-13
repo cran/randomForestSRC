@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,6 +64,7 @@
 #include          "extern.h"
 #include           "trace.h"
 #include          "nrutil.h"
+#include          "impute.h"
 #include "stackPreDefined.h"
 void stackIncomingResponseArrays(uint mode) {
   uint i, j;
@@ -74,8 +75,8 @@ void stackIncomingResponseArrays(uint mode) {
     j = 0;
     for (i = 1; i <= RF_rSize; i++) {
       RF_rType[i] = (char*) CHAR(STRING_ELT(AS_CHARACTER(RF_sexp_rType), i-1));
-      if ((strcmp(RF_rType[i], "C") != 0) && 
-          (strcmp(RF_rType[i], "I") != 0) && 
+      if ((strcmp(RF_rType[i], "C") != 0) &&
+          (strcmp(RF_rType[i], "I") != 0) &&
           (strcmp(RF_rType[i], "R") != 0) &&
           (strcmp(RF_rType[i], "T") != 0) &&
           (strcmp(RF_rType[i], "S") != 0)) {
@@ -90,7 +91,7 @@ void stackIncomingResponseArrays(uint mode) {
         RF_timeIndex = i;
       }
       else if (strcmp(RF_rType[i], "S") == 0) {
-        RF_statusIndex = i;  
+        RF_statusIndex = i;
       }
       else {
         RF_yIndex[++j] = i;
@@ -151,6 +152,7 @@ void stackIncomingResponseArrays(uint mode) {
     }
   }
   else {
+    RF_rType      = NULL;
     RF_responseIn = NULL;
   }
 }
@@ -171,8 +173,8 @@ void stackIncomingCovariateArrays(uint mode) {
   RF_xType = (char**) vvector(1, RF_xSize);
   for (i = 1; i <= RF_xSize; i++) {
     RF_xType[i] = (char*) CHAR(STRING_ELT(AS_CHARACTER(RF_sexp_xType), i-1));
-    if ((strcmp(RF_xType[i], "C") != 0) && 
-        (strcmp(RF_xType[i], "I") != 0) && 
+    if ((strcmp(RF_xType[i], "C") != 0) &&
+        (strcmp(RF_xType[i], "I") != 0) &&
         (strcmp(RF_xType[i], "R") != 0)) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
       Rprintf("\nRF-SRC:  Invalid type:  [%10d] = %2s", i, RF_xType[i]);
@@ -248,14 +250,13 @@ void stackPreDefinedCommonArrays() {
   uint i;
   RF_tNodeMembership = (Node ***) vvector(1, RF_forestSize);
   RF_bootMembershipIndex = (uint **) vvector(1, RF_forestSize);
-  RF_bootMembershipFlag = (uint **) vvector(1, RF_forestSize);
-  RF_oobMembershipFlag = (uint **) vvector(1, RF_forestSize);
+  RF_bootMembershipFlag = (char **) vvector(1, RF_forestSize);
+  RF_bootMembershipCount = (uint **) vvector(1, RF_forestSize);
+  RF_oobMembershipFlag = (char **) vvector(1, RF_forestSize);
   RF_tNodeList = (Node ***) vvector(1, RF_forestSize);
-  if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-    RF_trivialBootMembershipIndex = uivector(1, RF_observationSize);
-    for (i = 1; i <= RF_observationSize; i++) {
-      RF_trivialBootMembershipIndex[i] = i;
-    }
+  RF_identityMembershipIndex = uivector(1, RF_observationSize);
+  for (i = 1; i <= RF_observationSize; i++) {
+    RF_identityMembershipIndex[i] = i;
   }
   RF_oobSize = uivector(1, RF_forestSize);
   RF_maxDepth = uivector(1, RF_forestSize);
@@ -282,11 +283,10 @@ void unstackPreDefinedCommonArrays() {
   free_vvector(RF_tNodeMembership, 1, RF_forestSize);
   free_vvector(RF_bootMembershipIndex, 1, RF_forestSize);
   free_vvector(RF_bootMembershipFlag, 1, RF_forestSize);
+  free_vvector(RF_bootMembershipCount, 1, RF_forestSize);
   free_vvector(RF_oobMembershipFlag, 1, RF_forestSize);
   free_vvector(RF_tNodeList, 1, RF_forestSize);
-  if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-    free_uivector(RF_trivialBootMembershipIndex, 1, RF_observationSize);
-  }
+  free_uivector(RF_identityMembershipIndex, 1, RF_observationSize);
   free_uivector(RF_oobSize, 1, RF_forestSize);
   free_uivector(RF_maxDepth, 1, RF_forestSize);
   free_uivector(RF_serialTreeIndex, 1, RF_forestSize);
@@ -303,6 +303,8 @@ void unstackPreDefinedCommonArrays() {
   free_uivector(RF_orderedLeafCount, 1, RF_forestSize);
 }
 void stackPreDefinedGrowthArrays() {
+  char uniformFlag, integerFlag;
+  double meanWeight;
   uint i;
   if (RF_opt & OPT_TREE) {
     RF_nodeCount = uivector(1, RF_forestSize);
@@ -321,6 +323,57 @@ void stackPreDefinedGrowthArrays() {
       RF_importanceFlag[i] = TRUE;
     }
   }
+  RF_xWeightSorted = NULL;
+  RF_xWeightDensity = NULL;
+  RF_xWeightDensitySize = 0;
+  meanWeight = getMeanValue(RF_xWeight, RF_xSize);
+  uniformFlag = TRUE;
+  i = 0;
+  while (uniformFlag && (i < RF_xSize)) {
+    ++i;
+    if (fabs(RF_xWeight[i] - meanWeight) > EPSILON) {
+      uniformFlag = FALSE;
+    }
+  }
+  if (uniformFlag) {
+    RF_xWeightType = RF_WGHT_UNIFORM;
+  }
+  else {
+    integerFlag = TRUE;
+    i = 0;
+    while (integerFlag && (i < RF_xSize)) {
+      i++;
+      if (fabs(round(RF_xWeight[i]) - RF_xWeight[i]) > EPSILON) {
+        integerFlag = FALSE;
+      }
+    }
+    if(integerFlag) {
+      RF_xWeightType = RF_WGHT_INTEGER;
+    }
+    else {
+      RF_xWeightType = RF_WGHT_GENERIC;
+    }
+  }
+  switch (RF_xWeightType) {
+  case RF_WGHT_UNIFORM:
+    break;
+  case RF_WGHT_INTEGER:
+    RF_xWeightSorted = uivector(1, RF_xSize);
+    indexx(RF_xSize, RF_xWeight, RF_xWeightSorted);
+    RF_xWeightDensitySize = 0;
+    for (i = 1; i <= RF_xSize; i++) {
+      RF_xWeightDensitySize += (uint) RF_xWeight[i];
+    }
+    break;
+  case RF_WGHT_GENERIC:
+    RF_xWeightSorted = uivector(1, RF_xSize);
+    indexx(RF_xSize, RF_xWeight, RF_xWeightSorted);
+    break;
+  }
+  RF_gobservationIndv = uivector(1, RF_observationSize);
+  for (i = 1; i <= RF_observationSize; i++) {
+    RF_gobservationIndv[i] = i;
+  }
 }
 void unstackPreDefinedGrowthArrays() {
   if (RF_opt & OPT_TREE) {
@@ -331,6 +384,17 @@ void unstackPreDefinedGrowthArrays() {
     free_uivector(RF_intrPredictor, 1, RF_intrPredictorSize);
     free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
+  switch (RF_xWeightType) {
+  case RF_WGHT_UNIFORM:
+    break;
+  case RF_WGHT_INTEGER:
+    free_uivector(RF_xWeightSorted, 1, RF_xSize);
+    break;
+  case RF_WGHT_GENERIC:
+    free_uivector(RF_xWeightSorted, 1, RF_xSize);
+    break;
+  }
+  free_uivector(RF_gobservationIndv, 1, RF_observationSize);
 }
 void stackPreDefinedRestoreArrays() {
   uint i;
@@ -349,6 +413,15 @@ void stackPreDefinedRestoreArrays() {
       RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
     }
   }
+  if(RF_sobservationSize > 0) {
+    RF_soobSize = uivector(1, RF_forestSize);
+  }
+  else {
+    RF_gobservationIndv = uivector(1, RF_observationSize);
+    for (i = 1; i <= RF_observationSize; i++) {
+      RF_gobservationIndv[i] = i;
+    }
+  }
 }
 void unstackPreDefinedRestoreArrays() {
   free_uivector(RF_nodeCount, 1, RF_forestSize);
@@ -356,11 +429,17 @@ void unstackPreDefinedRestoreArrays() {
   if (RF_opt & OPT_VIMP) {
     free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
+  if(RF_sobservationSize > 0) {
+    free_uivector(RF_soobSize, 1, RF_forestSize);
+  }
+  else {
+    free_uivector(RF_gobservationIndv, 1, RF_observationSize);
+  }
 }
 void stackPreDefinedPredictArrays() {
   uint i;
   RF_ftNodeMembership = (Node ***) vvector(1, RF_forestSize);
-  RF_testMembershipFlag = uivector(1, RF_fobservationSize);
+  RF_testMembershipFlag = cvector(1, RF_fobservationSize);
   for (i = 1; i <= RF_fobservationSize; i++) {
     RF_testMembershipFlag[i] = ACTIVE;
   }
@@ -379,15 +458,20 @@ void stackPreDefinedPredictArrays() {
       RF_importanceFlag[RF_intrPredictor[i]] = TRUE;
     }
   }
+  RF_gobservationIndv = uivector(1, RF_fobservationSize);
+  for (i = 1; i <= RF_fobservationSize; i++) {
+    RF_gobservationIndv[i] = i;
+  }
 }
 void unstackPreDefinedPredictArrays() {
   free_vvector(RF_ftNodeMembership, 1, RF_forestSize);
-  free_uivector(RF_testMembershipFlag, 1, RF_fobservationSize);
+  free_cvector(RF_testMembershipFlag, 1, RF_fobservationSize);
   free_uivector(RF_nodeCount, 1, RF_forestSize);
   free_uivector(RF_mwcpCount, 1, RF_forestSize);
   if (RF_opt & OPT_VIMP) {
     free_cvector(RF_importanceFlag, 1, RF_xSize);
   }
+  free_uivector(RF_gobservationIndv, 1, RF_fobservationSize);
 }
 void checkInteraction() {
   uint leadingIndex, i;
@@ -395,7 +479,6 @@ void checkInteraction() {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
     Rprintf("\nRF-SRC:  Parameter verification failed.");
     Rprintf("\nRF-SRC:  Number of predictors to be perturbed must be greater than zero and less than %10d:  %10d \n", RF_xSize, RF_intrPredictorSize);
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
   uint *intrPredictorCopy = uivector(1, RF_intrPredictorSize);
@@ -414,7 +497,6 @@ void checkInteraction() {
     Rprintf("\nRF-SRC:  Parameter verification failed.");
     Rprintf("\nRF-SRC:  Interaction terms are not unique.");
     Rprintf("\nRF-SRC:  Only %10d of %10d are unique.", leadingIndex, RF_intrPredictorSize);
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
   free_uivector(intrPredictorCopy, 1, RF_intrPredictorSize);
@@ -424,7 +506,6 @@ void checkInteraction() {
       Rprintf("\nRF-SRC:  Parameter verification failed.");
       Rprintf("\nRF-SRC:  Interaction terms are not coherent.");
       Rprintf("\nRF-SRC:  Predictor encountered is %10d, maximum allowable is %10d.", RF_intrPredictor[i], RF_xSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
       error("\nRF-SRC:  The application will now exit.\n");
     }
   }

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -68,6 +68,7 @@ Terminal *makeTerminal();
 void freeTerminal(Terminal *parent);
 Node *makeNode(unsigned int xSize);
 void freeNode(Node *parent);
+void freeTerminalNodeLocalSurvivalStructures(Node *terminalNode);
 void freeTerminalNodeSurvivalStructures(Node *terminalNode);
 void getNodeInfo(Node *leaf);
 void setParent(
@@ -87,7 +88,10 @@ char forkNode(Node         *parent,
               double        splitValueMaxCont,
               unsigned int  splitValueMaxFactSize,
               unsigned int *splitValueMaxFactPtr);
-void stackAtRisk(Node *tNode, unsigned int eTypeSize, unsigned int mTimeSize);
+void stackAtRiskAndEventCounts(Node *tNode, unsigned int eTypeSize, unsigned int mTimeSize);
+void stackEventTimeIndex(Node *tNode, unsigned int mTimeSize);
+void unstackAtRiskAndEventCounts(Node *tNode);
+void unstackEventTimeIndex(Node *tNode);
 void unstackAtRisk(Node *tNode);
 void stackLocalRatio(Node *tNode, unsigned int eTypeSize, unsigned int eTimeSize);
 void unstackLocalRatio(Node *tNode);
@@ -123,8 +127,6 @@ void stackNodeFLMRIndex(Node *node, unsigned int size);
 void unstackNodeFLMRIndex(Node *node);
 void stackTermLMIIndex(Terminal *tNode, unsigned int size);
 void unstackTermLMIIndex(Terminal *tNode);
-void stackTermLMIRagged(Terminal *tNode);
-void unstackTermLMIRagged(Terminal *tNode);
 void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize);
 void unstackMultiClassProb(Node *tNode);
 void stackSplitDepth(Node *tNode, unsigned int depth);

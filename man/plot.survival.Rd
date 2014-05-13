@@ -6,7 +6,7 @@
     Plot various survival estimates.
   }
 \usage{\method{plot.survival}{rfsrc}(x, plots.one.page = TRUE, show.plots = TRUE,
-  subset, collapse = FALSE, haz.model = c("spline", "ggamma", "nonpar"),
+  subset, collapse = FALSE, haz.model = c("spline", "ggamma", "nonpar", "none"),
   k = 25, span = "cv", cens.model = c("km", "rfsrc"), ...)
 }
 \arguments{
@@ -79,10 +79,11 @@
     distribution (using the parameterization described in Cox et al,
     2007) is fit to the smoothed forest survival function, where
     smoothing is imposed using Friedman's supersmoother (implemented by
-    \code{supsmu}.  If \option{haz.model="nonpar"}, Friedman's
+    \code{supsmu}).  If \option{haz.model="nonpar"}, Friedman's
     supersmoother is applied to the forest estimated hazard function
     (obtained by taking the crude derivative of the smoothed forest
-    CHF).
+    CHF).  Finally, setting \option{haz.model="none"} suppresses
+    hazard estimation and no hazard estimate is provided.
 
     At this time, please note that all hazard estimates are considered
     experimental and users should interpret the results with caution.}

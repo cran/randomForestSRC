@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -83,7 +83,6 @@ char forkAndUpdate(uint    treeID,
                    uint   *splitValueMaxFactPtr,
                    double  splitStatistic,
                    char   *localSplitIndicator,
-                   char   *localOmitMembrFlag,
                    char    multImpFlag,
                    char   *membershipIndicator,
                    uint   *leftDaughterSize,

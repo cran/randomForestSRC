@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.4
+////  Version 1.5.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -84,7 +84,7 @@ char bootstrap (uint     mode,
   }
   else {
     for (i = 1; i <= subsetSize; i++) {
-      k = (uint) ceil(ran1(treeID)*(subsetSize * 1.0));
+      k = (uint) ceil(ran1A(treeID)*(subsetSize * 1.0));
       index[i] = subIndex[k];
     }
   }

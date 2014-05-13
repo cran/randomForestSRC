@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.4
+####  Version 1.5.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -84,7 +84,12 @@ print.rfsrc <- function(x, ...) {
     n.event <- 1
     if (!is.null(event)) {
       n.event <- length(unique(event))
-      event.freq <- paste(tapply(event, event, length), collapse = ", ")
+      if (length(event) > 0) {
+        event.freq <- paste(tapply(event, event, length), collapse = ", ")
+      }
+      else {
+        event.freq <- 0
+      }
     }
   }
   if (x$family == "class") {
@@ -98,9 +103,11 @@ print.rfsrc <- function(x, ...) {
       conf.matx <- table(x$yvar, if(!is.null(x$class.oob) && !all(is.na(x$class.oob))) x$class.oob else x$class)
       conf.matx <- cbind(conf.matx,  class.error = round(1 - diag(conf.matx)/rowSums(conf.matx, na.rm = TRUE), 4))
       names(dimnames(conf.matx)) <- c("  observed", "predicted")
+      brierS <- brier(x$yvar,
+                 if(!is.null(x$predicted.oob) && !all(is.na(x$predicted.oob))) x$predicted.oob else x$predicted)
     }
     else {
-      conf.matx <- NULL
+      conf.matx <- brierS <- NULL
     }
   }
   if (!is.null(x$err.rate)) {
@@ -111,6 +118,7 @@ print.rfsrc <- function(x, ...) {
     else if (x$family == "class") {
       overall.err.rate <- paste(round(100 * err.rate[nrow(err.rate), 1], 2), "%", sep = "")
       err.rate <- paste(round(err.rate[nrow(err.rate), ], 2), collapse=", ", sep = "")
+      brierS <- round(100 * brierS, 2)
     }
     else if (x$family == "regr") {
       per.var <- round(100 * (1 - err.rate[nrow(err.rate), ] / var(x$yvar, na.rm = TRUE)), 2)
@@ -165,7 +173,10 @@ print.rfsrc <- function(x, ...) {
       if (x$family == "regr") {
         cat("                % variance explained: ", per.var, "\n", sep="")
       }
-      cat("              Estimate of error rate: ", err.rate,            "\n\n", sep="")
+      if (x$family == "class" && !is.null(brierS)) {
+        cat("                         Brier score:", brierS, "\n")
+      } 
+      cat("                          Error rate: ", err.rate,            "\n\n", sep="")
     }
     if (x$family == "class" && !is.null(conf.matx)) {
       if (!is.null(x$predicted.oob) && any(is.na(x$predicted.oob))) {
@@ -205,7 +216,10 @@ print.rfsrc <- function(x, ...) {
       if (x$family == "regr") {
         cat("                % variance explained: ", per.var, "\n", sep="")
       }
-      cat("                     Test error rate: ", err.rate, "\n\n", sep="")
+      if (x$family == "class" && !is.null(brierS)) {
+      cat("                Test set Brier score:", brierS, "\n")
+      }
+      cat("                 Test set error rate: ", err.rate, "\n\n", sep="")
     }
     if (x$family == "class" && !is.null(conf.matx)) {
      if (!is.null(x$predicted.oob) && any(is.na(x$predicted.oob))) {
