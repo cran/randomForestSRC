@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.0
+////  Version 1.5.1
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -437,17 +437,26 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     for (b = 1; b <= RF_forestSize; b++) {
       lcgenerator(&seedValueLC, FALSE);
       lcgenerator(&seedValueLC, FALSE);
+      while(seedValueLC == 0) {
+        lcgenerator(&seedValueLC, FALSE);
+      }
       randomSetChain(b, -seedValueLC);
     }
   }
   for (b = 1; b <= RF_forestSize; b++) {
     lcgenerator(&seedValueLC, FALSE);
     lcgenerator(&seedValueLC, FALSE);
+    while(seedValueLC == 0) {
+      lcgenerator(&seedValueLC, FALSE);
+    }
     randomSetUChain(b, -seedValueLC);
   }
   for (b = 1; b <= RF_forestSize; b++) {
     lcgenerator(&seedValueLC, FALSE);
     lcgenerator(&seedValueLC, FALSE);
+    while(seedValueLC == 0) {
+      lcgenerator(&seedValueLC, FALSE);
+    }
     randomSetUChainCov(b, -seedValueLC);
   }
 #else
@@ -466,13 +475,22 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     lcgenerator(&seedValueLC, TRUE);
     lcgenerator(&seedValueLC, FALSE);
     lcgenerator(&seedValueLC, FALSE);
+    while(seedValueLC == 0) {
+      lcgenerator(&seedValueLC, FALSE);
+    }
     randomSetChain(1, -seedValueLC);
   }
   lcgenerator(&seedValueLC, FALSE);
   lcgenerator(&seedValueLC, FALSE);
+  while(seedValueLC == 0) {
+    lcgenerator(&seedValueLC, FALSE);
+  }
   randomSetUChain(1, -seedValueLC);
   lcgenerator(&seedValueLC, FALSE);
   lcgenerator(&seedValueLC, FALSE);
+  while(seedValueLC == 0) {
+    lcgenerator(&seedValueLC, FALSE);
+  }
   randomSetUChainCov(1, -seedValueLC);
 #endif
   if (mode != RF_GROW) {
@@ -520,6 +538,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
             if (r > 1) {
               lcgenerator(&seedValueLC, FALSE);
               lcgenerator(&seedValueLC, FALSE);
+              while(seedValueLC == 0) {
+                lcgenerator(&seedValueLC, FALSE);
+              }
               randomSetChain(b, -seedValueLC);
             }
             RF_seed_[b] = randomGetChain(b);
@@ -537,6 +558,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
           if (r > 1) {
             lcgenerator(&seedValueLC, FALSE);
             lcgenerator(&seedValueLC, FALSE);
+            while(seedValueLC == 0) {
+              lcgenerator(&seedValueLC, FALSE);
+            }
             randomSetChain(1, -seedValueLC);
           }
           RF_seed_[1] = randomGetChain(1);

@@ -1,11 +1,11 @@
 Package: randomForestSRC
-Version: 1.5.0
-BUILD: bld20140512
+Version: 1.5.1
+BUILD: bld20140515
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.5.0
+CHANGES TO RELEASE 1.5.1
 ---------------------------------------------------------------------------------
-RELEASE 1.5.0
+RELEASE 1.5.1
 Significant improvements to CPU and RAM usage profiles in serial and
 OpenMP modes of execution.  Proxmity options allow inbag, oob and all.
 VIMP implements subsetting and conditional variable importance. NA
