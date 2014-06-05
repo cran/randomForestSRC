@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.1
+####  Version 1.5.2
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -433,7 +433,7 @@ rfsrcParse2Tree <- function(recursiveObject,
   minDepthProb <- function(p, D, l) {
     if (!is.null(l)) Ld <- 0
     prob <- rep(0, D+1)
-    for (d in 0:(D-1)) {
+    nullObj <- sapply(0:(D-1), function(d) {
       if (is.null(l)) {
         Ld <- 2^d-1
         ld <- 2^d
@@ -442,14 +442,14 @@ rfsrcParse2Tree <- function(recursiveObject,
        ld <- l[d+1]
        if (d > 0) Ld <- Ld + l[d] 
       }
-      prob.d.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      prob.d.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      prob[d+1] <- exp(prob.d.1) * (1 - exp(prob.d.2))
-    }
+      prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
+      prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
+      prob[d+1] <<- exp(prob.1) * (1 - exp(prob.2))
+    })
     prob[D+1] <- 1 - sum(prob[1:D])
     if (prob[D+1] < 0) {
       prob[D+1] <- 0
-      prob <- prob/sum(prob)
+      prob <- prob / sum(prob)
     }
     prob
   }
@@ -457,26 +457,26 @@ rfsrcParse2Tree <- function(recursiveObject,
     md.prob <- rep(0, D+1)
     Ld <- 0
     if (is.null(l)) {
-      l <- sapply(0:(D-1), 2^d)
+      l <- sapply(0:(D-1), function(d) 2^d)
     }
-    for (d in 0:(D-1)) {
+    nullObj <- sapply(0:(D-1), function(d) {
       ld <- l[d+1]
       if (d > 0) Ld <- Ld + l[d] 
-      md.prob.d.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      md.prob.d.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      md.prob[d+1] <- exp(md.prob.d.1) * (1 - exp(md.prob.d.2))
-    }
+      md.prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
+      md.prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
+      md.prob[d+1] <<- exp(md.prob.1) * (1 - exp(md.prob.2))
+    })
     md.prob[D+1] <- 1 - sum(md.prob[1:D])
     if (md.prob[D+1] < 0) {
       md.prob[D+1] <- 0
-      md.prob <- md.prob/sum(md.prob)
+      md.prob <- md.prob / sum(md.prob)
     }
     prob <- rep(0, D+1)
     if (D >= 2) {
-      for (d in 1:(D-1)) {
+      nullObj <- sapply(1:(D-1), function(d) {
         prob.d <- l[1:d] * ifelse(p > 1, log(1 - 1 / p), 0)
-        prob[d+1] <- md.prob[d+1] * sum(exp(-prob.d) - 1)
-      }
+        prob[d+1] <<- md.prob[d+1] * sum(exp(-prob.d) - 1)
+      })
     }
     prob[D+1] <- 1 - sum(prob[1:D])
     if (prob[D+1] < 0) {

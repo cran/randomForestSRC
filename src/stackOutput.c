@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -452,10 +452,10 @@ uint stackDefinedOutputObjects(char      mode,
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_FENS_ID]));
     *pRF_fullEnsemble = NUMERIC_POINTER(sexpVector[RF_FENS_ID]);
     sexpIndex ++;
-    RF_fullEnsemblePtr = (double ***) vvector(1, ensbDimOne);
+    RF_fullEnsemblePtr = (double ***) new_vvector(1, ensbDimOne, NRUTIL_DPTR2);
     RF_fullEnsembleDen = uivector(1, obsSize);
     for (j = 1; j <= ensbDimOne; j++) {
-      RF_fullEnsemblePtr[j] = (double **) vvector(1, ensbDimTwo);
+      RF_fullEnsemblePtr[j] = (double **) new_vvector(1, ensbDimTwo, NRUTIL_DPTR);
       for (k = 1; k <= ensbDimTwo; k++) {
         RF_fullEnsemblePtr[j][k]  = (*pRF_fullEnsemble) + ((j-1) * ensbDimTwo * obsSize) + ((k-1) * obsSize) - 1;
       }
@@ -474,7 +474,7 @@ uint stackDefinedOutputObjects(char      mode,
       SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_FMRT_ID]));
       *pRF_fullEnsembleMRT = NUMERIC_POINTER(sexpVector[RF_FMRT_ID]);
       sexpIndex ++;
-      RF_fullMRTPtr = (double **) vvector(1, ensbDimOne);
+      RF_fullMRTPtr = (double **) new_vvector(1, ensbDimOne, NRUTIL_DPTR);
       for (j = 1; j <= ensbDimOne; j++) {
         RF_fullMRTPtr[j] = (*pRF_fullEnsembleMRT) + ((j-1) * obsSize) - 1;
       }
@@ -489,7 +489,7 @@ uint stackDefinedOutputObjects(char      mode,
         SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_FSRV_ID]));
         *pRF_fullEnsembleSRV = NUMERIC_POINTER(sexpVector[RF_FSRV_ID]);
         sexpIndex ++;
-        RF_fullSRVPtr = (double **) vvector(1, ensbDimTwo);
+        RF_fullSRVPtr = (double **) new_vvector(1, ensbDimTwo, NRUTIL_DPTR);
         for (j = 1; j <= ensbDimTwo; j++) {
           RF_fullSRVPtr[j]  = (*pRF_fullEnsembleSRV) + ((j-1) * obsSize) - 1;
         }
@@ -505,9 +505,9 @@ uint stackDefinedOutputObjects(char      mode,
         SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_FCIF_ID]));
         *pRF_fullEnsembleCIF = NUMERIC_POINTER(sexpVector[RF_FCIF_ID]);
         sexpIndex ++;
-        RF_fullCIFPtr = (double ***) vvector(1, ensbDimOne);
+        RF_fullCIFPtr = (double ***) new_vvector(1, ensbDimOne, NRUTIL_DPTR2);
         for (j = 1; j <= ensbDimOne; j++) {
-          RF_fullCIFPtr[j] = (double **) vvector(1, ensbDimTwo);
+          RF_fullCIFPtr[j] = (double **) new_vvector(1, ensbDimTwo, NRUTIL_DPTR);
           for (k = 1; k <= ensbDimTwo; k++) {
             RF_fullCIFPtr[j][k]  = (*pRF_fullEnsembleCIF) + ((j-1) * ensbDimTwo * obsSize) + ((k-1) * obsSize) - 1;
           }
@@ -528,10 +528,10 @@ uint stackDefinedOutputObjects(char      mode,
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_OENS_ID]));
     *pRF_oobEnsemble = NUMERIC_POINTER(sexpVector[RF_OENS_ID]);
     sexpIndex ++;
-    RF_oobEnsemblePtr  = (double ***) vvector(1, ensbDimOne);
+    RF_oobEnsemblePtr  = (double ***) new_vvector(1, ensbDimOne, NRUTIL_DPTR2);
     RF_oobEnsembleDen  = uivector(1, obsSize);
     for (j = 1; j <= ensbDimOne; j++) {
-      RF_oobEnsemblePtr[j] = (double **) vvector(1, ensbDimTwo);
+      RF_oobEnsemblePtr[j] = (double **) new_vvector(1, ensbDimTwo, NRUTIL_DPTR);
       for (k = 1; k <= ensbDimTwo; k++) {
         RF_oobEnsemblePtr[j][k]  = (*pRF_oobEnsemble) + ((j-1) * ensbDimTwo * obsSize) + ((k-1) * obsSize) - 1;
       }
@@ -550,7 +550,7 @@ uint stackDefinedOutputObjects(char      mode,
       SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_OMRT_ID]));
       *pRF_oobEnsembleMRT = NUMERIC_POINTER(sexpVector[RF_OMRT_ID]);
       sexpIndex ++;
-      RF_oobMRTPtr = (double **) vvector(1, ensbDimOne);
+      RF_oobMRTPtr = (double **) new_vvector(1, ensbDimOne, NRUTIL_DPTR);
       for (j = 1; j <= ensbDimOne; j++) {
         RF_oobMRTPtr[j] = (*pRF_oobEnsembleMRT) + ((j-1) * obsSize) - 1;
       }
@@ -565,7 +565,7 @@ uint stackDefinedOutputObjects(char      mode,
         SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_OSRV_ID]));
         *pRF_oobEnsembleSRV = NUMERIC_POINTER(sexpVector[RF_OSRV_ID]);
         sexpIndex ++;
-        RF_oobSRVPtr = (double **) vvector(1, ensbDimTwo);
+        RF_oobSRVPtr = (double **) new_vvector(1, ensbDimTwo, NRUTIL_DPTR);
         for (j = 1; j <= ensbDimTwo; j++) {
           RF_oobSRVPtr[j]  = (*pRF_oobEnsembleSRV) + ((j-1) * obsSize) - 1;
         }
@@ -581,9 +581,9 @@ uint stackDefinedOutputObjects(char      mode,
         SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_OCIF_ID]));
         *pRF_oobEnsembleCIF = NUMERIC_POINTER(sexpVector[RF_OCIF_ID]);
         sexpIndex ++;
-        RF_oobCIFPtr = (double ***) vvector(1, ensbDimOne);
+        RF_oobCIFPtr = (double ***) new_vvector(1, ensbDimOne, NRUTIL_DPTR2);
         for (j = 1; j <= ensbDimOne; j++) {
-          RF_oobCIFPtr[j] = (double **) vvector(1, ensbDimTwo);
+          RF_oobCIFPtr[j] = (double **) new_vvector(1, ensbDimTwo, NRUTIL_DPTR);
           for (k = 1; k <= ensbDimTwo; k++) {
             RF_oobCIFPtr[j][k]  = (*pRF_oobEnsembleCIF) + ((j-1) * ensbDimTwo * obsSize) + ((k-1) * obsSize) - 1;
           }
@@ -604,7 +604,7 @@ uint stackDefinedOutputObjects(char      mode,
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_PERF_ID]));
     *p_performance = NUMERIC_POINTER(sexpVector[RF_PERF_ID]);
     sexpIndex ++;
-    RF_performancePtr = (double **) vvector(1, RF_forestSize);
+    RF_performancePtr = (double **) new_vvector(1, RF_forestSize, NRUTIL_DPTR);
     for (i = 1; i <= RF_forestSize; i++) {
       RF_performancePtr[i]  = (*p_performance)  + ((i-1) * perfDim) - 1;
     }
@@ -633,7 +633,7 @@ uint stackDefinedOutputObjects(char      mode,
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_WGHT_ID]));
     *pRF_weight = NUMERIC_POINTER(sexpVector[RF_WGHT_ID]);
     sexpIndex ++;
-    RF_weightPtr = (double **) vvector(1, obsSize);
+    RF_weightPtr = (double **) new_vvector(1, obsSize, NRUTIL_DPTR);
     for (i = 1; i <= obsSize; i++) {
       RF_weightPtr[i]  = (*pRF_weight)  + ((i-1) * RF_observationSize) - 1;
     }
@@ -673,12 +673,12 @@ uint stackDefinedOutputObjects(char      mode,
     *p_imputation = NUMERIC_POINTER(sexpVector[RF_MISS_ID]);
     sexpIndex ++;
     if (rspSize > 0) {
-      *pRF_sImputeResponsePtr = (double **) vvector(1, rspSize);
+      *pRF_sImputeResponsePtr = (double **) new_vvector(1, rspSize, NRUTIL_DPTR);
       for (i = 1; i <= rspSize; i++) {
         (*pRF_sImputeResponsePtr)[i]  = (*p_imputation)  + (i * mRecordSize) - 1;
       }
     }
-    *pRF_sImputePredictorPtr = (double **) vvector(1, RF_xSize);
+    *pRF_sImputePredictorPtr = (double **) new_vvector(1, RF_xSize, NRUTIL_DPTR);
     for (i = 1; i <= RF_xSize; i++) {
       (*pRF_sImputePredictorPtr)[i]  = (*p_imputation)  + ((rspSize + i) * mRecordSize) - 1;
     }
@@ -700,16 +700,16 @@ uint stackDefinedOutputObjects(char      mode,
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_VIMP_ID]));
     *pRF_importance = NUMERIC_POINTER(sexpVector[RF_VIMP_ID]);
     sexpIndex ++;
-    RF_vimpMembership = (Node ****) vvector(1, xVimpSize);
+    RF_vimpMembership = (Node ****) new_vvector(1, xVimpSize, NRUTIL_NPTR3);
     for (k = 1; k <= xVimpSize; k++) {
-      RF_vimpMembership[k] = (Node ***) vvector(1,  RF_forestSize);
+      RF_vimpMembership[k] = (Node ***) new_vvector(1,  RF_forestSize, NRUTIL_NPTR2);
     }
     for (k = 1; k <= xVimpSize; k++) {
       for (i = 1; i <= RF_forestSize; i++) {
         RF_vimpMembership[k][i] = NULL;
       }
     }
-    RF_importancePtr = (double **) vvector(1, xVimpSize);
+    RF_importancePtr = (double **) new_vvector(1, xVimpSize, NRUTIL_DPTR);
     for (k = 1; k <= xVimpSize; k++) {
       RF_importancePtr[k]  = (*pRF_importance)  + ((k-1) * perfDim) - 1;
     }
@@ -718,7 +718,7 @@ uint stackDefinedOutputObjects(char      mode,
         RF_importancePtr[k][j] = NA_REAL;
       }
     }
-    RF_vimpEnsembleDen  = (uint **) vvector(1, xVimpSize);
+    RF_vimpEnsembleDen  = (uint **) new_vvector(1, xVimpSize, NRUTIL_UPTR);
     for (j = 1; j <= xVimpSize; j++) {
       RF_vimpEnsembleDen[j] = uivector(1, obsSize);
       for (i = 1; i <= obsSize; i++) {
@@ -775,7 +775,7 @@ uint stackDefinedOutputObjects(char      mode,
     *pRF_varUsed = (uint*) INTEGER_POINTER(sexpVector[RF_VUSE_ID]);
     sexpIndex ++;
     if (RF_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
-      *pRF_varUsedPtr = (uint **) vvector(1, RF_forestSize);
+      *pRF_varUsedPtr = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
       for (i = 1; i <= RF_forestSize; i++) {
         (*pRF_varUsedPtr)[i] = (*pRF_varUsed) + ((i-1)*(RF_xSize)) - 1;
       }
@@ -796,9 +796,9 @@ uint stackDefinedOutputObjects(char      mode,
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex, mkChar(sexpString[RF_DPTH_ID]));
     *p_splitDepth = NUMERIC_POINTER(sexpVector[RF_DPTH_ID]);
     sexpIndex ++;
-    RF_splitDepthPtr  = (double ***) vvector(1, dpthDimOne);
+    RF_splitDepthPtr  = (double ***) new_vvector(1, dpthDimOne, NRUTIL_DPTR2);
     for (j = 1; j <= dpthDimOne; j++) {
-      RF_splitDepthPtr[j] = (double **) vvector(1, RF_xSize);
+      RF_splitDepthPtr[j] = (double **) new_vvector(1, RF_xSize, NRUTIL_DPTR);
       for (k = 1; k <= RF_xSize; k++) {
         RF_splitDepthPtr[j][k]  = (*p_splitDepth) + ((j-1) * RF_xSize * RF_observationSize) + ((k-1) * RF_observationSize) - 1;
       }
@@ -816,7 +816,7 @@ uint stackDefinedOutputObjects(char      mode,
     SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_NMBR_ID]);
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex++, mkChar(sexpString[RF_NMBR_ID]));
     *pRF_tNodeMembershipIndex = (uint*) INTEGER_POINTER(sexpVector[RF_NMBR_ID]);
-    RF_tNodeMembershipIndexPtr = (uint **) vvector(1, RF_forestSize);
+    RF_tNodeMembershipIndexPtr = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
     for (i = 1; i <= RF_forestSize; i++) {
       (RF_tNodeMembershipIndexPtr)[i] = (*pRF_tNodeMembershipIndex) + ((i-1) * obsSize) - 1;
     }
@@ -831,7 +831,7 @@ uint stackDefinedOutputObjects(char      mode,
       SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_PMBR_ID]);
       SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex++, mkChar(sexpString[RF_PMBR_ID]));
       *pRF_pNodeMembershipIndex = (uint*) INTEGER_POINTER(sexpVector[RF_PMBR_ID]);
-      RF_pNodeMembershipIndexPtr = (uint **) vvector(1, RF_forestSize);
+      RF_pNodeMembershipIndexPtr = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
       for (i = 1; i <= RF_forestSize; i++) {
         (RF_pNodeMembershipIndexPtr)[i] = (*pRF_pNodeMembershipIndex) + ((i-1) * obsSize) - 1;
       }
@@ -846,7 +846,7 @@ uint stackDefinedOutputObjects(char      mode,
     SET_VECTOR_ELT(sexpVector[RF_OUTP_ID], sexpIndex, sexpVector[RF_BMBR_ID]);
     SET_STRING_ELT(sexpVector[RF_STRG_ID], sexpIndex++, mkChar(sexpString[RF_BMBR_ID]));
     *pRF_bootstrapMembership = (uint*) INTEGER_POINTER(sexpVector[RF_BMBR_ID]);
-    RF_bootstrapMembershipPtr = (uint **) vvector(1, RF_forestSize);
+    RF_bootstrapMembershipPtr = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
     for (i = 1; i <= RF_forestSize; i++) {
       (RF_bootstrapMembershipPtr)[i] = (*pRF_bootstrapMembership) + ((i-1) * obsSize) - 1;
     }
@@ -1038,50 +1038,50 @@ void unstackDefinedOutputObjects(char      mode,
   }
   if (RF_opt & OPT_FENS) {
     for (j = 1; j <= ensbDimOne; j++) {
-      free_vvector(RF_fullEnsemblePtr[j], 1, ensbDimTwo);
+      free_new_vvector(RF_fullEnsemblePtr[j], 1, ensbDimTwo, NRUTIL_DPTR);
     }
-    free_vvector(RF_fullEnsemblePtr, 1, ensbDimOne);
+    free_new_vvector(RF_fullEnsemblePtr, 1, ensbDimOne, NRUTIL_DPTR2);
     free_uivector(RF_fullEnsembleDen, 1, obsSize);
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      free_vvector(RF_fullMRTPtr, 1, ensbDimOne);
+      free_new_vvector(RF_fullMRTPtr, 1, ensbDimOne, NRUTIL_DPTR);
       if (!(RF_opt & OPT_COMP_RISK)) {
-        free_vvector(RF_fullSRVPtr, 1, ensbDimTwo);
+        free_new_vvector(RF_fullSRVPtr, 1, ensbDimTwo, NRUTIL_DPTR);
       }
       else {
         for (j = 1; j <= ensbDimOne; j++) {
-          free_vvector(RF_fullCIFPtr[j], 1, ensbDimTwo);
+          free_new_vvector(RF_fullCIFPtr[j], 1, ensbDimTwo, NRUTIL_DPTR);
         }
-        free_vvector(RF_fullCIFPtr, 1, ensbDimOne);
+        free_new_vvector(RF_fullCIFPtr, 1, ensbDimOne, NRUTIL_DPTR2);
       }
     }
   }
   if (RF_opt & OPT_OENS) {
     for (j = 1; j <= ensbDimOne; j++) {
-      free_vvector(RF_oobEnsemblePtr[j], 1, ensbDimTwo);
+      free_new_vvector(RF_oobEnsemblePtr[j], 1, ensbDimTwo, NRUTIL_DPTR);
     }
-    free_vvector(RF_oobEnsemblePtr, 1, ensbDimOne);
+    free_new_vvector(RF_oobEnsemblePtr, 1, ensbDimOne, NRUTIL_DPTR2);
     free_uivector(RF_oobEnsembleDen, 1, obsSize);
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      free_vvector(RF_oobMRTPtr, 1, ensbDimOne);
+      free_new_vvector(RF_oobMRTPtr, 1, ensbDimOne, NRUTIL_DPTR);
       if (!(RF_opt & OPT_COMP_RISK)) {
-        free_vvector(RF_oobSRVPtr, 1, ensbDimTwo);
+        free_new_vvector(RF_oobSRVPtr, 1, ensbDimTwo, NRUTIL_DPTR);
       }
       else {
         for (j = 1; j <= ensbDimOne; j++) {
-          free_vvector(RF_oobCIFPtr[j], 1, ensbDimTwo);
+          free_new_vvector(RF_oobCIFPtr[j], 1, ensbDimTwo, NRUTIL_DPTR);
         }
-        free_vvector(RF_oobCIFPtr, 1, ensbDimOne);
+        free_new_vvector(RF_oobCIFPtr, 1, ensbDimOne, NRUTIL_DPTR2);
       }
     }
   }
   if (RF_opt & OPT_PERF) {
-    free_vvector(RF_performancePtr, 1, RF_forestSize);
+    free_new_vvector(RF_performancePtr, 1, RF_forestSize, NRUTIL_DPTR);
   }
   if (RF_opt & OPT_PROX) {
     free_dvector(RF_proximityDen, 1, proximitySize);
   }
   if (RF_optHigh & OPT_WGHT) {
-    free_vvector(RF_weightPtr, 1, obsSize);
+    free_new_vvector(RF_weightPtr, 1, obsSize, NRUTIL_DPTR);
   }
   if (RF_opt & OPT_TREE) {
     for (i = 1; i <= RF_forestSize; i++) {
@@ -1090,20 +1090,20 @@ void unstackDefinedOutputObjects(char      mode,
   }
   if (RF_opt & OPT_MISS) {
     if (rspSize > 0) {
-      free_vvector(RF_sImputeResponsePtr, 1, rspSize);
+      free_new_vvector(RF_sImputeResponsePtr, 1, rspSize, NRUTIL_DPTR);
     }
-    free_vvector(RF_sImputePredictorPtr, 1, RF_xSize);
+    free_new_vvector(RF_sImputePredictorPtr, 1, RF_xSize, NRUTIL_DPTR);
   }
   if (RF_opt & OPT_VIMP) {
     for (k = 1; k <= xVimpSize; k++) {
-      free_vvector(RF_vimpMembership[k], 1,  RF_forestSize);
+      free_new_vvector(RF_vimpMembership[k], 1,  RF_forestSize, NRUTIL_NPTR2);
     }
-    free_vvector(RF_vimpMembership, 1, xVimpSize);
+    free_new_vvector(RF_vimpMembership, 1, xVimpSize, NRUTIL_NPTR3);
     for (j = 1; j <= xVimpSize; j++) {
       free_uivector(RF_vimpEnsembleDen[j], 1, obsSize);
     }
-    free_vvector(RF_vimpEnsembleDen, 1, xVimpSize);
-    free_vvector(RF_importancePtr, 1, xVimpSize);
+    free_new_vvector(RF_vimpEnsembleDen, 1, xVimpSize, NRUTIL_UPTR);
+    free_new_vvector(RF_importancePtr, 1, xVimpSize, NRUTIL_DPTR);
     if(RF_opt & OPT_VIMP_LEOB) {
       free_dmatrix3(RF_vimpLeo, 1, RF_forestSize, 1, xVimpSize, 1, perfDim);
       free_dmatrix(RF_perfLeo, 1, RF_forestSize, 1, perfDim);
@@ -1120,7 +1120,7 @@ void unstackDefinedOutputObjects(char      mode,
   }
   if (RF_opt & OPT_VUSE) {
     if (RF_opt & (~OPT_VUSE) & OPT_VUSE_TYPE) {
-      free_vvector(RF_varUsedPtr, 1, RF_forestSize);
+      free_new_vvector(RF_varUsedPtr, 1, RF_forestSize, NRUTIL_UPTR);
     }
     else {
       free_uimatrix(RF_varUsedPtr, 1, RF_forestSize, 1, RF_xSize);
@@ -1128,15 +1128,15 @@ void unstackDefinedOutputObjects(char      mode,
   }
   if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
     for (j = 1; j <= dpthDimOne; j++) {
-      free_vvector(RF_splitDepthPtr[j], 1, RF_xSize);
+      free_new_vvector(RF_splitDepthPtr[j], 1, RF_xSize, NRUTIL_DPTR);
     }
-    free_vvector(RF_splitDepthPtr, 1, dpthDimOne);
+    free_new_vvector(RF_splitDepthPtr, 1, dpthDimOne, NRUTIL_DPTR2);
   }
   if (RF_opt & OPT_MEMB) {
-    free_vvector(RF_tNodeMembershipIndexPtr, 1, RF_forestSize);
-    free_vvector(RF_bootstrapMembershipPtr,  1, RF_forestSize);
+    free_new_vvector(RF_tNodeMembershipIndexPtr, 1, RF_forestSize, NRUTIL_UPTR);
+    free_new_vvector(RF_bootstrapMembershipPtr,  1, RF_forestSize, NRUTIL_UPTR);
     if (RF_ptnCount > 0) {
-      free_vvector(RF_pNodeMembershipIndexPtr, 1, RF_forestSize);
+      free_new_vvector(RF_pNodeMembershipIndexPtr, 1, RF_forestSize, NRUTIL_UPTR);
     }
   }
 }

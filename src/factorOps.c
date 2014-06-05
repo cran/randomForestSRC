@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -134,7 +134,7 @@ char bookFactor(Factor *f) {
   }
   if (f -> cardinalGroupBinary == NULL) {
     uint *leftLevel = uivector(1, f -> r);
-    f -> cardinalGroupBinary = (uint **) vvector(1, f -> cardinalGroupCount);
+    f -> cardinalGroupBinary = (uint **) new_vvector(1, f -> cardinalGroupCount, NRUTIL_UPTR);
     for (i=1; i <= f -> cardinalGroupCount; i++) {
       (f -> cardinalGroupBinary)[i] = uivector(1, ((uint*) f -> cardinalGroupSize)[i]);
       row = 0;
@@ -158,7 +158,7 @@ char unbookFactor(Factor *f) {
     for (i = 1; i <= f -> cardinalGroupCount; i++) {
       free_uivector((f -> cardinalGroupBinary)[i], 1, ((uint*) f -> cardinalGroupSize)[i]);
     }
-    free_vvector(f -> cardinalGroupBinary, 1, f -> cardinalGroupCount);
+    free_new_vvector(f -> cardinalGroupBinary, 1, f -> cardinalGroupCount, NRUTIL_UPTR);
     f -> cardinalGroupBinary = NULL;
     result = TRUE;
   }
@@ -167,16 +167,16 @@ char unbookFactor(Factor *f) {
   }
   return result;
 }
-void bookPair (uint   levelCount, 
-               uint    groupIndex, 
-               uint    setColumn, 
-               uint   *setRow, 
-               uint   *daughter, 
+void bookPair (uint   levelCount,
+               uint    groupIndex,
+               uint    setColumn,
+               uint   *setRow,
+               uint   *daughter,
                Factor *f) {
   uint i;
   daughter[setColumn] ++;
   if (setColumn < groupIndex) {
-    setColumn ++; 
+    setColumn ++;
     daughter[setColumn] ++;
     while (daughter[setColumn] < daughter[setColumn-1]) {
       daughter[setColumn] ++;

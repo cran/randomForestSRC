@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,6 +64,30 @@
 #define NRUTIL_H
 #include     "node.h"
 #include "terminal.h"
+#ifndef TRUE
+#define TRUE   0x01
+#endif
+#ifndef FALSE
+#define FALSE  0x00
+#endif
+enum alloc_type{
+  NRUTIL_DPTR,
+  NRUTIL_UPTR,
+  NRUTIL_IPTR,
+  NRUTIL_CPTR,
+  NRUTIL_NPTR,
+  NRUTIL_TPTR,
+  NRUTIL_DPTR2,
+  NRUTIL_UPTR2,
+  NRUTIL_IPTR2,
+  NRUTIL_CPTR2,
+  NRUTIL_NPTR2,
+  NRUTIL_TPTR2,
+  NRUTIL_DPTR3,
+  NRUTIL_NPTR3,
+  NRUTIL_FPTR,
+  NRUTIL_FPTR2
+};
 unsigned int upower (unsigned int x, unsigned int n);
 unsigned int upower2 (unsigned int n);
 unsigned int ulog2 (unsigned int n);
@@ -78,7 +102,7 @@ void hpsortui(
 void hpsortxx(unsigned int n, double *arr,  unsigned *indx);
 void indexx(
   unsigned int n,
-  double *arr, 
+  double *arr,
   unsigned int *indx
 );
 void nrerror(char error_text[]);
@@ -86,10 +110,6 @@ void *gblock(size_t size);
 void free_gblock(void *v, size_t size);
 void *gvector(unsigned long nl, unsigned long nh, size_t size);
 void free_gvector(void *v, unsigned long nl, unsigned long nh, size_t size);
-void *vvector(unsigned long nl, unsigned long nh);
-void free_vvector(void *v, unsigned long nl, unsigned long nh);
-void **vmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch);
-void free_vmatrix(void **v, unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch);
 char *cvector(unsigned long nl, unsigned long nh);
 void free_cvector(char *v, unsigned long nl, unsigned long nh);
 char **cmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch);
@@ -110,6 +130,8 @@ double ***dmatrix3(unsigned long n3l, unsigned long n3h, unsigned long nrl, unsi
 void free_dmatrix3(double ***v, unsigned long n3l, unsigned long n3h, unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch);
 double ****dmatrix4(unsigned long n4l, unsigned long n4h, unsigned long n3l, unsigned long n3h, unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch);
 void free_dmatrix4(double ****v, unsigned long n4l, unsigned long n4h, unsigned long n3l, unsigned long n3h, unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch);
+void *new_vvector(unsigned long nl, unsigned long nh, enum alloc_type type);
+void free_new_vvector(void *v, unsigned long nl, unsigned long nh, enum alloc_type type);
 void nrCopyMatrix(
   unsigned int **new,
   unsigned int **old,
@@ -117,8 +139,8 @@ void nrCopyMatrix(
   unsigned int ncol
 );
 void nrCopyVector(
-  char *new, 
-  char *old, 
+  char *new,
+  char *old,
   unsigned int ncol
 );
 #endif

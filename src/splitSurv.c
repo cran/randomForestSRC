@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -177,6 +177,7 @@ char logRankNCR (uint    treeID,
     case SURV_LRSCR:
       survivalTimeIndexRank = uivector(1, repMembrSize);
       survivalRank = dvector(1, repMembrSize);
+      localEventTimeSize = 1;
       break;
     default:
       break;
@@ -242,6 +243,7 @@ char logRankNCR (uint    treeID,
         }
         break;
       case SURV_LRSCR:
+        localEventTimeSize = 1;
         break;
       default:
         break;
@@ -345,7 +347,7 @@ char logRankNCR (uint    treeID,
               case SURV_LRSCR:
                 deltaNum = 0.0;
                 for (k = 1; k <= nonMissMembrSize; k++) {
-                  if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
+                  if (localSplitIndicator[ nonMissMembrIndx[k] ] == LEFT) {
                     deltaNum = deltaNum + survivalRank[k];
                   }
                 }
@@ -375,7 +377,7 @@ char logRankNCR (uint    treeID,
                 break;
               case SURV_LRSCR:
                 for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
-                  deltaNum = deltaNum + survivalRank[ nonMissMembrIndx[indxx[k]] ];
+                  deltaNum = deltaNum + survivalRank[ indxx[k] ];
                 }
                 break;
               default:
@@ -413,7 +415,7 @@ char logRankNCR (uint    treeID,
               break;
             case SURV_LRSCR:
               deltaNumAdj  = deltaNum - (leftSize * meanSurvRank);
-              deltaDen     = leftSize * (1.0 - (leftSize / repMembrSize)) * varSurvRank;
+              deltaDen     = leftSize * (1.0 - (leftSize / nonMissMembrSize)) * varSurvRank;
               deltaNumAdj = fabs(deltaNumAdj);
               deltaDen = sqrt(deltaDen);
               if (deltaDen <= EPSILON) {

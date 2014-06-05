@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -814,7 +814,7 @@ void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize
     tNode -> rfCount = rfCount;
   }
   tNode -> rfSize = uivector(1, tNode -> rfCount);
-  tNode -> multiClassProb = (unsigned int **) vvector(1, tNode -> rfCount);
+  tNode -> multiClassProb = (unsigned int **) new_vvector(1, tNode -> rfCount, NRUTIL_UPTR);
   for (j = 1; j <= tNode -> rfCount; j++) {
     (tNode -> rfSize)[j] = rfSize[j];
     (tNode -> multiClassProb)[j] = uivector(1, (tNode -> rfSize)[j]);
@@ -831,7 +831,7 @@ void unstackMultiClassProb(Node *tNode) {
             tNode -> multiClassProb[j] = NULL;
           }
         }
-        free_vvector(tNode -> multiClassProb, 1, tNode -> rfCount);
+        free_new_vvector(tNode -> multiClassProb, 1, tNode -> rfCount, NRUTIL_UPTR);
         tNode -> multiClassProb = NULL;
       }
     }

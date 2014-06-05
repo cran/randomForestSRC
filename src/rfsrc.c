@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -767,8 +767,8 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
             freeTerminal(RF_mTermList[b][j]);
           }
           if (RF_tLeafCount[b] > 0) {
-            free_vvector(RF_mTermList[b], 1, RF_tLeafCount[b]);
-            free_vvector(RF_mTermMembership[b], 1, recordSize);
+            free_new_vvector(RF_mTermList[b], 1, RF_tLeafCount[b], NRUTIL_TPTR);
+            free_new_vvector(RF_mTermMembership[b], 1, recordSize, NRUTIL_TPTR);
           }
         }
       }
@@ -917,8 +917,8 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         freeTerminal(RF_mTermList[b][j]);
       }
       if (RF_tLeafCount[b] > 0) {
-        free_vvector(RF_mTermList[b], 1, RF_tLeafCount[b]);
-        free_vvector(RF_mTermMembership[b], 1, recordSize);
+        free_new_vvector(RF_mTermList[b], 1, RF_tLeafCount[b], NRUTIL_TPTR);
+        free_new_vvector(RF_mTermMembership[b], 1, recordSize, NRUTIL_TPTR);
       }
     }
   }  

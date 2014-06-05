@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -172,9 +172,9 @@ char unsupervisedSplit (uint    treeID,
     char   *purity   = cvector(1, RF_randomResponseCount);
     double *mean     = dvector(1, RF_randomResponseCount);
     double *variance = dvector(1, RF_randomResponseCount);
-    uint  **parentClassProp = (uint**) vvector(1, RF_randomResponseCount);
-    uint  **leftClassProp   = (uint**) vvector(1, RF_randomResponseCount);
-    uint  **rghtClassProp   = (uint**) vvector(1, RF_randomResponseCount);
+    uint  **parentClassProp = (uint **) new_vvector(1, RF_randomResponseCount, NRUTIL_UPTR);
+    uint  **leftClassProp   = (uint **) new_vvector(1, RF_randomResponseCount, NRUTIL_UPTR);
+    uint  **rghtClassProp   = (uint **) new_vvector(1, RF_randomResponseCount, NRUTIL_UPTR);
     double *sumLeft      = dvector(1, RF_randomResponseCount);
     double *sumRght      = dvector(1, RF_randomResponseCount);
     double *sumRghtSave  = dvector(1, RF_randomResponseCount);
@@ -429,9 +429,9 @@ char unsupervisedSplit (uint    treeID,
     free_cvector(purity,   1, RF_randomResponseCount);
     free_dvector(mean,     1, RF_randomResponseCount);
     free_dvector(variance, 1, RF_randomResponseCount);
-    free_vvector(parentClassProp, 1, RF_randomResponseCount);
-    free_vvector(leftClassProp,   1, RF_randomResponseCount);
-    free_vvector(rghtClassProp,   1, RF_randomResponseCount);
+    free_new_vvector(parentClassProp, 1, RF_randomResponseCount, NRUTIL_UPTR);
+    free_new_vvector(leftClassProp,   1, RF_randomResponseCount, NRUTIL_UPTR);
+    free_new_vvector(rghtClassProp,   1, RF_randomResponseCount, NRUTIL_UPTR);
     free_dvector(sumLeft,     1, RF_randomResponseCount);
     free_dvector(sumRght,     1, RF_randomResponseCount);
     free_dvector(sumRghtSave, 1, RF_randomResponseCount);
@@ -549,9 +549,9 @@ char multivariateSplit (uint    treeID,
                             & density,
                             & densitySize,
                             & densitySwap);
-      uint **parentClassProp = (uint**) vvector(1, RF_rSize);
-      uint **leftClassProp   = (uint**) vvector(1, RF_rSize);
-      uint **rghtClassProp   = (uint**) vvector(1, RF_rSize);
+      uint **parentClassProp = (uint **) new_vvector(1, RF_rSize, NRUTIL_UPTR);
+      uint **leftClassProp   = (uint **) new_vvector(1, RF_rSize, NRUTIL_UPTR);
+      uint **rghtClassProp   = (uint **) new_vvector(1, RF_rSize, NRUTIL_UPTR);
       double *sumLeft      = dvector(1, RF_rSize);
       double *sumRght      = dvector(1, RF_rSize);
       double *sumRghtSave  = dvector(1, RF_rSize);
@@ -559,25 +559,6 @@ char multivariateSplit (uint    treeID,
         parentClassProp[r] = leftClassProp[r] = rghtClassProp[r] = NULL;
         sumLeft[r] = sumRght[r] = sumRghtSave[r] = 0;
       }
-      for (r = 1; r <= RF_rSize; r++) {
-        if (strcmp(RF_rType[r], "C") == 0) {
-          parentClassProp[r] = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
-          leftClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
-          rghtClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
-          for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
-            parentClassProp[r][p] = leftClassProp[r][p] = rghtClassProp[r][p] = 0;
-          }
-          for (j = 1; j <= repMembrSize; j++) {
-            parentClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][repMembrIndx[j]]]] ++;
-          }
-        }
-        else {
-          sumRghtSave[r] = 0.0;
-          for (j = 1; j <= repMembrSize; j++) {
-            sumRghtSave[r] += RF_response[treeID][r][repMembrIndx[j]] - mean[r];
-          }
-        }
-      }  
       double sumLeftSqr, sumRghtSqr;
       uint actualCovariateCount = 0;
       uint candidateCovariateCount = 0;
@@ -609,6 +590,25 @@ char multivariateSplit (uint    treeID,
         for (j = 1; j <= repMembrSize; j++) {
           localSplitIndicator[j] = NEITHER;
         }
+        for (r = 1; r <= RF_rSize; r++) {
+          if (strcmp(RF_rType[r], "C") == 0) {
+            parentClassProp[r] = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
+            leftClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
+            rghtClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
+            for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
+              parentClassProp[r][p] = leftClassProp[r][p] = rghtClassProp[r][p] = 0;
+            }
+            for (j = 1; j <= nonMissMembrSize; j++) {
+              parentClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ]]] ++;
+            }
+          }
+          else {
+            sumRghtSave[r] = 0.0;
+            for (j = 1; j <= nonMissMembrSize; j++) {
+              sumRghtSave[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ] - mean[r];
+            }
+          }
+        }  
         leftSize = 0;
         priorMembrIter = 0;
         splitLength = stackAndConstructSplitVector(treeID,
@@ -771,9 +771,9 @@ char multivariateSplit (uint    treeID,
         else {
         }
       }
-      free_vvector(parentClassProp, 1, RF_rSize);
-      free_vvector(leftClassProp,   1, RF_rSize);
-      free_vvector(rghtClassProp,   1, RF_rSize);
+      free_new_vvector(parentClassProp, 1, RF_rSize, NRUTIL_UPTR);
+      free_new_vvector(leftClassProp,   1, RF_rSize, NRUTIL_UPTR);
+      free_new_vvector(rghtClassProp,   1, RF_rSize, NRUTIL_UPTR);
       free_dvector(sumLeft, 1, RF_rSize);
       free_dvector(sumRght, 1, RF_rSize);
       free_dvector(sumRghtSave, 1, RF_rSize);

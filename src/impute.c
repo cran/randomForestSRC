@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -1564,7 +1564,7 @@ void stackShadow (uint mode, uint treeID) {
     for (p = 1; p <= RF_rSize; p++) {
       nullSplitShadowFlag[p] = TRUE;
     }
-    RF_response[treeID] = (double **) vvector(1, RF_rSize);
+    RF_response[treeID] = (double **) new_vvector(1, RF_rSize, NRUTIL_DPTR);
     nonMissIndex = uivector(1, RF_observationSize);
     permuteIndex = uivector(1, RF_observationSize);
     permuteSize  = uivector(1, RF_rSize);
@@ -1623,7 +1623,7 @@ void stackShadow (uint mode, uint treeID) {
   }
   else {
     if (RF_mResponseFlag == TRUE) {
-      RF_response[treeID] = (double **) vvector(1, RF_rSize);
+      RF_response[treeID] = (double **) new_vvector(1, RF_rSize, NRUTIL_DPTR);
       for (p = 1; p <= RF_rSize; p++) {
         RF_response[treeID][p] = RF_responseIn[p];
       }
@@ -1664,7 +1664,7 @@ void stackShadow (uint mode, uint treeID) {
   if (mode == RF_PRED) {
     if (RF_frSize > 0) {
       if (RF_fmResponseFlag == TRUE) {
-        RF_fresponse[treeID] = (double **) vvector(1, RF_rSize);
+        RF_fresponse[treeID] = (double **) new_vvector(1, RF_rSize, NRUTIL_DPTR);
         for (p = 1; p <= RF_frSize; p++) {
           RF_fresponse[treeID][p] = RF_fresponseIn[p];
         }
@@ -1683,7 +1683,7 @@ void stackShadow (uint mode, uint treeID) {
     }
   }
   if (RF_rFactorCount + RF_xFactorCount > 0) {
-    RF_factorList[treeID] = (Factor **) vvector(1, RF_maxFactorLevel);
+    RF_factorList[treeID] = (Factor **) new_vvector(1, RF_maxFactorLevel, NRUTIL_FPTR);
     for (j = 1; j <= RF_maxFactorLevel; j++) {
       RF_factorList[treeID][j] = NULL;
     }
@@ -1712,7 +1712,7 @@ void stackShadow (uint mode, uint treeID) {
   }
   else {
     if(RF_mPredictorFlag == TRUE) {
-      RF_observation[treeID] = (double **) vvector(1, RF_xSize);
+      RF_observation[treeID] = (double **) new_vvector(1, RF_xSize, NRUTIL_DPTR);
       for (p = 1; p <= RF_xSize; p++) {
         RF_observation[treeID][p] = RF_observationIn[p];
       }
@@ -1737,7 +1737,7 @@ void stackShadow (uint mode, uint treeID) {
     }
     else {
       if(RF_fmPredictorFlag == TRUE) {
-        RF_fobservation[treeID] = (double **) vvector(1, RF_xSize);
+        RF_fobservation[treeID] = (double **) new_vvector(1, RF_xSize, NRUTIL_DPTR);
         for (p = 1; p <= RF_xSize; p++) {
           RF_fobservation[treeID][p] = RF_fobservationIn[p];
         }
@@ -1761,7 +1761,7 @@ void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag) {
       for (p = 1; p <= RF_rSize; p++) {
         free_dvector(RF_response[treeID][p], 1, RF_observationSize);
       }
-      free_vvector(RF_response[treeID], 1, RF_rSize);
+      free_new_vvector(RF_response[treeID], 1, RF_rSize, NRUTIL_DPTR);
       if (RF_timeIndex > 0) {
         free_uivector(RF_masterTimeIndex[treeID], 1, RF_observationSize);
       }
@@ -1776,7 +1776,7 @@ void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag) {
             p = RF_mpIndexSize;
           }
         }
-        free_vvector(RF_response[treeID], 1, RF_rSize);
+        free_new_vvector(RF_response[treeID], 1, RF_rSize, NRUTIL_DPTR);
         if (RF_timeIndex > 0) {
           if (RF_mTimeFlag == TRUE) {
             free_uivector(RF_masterTimeIndex[treeID], 1, RF_observationSize);
@@ -1789,13 +1789,13 @@ void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag) {
         if (RF_fmResponseFlag == TRUE) {
           for (p = 1; p <= RF_fmpIndexSize; p++) {
             if (RF_fmpIndex[p] < 0) {
-              free_vvector(RF_fresponse[treeID][(uint) abs(RF_fmpIndex[p])], 1, RF_fobservationSize);
+              free_dvector(RF_fresponse[treeID][(uint) abs(RF_fmpIndex[p])], 1, RF_fobservationSize);
             }
             else {
               p = RF_fmpIndexSize;
             }
           }
-          free_vvector(RF_fresponse[treeID], 1, RF_rSize);
+          free_new_vvector(RF_fresponse[treeID], 1, RF_rSize, NRUTIL_DPTR);
         }
       }
     }
@@ -1806,7 +1806,7 @@ void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag) {
             free_Factor(RF_factorList[treeID][k]);
           }
         }
-        free_vvector(RF_factorList[treeID], 1, RF_maxFactorLevel);
+        free_new_vvector(RF_factorList[treeID], 1, RF_maxFactorLevel, NRUTIL_FPTR);
         RF_factorList[treeID] = NULL;
       }
     }
@@ -1823,10 +1823,10 @@ void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag) {
       if(RF_mPredictorFlag == TRUE) {
         for (p = 1; p <= RF_mpIndexSize; p++) {
           if (RF_mpIndex[p] > 0) {
-            free_vvector(RF_observation[treeID][(uint) RF_mpIndex[p]], 1, RF_observationSize);
+            free_dvector(RF_observation[treeID][(uint) RF_mpIndex[p]], 1, RF_observationSize);
           }
         }
-        free_vvector(RF_observation[treeID], 1, RF_xSize);
+        free_new_vvector(RF_observation[treeID], 1, RF_xSize, NRUTIL_DPTR);
       }
     }
     if (mode == RF_PRED) {
@@ -1837,10 +1837,10 @@ void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag) {
         if(RF_fmPredictorFlag == TRUE) {
           for (p = 1; p <= RF_fmpIndexSize; p++) {
             if (RF_fmpIndex[p] > 0) {
-              free_vvector(RF_fobservation[treeID][(uint) RF_fmpIndex[p]], 1, RF_fobservationSize);
+              free_dvector(RF_fobservation[treeID][(uint) RF_fmpIndex[p]], 1, RF_fobservationSize);
             }
           }
-          free_vvector(RF_fobservation[treeID], 1, RF_xSize);
+          free_new_vvector(RF_fobservation[treeID], 1, RF_xSize, NRUTIL_DPTR);
         }
       }
     }

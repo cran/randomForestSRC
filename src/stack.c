@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -183,10 +183,10 @@ void unstackFactorArrays() {
             free_Factor(RF_factorList[j][k]);
           }
         }
-        free_vvector(RF_factorList[j], 1, RF_maxFactorLevel);
+        free_new_vvector(RF_factorList[j], 1, RF_maxFactorLevel, NRUTIL_FPTR);
       }
     }
-    free_vvector(RF_factorList, 1, RF_forestSize);
+    free_new_vvector(RF_factorList, 1, RF_forestSize, NRUTIL_FPTR2);
   }
 }
 char stackMissingArrays(char mode) {
@@ -283,14 +283,14 @@ char stackMissingArrays(char mode) {
       error("\nRF-SRC:  The application will now exit.\n");
     }
   }  
-  RF_response = (double ***) vvector(1, RF_forestSize);
+  RF_response = (double ***) new_vvector(1, RF_forestSize, NRUTIL_DPTR2);
   if (RF_rSize > 0) {
     for (i = 1 ; i <= RF_forestSize; i++) {
       RF_response[i] = RF_responseIn;
     }
     if (RF_timeIndex > 0) {
-      RF_time = (double **) vvector(1, RF_forestSize);
-      RF_masterTimeIndex = (uint **) vvector(1, RF_forestSize);
+      RF_time = (double **) new_vvector(1, RF_forestSize, NRUTIL_DPTR);
+      RF_masterTimeIndex = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
       for (i = 1 ; i <= RF_forestSize; i++) {
         RF_time[i] = RF_responseIn[RF_timeIndex];
         RF_masterTimeIndex[i] = RF_masterTimeIndexIn;
@@ -304,7 +304,7 @@ char stackMissingArrays(char mode) {
                            RF_masterTimeIndexIn);
     }
     if (RF_statusIndex > 0) {
-      RF_status = (double **) vvector(1, RF_forestSize);
+      RF_status = (double **) new_vvector(1, RF_forestSize, NRUTIL_DPTR);
       for (i = 1 ; i <= RF_forestSize; i++) {
         RF_status[i] = RF_responseIn[RF_statusIndex];
       }
@@ -315,7 +315,7 @@ char stackMissingArrays(char mode) {
       RF_response[i] = NULL;
     }
   }
-  RF_observation = (double ***) vvector(1, RF_forestSize);
+  RF_observation = (double ***) new_vvector(1, RF_forestSize, NRUTIL_DPTR2);
   for (i = 1 ; i <= RF_forestSize; i++) {
     RF_observation[i] = RF_observationIn;
   }
@@ -365,24 +365,24 @@ char stackMissingArrays(char mode) {
     }
   }  
   if (mode == RF_PRED) {
-    RF_fobservation = (double ***) vvector(1, RF_forestSize);
+    RF_fobservation = (double ***) new_vvector(1, RF_forestSize, NRUTIL_DPTR2);
     for (i = 1 ; i <= RF_forestSize; i++) {
       RF_fobservation[i] = RF_fobservationIn;
     }
     RF_fmRecordMap = uivector(1, RF_fobservationSize);
-    RF_fresponse = (double ***) vvector(1, RF_forestSize);
+    RF_fresponse = (double ***) new_vvector(1, RF_forestSize, NRUTIL_DPTR2);
     if (RF_frSize > 0) {
       for (i = 1 ; i <= RF_forestSize; i++) {
         RF_fresponse[i] = RF_fresponseIn;
       }
       if (RF_timeIndex > 0) {
-        RF_ftime = (double **) vvector(1, RF_forestSize);
+        RF_ftime = (double **) new_vvector(1, RF_forestSize, NRUTIL_DPTR);
         for (i = 1 ; i <= RF_forestSize; i++) {
           RF_ftime[i] = RF_fresponseIn[RF_timeIndex];
         }
       }
       if (RF_statusIndex > 0) {
-        RF_fstatus = (double **) vvector(1, RF_forestSize);
+        RF_fstatus = (double **) new_vvector(1, RF_forestSize, NRUTIL_DPTR);
         for (i = 1 ; i <= RF_forestSize; i++) {
           RF_fstatus[i] = RF_fresponseIn[RF_statusIndex];
         }
@@ -470,8 +470,8 @@ char stackMissingArrays(char mode) {
         RF_dmRecordBootFlag[j][i] = mFlag;
       }
     }
-    RF_mTermList = (Terminal ***) vvector(1, RF_forestSize);
-    RF_mTermMembership = (Terminal ***) vvector(1, RF_forestSize);
+    RF_mTermList = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_TPTR2);
+    RF_mTermMembership = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_TPTR2);
   }
   if (RF_rFactorCount + RF_xFactorCount > 0) {
     initializeFactorArrays(mode);
@@ -481,17 +481,17 @@ char stackMissingArrays(char mode) {
 void unstackMissingArrays(char mode) {
   char dualUseFlag;
   uint recordSize;
-  free_vvector(RF_response, 1, RF_forestSize);
+  free_new_vvector(RF_response, 1, RF_forestSize, NRUTIL_DPTR2);
   if (RF_rSize > 0) {
     if (RF_timeIndex > 0) {
-      free_vvector(RF_time, 1, RF_forestSize);
-      free_vvector(RF_masterTimeIndex, 1, RF_forestSize);
+      free_new_vvector(RF_time, 1, RF_forestSize, NRUTIL_DPTR);
+      free_new_vvector(RF_masterTimeIndex, 1, RF_forestSize, NRUTIL_UPTR);
     }
     if (RF_statusIndex > 0) {
-      free_vvector(RF_status, 1, RF_forestSize);
+      free_new_vvector(RF_status, 1, RF_forestSize, NRUTIL_DPTR);
     }
   }
-  free_vvector(RF_observation, 1, RF_forestSize);
+  free_new_vvector(RF_observation, 1, RF_forestSize, NRUTIL_DPTR2);
   free_uivector(RF_mRecordMap, 1, RF_observationSize);
   if (RF_mRecordSize == 0) {
   }
@@ -508,15 +508,15 @@ void unstackMissingArrays(char mode) {
                              RF_mxFactorIndex);
   }
   if (mode == RF_PRED) {
-    free_vvector(RF_fobservation, 1, RF_forestSize);
+    free_new_vvector(RF_fobservation, 1, RF_forestSize, NRUTIL_DPTR2);
     free_uivector(RF_fmRecordMap, 1, RF_fobservationSize);
-    free_vvector(RF_fresponse, 1, RF_forestSize);
+    free_new_vvector(RF_fresponse, 1, RF_forestSize, NRUTIL_DPTR2);
     if (RF_frSize > 0) {
       if (RF_timeIndex > 0) {
-        free_vvector(RF_ftime, 1, RF_forestSize);
+        free_new_vvector(RF_ftime, 1, RF_forestSize, NRUTIL_DPTR);
       }
       if (RF_statusIndex > 0) {
-        free_vvector(RF_fstatus, 1, RF_forestSize);
+        free_new_vvector(RF_fstatus, 1, RF_forestSize, NRUTIL_DPTR);
       }
     }
     if (RF_fmRecordSize == 0) {
@@ -551,8 +551,8 @@ void unstackMissingArrays(char mode) {
   }  
   if (dualUseFlag == TRUE) {
     free_cmatrix(RF_dmRecordBootFlag, 1, RF_forestSize, 1, recordSize);
-    free_vvector(RF_mTermList, 1, RF_forestSize);
-    free_vvector(RF_mTermMembership, 1, RF_forestSize);
+    free_new_vvector(RF_mTermList, 1, RF_forestSize, NRUTIL_TPTR2);
+    free_new_vvector(RF_mTermMembership, 1, RF_forestSize, NRUTIL_TPTR2);
   }
 }
 void stackMissingSignatures(uint     obsSize,
@@ -797,7 +797,7 @@ void initializeFactorArrays(char mode) {
       }
     }
   }
-  RF_factorList = (Factor ***) vvector(1, RF_forestSize);
+  RF_factorList = (Factor ***) new_vvector(1, RF_forestSize, NRUTIL_FPTR2);
   for (j = 1; j <= RF_forestSize; j++) {
     RF_factorList[j] = NULL;
   }
@@ -1018,7 +1018,7 @@ char stackCompetingArrays(char mode) {
         }
       }
     } 
-    RF_eIndividualIn = (uint **) vvector(1, RF_eventTypeSize);
+    RF_eIndividualIn = (uint **) new_vvector(1, RF_eventTypeSize, NRUTIL_UPTR);
     for (j = 1; j <= RF_eventTypeSize; j++) {
       RF_eIndividualIn[j] = uivector(1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
@@ -1154,7 +1154,7 @@ void unstackCompetingArrays(char mode) {
     for (j = 1; j <= RF_eventTypeSize; j++) {
       free_uivector(RF_eIndividualIn[j], 1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
-    free_vvector(RF_eIndividualIn, 1, RF_eventTypeSize);
+    free_new_vvector(RF_eIndividualIn, 1, RF_eventTypeSize, NRUTIL_UPTR);
     free_uivector(RF_eIndividualSize, 1, RF_eventTypeSize);
   }  
 }
@@ -1167,7 +1167,7 @@ char stackClassificationArrays(char mode) {
     Rprintf("\nRF-SRC: Please Contact Technical Support.");
     error("\nRF-SRC: The application will now exit.\n");
   }
-  RF_classLevel = (uint **) vvector(1, RF_rFactorCount);
+  RF_classLevel = (uint **) new_vvector(1, RF_rFactorCount, NRUTIL_UPTR);
   RF_classLevelSize = uivector(1, RF_rFactorCount);
   getClassLevelSize(RF_observationSize,
                     RF_responseIn,
@@ -1175,7 +1175,7 @@ char stackClassificationArrays(char mode) {
                     RF_mpSign,
                     RF_classLevelSize,
                     RF_classLevel);
-  RF_classLevelIndex = (uint **) vvector(1, RF_rFactorCount);
+  RF_classLevelIndex = (uint **) new_vvector(1, RF_rFactorCount, NRUTIL_UPTR);
   for (k = 1; k <= RF_rFactorCount; k++) {
     RF_classLevelIndex[k] = uivector(1, RF_classLevel[k][RF_classLevelSize[k]]);
     for (j = 1; j <= RF_classLevel[k][RF_classLevelSize[k]]; j++) {
@@ -1199,7 +1199,7 @@ char stackClassificationArrays(char mode) {
     break;
   } 
   if (classAnalysisFlag == TRUE) {
-    uint **fclassLevel = (uint **) vvector(1, RF_rFactorCount);
+    uint **fclassLevel = (uint **) new_vvector(1, RF_rFactorCount, NRUTIL_UPTR);
     uint *fclassLevelSize = uivector(1, RF_rFactorCount);
     getClassLevelSize(RF_fobservationSize,
                       RF_fresponseIn,
@@ -1225,7 +1225,7 @@ char stackClassificationArrays(char mode) {
     for (j = 1; j <= RF_rFactorCount; j ++) {
       free_uivector(fclassLevel[j], 1, fclassLevelSize[j]);
     }
-    free_vvector(fclassLevel, 1, RF_rFactorCount);
+    free_new_vvector(fclassLevel, 1, RF_rFactorCount, NRUTIL_UPTR);
     free_uivector(fclassLevelSize, 1, RF_rFactorCount);
     if (consistencyFlag == FALSE) {
     }
@@ -1297,10 +1297,10 @@ void unstackClassificationArrays(char mode) {
   for (j = 1; j <= RF_rFactorCount; j++) {
     free_uivector(RF_classLevelIndex[j], 1, RF_classLevel[j][RF_classLevelSize[j]]);
   }
-  free_vvector(RF_classLevelIndex, 1, RF_rFactorCount);
+  free_new_vvector(RF_classLevelIndex, 1, RF_rFactorCount, NRUTIL_UPTR);
   for (j = 1; j <= RF_rFactorCount; j ++) {
     free_uivector(RF_classLevel[j], 1, RF_classLevelSize[j]);
   }
-  free_vvector(RF_classLevel, 1, RF_rFactorCount);
+  free_new_vvector(RF_classLevel, 1, RF_rFactorCount, NRUTIL_UPTR);
   free_uivector(RF_classLevelSize, 1, RF_rFactorCount);
 }

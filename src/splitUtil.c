@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -430,7 +430,7 @@ void unstackRandomCovariates(uint     treeID,
         densitySwap[k] = NULL;
       }
     }
-    free_vvector(densitySwap, 1, RF_xSize);
+    free_new_vvector(densitySwap, 1, RF_xSize, NRUTIL_UPTR);
     break;
   case RF_WGHT_GENERIC:
     free_dvector(cdf, 1, RF_xSize);
@@ -476,7 +476,7 @@ void initializeCDF(uint     treeID,
   case RF_WGHT_INTEGER:
     (*density) = uivector(1, RF_xWeightDensitySize);
     (*densitySize) = 0;
-    *densitySwap = (uint**) vvector(1, RF_xSize);
+    *densitySwap = (uint **) new_vvector(1, RF_xSize, NRUTIL_UPTR);
     for (k = RF_xSize; k >= 1; k--) {
       kk = RF_xWeightSorted[k];
       covariateFlag[kk] = (parent -> permissibleSplit)[kk];

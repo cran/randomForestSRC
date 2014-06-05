@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -272,10 +272,10 @@ char classificationXwghtSplit (uint    treeID,
               sumRght += (double) upower(rghtClassProp[p], 2);
             }
             delta =
-              (sumLeft / (double) (upower(repMembrSize, 2))) +
-              (sumRght / (double) (upower(repMembrSize, 2))) -
-              pow((double) leftSize / repMembrSize, 2.0) -
-              pow((double) rghtSize / repMembrSize, 2.0) + 2.0;
+              (sumLeft / (double) (upower(nonMissMembrSize, 2))) +
+              (sumRght / (double) (upower(nonMissMembrSize, 2))) -
+              pow((double) leftSize / nonMissMembrSize, 2.0) -
+              pow((double) rghtSize / nonMissMembrSize, 2.0) + 2.0;
             break;
           default:
             break;

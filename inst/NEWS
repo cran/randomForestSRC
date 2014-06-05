@@ -1,16 +1,23 @@
 Package: randomForestSRC
-Version: 1.5.1
-BUILD: bld20140515
+Version: 1.5.2
+BUILD: bld20140604
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.5.1
+CHANGES TO RELEASE 1.5.2
 ---------------------------------------------------------------------------------
-RELEASE 1.5.1
+RELEASE 1.5.2
+Fix to UBSAN and non-standard GCC errors and warnings.  Implementation
+of new RG protocols.  Fix to bug in split rules related to omission of
+missing individuals in the split statistic.  Minor R-side fixes.
+
+---------------------------------------------------------------------------------
+RELEASE 1.5.0
 Significant improvements to CPU and RAM usage profiles in serial and
-OpenMP modes of execution.  Proxmity options allow inbag, oob and all.
+OpenMP modes of execution.  Proximity options allow inbag, oob and all.
 VIMP implements subsetting and conditional variable importance. NA
 options allow the split statistic to be based on non-missing values
-only.  In additon it allows random assignment of missing values.
+only.  In addition it allows random assignment of missing values.
+
 
 ---------------------------------------------------------------------------------
 RELEASE 1.4.0
@@ -24,7 +31,6 @@ option to allow in-bag, OOB, and all.  Fixed bug in predict involving
 manual formula calls.  Fixed bug in find.interaction involving
 specifying covariate names.  Changes relating to Undefined Behaviour
 Sanitizer.
-
 
 ---------------------------------------------------------------------------------
 RELEASE 1.3.0

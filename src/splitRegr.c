@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -285,8 +285,6 @@ char regressionXwghtSplit (uint    treeID,
             rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
             leftSizeIter = currentMembrIter - 1;
           }
-          leftTemp = pow(sumLeft, 2.0) / pow(leftSize, 2.0);
-          rghtTemp = pow(sumRght, 2.0) / pow(rghtSize, 2.0);
           switch(RF_splitRule) {
           case REGR_WT_NRM:
             sumLeftSqr = pow(sumLeft, 2.0) / leftSize;
@@ -294,13 +292,17 @@ char regressionXwghtSplit (uint    treeID,
             delta = sumLeftSqr + sumRghtSqr;
             break;
           case REGR_WT_OFF:
+            leftTemp = pow(sumLeft, 2.0) / pow(leftSize, 2.0);
+            rghtTemp = pow(sumRght, 2.0) / pow(rghtSize, 2.0);
             leftTempSqr = sumLeftSqr / leftSize;
             rghtTempSqr = sumRghtSqr / rghtSize;
             delta = leftTemp + rghtTemp - leftTempSqr - rghtTempSqr;
             break;
           case REGR_WT_HVY:
-            leftTempSqr = sumLeftSqr * leftSize / pow (repMembrSize, 2.0);
-            rghtTempSqr = sumRghtSqr * rghtSize / pow (repMembrSize, 2.0);
+            leftTemp = pow(sumLeft, 2.0) / pow (nonMissMembrSize, 2.0);
+            rghtTemp = pow(sumRght, 2.0) / pow (nonMissMembrSize, 2.0);
+            leftTempSqr = sumLeftSqr * leftSize / pow (nonMissMembrSize, 2.0);
+            rghtTempSqr = sumRghtSqr * rghtSize / pow (nonMissMembrSize, 2.0);
             delta = leftTemp + rghtTemp - leftTempSqr - rghtTempSqr;
             break;
           default:

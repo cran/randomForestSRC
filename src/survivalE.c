@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -325,7 +325,7 @@ void getCRPerformance (uint     mode,
       mRecordIndex = RF_fmRecordIndex;
     }
     meIndividualSize  = uivector(1, RF_eventTypeSize);
-    eIndividual = (uint **) vvector(1, RF_eventTypeSize);
+    eIndividual = (uint **) new_vvector(1, RF_eventTypeSize, NRUTIL_UPTR);
     for (j = 1; j <= RF_eventTypeSize; j++) {
       eIndividual[j] = uivector(1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
@@ -369,7 +369,7 @@ void getCRPerformance (uint     mode,
     for (j = 1; j <= RF_eventTypeSize; j++) {
       free_uivector(eIndividual[j], 1, RF_eIndividualSize[j] + RF_mStatusSize + 1);
     }
-    free_vvector(eIndividual, 1, RF_eventTypeSize);
+    free_new_vvector(eIndividual, 1, RF_eventTypeSize, NRUTIL_UPTR);
   }
   free_dvector(subsettedTime, 1, obsSize);
   free_dvector(subsettedStatus, 1, obsSize);

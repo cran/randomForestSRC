@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -68,12 +68,12 @@
 #include      "dataParser.h"
 #define SMART_BUFFER_INCR 4096
 #define TOKEN_BUFFER_INCR  7
-SEXP rfsrcReadMatrix(SEXP traceFlag, 
-                     SEXP fName, 
-                     SEXP rowType,  
-                     SEXP rowCnt, 
-                     SEXP tokenDelim, 
-                     SEXP colHeader, 
+SEXP rfsrcReadMatrix(SEXP traceFlag,
+                     SEXP fName,
+                     SEXP rowType,
+                     SEXP rowCnt,
+                     SEXP tokenDelim,
+                     SEXP colHeader,
                      SEXP rowHeader) {
   FILE  *fopen();
   FILE  *fPtr;
@@ -97,13 +97,13 @@ SEXP rfsrcReadMatrix(SEXP traceFlag,
   _tokenDelim = (char*) CHAR(STRING_ELT(AS_CHARACTER(tokenDelim), 0));
   _colHeadF = (INTEGER(colHeader)[0] != 0) ? TRUE : FALSE;
   _rowHeadF = (INTEGER(rowHeader)[0] != 0) ? TRUE : FALSE;
-  _rowType = (char**) vvector(1, _rowCnt);
+  _rowType = (char**) new_vvector(1, _rowCnt, NRUTIL_CPTR);
   for (p = 1; p <= _rowCnt; p++) {
     _rowType[p] = (char*) CHAR(STRING_ELT(AS_CHARACTER(_sexp_rowType), p-1));
-    if ((strcmp(_rowType[p], "X") != 0) && 
-        (strcmp(_rowType[p], "C") != 0) && 
-        (strcmp(_rowType[p], "c") != 0) && 
-        (strcmp(_rowType[p], "I") != 0) && 
+    if ((strcmp(_rowType[p], "X") != 0) &&
+        (strcmp(_rowType[p], "C") != 0) &&
+        (strcmp(_rowType[p], "c") != 0) &&
+        (strcmp(_rowType[p], "I") != 0) &&
         (strcmp(_rowType[p], "R") != 0)) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
       Rprintf("\nRF-SRC:  Invalid predictor type:  [%10d] = %2s", p, _rowType[p]);
@@ -165,12 +165,12 @@ SEXP rfsrcReadMatrix(SEXP traceFlag,
   free_cmatrix(dataMatrix, 1, colCntActual, 1, rowCntActual);
   return R_NilValue;
 }
-void getDataMatrix(FILE *fPtr, 
-                   uint predictorCount, 
+void getDataMatrix(FILE *fPtr,
+                   uint predictorCount,
                    uint recordCount,
                    char rowLabelFlag,
-                   char colLabelFlag, 
-                   char delimiter, 
+                   char colLabelFlag,
+                   char delimiter,
                    char **dataMatrix) {
 }
 void printSB(SmartBuffer *sb) {
@@ -220,7 +220,7 @@ uint getNextTokenSB(SmartBuffer *sb) {
   }
   *tokenPtr = '\0';
   return ((sb -> tokenSize) - size);
-} 
+}
 SmartBuffer *parseLineSB(FILE *fPtr, char delim, size_t sbSize) {
   size_t size;
   SmartBuffer *sb = readLineSB(fPtr, sbSize);

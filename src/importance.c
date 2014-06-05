@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -300,7 +300,7 @@ void getPermuteMembership (uint      mode,
   else {
     pInnerCount = RF_intrPredictorSize;
   }
-  shadowVIMP = (double**) vvector(1, RF_xSize);
+  shadowVIMP = (double **) new_vvector(1, RF_xSize, NRUTIL_DPTR);
   for (j = 1; j <= RF_xSize; j++) {
     shadowVIMP[j] = predictorPtr[j];
   }
@@ -354,7 +354,7 @@ void getPermuteMembership (uint      mode,
     }
     free_dvector(shadowVIMP[targetCov], 1, obsSize);
   }
-  free_vvector(shadowVIMP, 1, RF_xSize);
+  free_new_vvector(shadowVIMP, 1, RF_xSize, NRUTIL_DPTR);
   free_uivector(indexVIMP, 1, permuteObsSize + 1);
   free_uivector(permuteVIMP, 1, permuteObsSize + 1);
 }
@@ -722,7 +722,7 @@ void stackVimpMembership(uint mode, Node ***membership) {
       obsSize = RF_observationSize;
       break;
     }
-    *membership = (Node **) vvector(1, obsSize);
+    *membership = (Node **) new_vvector(1, obsSize, NRUTIL_NPTR);
   }
 }
 void unstackVimpMembership(uint mode, Node **membership) {
@@ -736,7 +736,7 @@ void unstackVimpMembership(uint mode, Node **membership) {
       obsSize = RF_observationSize;
       break;
     }
-    free_vvector(membership, 1, obsSize);
+    free_new_vvector(membership, 1, obsSize, NRUTIL_NPTR);
   }
 }
 void stackTreeEnsemble(uint         mode,

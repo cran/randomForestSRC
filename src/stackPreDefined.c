@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -70,7 +70,7 @@ void stackIncomingResponseArrays(uint mode) {
   uint i, j;
   RF_timeIndex = RF_statusIndex = 0;
   if (RF_rSize > 0) {
-    RF_rType = (char**) vvector(1, RF_rSize);
+    RF_rType = (char **) new_vvector(1, RF_rSize, NRUTIL_CPTR);
     RF_yIndex = uivector(1, RF_rSize);
     j = 0;
     for (i = 1; i <= RF_rSize; i++) {
@@ -135,13 +135,13 @@ void stackIncomingResponseArrays(uint mode) {
       else {
       }
     }
-    RF_responseIn = (double **) vvector(1, RF_rSize);
+    RF_responseIn = (double **) new_vvector(1, RF_rSize, NRUTIL_DPTR);
     for (i=1; i <= RF_rSize; i++) {
       RF_responseIn[i] = (RF_rData + ((i-1) * RF_observationSize) - 1);
     }
     if (mode == RF_PRED) {
       if (RF_frSize > 0) {
-        RF_fresponseIn = (double **) vvector(1, RF_frSize);
+        RF_fresponseIn = (double **) new_vvector(1, RF_frSize, NRUTIL_DPTR);
         for (i=1; i <= RF_rSize; i++) {
           RF_fresponseIn[i] = (RF_frData + ((i-1) * RF_fobservationSize) - 1);
         }
@@ -158,19 +158,19 @@ void stackIncomingResponseArrays(uint mode) {
 }
 void unstackIncomingResponseArrays(uint mode) {
   if (RF_rSize > 0) {
-    free_vvector(RF_rType, 1, RF_rSize);
+    free_new_vvector(RF_rType, 1, RF_rSize, NRUTIL_CPTR);
     free_uivector(RF_yIndex, 1, RF_rSize);
-    free_vvector(RF_responseIn, 1, RF_rSize);
+    free_new_vvector(RF_responseIn, 1, RF_rSize, NRUTIL_DPTR);
     if (mode == RF_PRED) {
       if (RF_frSize > 0) {
-        free_vvector(RF_fresponseIn, 1, RF_frSize);
+        free_new_vvector(RF_fresponseIn, 1, RF_frSize, NRUTIL_DPTR);
       }
     }
   }
 }
 void stackIncomingCovariateArrays(uint mode) {
   uint i;
-  RF_xType = (char**) vvector(1, RF_xSize);
+  RF_xType = (char **) new_vvector(1, RF_xSize, NRUTIL_CPTR);
   for (i = 1; i <= RF_xSize; i++) {
     RF_xType[i] = (char*) CHAR(STRING_ELT(AS_CHARACTER(RF_sexp_xType), i-1));
     if ((strcmp(RF_xType[i], "C") != 0) &&
@@ -183,22 +183,22 @@ void stackIncomingCovariateArrays(uint mode) {
       error("\nRF-SRC:  The application will now exit.\n");
     }
   }
-  RF_observationIn = (double **) vvector(1, RF_xSize);
+  RF_observationIn = (double **) new_vvector(1, RF_xSize, NRUTIL_DPTR);
   for (i=1; i <= RF_xSize; i++) {
     RF_observationIn[i] = (RF_xData + ((i-1) * RF_observationSize) - 1);
   }
   if (mode == RF_PRED) {
-    RF_fobservationIn = (double **) vvector(1, RF_xSize);
+    RF_fobservationIn = (double **) new_vvector(1, RF_xSize, NRUTIL_DPTR);
     for (i=1; i <= RF_xSize; i++) {
       RF_fobservationIn[i] = (RF_fxData + ((i-1) * RF_fobservationSize) - 1);
     }
   }
 }
 void unstackIncomingCovariateArrays(uint mode) {
-  free_vvector(RF_xType, 1, RF_xSize);
-  free_vvector(RF_observationIn, 1, RF_xSize);
+  free_new_vvector(RF_xType, 1, RF_xSize, NRUTIL_CPTR);
+  free_new_vvector(RF_observationIn, 1, RF_xSize, NRUTIL_DPTR);
   if (mode == RF_PRED) {
-    free_vvector(RF_fobservationIn, 1, RF_xSize);
+    free_new_vvector(RF_fobservationIn, 1, RF_xSize, NRUTIL_DPTR);
   }
 }
 void stackIncomingArrays(uint mode) {
@@ -248,12 +248,12 @@ void unstackIncomingArrays(uint mode) {
 }
 void stackPreDefinedCommonArrays() {
   uint i;
-  RF_tNodeMembership = (Node ***) vvector(1, RF_forestSize);
-  RF_bootMembershipIndex = (uint **) vvector(1, RF_forestSize);
-  RF_bootMembershipFlag = (char **) vvector(1, RF_forestSize);
-  RF_bootMembershipCount = (uint **) vvector(1, RF_forestSize);
-  RF_oobMembershipFlag = (char **) vvector(1, RF_forestSize);
-  RF_tNodeList = (Node ***) vvector(1, RF_forestSize);
+  RF_tNodeMembership = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+  RF_bootMembershipIndex = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
+  RF_bootMembershipFlag = (char **) new_vvector(1, RF_forestSize, NRUTIL_CPTR);
+  RF_bootMembershipCount = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
+  RF_oobMembershipFlag = (char **) new_vvector(1, RF_forestSize, NRUTIL_CPTR);
+  RF_tNodeList = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
   RF_identityMembershipIndex = uivector(1, RF_observationSize);
   for (i = 1; i <= RF_observationSize; i++) {
     RF_identityMembershipIndex[i] = i;
@@ -265,13 +265,13 @@ void stackPreDefinedCommonArrays() {
     RF_masterTime  = dvector(1, RF_observationSize);
     RF_masterTimeIndexIn  = uivector(1, RF_observationSize);
   }
-  RF_root = (Node **) vvector(1, RF_forestSize);
+  RF_root = (Node **) new_vvector(1, RF_forestSize, NRUTIL_NPTR);
   for (i = 1; i <= RF_forestSize; i++) {
     RF_root[i] = NULL;
   }
   if (RF_ptnCount > 0) {
-    RF_pNodeMembership = (Node ***) vvector(1, RF_forestSize);
-    RF_pNodeList = (Node ***) vvector(1, RF_forestSize);
+    RF_pNodeMembership = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+    RF_pNodeList = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
     RF_pLeafCount = uivector(1, RF_forestSize);
   }
   RF_orderedLeafCount = uivector(1, RF_forestSize);
@@ -280,12 +280,12 @@ void stackPreDefinedCommonArrays() {
   }
 }
 void unstackPreDefinedCommonArrays() {
-  free_vvector(RF_tNodeMembership, 1, RF_forestSize);
-  free_vvector(RF_bootMembershipIndex, 1, RF_forestSize);
-  free_vvector(RF_bootMembershipFlag, 1, RF_forestSize);
-  free_vvector(RF_bootMembershipCount, 1, RF_forestSize);
-  free_vvector(RF_oobMembershipFlag, 1, RF_forestSize);
-  free_vvector(RF_tNodeList, 1, RF_forestSize);
+  free_new_vvector(RF_tNodeMembership, 1, RF_forestSize, NRUTIL_NPTR2);
+  free_new_vvector(RF_bootMembershipIndex, 1, RF_forestSize, NRUTIL_UPTR);
+  free_new_vvector(RF_bootMembershipFlag, 1, RF_forestSize, NRUTIL_CPTR);
+  free_new_vvector(RF_bootMembershipCount, 1, RF_forestSize, NRUTIL_UPTR);
+  free_new_vvector(RF_oobMembershipFlag, 1, RF_forestSize, NRUTIL_CPTR);
+  free_new_vvector(RF_tNodeList, 1, RF_forestSize, NRUTIL_NPTR2);
   free_uivector(RF_identityMembershipIndex, 1, RF_observationSize);
   free_uivector(RF_oobSize, 1, RF_forestSize);
   free_uivector(RF_maxDepth, 1, RF_forestSize);
@@ -294,10 +294,10 @@ void unstackPreDefinedCommonArrays() {
     free_dvector(RF_masterTime, 1, RF_observationSize);
     free_uivector(RF_masterTimeIndexIn, 1, RF_observationSize);
   }
-  free_vvector((Node **) RF_root, 1, RF_forestSize);
+  free_new_vvector(RF_root, 1, RF_forestSize, NRUTIL_NPTR);
   if (RF_ptnCount > 0) {
-    free_vvector(RF_pNodeMembership, 1, RF_forestSize);
-    free_vvector(RF_pNodeList, 1, RF_forestSize);
+    free_new_vvector(RF_pNodeMembership, 1, RF_forestSize, NRUTIL_NPTR2);
+    free_new_vvector(RF_pNodeList, 1, RF_forestSize, NRUTIL_NPTR2);
     free_uivector(RF_pLeafCount, 1, RF_forestSize);
   }
   free_uivector(RF_orderedLeafCount, 1, RF_forestSize);
@@ -438,7 +438,7 @@ void unstackPreDefinedRestoreArrays() {
 }
 void stackPreDefinedPredictArrays() {
   uint i;
-  RF_ftNodeMembership = (Node ***) vvector(1, RF_forestSize);
+  RF_ftNodeMembership = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
   RF_testMembershipFlag = cvector(1, RF_fobservationSize);
   for (i = 1; i <= RF_fobservationSize; i++) {
     RF_testMembershipFlag[i] = ACTIVE;
@@ -464,7 +464,7 @@ void stackPreDefinedPredictArrays() {
   }
 }
 void unstackPreDefinedPredictArrays() {
-  free_vvector(RF_ftNodeMembership, 1, RF_forestSize);
+  free_new_vvector(RF_ftNodeMembership, 1, RF_forestSize, NRUTIL_NPTR2);
   free_cvector(RF_testMembershipFlag, 1, RF_fobservationSize);
   free_uivector(RF_nodeCount, 1, RF_forestSize);
   free_uivector(RF_mwcpCount, 1, RF_forestSize);

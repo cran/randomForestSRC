@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.1
+////  Version 1.5.2
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -60,9 +60,6 @@
 ////**********************************************************************
 
 
-#ifdef SUPPORT_OPENMP
-#include           <omp.h>
-#endif
 #include      <stdlib.h>
 #include      "nrutil.h"
 #include <R_ext/Print.h>
@@ -75,12 +72,8 @@ extern void increaseMemoryAllocation(size_t amount);
 extern void decreaseMemoryAllocation(size_t amount);
 extern size_t getMaxMemoryAllocation();
 extern size_t getMinMemoryAllocation();
-#ifndef TRUE
-#define TRUE   0x01
-#endif
-#ifndef FALSE
-#define FALSE  0x00
-#endif
+#include "node.h"
+#include "factor.h"
 unsigned int upower (unsigned int x, unsigned int n) {
   unsigned int p;
   if ((x >= 2) & (n > (sizeof(unsigned int) * 8) - 1)) {
@@ -272,40 +265,20 @@ void free_gblock(void *v, size_t size) {
 void *gvector(unsigned long nl, unsigned long nh, size_t size) {
   if (nh < nl) nrerror("\n  Illegal indices in gvector().");
   void *v = gblock((size_t) ((nh-nl+1+NR_END) * size));
-  v = v-nl+NR_END;
   return v;
 }
 void free_gvector(void *v, unsigned long nl, unsigned long nh, size_t size) {
   if (nh < nl) nrerror("\n  Illegal indices in free_gvector().");
-  free_gblock(v+nl-NR_END, (nh-nl+1+NR_END) * size);
-}
-void *vvector(unsigned long nl, unsigned long nh) {
-  return ((void *) gvector(nl, nh, sizeof(void*)));
-}
-void free_vvector(void *v, unsigned long nl, unsigned long nh) {
-  free_gvector(v, nl, nh, sizeof(void*));
-}
-void **vmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  void **v = (void **) vvector(nrl, nrh);
-  for(unsigned long i = nrl; i <= nrh; i++) {
-    v[i] = vvector(ncl, nch);
-  }
-  return v;
-}
-void free_vmatrix(void **v, unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  for(unsigned long i = nrl; i <= nrh; i++) {
-    free_vvector(v[i], ncl, nch);
-  }
-  free_vvector(v, nrl, nrh);
+  free_gblock(v, (nh-nl+1+NR_END) * size);
 }
 char *cvector(unsigned long nl, unsigned long nh) {
-  return ((char *) gvector(nl, nh, sizeof(char)));
+  return ((char *) gvector(nl, nh, sizeof(char)) -nl+NR_END);
 }
 void free_cvector(char *v, unsigned long nl, unsigned long nh) {
-  free_gvector(v, nl, nh, sizeof(char));
+  free_gvector(v+nl-NR_END, nl, nh, sizeof(char));
 }
 char **cmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  char **v = (char **) vvector(nrl, nrh);
+  char **v = (char **) new_vvector(nrl, nrh, NRUTIL_CPTR);
   for(unsigned long i = nrl; i <= nrh; i++) {
     v[i] = cvector(ncl, nch);
   }
@@ -315,16 +288,16 @@ void free_cmatrix(char **v, unsigned long nrl, unsigned long nrh, unsigned long 
   for(unsigned long i = nrl; i <= nrh; i++) {
     free_cvector(v[i], ncl, nch);
   }
-  free_vvector(v, nrl, nrh);
+  free_new_vvector(v, nrl, nrh, NRUTIL_CPTR);
 }
 int *ivector(unsigned long nl, unsigned long nh) {
-  return ((int *) gvector(nl, nh, sizeof(int)));
+  return ((int *) gvector(nl, nh, sizeof(int)) -nl+NR_END);
 }
 void free_ivector(int *v, unsigned long nl, unsigned long nh) {
-  free_gvector(v, nl, nh, sizeof(int));
+  free_gvector(v+nl-NR_END, nl, nh, sizeof(int));
 }
 int **imatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  int **v = (int **) vvector(nrl, nrh);
+  int **v = (int **) new_vvector(nrl, nrh, NRUTIL_IPTR);
   for(unsigned long i = nrl; i <= nrh; i++) {
     v[i] = ivector(ncl, nch);
   }
@@ -334,16 +307,16 @@ void free_imatrix(int **v, unsigned long nrl, unsigned long nrh, unsigned long n
   for(unsigned long i = nrl; i <= nrh; i++) {
     free_ivector(v[i], ncl, nch);
   }
-  free_vvector(v, nrl, nrh);
+  free_new_vvector(v, nrl, nrh, NRUTIL_IPTR);
 }
 unsigned int *uivector(unsigned long nl, unsigned long nh) {
-  return ((unsigned int *) gvector(nl, nh, sizeof(unsigned int)));
+  return ((unsigned int *) gvector(nl, nh, sizeof(unsigned int)) -nl+NR_END);
 }
 void free_uivector(unsigned int *v, unsigned long nl, unsigned long nh) {
-  free_gvector(v, nl, nh, sizeof(unsigned int));
+  free_gvector(v+nl-NR_END, nl, nh, sizeof(unsigned int));
 }
 unsigned int **uimatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  unsigned int **v = (unsigned int **) vvector(nrl, nrh);
+  unsigned int **v = (unsigned int **) new_vvector(nrl, nrh, NRUTIL_UPTR);
   for(unsigned long i = nrl; i <= nrh; i++) {
     v[i] = uivector(ncl, nch);
   }
@@ -353,16 +326,16 @@ void free_uimatrix(unsigned int **v, unsigned long nrl, unsigned long nrh, unsig
   for(unsigned long i = nrl; i <= nrh; i++) {
     free_uivector(v[i], ncl, nch);
   }
-  free_vvector(v, nrl, nrh);
+  free_new_vvector(v, nrl, nrh, NRUTIL_UPTR);
 }
 double *dvector(unsigned long nl, unsigned long nh) {
-  return ((double *) gvector(nl, nh, sizeof(double)));
+  return ((double *) gvector(nl, nh, sizeof(double)) -nl+NR_END);
 }
 void free_dvector(double *v, unsigned long nl, unsigned long nh) {
-  free_gvector(v, nl, nh, sizeof(double));
+  free_gvector(v+nl-NR_END, nl, nh, sizeof(double));
 }
 double **dmatrix(unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  double **v = (double **) vvector(nrl, nrh);
+  double **v = (double **) new_vvector(nrl, nrh, NRUTIL_DPTR);
   for(unsigned long i = nrl; i <= nrh; i++) {
     v[i] = dvector(ncl, nch);
   }
@@ -372,10 +345,10 @@ void free_dmatrix(double **v, unsigned long nrl, unsigned long nrh, unsigned lon
   for(unsigned long i = nrl; i <= nrh; i++) {
     free_dvector(v[i], ncl, nch);
   }
-  free_vvector(v, nrl, nrh);
+  free_new_vvector(v, nrl, nrh, NRUTIL_DPTR);
 }
 double ***dmatrix3(unsigned long n3l, unsigned long n3h, unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  double ***v = (double ***) vvector(n3l, n3h);
+  double ***v = (double ***) new_vvector(n3l, n3h, NRUTIL_DPTR2);
   for(unsigned long i = n3l; i <= n3h; i++) {
     v[i] = dmatrix(nrl, nrh, ncl, nch);
   }
@@ -385,10 +358,10 @@ void free_dmatrix3(double ***v, unsigned long n3l, unsigned long n3h, unsigned l
   for(unsigned long i = n3l; i <= n3h; i++) {
     free_dmatrix(v[i], nrl, nrh, ncl, nch);
   }
-  free_vvector(v, n3l, n3h);
+  free_new_vvector(v, n3l, n3h, NRUTIL_DPTR2);
 }
 double ****dmatrix4(unsigned long n4l, unsigned long n4h, unsigned long n3l, unsigned long n3h, unsigned long nrl, unsigned long nrh, unsigned long ncl, unsigned long nch) {
-  double ****v = (double ****) vvector(n4l, n4h);
+  double ****v = (double ****) new_vvector(n4l, n4h, NRUTIL_DPTR3);
   for(unsigned long i = n4l; i <= n4h; i++) {
     v[i] = dmatrix3(n3l, n3h, nrl, nrh, ncl, nch);
   }
@@ -398,7 +371,94 @@ void free_dmatrix4(double ****v, unsigned long n4l, unsigned long n4h, unsigned 
   for(unsigned long i = n4l; i <= n4h; i++) {
     free_dmatrix3(v[i], n3l, n3h, nrl, nrh, ncl, nch);
   }
-  free_vvector(v, n4l, n4h);
+  free_new_vvector(v, n4l, n4h, NRUTIL_DPTR3);
+}
+void *new_vvector(unsigned long nl, unsigned long nh, enum alloc_type type) {
+  void *v;
+  switch(type){
+  case NRUTIL_DPTR:
+    v = ((double **) gvector(nl, nh, sizeof(double*)) -nl+NR_END);
+    break;
+  case NRUTIL_UPTR:
+    v = ((unsigned int **) gvector(nl, nh, sizeof(unsigned int*)) -nl+NR_END);
+    break;
+  case NRUTIL_DPTR2:
+    v = ((double ***) gvector(nl, nh, sizeof(double**)) -nl+NR_END);
+    break;
+  case NRUTIL_NPTR:
+    v = ((Node **) gvector(nl, nh, sizeof(Node*)) -nl+NR_END);
+    break;
+  case NRUTIL_NPTR2:
+    v = ((Node ***) gvector(nl, nh, sizeof(Node**)) -nl+NR_END);
+    break;
+  case NRUTIL_CPTR:
+    v = ((char **) gvector(nl, nh, sizeof(char*)) -nl+NR_END);
+    break;
+  case NRUTIL_TPTR:
+    v = ((Terminal **) gvector(nl, nh, sizeof(Terminal*)) -nl+NR_END);
+    break;
+  case NRUTIL_TPTR2:
+    v = ((Terminal ***) gvector(nl, nh, sizeof(Terminal**)) -nl+NR_END);
+    break;
+  case NRUTIL_IPTR:
+    v = ((int **) gvector(nl, nh, sizeof(int*)) -nl+NR_END);
+    break;
+  case NRUTIL_NPTR3:
+    v = ((Node ****) gvector(nl, nh, sizeof(Node***)) -nl+NR_END);
+    break;
+  case NRUTIL_FPTR:
+    v = ((Factor **) gvector(nl, nh, sizeof(Factor*)) -nl+NR_END);
+    break;
+  case NRUTIL_FPTR2:
+    v = ((Factor ***) gvector(nl, nh, sizeof(Factor**)) -nl+NR_END);
+    break;
+  default:
+    v = NULL;
+    break;
+  }
+  return v;
+}
+void free_new_vvector(void *v, unsigned long nl, unsigned long nh, enum alloc_type type) {
+  switch(type){
+  case NRUTIL_DPTR:
+    free_gvector((double*) v+nl-NR_END, nl, nh, sizeof(double*));
+    break;
+  case NRUTIL_UPTR:
+    free_gvector((unsigned int*) v+nl-NR_END, nl, nh, sizeof(unsigned int*));
+    break;
+  case NRUTIL_DPTR2:
+    free_gvector((double**) v+nl-NR_END, nl, nh, sizeof(double**));
+    break;
+  case NRUTIL_NPTR:
+    free_gvector((Node*) v+nl-NR_END, nl, nh, sizeof(Node*));
+    break;
+  case NRUTIL_NPTR2:
+    free_gvector((Node**) v+nl-NR_END, nl, nh, sizeof(Node**));
+    break;
+  case NRUTIL_CPTR:
+    free_gvector((char*) v+nl-NR_END, nl, nh, sizeof(char*));
+    break;
+  case NRUTIL_TPTR:
+    free_gvector((Terminal*) v+nl-NR_END, nl, nh, sizeof(Terminal*));
+    break;
+  case NRUTIL_TPTR2:
+    free_gvector((Terminal**) v+nl-NR_END, nl, nh, sizeof(Terminal**));
+    break;
+  case NRUTIL_IPTR:
+    free_gvector((int*) v+nl-NR_END, nl, nh, sizeof(int*));
+    break;
+  case NRUTIL_NPTR3:
+    free_gvector((Node***) v+nl-NR_END, nl, nh, sizeof(Node***));
+    break;
+  case NRUTIL_FPTR:
+    free_gvector((Factor*) v+nl-NR_END, nl, nh, sizeof(Factor*));
+    break;
+  case NRUTIL_FPTR2:
+    free_gvector((Factor**) v+nl-NR_END, nl, nh, sizeof(Factor**));
+    break;
+  default:
+    break;
+  }
 }
 #undef FREE_ARG
 #undef NR_END
