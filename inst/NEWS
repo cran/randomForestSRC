@@ -1,10 +1,16 @@
 Package: randomForestSRC
-Version: 1.5.2
-BUILD: bld20140604
+Version: 1.5.3
+BUILD: bld20140624
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.5.2
+CHANGES TO RELEASE 1.5.3
 ---------------------------------------------------------------------------------
+RELEASE 1.5.3
+---------------------------------------------------------------------------------
+Addition of rfsrcSyn() function to grow a synthetic random forest (RF)
+using RF machines as synthetic features.  Applies only to regression
+and classification settings.  Used for prediction only.
+
 RELEASE 1.5.2
 Fix to UBSAN and non-standard GCC errors and warnings.  Implementation
 of new RG protocols.  Fix to bug in split rules related to omission of
@@ -17,7 +23,6 @@ OpenMP modes of execution.  Proximity options allow inbag, oob and all.
 VIMP implements subsetting and conditional variable importance. NA
 options allow the split statistic to be based on non-missing values
 only.  In addition it allows random assignment of missing values.
-
 
 ---------------------------------------------------------------------------------
 RELEASE 1.4.0

@@ -16,13 +16,13 @@
   ...)
 }
 \arguments{
-  
+
   \item{x}{An object of class \code{(rfsrc, grow)},
     \code{(rfsrc, predict)}, or \code{(rfsrc, plot.variable)}.  See the
     examples below for illustration of the latter.}
-  
-  
-  \item{xvar.names}{Names of the x-variables to be used.} 
+
+
+  \item{xvar.names}{Names of the x-variables to be used.}
   \item{which.outcome}{For classification families, an integer or
     character value specifying the class to focus on (defaults to the
     first class).  For competing risk families, an integer value between
@@ -78,10 +78,10 @@
       \code{chf} the quantity is evaluated at the time point specified
       by \code{time}.
     }
-    
+
     For partial plots use \option{partial=TRUE}.  Their interpretation are
     different than marginal plots.  The y-value for a variable \eqn{X},
-    evaluated at \eqn{X=x}, is   
+    evaluated at \eqn{X=x}, is
     \deqn{
       \tilde{f}(x) = \frac{1}{n} \sum_{i=1}^n \hat{f}(x, x_{i,o}),
     }
@@ -91,7 +91,7 @@
     Choosing a small value for \code{npts} can speed up computational
     times as this restricts the number of distinct \eqn{x} values used
     in computing \eqn{\tilde{f}}.
-    
+
     For continuous variables, red points are used to indicate partial
     values and dashed red lines indicate a smoothed error bar of +/- two
     standard errors.  Black dashed line are the partial values.  Set
@@ -100,7 +100,7 @@
     extending out approximately two standard errors from the mean.
     Standard errors are meant only to be a guide and should be
     interpreted with caution.
-    
+
     Partial plots can be slow.  Setting \option{npts} to a smaller number
     can help.
 }
@@ -113,7 +113,7 @@
 
     Ishwaran H., Kogalur U.B. (2007).  Random survival forests for R,
     \emph{Rnews}, 7(2):25-31.
-    
+
     Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
     (2008).  Random survival forests, \emph{Ann. App.
       Statist.}, 2:841-860.
@@ -123,7 +123,7 @@
     in \emph{Biostatistics}.
 }
 \seealso{
-  \command{\link{rfsrc}}, 
+  \command{\link{rfsrc}}, \command{\link{rfsrcSyn}},
   \command{\link{predict.rfsrc}}
 }
 \examples{
@@ -133,7 +133,7 @@
 ## ------------------------------------------------------------
 
 ## survival
-data(veteran, package = "randomForestSRC") 
+data(veteran, package = "randomForestSRC")
 v.obj <- rfsrc(Surv(time,status)~., veteran, nsplit = 10, ntree = 100)
 plot.variable(v.obj, plots.per.page = 3)
 plot.variable(v.obj, plots.per.page = 2, xvar.names = c("trt", "karno", "age"))

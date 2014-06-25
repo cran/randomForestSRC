@@ -598,6 +598,7 @@ rfsrc(formula, data, ntree = 1000,
   \command{\link{predict.rfsrc}},
   \command{\link{print.rfsrc}},
   \command{\link{rf2rfz}},
+  \command{\link{rfsrcSyn}},
   \command{\link{var.select}},
   \command{\link{vimp}}
 }

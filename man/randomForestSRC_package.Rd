@@ -25,11 +25,11 @@
  This package implements OpenMP shared-memory parallel programming.
   However, the default installation will only execute serially.  To
   utilize OpenMP, the target architecture and operating system must
-  first support it.  
+  first support it.
 
   To install the package with OpenMP parallel processing enabled, on most
   non-Windows systems, do the following:
-  
+
   \enumerate{
     \item Download the package source code randomForestSRC_X.x.x.tar.gz
     from CRAN (do not download the binary).
@@ -54,11 +54,11 @@
 
   To install the package with OpenMP parallel processing enabled, on
   most Windows systems, do the following:
-  
+
   \enumerate{
     \item Download the Windows binary file randomForestSRC_X.x.x.zip from
     \url{http://www.ccs.miami.edu/~hishwaran/rfsrc.html}
-    
+
 
     \item If you are using the R GUI, start the GUI.  From the menu
     click on
@@ -66,7 +66,7 @@
     \code{Packages > Install package(s) from local zip files}
 
     Then navigate to the directory where you downloaded the zip file and
-    click on it. 
+    click on it.
   }
 }
 \section{OpenMP Parallel Processing -- Setting the Number of CPUs}{
@@ -89,7 +89,7 @@
 
   The default value for rf.cores is -1 (-1L), if left unspecified, which
   uses all but one available cores, with a minimum of two.
-}  
+}
 \section{R-side Parallel Processing -- Setting the Number of CPUs}{
   The package also implements R-side parallel processing by replacing
   the R function \command{lapply} with \command{mclapply} found in the
@@ -154,21 +154,21 @@ R-side forking (accessed via \command{mclapply} in package
 
   \enumerate{
     \item \command{\link{rfsrc}}
-    
+
     This is the main entry point to the package.  It grows a random forest
     using user supplied training data.  We refer to the resulting object
     as a RF-SRC grow object.  Formally, the resulting object has class
     \code{(rfsrc, grow)}.
 
     \item \command{\link{predict.rfsrc}} (\command{predict})
-    
+
     Used for prediction.  Predicted values are obtained by dropping the
     user supplied test data down the grow forest.  The resulting object
     has class \code{(rfsrc, predict)}.
 
 
     \item \command{\link{max.subtree}}, \command{\link{var.select}}
-    
+
     Used for variable selection.  The function \command{max.subtree}
     extracts maximal subtree information from a RF-SRC object which is
     used for selecting variables by making use of minimal depth variable
@@ -177,7 +177,7 @@ R-side forking (accessed via \command{mclapply} in package
     \command{max.subtree}.
 
     \item \command{\link{impute.rfsrc}}
-  
+
     Fast imputation mode for RF-SRC.  Both \command{rfsrc} and
     \command{predict.rfsrc} are capable of imputing missing data.
     However, for users whose only interest is imputing data, this function
@@ -196,8 +196,8 @@ R-side forking (accessed via \command{mclapply} in package
     Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
     (2008).  Random survival forests, \emph{Ann. App.
     Statist.}, 2:841-860.
-    
-    Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and 
+
+    Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and
     Lauer M.S. (2010).  High-dimensional variable selection for survival
     data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
 
@@ -216,9 +216,10 @@ R-side forking (accessed via \command{mclapply} in package
   \command{\link{predict.rfsrc}},
   \command{\link{print.rfsrc}},
   \command{\link{rf2rfz}},
+  \command{\link{rfsrcSyn}},
   \command{\link{var.select}},
   \command{\link{vimp}}
 }
 \keyword{package}
 
-  
+
