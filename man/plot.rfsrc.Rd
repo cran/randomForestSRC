@@ -7,7 +7,8 @@
 }
 \usage{\method{plot}{rfsrc}(x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,  ...)}
 \arguments{
-  \item{x}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc, predict)}.}
+  \item{x}{An object of class \code{(rfsrc, grow)}, \code{(rfsrc, synthetic)},
+      or \code{(rfsrc, predict)}.}
   \item{plots.one.page}{Should plots be placed on one page?}
   \item{sorted}{Should variables be sorted by importance values?}
   \item{verbose}{Should VIMP be printed?}

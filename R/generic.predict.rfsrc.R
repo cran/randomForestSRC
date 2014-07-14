@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.3
+####  Version 1.5.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -565,6 +565,7 @@ generic.predict.rfsrc <-
     imputed.indv = (if (n.miss>0) imputed.indv else NULL),
     imputed.data = (if (n.miss>0) imputed.data else NULL),
     split.depth  = split.depth.out,
+    node.stats = node.stats,
     err.rate = ERR,
     importance = VIMP
   )

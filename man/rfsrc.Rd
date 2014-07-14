@@ -43,7 +43,8 @@ rfsrc(formula, data, ntree = 1000,
   split.depth = c(FALSE, "all.trees", "by.tree"),
   seed = NULL,
   do.trace = FALSE,
-  membership = TRUE, 
+  membership = TRUE,
+  statistics = FALSE,
   ...)
 }
 \arguments{
@@ -169,7 +170,8 @@ rfsrc(formula, data, ntree = 1000,
 	causes output to be printed each \code{do.trace} iteration.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
-
+ \item{statistics}{Should split statistics be returned?  Values can be
+   parsed using \command{stat.split}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -462,7 +464,8 @@ rfsrc(formula, data, ntree = 1000,
      \item{split.depth}{Matrix [i][j] or array [i][j][k] recording the
            minimal depth for variable [j] for case [i], either averaged over
            the forest, or by tree [k].}
-
+     \item{node.stats}{Split statistics returned when
+     \code{statistics=TRUE} which can be parsed using \command{stat.split}.}
      \item{err.rate}{Tree cumulative OOB error rate.}
      \item{importance}{Variable importance (VIMP) for each x-variable.}
      \item{predicted}{In-bag predicted value.}
@@ -565,11 +568,12 @@ rfsrc(formula, data, ntree = 1000,
     Lauer M.S. (2010).  High-dimensional variable selection for survival
     data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
 
-    Ishwaran H. (2013).  The effect of splitting on random forests.
+    Ishwaran H. (2014).  The effect of splitting on random forests.
+    \emph{Machine Learning (in press)}.
 
     Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
-    B.M. (2014). Random survival forests for competing risks.  To appear
-    in \emph{Biostatistics}.
+    B.M. (2014). Random survival forests for competing risks.  
+    \emph{Biostatistics (in press)}.
 
     Lin Y. and Jeon Y. (2006).  Random forests and adaptive nearest
     neighbors, \emph{J. Amer. Statist. Assoc.}, 101:578-590.
@@ -599,6 +603,7 @@ rfsrc(formula, data, ntree = 1000,
   \command{\link{print.rfsrc}},
   \command{\link{rf2rfz}},
   \command{\link{rfsrcSyn}},
+  \command{\link{stat.split}},
   \command{\link{var.select}},
   \command{\link{vimp}}
 }

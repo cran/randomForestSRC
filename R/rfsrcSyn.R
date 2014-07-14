@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.3
+####  Version 1.5.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -92,7 +92,7 @@ rfsrcSyn.rfsrc <-
     rfSyn <- object$rfSyn
     synthetic <- object$synthetic
     opt.machine <- object$opt.machine
-    list.names <- names(synthetic)
+    list.names <- unlist(lapply(synthetic, function(ss) {colnames(ss)}))
   }
   else {
     if (missing(formula) || missing(data)) {
@@ -139,7 +139,7 @@ rfsrcSyn.rfsrc <-
             nsplit = nsplit, importance = "none")
     })})
     rfMachines <- unlist(rfMachines, recursive = FALSE)
-    list.names <- paste(rep(nodesizeSeq, each = N), nodesizeSeq, sep = "-")
+    list.names <- paste(rep(nodesizeSeq, each = length(mtrySeq)), mtrySeq, sep = ".")
     M <- length(rfMachines)                         
     if (is.numeric(min.node) && min.node > 0) {
       good.machines <- which(sapply(1:M, function(m) {
@@ -156,12 +156,24 @@ rfsrcSyn.rfsrc <-
       cat("\t making the synthetic features\n")
     }
     if (fmly == "class") {
-      synthetic <- lapply(1:M, function(m) {rfMachines[[m]]$predicted.oob[ ,1:(J-1), drop = FALSE]})
+      synthetic <- lapply(1:M, function(m) {
+        prb <- rfMachines[[m]]$predicted.oob[ ,1:(J-1), drop = FALSE]
+        if (J > 2) {
+          colnames(prb) <- paste(1:(J-1), list.names[m], sep = ".")
+        }
+        else {
+          colnames(prb) <- list.names[m]
+        }
+        prb
+      })
     }
     else {
-      synthetic <- lapply(1:M, function(m) {rfMachines[[m]]$predicted.oob})
+      synthetic <- lapply(1:M, function(m) {
+        yhat <- cbind(rfMachines[[m]]$predicted.oob)
+        colnames(yhat) <- list.names[m]
+        yhat
+      })
     }
-    names(synthetic) <- list.names
     x.s <- do.call("cbind", synthetic)
     if (verbose) {
       cat("\t making the synthetic forest\n")
@@ -188,14 +200,23 @@ rfsrcSyn.rfsrc <-
     xtest <- newdata[, xvar.names, drop = FALSE]
     if (fmly == "class") {
       synthetic <- lapply(1:M, function(m) {
-        predict(rfMachines[[m]], xtest, importance = "none")$predicted[, 1:(J-1), drop = FALSE]})
+        prb <- predict(rfMachines[[m]], xtest, importance = "none")$predicted[, 1:(J-1), drop = FALSE]
+        if (J > 2) {
+          colnames(prb) <- paste(1:(J-1), list.names[m], sep = ".")
+        }
+        else {
+          colnames(prb) <- list.names[m]
+        }
+        prb
+      })
     }
     else {
       synthetic <- lapply(1:M, function(m) {
-        predict(rfMachines[[m]], xtest, importance = "none")$predicted
+        yhat <- cbind(predict(rfMachines[[m]], xtest, importance = "none")$predicted)
+        colnames(yhat) <- list.names[m]
+        yhat
       })
     }
-    names(synthetic) <- list.names
     xtest.s <- do.call("cbind", synthetic)
     data.test <- data.frame(x.s = xtest.s)
     if (use.org.features) {

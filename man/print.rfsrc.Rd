@@ -7,11 +7,8 @@
 }
 \usage{\method{print}{rfsrc}(x, ...)}
 \arguments{
-
-    \item{x}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
-	predict)}.}
-
-
+\item{x}{An object of class \code{(rfsrc, grow)}, \code{(rfsrc, synthetic)},
+      or \code{(rfsrc, predict)}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \author{

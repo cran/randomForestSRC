@@ -16,12 +16,9 @@
   ...)
 }
 \arguments{
-
-  \item{x}{An object of class \code{(rfsrc, grow)},
+  \item{x}{An object of class \code{(rfsrc, grow)}, \code{(rfsrc, synthetic)},
     \code{(rfsrc, predict)}, or \code{(rfsrc, plot.variable)}.  See the
     examples below for illustration of the latter.}
-
-
   \item{xvar.names}{Names of the x-variables to be used.}
   \item{which.outcome}{For classification families, an integer or
     character value specifying the class to focus on (defaults to the

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.3
+####  Version 1.5.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -445,30 +445,28 @@ get.vimp.only <-  function (vimp.only) {
   }
 }
 is.hidden.impute.only <-  function (user.option) {
-  index = match("impute.only", names(user.option), 0)
-  if(index == 0) {
-    return (FALSE)
+  if (is.null(user.option$impute.only)) {
+    FALSE
   }
   else {
-    return (as.logical(as.character(user.option[index])))
+    as.logical(as.character(user.option$impute.only))
   }
 }
-is.hidden.miss.tree.only <-  function (user.option) {
-  index = match("miss.tree", names(user.option), 0)
-  if(index == 0) {
-    return (0)
+is.hidden.miss.tree.only <- function (user.option) {
+  if (is.null(user.option$miss.tree)) {
+    return(0)
   }
   else {
-    miss.value <- as.character(user.option[index])
+    miss.value <- as.character(user.option$miss.tree)
     if (is.na(as.logical(miss.value))) {
-      return (as.numeric(miss.value))
+      return(as.numeric(miss.value))
     }
     else {
       if (as.logical(miss.value)) {
         return(1.0/3.0)
       }
       else {
-        return (0)
+        return(0)
       }
     }
   }

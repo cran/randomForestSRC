@@ -5,7 +5,6 @@
 \description{
   Grows a synthetic random forest (RF) using RF machines as synthetic
   features.  Applies only to regression and classification settings.
-  Used for prediction only.
 }
 \usage{\method{rfsrcSyn}{rfsrc}(formula, data, object, newdata,
   ntree = 1000,
@@ -57,7 +56,6 @@
   synthetic features (called RF machines) to fit a synthetic random
   forest (the original features are also used when fitting the synthetic
   forest).  Applies only to regression and classification settings.
-  Used for prediction only.
 
   Note that synthetic features are constructed using out-of-bag (OOB)
   data in order to avoid double dipping into training data.
@@ -68,10 +66,11 @@
   If \code{mtrySeq} is set, RF machines are constructed for each
   combination of nodesize and mtry values specified by
   \code{nodesizeSeq} \code{mtrySeq}.  However, a sequence of values for
-  \code{mtrySeq} does not work as well as using a fixed value.
+  \code{mtrySeq} generall does not work as well as using a fixed value.
   Generally, performance gains are observed when one of the two
   sequences is fixed: \code{mtrySeq} is fixed and \code{nodesizeSeq} is
   varied, or \code{nodesizeSeq} is fixed and \code{mtrySeq} is varied.
+  However, see the examples below.
 }
 \value{
      A list with the following components:
@@ -89,7 +88,7 @@
     Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
-  TBD
+  Ishwaran H. and Malley J.D. (2014).  Synthetic learning machines.
 }
 \seealso{
   \command{\link{rfsrc}},
@@ -103,73 +102,61 @@
 
 ## rfsrc and rfsrcSyn calls
 if (library("mlbench", logical.return = TRUE)) {
-  ring <- data.frame(mlbench.ringnorm(250, 20))
-  ringRF <- rfsrc(classes ~., data = ring)
-  ringSyn <- rfsrcSyn(classes ~., data = ring)
 
-  ## OOB performance
-  print(ringRF)
-  print(ringSyn)
+  ## simulate the data 
+  ring <- data.frame(mlbench.ringnorm(250, 20))
+
+  ## classification forests
+  ringRF <- rfsrc(classes ~., data = ring)
+
+  ## synthetic forests:
+  ## 1 = nodesize varied
+  ## 2 = nodesize/mtry varied
+  ringSyn1 <- rfsrcSyn(classes ~., data = ring)
+  ringSyn2 <- rfsrcSyn(classes ~., data = ring, mtrySeq = c(1, 10, 20))
+
+  ## test-set performance
+  ring.test <- data.frame(mlbench.ringnorm(500, 20))
+  print(predict(ringRF, newdata = ring.test))
+  print(rfsrcSyn(object = ringSyn1, newdata = ring.test))
+  print(rfsrcSyn(object = ringSyn2, newdata = ring.test))
+
 }
 
 ## ------------------------------------------------------------
-## compare MSE of synthetic forest to regular forest (regression)
-## 1) m-fold validation
-## 2) oob MSE
+## compare synthetic forest to regular forest (regression)
 ## ------------------------------------------------------------
 
-## synthetic data
+## simulate the data
 n <- 250
+ntest <- 1000
+N <- n + ntest
 d <- 50
 std <- 0.1
-x <- matrix(runif(n * d, -1, 1), ncol = d)
+x <- matrix(runif(N * d, -1, 1), ncol = d)
 y <- 1 * (x[,1] + x[,4]^3 + x[,9] + sin(x[,12]*x[,18]) + rnorm(n, sd = std)>.38)
 dat <- data.frame(x = x, y = y)
+test <- (n+1):N
 
-## define the cv folds
-nfolds <- 10
-n <- nrow(dat)
-cvFolds <- split(sample(1:n), rep(1:nfolds, length = n))
-mse <- matrix(NA, nfolds, 2)
-rownames(mse) <- paste("fold", 1:nfolds)
-colnames(mse) <- c("forest", "synthetic")
+## regression forests
+regF <- rfsrc(y ~ ., data = dat[-test, ], )
+pred.regF <- predict(regF, dat[test, ])$predicted
 
-## cv loop
-for (k in 1:nfolds) {
+## synthetic forests
+## we pass both the training and testing data
+## but this can be split into separate commands as in the
+## previous classification example
+synF1 <- rfsrcSyn(y ~ ., data = dat[-test, ],
+  newdata = dat[test, ])
+synF2 <- rfsrcSyn(y ~ ., data = dat[-test, ],
+  newdata = dat[test, ], mtrySeq = c(1, 10, 20, 30, 40, 50))
 
-  ## train/test split
-  cat("mfold:", k, "\n")
-  test <- cvFolds[[k]]
-  ytest <- dat$y[test]
-
-  ## regular forest
-  regF <- rfsrc(y ~ ., data = dat[-test, ])
-
-  ## synthetic forest
-  synF <- rfsrcSyn(y ~ ., data = dat[-test, ],
-         newdata = dat[test, ], verbose = FALSE)
-
-  ## extract predicted values
-  pred.regF <- predict(regF, dat[test, ])$predicted
-  pred.synF <- synF$predicted
-
-  ## MSE performance
-  mse[k, 1] <- mean((ytest - pred.regF)^2, na.rm = TRUE)
-  mse[k, 2] <- mean((ytest - pred.synF)^2, na.rm = TRUE)
-}
-
-## output MSE performance
-mse <- rbind(mse,
-             avg = apply(mse, 2, mean, na.rm = TRUE),
-             se  = sqrt(apply(mse, 2, var, na.rm = TRUE) / nfolds))
-print(round(mse, 4))
-
-
-## compare with OOB MSE
-regF  <- rfsrc(y ~ ., data = dat, ntree = 5000)
-synF <- rfsrcSyn(y ~ ., data = dat, ntree = 5000)
-cat("forest    MSE:", regF$err.rate[5000], "\n")
-cat("synthetic MSE:", synF$err.rate, "\n")
+## standardized MSE performance
+mse <- c(mean((y[test] - pred.regF)^2, na.rm = TRUE),
+         mean((y[test] - synF1$predicted)^2, na.rm = TRUE),
+         mean((y[test] - synF2$predicted)^2, na.rm = TRUE)) / var(y[-test])
+names(mse) <- c("forest", "synthetic1", "synthetic2")
+print(mse)
 }
 }
 \keyword{forest}

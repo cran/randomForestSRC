@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.3
+####  Version 1.5.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -62,6 +62,9 @@
 
 plot.rfsrc <- function (x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE, ...)
 {
+  if (sum(inherits(x, c("rfsrc", "synthetic"), TRUE) == c(1, 2)) == 2) {
+    x <- x$rfSyn
+  }
   if (sum(inherits(x, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
       sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
     stop("this function only works for objects of class `(rfsrc, grow)' or '(rfsrc, predict)'")

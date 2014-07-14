@@ -1,12 +1,17 @@
 Package: randomForestSRC
-Version: 1.5.3
-BUILD: bld20140624
+Version: 1.5.4
+BUILD: bld20140711
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.5.3
+CHANGES TO RELEASE 1.5.4
 ---------------------------------------------------------------------------------
-RELEASE 1.5.3
+RELEASE 1.5.4
+Addition of new function stat.split() for extracting information from
+tree node splitting-statistics.  Added more functionality to
+rfsrcSyn() for fitting synthetic random forests.
 ---------------------------------------------------------------------------------
+
+RELEASE 1.5.2
 Addition of rfsrcSyn() function to grow a synthetic random forest (RF)
 using RF machines as synthetic features.  Applies only to regression
 and classification settings.  Used for prediction only.

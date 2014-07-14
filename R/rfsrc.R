@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.3
+####  Version 1.5.4
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -83,9 +83,10 @@ rfsrc <- function(formula,
                   seed = NULL,
                   do.trace = FALSE,
                   membership = TRUE,
+                  statistics = FALSE,
                   ...)
 {
-  user.option <- match.call(expand.dots = TRUE)
+  user.option <- list(...)
   impute.only <- is.hidden.impute.only(user.option)
   miss.tree <- is.hidden.impute.only(user.option)
   bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none"))
@@ -141,7 +142,6 @@ rfsrc <- function(formula,
   xvar <- as.matrix(data[, xvar.names])
   rownames(xvar) <- colnames(xvar) <- NULL
   split.wt <- NULL
-  statistics <- FALSE
   forest.wt <- FALSE
   n <- nrow(xvar)
   n.xvar <- ncol(xvar)
@@ -494,6 +494,7 @@ rfsrc <- function(formula,
     imputed.indv = (if (n.miss > 0) imputed.indv else NULL),
     imputed.data = (if (n.miss > 0) imputed.data else NULL),
     split.depth  = split.depth.out,
+    node.stats = node.stats,
     err.rate = ERR,
     importance = VIMP
   )

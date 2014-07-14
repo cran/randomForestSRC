@@ -10,7 +10,7 @@
   na.action = c("na.omit", "na.impute", "na.random"), outcome = c("train", "test"),
   proximity = FALSE,  var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
-  do.trace = FALSE, membership = TRUE, 
+  do.trace = FALSE, membership = TRUE, statistics = FALSE, 
   ...)
 }
 \arguments{
@@ -50,6 +50,8 @@
 	causes output to be printed each \code{do.trace} iteration.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
+ \item{statistics}{Should split statistics be returned?  Values can be
+   parsed using \command{stat.split}.}
  
     \item{...}{Further arguments passed to or from other methods.}
 }
