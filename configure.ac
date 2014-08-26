@@ -1,7 +1,7 @@
 # Template suggestion from forum by Simon Urbanek at the R Project:
 
 # Process this file with autoconf to produce a configure script.
-AC_INIT([randomForestSRC], [1.5.4], [commerce@kogalur.com], [randomForestSRC], [http://www.kogalur-shear.com])
+AC_INIT([randomForestSRC], [1.5.5], [commerce@kogalur.com], [randomForestSRC], [http://www.kogalur-shear.com])
 # OpenMP checking was added in autoconf version 2.62.
 AC_PREREQ([2.62])
 

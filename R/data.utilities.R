@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.4
+####  Version 1.5.5
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -170,6 +170,9 @@ brier <- function(ytest, pred) {
   cl <- colnames(pred)
   mean(sapply(1:length(cl), function(k)
      {mean((1 * (ytest == cl[k]) - pred[, k]) ^ 2, na.rm = TRUE)}), na.rm = TRUE)
+}
+cv.folds <- function (n, folds = 10) {
+  split(resample(1:n), rep(1:folds, length = n))
 }
 data.matrix <- function(x) {
   as.data.frame(lapply(x, function(xi) {

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.4
+####  Version 1.5.5
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -445,6 +445,7 @@ rfsrcParse2Tree <- function(recursiveObject,
       prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
       prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
       prob[d+1] <<- exp(prob.1) * (1 - exp(prob.2))
+      NULL
     })
     prob[D+1] <- 1 - sum(prob[1:D])
     if (prob[D+1] < 0) {
@@ -465,6 +466,7 @@ rfsrcParse2Tree <- function(recursiveObject,
       md.prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
       md.prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
       md.prob[d+1] <<- exp(md.prob.1) * (1 - exp(md.prob.2))
+      NULL
     })
     md.prob[D+1] <- 1 - sum(md.prob[1:D])
     if (md.prob[D+1] < 0) {
@@ -476,6 +478,7 @@ rfsrcParse2Tree <- function(recursiveObject,
       nullObj <- sapply(1:(D-1), function(d) {
         prob.d <- l[1:d] * ifelse(p > 1, log(1 - 1 / p), 0)
         prob[d+1] <<- md.prob[d+1] * sum(exp(-prob.d) - 1)
+        NULL
       })
     }
     prob[D+1] <- 1 - sum(prob[1:D])

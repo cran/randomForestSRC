@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.4
+####  Version 1.5.5
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -91,10 +91,12 @@ plot.survival.rfsrc <- function (x,
   }
   haz.model <- match.arg(haz.model, c("spline", "ggamma", "nonpar", "none"))
   if (!missing(subset) && haz.model == "spline") {
-    if (!available(glmnet)) {
-      warning("the 'glmnet' package is required for this option: reverting to 'ggamma' method instead")
-      haz.model <- "ggamma"
-    }
+      if (requireNamespace("glmnet", quietly = TRUE)) {
+      }
+      else {
+          warning("the 'glmnet' package is required for this option: reverting to 'ggamma' method instead")
+          haz.model <- "ggamma"
+      }
   }
   cens.model <- match.arg(cens.model, c("km", "rfsrc"))
   if (!is.null(x$yvar) && !is.null(x$imputed.indv)) {
@@ -190,7 +192,7 @@ plot.survival.rfsrc <- function (x,
         else {
           c1 <- 1 * (tau[i] <= t.unq & event[i] != 0)/c(1, cens.dist[, i])[1 + cens.pt]
           c2 <- 1 * (tau[i] > t.unq)/cens.dist[, i]
-        } 
+        }
         (1 * (tau[i] > t.unq) - surv.ensb[, i])^2 * (c1 + c2)
       })), ncol = length(event.info$time.interest), byrow = TRUE)
     brier.score <- matrix(NA, length(event.info$time.interest), 4)
@@ -200,7 +202,7 @@ plot.survival.rfsrc <- function (x,
       brier.score[, k] <- apply(brier.obj[mort.pt,, drop=FALSE], 2, mean, na.rm = TRUE)
     }
     brier.score <- as.data.frame(cbind(brier.score, apply(brier.obj, 2, mean, na.rm = TRUE)))
-    colnames(brier.score) <- c("q25", "q50", "q75", "q100", "all") 
+    colnames(brier.score) <- c("q25", "q50", "q75", "q100", "all")
   }
   if (subset.provided) {
     sggamma <- function(q, mu = 0, sigma = 1, Q)
@@ -211,7 +213,7 @@ plot.survival.rfsrc <- function (x,
           y <- log(q)
           w <- (y - mu)/sigma
           expnu <- exp(Q * w) * Q^-2
-          ret <- if (Q > 0) 
+          ret <- if (Q > 0)
             pgamma(expnu, Q^-2)
           else 1 - pgamma(expnu, Q^-2)
         }
@@ -220,7 +222,7 @@ plot.survival.rfsrc <- function (x,
         }
         1 - ret
       }
-    dggamma <- function(x, mu = 0, sigma = 1, Q) 
+    dggamma <- function(x, mu = 0, sigma = 1, Q)
       {
         sigma <- exp(sigma)
         ret <- numeric(length(x))
@@ -229,7 +231,7 @@ plot.survival.rfsrc <- function (x,
         if (Q != 0) {
           y <- log(xx)
           w <- (y - mu)/sigma
-          logdens <- -log(sigma * xx) + log(abs(Q)) + (Q^-2) * 
+          logdens <- -log(sigma * xx) + log(abs(Q)) + (Q^-2) *
             log(Q^-2) + Q^-2 * (Q * w - exp(Q * w)) - lgamma(Q^-2)
         }
         else logdens <- dlnorm(xx, mu, sigma, log = TRUE)
@@ -238,10 +240,10 @@ plot.survival.rfsrc <- function (x,
       }
     hggamma <- function(x, mu = 0, sigma = 1, Q)
       {
-        dggamma(x = x, mu = mu, sigma = sigma, Q = Q) / sggamma(q = x, 
+        dggamma(x = x, mu = mu, sigma = sigma, Q = Q) / sggamma(q = x,
                               mu = mu, sigma = sigma, Q = Q)
       }
-    haz.list <- mclapply(1:nrow(chf.ensb), function(i) { 
+    haz.list <- mclapply(1:nrow(chf.ensb), function(i) {
       if (haz.model == "ggamma") {
         x <- event.info$time.interest
         y <- t(surv.ensb)[i, ]
@@ -263,7 +265,7 @@ plot.survival.rfsrc <- function (x,
         y <- log(chf.ensb[i, ] + shift.chf)
         k <- max(k, 2)
         knots <- unique(c(seq(min(log.tm), max(log.tm), length = k), 5 * max(log.tm)))
-        m <- length(knots) 
+        m <- length(knots)
         kmin <- min(knots)
         kmax <- max(knots)
         if (m < 2) {
@@ -275,10 +277,10 @@ plot.survival.rfsrc <- function (x,
           }
           else {
             lj <- (kmax - knots[j-1]) / (kmax - kmin)
-            pmax(log.tm - knots[j-1], 0)^3 - lj * pmax(log.tm - kmin, 0)^3 - (1 - lj) * pmax(log.tm - kmax, 0)^3 
+            pmax(log.tm - knots[j-1], 0)^3 - lj * pmax(log.tm - kmin, 0)^3 - (1 - lj) * pmax(log.tm - kmax, 0)^3
           }
         }))
-        cv.obj <- tryCatch({cv.glmnet(x, y, alpha = 1)}, error = function(ex){NULL})
+        cv.obj <- tryCatch({glmnet::cv.glmnet(x, y, alpha = 1)}, error = function(ex){NULL})
         if (!is.null(cv.obj)) {
           coeff <- as.vector(predict(cv.obj, type = "coef", s = "lambda.1se"))
         }
@@ -341,7 +343,7 @@ plot.survival.rfsrc <- function (x,
               xlab = "Time",
               ylab = title.1,
               type = "l",
-              col = 1, 
+              col = 1,
               lty = 3, ...)
     }
     else {

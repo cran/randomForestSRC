@@ -1,25 +1,35 @@
 Package: randomForestSRC
-Version: 1.5.4
-BUILD: bld20140711
+Version: 1.5.5
+BUILD: bld20140826
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.5.4
+CHANGES TO RELEASE 1.5.5
+---------------------------------------------------------------------------------
+RELEASE 1.5.5
+Bug fix to daughter assignment in classification.  Significant RAM
+optimization in all modes.
+
 ---------------------------------------------------------------------------------
 RELEASE 1.5.4
 Addition of new function stat.split() for extracting information from
 tree node splitting-statistics.  Added more functionality to
 rfsrcSyn() for fitting synthetic random forests.
----------------------------------------------------------------------------------
 
-RELEASE 1.5.2
+---------------------------------------------------------------------------------
+RELEASE 1.5.3
 Addition of rfsrcSyn() function to grow a synthetic random forest (RF)
 using RF machines as synthetic features.  Applies only to regression
 and classification settings.  Used for prediction only.
 
+---------------------------------------------------------------------------------
 RELEASE 1.5.2
-Fix to UBSAN and non-standard GCC errors and warnings.  Implementation
-of new RG protocols.  Fix to bug in split rules related to omission of
-missing individuals in the split statistic.  Minor R-side fixes.
+Fix to non-standard GCC errors and warnings.  Fix to bug in split
+rules related to omission of missing individuals in the split
+statistic.  Minor R-side fixes.
+
+---------------------------------------------------------------------------------
+RELEASE 1.5.1
+Fix to UBSAN warnings.  Implementation of new RG protocols.
 
 ---------------------------------------------------------------------------------
 RELEASE 1.5.0

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -229,7 +229,7 @@ char getVariance(uint    repMembrSize,
   char result;
   uint *genIndx;
   uint  genSize;
-  if ((nonMissMembrSize == 0) || (nonMissMembrIndx == NULL)) {
+  if (nonMissMembrIndx == NULL) {
     genIndx = RF_identityMembershipIndex;
     genSize = repMembrSize;
   }

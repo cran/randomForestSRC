@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -1047,7 +1047,7 @@ char getPreSplitResult (uint      treeID,
                         double  **permissibleSplit,
                         char      multImpFlag) {
   uint i, r;
-  char mPredictorFlag;
+  char mResponseFlag;
   char result;
   if (repMembrSize >= (2 * RF_minimumNodeSize)) {
     result = TRUE;
@@ -1080,15 +1080,15 @@ char getPreSplitResult (uint      treeID,
     else {
       (*nonMissMembrSize) = 0;
       for (i = 1; i <= repMembrSize; i++) {
-        mPredictorFlag = FALSE;
+        mResponseFlag = FALSE;
         if (RF_mRecordMap[repMembrIndx[i]] > 0) {
-          for (r = 1; r<= RF_rSize; r++) {
+          for (r = 1; r <= RF_rSize; r++) {
             if (RF_mpSign[r][RF_mRecordMap[repMembrIndx[i]]] == 1) {
-              mPredictorFlag = TRUE;
+              mResponseFlag = TRUE;
             }
           }
         }
-        if (!mPredictorFlag) {
+        if (!mResponseFlag) {
           (*nonMissMembrSize) ++;
           (*nonMissMembrIndx)[(*nonMissMembrSize)] = i;
         }
@@ -1138,15 +1138,13 @@ char getPreSplitResult (uint      treeID,
         free_uivector(evntProp, 1, RF_eventTypeSize + 1);
       }
       else {
-        if (RF_rSize == 1) {
-          result = getVariance(repMembrSize,
-                               repMembrIndx,
-                               *nonMissMembrSize,
-                               *nonMissMembrIndx,
-                               RF_response[treeID][1],
-                               NULL,
-                               NULL);
-        }
+        result = getVariance(repMembrSize,
+                             repMembrIndx,
+                             *nonMissMembrSize,
+                             *nonMissMembrIndx,
+                             RF_response[treeID][1],
+                             NULL,
+                             NULL);
       }
     }
     if (!result) {

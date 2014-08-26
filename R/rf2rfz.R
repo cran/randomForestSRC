@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.4
+####  Version 1.5.5
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -68,6 +68,9 @@ rf2rfz <- function(object,
   if (is.null(forestName)) {
     stop("RFSRC forest name is NULL.  Please provide a valid name for the forest .rfz file.")
   }
+  if (!requireNamespace("XML", quietly = TRUE)) {
+    stop("The 'XML' package is required for this function.")
+  }
   if (nchar(forestName) > 4) {
     if (substr(forestName, nchar(forestName)-3, nchar(forestName)) == ".rfz") {
       forestName <- substr(forestName, 1, nchar(forestName)-4)
@@ -83,21 +86,21 @@ rf2rfz <- function(object,
   nativeFactorArray <- rfsrcForest$nativeFactorArray
   numTrees <- length(as.vector(unique(nativeArray$treeID)))
   rootString <- getRootString()
-  pmmlDoc <- xmlTreeParse(rootString, asText=TRUE)
-  pmmlRoot <- xmlRoot(pmmlDoc)
-  pmmlRoot <- append.XMLNode(pmmlRoot, getDataDictNode(xvar.names=xvar.names, xvar.type=xvar.type))
-  write.table(nativeArray, 
+  pmmlDoc <- XML::xmlTreeParse(rootString, asText=TRUE)
+  pmmlRoot <- XML::xmlRoot(pmmlDoc)
+  pmmlRoot <- XML::append.XMLNode(pmmlRoot, getDataDictNode(xvar.names=xvar.names, xvar.type=xvar.type))
+  write.table(nativeArray,
               paste(forestName, ".txt", sep=""), quote = FALSE)
-  write.table(nativeFactorArray, 
+  write.table(nativeFactorArray,
                 paste(forestName, ".factor.txt", sep=""), col.names=FALSE, quote = FALSE)
   xmlFile <- file(paste(forestName, ".xml", sep=""), open="w")
-  saveXML(pmmlRoot, xmlFile)
+  XML::saveXML(pmmlRoot, xmlFile)
   close(xmlFile)
   zipCommand <- paste("zip", sep=" ",
     paste(forestName, ".rfz", sep=""),
     paste(forestName, ".txt", sep=""),
     paste(forestName, ".factor.txt", sep=""),
-    paste(forestName, ".xml", sep="")) 
+    paste(forestName, ".xml", sep=""))
   system(command = zipCommand)
   unlink(paste(forestName, ".txt", sep=""))
   unlink(paste(forestName, ".factor.txt", sep=""))
@@ -129,7 +132,7 @@ checkForestObject <- function(object) {
   return (rfForest)
 }
 getRootString <- function() {
-  rootString <- 
+  rootString <-
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
          <PMML version=\"3.1\" xmlns=\"http://www.dmg.org/PMML-3_1\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">
            <Header copyright=\"Copyright 2008, Cleveland Clinic\" description=\"Random Survival Forest Tree Model\">
@@ -140,16 +143,16 @@ getRootString <- function() {
   return (rootString)
 }
 getDataDictNode <-  function(xvar.names, xvar.type) {
-  dataDictNode <- xmlNode("DataDictionary", attrs=c(numberOfFields=length(xvar.names)))
+  dataDictNode <- XML::xmlNode("DataDictionary", attrs=c(numberOfFields=length(xvar.names)))
   for (k in 1:length(xvar.names)) {
     if (xvar.type[k] == "C") {
-      dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=xvar.names[k], optype="categorical", dataType="string")))
+      dataDictNode <- XML::append.XMLNode(dataDictNode, XML::xmlNode("DataField", attrs=c(name=xvar.names[k], optype="categorical", dataType="string")))
     }
     if (xvar.type[k] == "I") {
-      dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=xvar.names[k], optype="ordinal", dataType="integer")))
+      dataDictNode <- XML::append.XMLNode(dataDictNode, XML::xmlNode("DataField", attrs=c(name=xvar.names[k], optype="ordinal", dataType="integer")))
     }
     if (xvar.type[k] == "R") {
-      dataDictNode <- append.XMLNode(dataDictNode, xmlNode("DataField", attrs=c(name=xvar.names[k], optype="continuous", dataType="double")))
+      dataDictNode <- XML::append.XMLNode(dataDictNode, XML::xmlNode("DataField", attrs=c(name=xvar.names[k], optype="continuous", dataType="double")))
     }
   }
   return (dataDictNode)

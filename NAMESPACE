@@ -1,5 +1,6 @@
 useDynLib(randomForestSRC)
 
+importFrom("parallel", mclapply)
 export(find.interaction.rfsrc,
        find.interaction,
        impute.rfsrc,

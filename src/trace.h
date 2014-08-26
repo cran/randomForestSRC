@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -86,7 +86,6 @@
 #define TIME_DEF_TRACE  0x00200000
 #define RAND_DEF_TRACE  0x00400000
 #define TURN_OFF_TRACE  0x00000000
-#define TURN_ON_TRACE   0x00000001
 #define TRACE_MASK      0xFFFFFFFF
 void setTraceFlag(unsigned int traceFlag, unsigned int tree);
 unsigned int getTraceFlag(unsigned int tree);

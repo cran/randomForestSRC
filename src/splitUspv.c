@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -154,6 +154,9 @@ char unsupervisedSplit (uint    treeID,
                              & permissibleSplit,
                              multImpFlag);
   if (result) {
+    char   *impurity   = cvector(1, RF_randomResponseCount);
+    double *mean       = dvector(1, RF_randomResponseCount);
+    double *variance   = dvector(1, RF_randomResponseCount);
     stackSplitIndicator(repMembrSize, & localSplitIndicator);
     stackRandomCovariates(treeID,
                           parent,
@@ -169,9 +172,6 @@ char unsupervisedSplit (uint    treeID,
                           & density,
                           & densitySize,
                           & densitySwap);
-    char   *purity   = cvector(1, RF_randomResponseCount);
-    double *mean     = dvector(1, RF_randomResponseCount);
-    double *variance = dvector(1, RF_randomResponseCount);
     uint  **parentClassProp = (uint **) new_vvector(1, RF_randomResponseCount, NRUTIL_UPTR);
     uint  **leftClassProp   = (uint **) new_vvector(1, RF_randomResponseCount, NRUTIL_UPTR);
     uint  **rghtClassProp   = (uint **) new_vvector(1, RF_randomResponseCount, NRUTIL_UPTR);
@@ -180,9 +180,12 @@ char unsupervisedSplit (uint    treeID,
     double *sumRghtSave  = dvector(1, RF_randomResponseCount);
     uint *pseudoResponseClassSize = uivector(1, RF_randomResponseCount);
     uint *pseudoResponse = uivector(1, RF_randomResponseCount);
-    char    puritySummary;
-    uint localIndex;
-    uint localSize;
+    char **secondNonMissMembrFlag = (char **) new_vvector(1, RF_randomResponseCount, NRUTIL_CPTR);
+    char  *tempNonMissMembrFlag = 0;
+    uint  *tempNonMissMembrIndx;
+    char   mResponseFlag;
+    uint   localIndex, localSize;
+    char    impuritySummary;
     double sumLeftSqr, sumRghtSqr;
     uint actualCovariateCount = 0;
     uint candidateCovariateCount = 0;
@@ -223,18 +226,50 @@ char unsupervisedSplit (uint    treeID,
         localSize --;
       }
       free_uivector(pseudoResponseIndex, 1, RF_xSize);
-      puritySummary = FALSE;
-      for (r = 1; r <= RF_randomResponseCount; r++) {
-        purity[r] = getVariance(repMembrSize,
-                                repMembrIndx,
-                                0,
-                                NULL,
-                                RF_observation[treeID][pseudoResponse[r]],
-                                &mean[r],
-                                &variance[r]);
-        puritySummary = puritySummary | purity[r];
+      if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+        tempNonMissMembrFlag = cvector(1, nonMissMembrSize);
+        for (k = 1; k <= nonMissMembrSize; k++) {
+          tempNonMissMembrFlag[k] = TRUE;
+        }
+        for (r = 1; r <= RF_randomResponseCount; r++) {
+          secondNonMissMembrFlag[r] = tempNonMissMembrFlag;
+        }
+        impuritySummary = TRUE;
       }
-      if (puritySummary) {
+      else {
+        tempNonMissMembrIndx = uivector(1, nonMissMembrSize);
+        impuritySummary = FALSE;
+        for (r = 1; r <= RF_randomResponseCount; r++)  {
+          secondNonMissMembrFlag[r] = cvector(1, nonMissMembrSize);
+          j = 0;
+          for (k = 1; k <= nonMissMembrSize; k++) {
+            mResponseFlag = FALSE;
+            if (RF_mRecordMap[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] > 0) {
+              if (RF_mpSign[pseudoResponse[r]][RF_mRecordMap[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] == 1) {
+                mResponseFlag = TRUE;
+              }
+            }
+            if (!mResponseFlag) {
+              j ++;
+              tempNonMissMembrIndx[j] = nonMissMembrIndx[indxx[k]];
+              secondNonMissMembrFlag[r][k] = TRUE;
+            }
+            else {
+              secondNonMissMembrFlag[r][k] = FALSE;
+            }
+          }  
+          impurity[r] = getVariance(repMembrSize,
+                                    repMembrIndx,
+                                    j,
+                                    tempNonMissMembrIndx,
+                                    RF_observation[treeID][pseudoResponse[r]],
+                                    &mean[r],
+                                    &variance[r]);
+          impuritySummary = impuritySummary | impurity[r];
+        }  
+        free_uivector(tempNonMissMembrIndx, 1, nonMissMembrSize);
+      }  
+      if (impuritySummary) {
         for (j = 1; j <= repMembrSize; j++) {
           localSplitIndicator[j] = NEITHER;
         }
@@ -244,24 +279,30 @@ char unsupervisedSplit (uint    treeID,
           sumLeft[r] = sumRght[r] = sumRghtSave[r] = 0;
         }
         for (r = 1; r <= RF_randomResponseCount; r++) {
-          if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
-            pseudoResponseClassSize[r] = RF_xFactorSize[RF_xFactorMap[pseudoResponse[r]]];
-            parentClassProp[r] = uivector(1, pseudoResponseClassSize[r]);
-            leftClassProp[r]   = uivector(1, pseudoResponseClassSize[r]);
-            rghtClassProp[r]   = uivector(1, pseudoResponseClassSize[r]);
-            for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
-              parentClassProp[r][p] = 0;
+          if (impurity[r]) {
+            if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+              pseudoResponseClassSize[r] = RF_xFactorSize[RF_xFactorMap[pseudoResponse[r]]];
+              parentClassProp[r] = uivector(1, pseudoResponseClassSize[r]);
+              leftClassProp[r]   = uivector(1, pseudoResponseClassSize[r]);
+              rghtClassProp[r]   = uivector(1, pseudoResponseClassSize[r]);
+              for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
+                parentClassProp[r][p] = 0;
+              }
+              for (j = 1; j <= nonMissMembrSize; j++) {
+                if (secondNonMissMembrFlag[r][j] == TRUE) {
+                  parentClassProp[r][ (uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ]] ++;
+                }
+              }
             }
-            for (j = 1; j <= nonMissMembrSize; j++) {
-              parentClassProp[r][ (uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ]] ++;
+            else {
+              sumRghtSave[r] = 0.0;
+              for (j = 1; j <= nonMissMembrSize; j++) {
+                if (secondNonMissMembrFlag[r][j] == TRUE) {
+                  sumRghtSave[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ] - mean[r];
+                }
+              }
             }
-          }
-          else {
-            sumRghtSave[r] = 0.0;
-            for (j = 1; j <= nonMissMembrSize; j++) {
-              sumRghtSave[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ] - mean[r];
-            }
-          }
+          }  
         }  
         leftSize = 0;
         priorMembrIter = 0;
@@ -279,15 +320,17 @@ char unsupervisedSplit (uint    treeID,
             localSplitIndicator[ nonMissMembrIndx[indxx[j]] ] = RIGHT;
           }
           for (r = 1; r <= RF_randomResponseCount; r++) {
-            if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
-              for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
-                rghtClassProp[r][p] = parentClassProp[r][p];
-                leftClassProp[r][p] = 0;
+            if (impurity[r]) {
+              if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+                for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
+                  rghtClassProp[r][p] = parentClassProp[r][p];
+                  leftClassProp[r][p] = 0;
+                }
               }
-            }
-            else {
-              sumRght[r] = sumRghtSave[r];
-              sumLeft[r] = 0.0;
+              else {
+                sumRght[r] = sumRghtSave[r];
+                sumLeft[r] = 0.0;
+              }
             }
           }
           leftSizeIter = 0;
@@ -317,15 +360,17 @@ char unsupervisedSplit (uint    treeID,
           if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
             delta = 0.0;
             for (r = 1; r <= RF_randomResponseCount; r++) {
-              if (purity[r]) {
+              if (impurity[r]) {
                 if (factorFlag == TRUE) {
                   if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
                     for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
                       leftClassProp[r][p] = 0;
                     }
                     for (k = 1; k <= nonMissMembrSize; k++) {
-                      if (localSplitIndicator[k] == LEFT) {
-                        leftClassProp[r][ (uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]  ++;
+                      if (secondNonMissMembrFlag[r][k] == TRUE) {
+                        if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
+                          leftClassProp[r][ (uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]  ++;
+                        }
                       }
                     }
                     for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
@@ -335,24 +380,28 @@ char unsupervisedSplit (uint    treeID,
                   else {
                     sumLeft[r] = sumRght[r] = 0.0;
                     for (k = 1; k <= nonMissMembrSize; k++) {
-                      if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-                        sumLeft[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
-                      }
-                      else {
-                        sumRght[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                      if (secondNonMissMembrFlag[r][k] == TRUE) {
+                        if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
+                          sumLeft[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                        }
+                        else {
+                          sumRght[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                        }
                       }
                     }
                   }
                 }
                 else {
                   for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
-                    if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
-                      leftClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] ++;
-                      rghtClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] --;
-                    }
-                    else {
-                      sumLeft[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
-                      sumRght[r] -= RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                    if (secondNonMissMembrFlag[r][k] == TRUE) {
+                      if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+                        leftClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] ++;
+                        rghtClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] --;
+                      }
+                      else {
+                        sumLeft[r] += RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                        sumRght[r] -= RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                      }
                     }
                   }
                 }  
@@ -409,12 +458,14 @@ char unsupervisedSplit (uint    treeID,
                            mwcpSizeAbsolute,
                            permissibleSplitPtr);
         for (r = 1; r <= RF_randomResponseCount; r++) {
-          if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
-            free_uivector (parentClassProp[r], 1, pseudoResponseClassSize[r]);
-            free_uivector (leftClassProp[r],   1, pseudoResponseClassSize[r]);
-            free_uivector (rghtClassProp[r],   1, pseudoResponseClassSize[r]);
-          }
-          else {
+          if (impurity[r]) {
+            if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+              free_uivector (parentClassProp[r], 1, pseudoResponseClassSize[r]);
+              free_uivector (leftClassProp[r],   1, pseudoResponseClassSize[r]);
+              free_uivector (rghtClassProp[r],   1, pseudoResponseClassSize[r]);
+            }
+            else {
+            }
           }
         }
       }  
@@ -425,10 +476,15 @@ char unsupervisedSplit (uint    treeID,
                                nonMissMembrSizeStatic,
                                nonMissMembrIndx,
                                multImpFlag);
+      if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+        free_cvector(tempNonMissMembrFlag, 1, nonMissMembrSize);
+      }
+      else {
+        for (r = 1; r <= RF_randomResponseCount; r++)  {
+          free_cvector(secondNonMissMembrFlag[r], 1, nonMissMembrSize);
+        }
+      }
     }  
-    free_cvector(purity,   1, RF_randomResponseCount);
-    free_dvector(mean,     1, RF_randomResponseCount);
-    free_dvector(variance, 1, RF_randomResponseCount);
     free_new_vvector(parentClassProp, 1, RF_randomResponseCount, NRUTIL_UPTR);
     free_new_vvector(leftClassProp,   1, RF_randomResponseCount, NRUTIL_UPTR);
     free_new_vvector(rghtClassProp,   1, RF_randomResponseCount, NRUTIL_UPTR);
@@ -437,6 +493,7 @@ char unsupervisedSplit (uint    treeID,
     free_dvector(sumRghtSave, 1, RF_randomResponseCount);
     free_uivector(pseudoResponseClassSize, 1, RF_randomResponseCount);
     free_uivector(pseudoResponse, 1, RF_randomResponseCount);
+    free_new_vvector(secondNonMissMembrFlag, 1, RF_randomResponseCount, NRUTIL_CPTR);
     unstackRandomCovariates(treeID,
                             randomCovariateFlag,
                             randomCovariateIndex,
@@ -451,6 +508,9 @@ char unsupervisedSplit (uint    treeID,
                             nonMissMembrIndxStatic,
                             permissibleSplit);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
+    free_cvector(impurity,   1, RF_randomResponseCount);
+    free_dvector(mean,     1, RF_randomResponseCount);
+    free_dvector(variance, 1, RF_randomResponseCount);
   }  
   result = summarizeSplitResult(*splitParameterMax,
                                 *splitValueMaxCont,
@@ -518,22 +578,23 @@ char multivariateSplit (uint    treeID,
                              & permissibleSplit,
                              multImpFlag);
   if (result) {
-    char   *purity   = cvector(1, RF_rSize);
-    double *mean     = dvector(1, RF_rSize);
-    double *variance = dvector(1, RF_rSize);
-    char    puritySummary;
-    puritySummary = FALSE;
-    for (r = 1; r <= RF_rSize; r++) {
-      purity[r] = getVariance(repMembrSize,
-                              repMembrIndx,
-                              0,
-                              NULL,
-                              RF_response[treeID][r],
-                              &mean[r],
-                              &variance[r]);
-      puritySummary = puritySummary | purity[r];
+    char   *impurity   = cvector(1, RF_rSize);
+    double *mean       = dvector(1, RF_rSize);
+    double *variance   = dvector(1, RF_rSize);
+    if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+      result = FALSE;
+      for (r = 1; r <= RF_rSize; r++)  {
+        impurity[r] = getVariance(repMembrSize,
+                                repMembrIndx,
+                                0,
+                                NULL,
+                                RF_response[treeID][r],
+                                &mean[r],
+                                &variance[r]);
+        result = result | impurity[r];
+      }
     }
-    if (puritySummary) {
+    if (result) {
       stackSplitIndicator(repMembrSize, & localSplitIndicator);
       stackRandomCovariates(treeID,
                             parent,
@@ -555,10 +616,21 @@ char multivariateSplit (uint    treeID,
       double *sumLeft      = dvector(1, RF_rSize);
       double *sumRght      = dvector(1, RF_rSize);
       double *sumRghtSave  = dvector(1, RF_rSize);
+      char **secondNonMissMembrFlag = (char **) new_vvector(1, RF_rSize, NRUTIL_CPTR);
       for (r = 1; r <= RF_rSize; r++) {
         parentClassProp[r] = leftClassProp[r] = rghtClassProp[r] = NULL;
-        sumLeft[r] = sumRght[r] = sumRghtSave[r] = 0;
-      }
+        if (strcmp(RF_rType[r], "C") == 0) {
+          parentClassProp[r] = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
+          leftClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
+          rghtClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
+        }
+        else {
+        }
+      }  
+      char  *tempNonMissMembrFlag = 0;
+      uint  *tempNonMissMembrIndx;
+      char   mResponseFlag;
+      char   impuritySummary;
       double sumLeftSqr, sumRghtSqr;
       uint actualCovariateCount = 0;
       uint candidateCovariateCount = 0;
@@ -587,173 +659,229 @@ char multivariateSplit (uint    treeID,
                                     & nonMissMembrSize,
                                     & nonMissMembrIndx,
                                     multImpFlag)) {
-        for (j = 1; j <= repMembrSize; j++) {
-          localSplitIndicator[j] = NEITHER;
-        }
-        for (r = 1; r <= RF_rSize; r++) {
-          if (strcmp(RF_rType[r], "C") == 0) {
-            parentClassProp[r] = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
-            leftClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
-            rghtClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
-            for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
-              parentClassProp[r][p] = leftClassProp[r][p] = rghtClassProp[r][p] = 0;
-            }
-            for (j = 1; j <= nonMissMembrSize; j++) {
-              parentClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ]]] ++;
-            }
-          }
-          else {
-            sumRghtSave[r] = 0.0;
-            for (j = 1; j <= nonMissMembrSize; j++) {
-              sumRghtSave[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ] - mean[r];
-            }
-          }
-        }  
-        leftSize = 0;
-        priorMembrIter = 0;
-        splitLength = stackAndConstructSplitVector(treeID,
-                                                   repMembrSize,
-                                                   covariate,
-                                                   permissibleSplit,
-                                                   permissibleSplitSize,
-                                                   & factorFlag,
-                                                   & deterministicSplitFlag,
-                                                   & mwcpSizeAbsolute,
-                                                   & permissibleSplitPtr);
-        if (factorFlag == FALSE) {
-          for (j = 1; j <= nonMissMembrSize; j++) {
-            localSplitIndicator[ nonMissMembrIndx[indxx[j]] ] = RIGHT;
+        if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+          tempNonMissMembrFlag = cvector(1, nonMissMembrSize);
+          for (k = 1; k <= nonMissMembrSize; k++) {
+            tempNonMissMembrFlag[k] = TRUE;
           }
           for (r = 1; r <= RF_rSize; r++) {
-            if (strcmp(RF_rType[r], "C") == 0) {
-              for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
-                rghtClassProp[r][p] = parentClassProp[r][p];
-                leftClassProp[r][p] = 0;
+              secondNonMissMembrFlag[r] = tempNonMissMembrFlag;
+          }
+          impuritySummary = TRUE;
+        }
+        else {
+          tempNonMissMembrIndx = uivector(1, nonMissMembrSize);
+          impuritySummary = FALSE;
+          for (r = 1; r <= RF_rSize; r++)  {
+            secondNonMissMembrFlag[r] = cvector(1, nonMissMembrSize);
+            j = 0;
+            for (k = 1; k <= nonMissMembrSize; k++) {
+              mResponseFlag = FALSE;
+              if (RF_mRecordMap[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] > 0) {
+                if (RF_mpSign[r][RF_mRecordMap[ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] == 1) {
+                  mResponseFlag = TRUE;
+                }
+              }
+              if (!mResponseFlag) {
+                j ++;
+                tempNonMissMembrIndx[j] = nonMissMembrIndx[indxx[k]];
+                secondNonMissMembrFlag[r][k] = TRUE;
+              }
+              else {
+                secondNonMissMembrFlag[r][k] = FALSE;
+              }
+            }  
+            impurity[r] = getVariance(repMembrSize,
+                                    repMembrIndx,
+                                    j,
+                                    tempNonMissMembrIndx,
+                                    RF_response[treeID][r],
+                                    &mean[r],
+                                    &variance[r]);
+            impuritySummary = impuritySummary | impurity[r];
+          }  
+          free_uivector(tempNonMissMembrIndx, 1, nonMissMembrSize);
+        }  
+        if (impuritySummary) {
+          for (j = 1; j <= repMembrSize; j++) {
+            localSplitIndicator[j] = NEITHER;
+          }
+          for (r = 1; r <= RF_rSize; r++) {
+            if (impurity[r]) {
+              if (strcmp(RF_rType[r], "C") == 0) {
+                for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
+                  parentClassProp[r][p] = 0;
+                }
+                for (j = 1; j <= nonMissMembrSize; j++) {
+                  if (secondNonMissMembrFlag[r][j] == TRUE) {
+                    parentClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ]]] ++;
+                  }
+                }
+              }
+              else {
+                sumRghtSave[r] = 0.0;
+                for (j = 1; j <= nonMissMembrSize; j++) {
+                  if (secondNonMissMembrFlag[r][j] == TRUE) {
+                    sumRghtSave[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ] - mean[r];
+                  }
+                }
+              }
+            }  
+          }  
+          leftSize = 0;
+          priorMembrIter = 0;
+          splitLength = stackAndConstructSplitVector(treeID,
+                                                     repMembrSize,
+                                                     covariate,
+                                                     permissibleSplit,
+                                                     permissibleSplitSize,
+                                                     & factorFlag,
+                                                     & deterministicSplitFlag,
+                                                     & mwcpSizeAbsolute,
+                                                     & permissibleSplitPtr);
+          if (factorFlag == FALSE) {
+            for (j = 1; j <= nonMissMembrSize; j++) {
+              localSplitIndicator[ nonMissMembrIndx[indxx[j]] ] = RIGHT;
+            }
+            for (r = 1; r <= RF_rSize; r++) {
+              if (impurity[r]) {
+                if (strcmp(RF_rType[r], "C") == 0) {
+                  for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
+                    rghtClassProp[r][p] = parentClassProp[r][p];
+                    leftClassProp[r][p] = 0;
+                  }
+                }
+                else {
+                  sumRght[r] = sumRghtSave[r];
+                  sumLeft[r] = 0.0;
+                }
               }
             }
-            else {
-              sumRght[r] = sumRghtSave[r];
-              sumLeft[r] = 0.0;
+            leftSizeIter = 0;
+            rghtSizeIter = nonMissMembrSize;
+          }
+          for (j = 1; j < splitLength; j++) {
+            if (factorFlag == TRUE) {
+              priorMembrIter = 0;
+              leftSize = 0;
             }
-          }
-          leftSizeIter = 0;
-          rghtSizeIter = repMembrSize;
-        }
-        for (j = 1; j < splitLength; j++) {
-          if (factorFlag == TRUE) {
-            priorMembrIter = 0;
-            leftSize = 0;
-          }
-          virtuallySplitNode(treeID,
-                                factorFlag,
-                                mwcpSizeAbsolute,
-                                covariate,
-                                repMembrIndx,
-                                repMembrSize,
-                                nonMissMembrIndx,
-                                nonMissMembrSize,
-                                indxx,
-                                permissibleSplitPtr,
-                                j,
-                                localSplitIndicator,
-                                & leftSize,
-                                priorMembrIter,
-                                & currentMembrIter);
-          rghtSize = nonMissMembrSize - leftSize;
-          if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
-            delta = 0.0;
-            for (r = 1; r <= RF_rSize; r++) {
-              if (purity[r]) {
-                if (factorFlag == TRUE) {
-                  if (strcmp(RF_rType[r], "C") == 0) {
-                    for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
-                      leftClassProp[r][p] = 0;
-                    }
-                    for (k = 1; k <= nonMissMembrSize; k++) {
-                      if (localSplitIndicator[k] == LEFT) {
-                        leftClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
+            virtuallySplitNode(treeID,
+                               factorFlag,
+                               mwcpSizeAbsolute,
+                               covariate,
+                               repMembrIndx,
+                               repMembrSize,
+                               nonMissMembrIndx,
+                               nonMissMembrSize,
+                               indxx,
+                               permissibleSplitPtr,
+                               j,
+                               localSplitIndicator,
+                               & leftSize,
+                               priorMembrIter,
+                               & currentMembrIter);
+            rghtSize = nonMissMembrSize - leftSize;
+            if ((leftSize  >= (RF_minimumNodeSize)) && (rghtSize  >= (RF_minimumNodeSize))) {
+              delta = 0.0;
+              for (r = 1; r <= RF_rSize; r++) {
+                if (impurity[r]) {
+                  if (factorFlag == TRUE) {
+                    if (strcmp(RF_rType[r], "C") == 0) {
+                      for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
+                        leftClassProp[r][p] = 0;
+                      }
+                      for (k = 1; k <= nonMissMembrSize; k++) {
+                        if (secondNonMissMembrFlag[r][k] == TRUE) {
+                          if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
+                            leftClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
+                          }
+                        }
+                      }
+                      for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
+                        rghtClassProp[r][p] = parentClassProp[r][p] - leftClassProp[r][p];
                       }
                     }
-                    for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
-                      rghtClassProp[r][p] = parentClassProp[r][p] - leftClassProp[r][p];
+                    else {
+                      sumLeft[r] = sumRght[r] = 0.0;
+                      for (k = 1; k <= nonMissMembrSize; k++) {
+                        if (secondNonMissMembrFlag[r][k] == TRUE) {
+                          if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
+                            sumLeft[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                          }
+                          else {
+                            sumRght[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                          }
+                        }
+                      }
                     }
                   }
                   else {
-                    sumLeft[r] = sumRght[r] = 0.0;
-                    for (k = 1; k <= nonMissMembrSize; k++) {
-                      if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT) {
-                        sumLeft[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                    for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
+                      if (secondNonMissMembrFlag[r][k] == TRUE) {
+                        if (strcmp(RF_rType[r], "C") == 0) {
+                          leftClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
+                          rghtClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] --;
+                        }
+                        else {
+                          sumLeft[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                          sumRght[r] -= RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
+                        }
                       }
-                      else {
-                        sumRght[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
-                      }
                     }
+                  }  
+                  if (strcmp(RF_rType[r], "C") == 0) {
+                    sumLeft[1] = sumRght[1] = 0;
+                    for (p = 1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
+                      sumLeft[1] += (double) upower(leftClassProp[r][p], 2);
+                      sumRght[1] += (double) upower(rghtClassProp[r][p], 2);
+                    }
+                    sumLeftSqr = sumLeft[1] / leftSize;
+                    sumRghtSqr  = sumRght[1] / rghtSize;
                   }
-                }
-                else {
-                  for (k = leftSizeIter + 1; k < currentMembrIter; k++) {
-                    if (strcmp(RF_rType[r], "C") == 0) {
-                      leftClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
-                      rghtClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] --;
-                    }
-                    else {
-                      sumLeft[r] += RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
-                      sumRght[r] -= RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ] - mean[r];
-                    }
+                  else {
+                    sumLeftSqr = pow (sumLeft[r], 2.0) / (leftSize * variance[r]);
+                    sumRghtSqr = pow (sumRght[r], 2.0) / (rghtSize * variance[r]);
                   }
+                  delta += sumLeftSqr + sumRghtSqr;
                 }  
-                if (strcmp(RF_rType[r], "C") == 0) {
-                  sumLeft[1] = sumRght[1] = 0;
-                  for (p = 1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
-                    sumLeft[1] += (double) upower(leftClassProp[r][p], 2);
-                    sumRght[1] += (double) upower(rghtClassProp[r][p], 2);
-                  }
-                  sumLeftSqr = sumLeft[1] / leftSize;
-                  sumRghtSqr  = sumRght[1] / rghtSize;
-                }
-                else {
-                  sumLeftSqr = pow (sumLeft[r], 2.0) / (leftSize * variance[r]);
-                  sumRghtSqr = pow (sumRght[r], 2.0) / (rghtSize * variance[r]);
-                }
-                delta += sumLeftSqr + sumRghtSqr;
               }  
+              if (factorFlag == FALSE) {
+                rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
+                leftSizeIter = currentMembrIter - 1;
+              }
+              updateMaximumSplit(treeID,
+                                 delta,
+                                 covariate,
+                                 j,
+                                 factorFlag,
+                                 mwcpSizeAbsolute,
+                                 repMembrSize,
+                                 localSplitIndicator,
+                                 & deltaMax,
+                                 splitParameterMax,
+                                 splitValueMaxCont,
+                                 splitValueMaxFactSize,
+                                 splitValueMaxFactPtr,
+                                 permissibleSplitPtr,
+                                 splitIndicator);
             }  
             if (factorFlag == FALSE) {
-              rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
-              leftSizeIter = currentMembrIter - 1;
+              if (rghtSize  < RF_minimumNodeSize) {
+                j = splitLength;
+              }
+              else {
+                priorMembrIter = currentMembrIter - 1;
+              }
             }
-            updateMaximumSplit(treeID,
-                               delta,
-                               covariate,
-                               j,
-                               factorFlag,
-                               mwcpSizeAbsolute,
-                               repMembrSize,
-                               localSplitIndicator,
-                               & deltaMax,
-                               splitParameterMax,
-                               splitValueMaxCont,
-                               splitValueMaxFactSize,
-                               splitValueMaxFactPtr,
-                               permissibleSplitPtr,
-                               splitIndicator);
           }  
-          if (factorFlag == FALSE) {
-            if (rghtSize  < RF_minimumNodeSize) {
-              j = splitLength;
-            }
-            else {
-              priorMembrIter = currentMembrIter - 1;
-            }
-          }
+          unstackSplitVector(treeID,
+                             permissibleSplitSize,
+                             splitLength,
+                             factorFlag,
+                             deterministicSplitFlag,
+                             mwcpSizeAbsolute,
+                             permissibleSplitPtr);
         }  
-        unstackSplitVector(treeID,
-                           permissibleSplitSize,
-                           splitLength,
-                           factorFlag,
-                           deterministicSplitFlag,
-                           mwcpSizeAbsolute,
-                           permissibleSplitPtr);
         unselectRandomCovariates(treeID,
                                  parent,
                                  repMembrSize,
@@ -761,6 +889,14 @@ char multivariateSplit (uint    treeID,
                                  nonMissMembrSizeStatic,
                                  nonMissMembrIndx,
                                  multImpFlag);
+        if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+          free_cvector(tempNonMissMembrFlag, 1, nonMissMembrSize);
+        }
+        else {
+          for (r = 1; r <= RF_rSize; r++)  {
+            free_cvector(secondNonMissMembrFlag[r], 1, nonMissMembrSize);
+          }
+        }
       }  
       for (r = 1; r <= RF_rSize; r++) {
         if (strcmp(RF_rType[r], "C") == 0) {
@@ -774,9 +910,10 @@ char multivariateSplit (uint    treeID,
       free_new_vvector(parentClassProp, 1, RF_rSize, NRUTIL_UPTR);
       free_new_vvector(leftClassProp,   1, RF_rSize, NRUTIL_UPTR);
       free_new_vvector(rghtClassProp,   1, RF_rSize, NRUTIL_UPTR);
-      free_dvector(sumLeft, 1, RF_rSize);
-      free_dvector(sumRght, 1, RF_rSize);
+      free_dvector(sumLeft,     1, RF_rSize);
+      free_dvector(sumRght,     1, RF_rSize);
       free_dvector(sumRghtSave, 1, RF_rSize);
+      free_new_vvector(secondNonMissMembrFlag, 1, RF_rSize, NRUTIL_CPTR);
       unstackRandomCovariates(treeID,
                               randomCovariateFlag,
                               randomCovariateIndex,
@@ -792,9 +929,9 @@ char multivariateSplit (uint    treeID,
                               permissibleSplit);
       unstackSplitIndicator(repMembrSize, localSplitIndicator);
     }  
-    free_cvector(purity,   1, RF_rSize);
-    free_dvector(mean,     1, RF_rSize);
-    free_dvector(variance, 1, RF_rSize);
+    free_cvector(impurity,   1, RF_rSize);
+    free_dvector(mean,       1, RF_rSize);
+    free_dvector(variance,   1, RF_rSize);
   }  
   result = summarizeSplitResult(*splitParameterMax,
                                 *splitValueMaxCont,

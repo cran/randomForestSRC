@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -109,9 +109,6 @@ unsigned int getForkDefTraceFlag() {
 unsigned int getTurnOffTraceFlag() {
   return(TURN_OFF_TRACE);
 }
-unsigned int getTurnOnTraceFlag() {
-  return(TURN_ON_TRACE);
-}
 unsigned int getNumrDefTraceFlag() {
   return(NUMR_DEF_TRACE);
 }
@@ -137,5 +134,5 @@ void increaseMemoryAllocation(size_t amount) {
   }
 }
 void decreaseMemoryAllocation(size_t amount) {
-    RF_memor_minMemoryAllocation -= amount;  
+    RF_memor_minMemoryAllocation -= amount;
 }

@@ -5,10 +5,11 @@
   Fast imputation mode.  A random forest is grown and used to impute
   missing data.  No ensemble estimates or error rates are calculated.
 }
-\usage{\method{impute}{rfsrc}(formula, data, ntree = 1000, mtry = NULL,
+\usage{\method{impute}{rfsrc}(formula, data, ntree = 250, mtry = NULL,
   nodesize = NULL, splitrule = NULL, nsplit = 1,
-  na.action = c("na.impute", "na.random"), nimpute = 1,
-  xvar.wt = NULL, seed = NULL, do.trace = FALSE, ...)
+  na.action = c("na.impute", "na.random"), nimpute = 1, 
+  xvar.wt = NULL, 
+  seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
   \item{formula}{A symbolic description of the model to be fit.  Can be
@@ -21,12 +22,16 @@
     \item{splitrule}{Splitting rule used to grow trees.}
     \item{nsplit}{Non-negative integer value used to specify random splitting.}
     \item{na.action}{Missing value action. See details below.}
+    
     \item{nimpute}{Number of iterations of missing data algorithm.}
+    
+    
     \item{xvar.wt}{Weights for selecting variables for splitting on.}
+
     \item{seed}{Seed for random number generator.}
     \item{do.trace}{Should trace output be enabled?} 
     \item{...}{Further arguments passed to or from other methods.}
-  }
+}
 \details{
   \enumerate{
   \item Grow a forest and use this to impute data.  All external
@@ -67,7 +72,11 @@
 \references{
     Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
     (2008).  Random survival forests, \emph{Ann. App.
-    Statist.}, 2:841-860.
+      Statist.}, 2:841-860.
+
+    Stekhoven D.J. and Buhlmann P. (2012). MissFores--non-parametric
+    missing value imputation for mixed-type data.
+    \emph{Bioinformatics}, 28(1):112-118.
 }
 \seealso{
   \command{\link{rfsrc}}

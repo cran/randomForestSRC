@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -69,7 +69,6 @@ extern unsigned int getTraceFlag();
 extern unsigned int getNodeDefTraceFlag();
 extern unsigned int getForkDefTraceFlag();
 extern unsigned int getTurnOffTraceFlag();
-extern unsigned int getTurnOnTraceFlag();
 #include <R_ext/Arith.h>
 #ifndef TRUE
 #define TRUE   0x01

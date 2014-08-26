@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -232,7 +232,7 @@ char classificationXwghtSplit (uint    treeID,
               leftClassProp[p] = 0;
             }
             for (k = 1; k <= nonMissMembrSize; k++) {
-              if (localSplitIndicator[k] == LEFT) {
+              if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT)  {
                 leftClassProp[RF_classLevelIndex[1][ (uint) RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
               }
             }

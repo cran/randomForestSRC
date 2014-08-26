@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.4
+####  Version 1.5.5
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -626,9 +626,6 @@ var.select.rfsrc <-
     else {
       mtry
     }
-  }
-  cv.folds <- function (n, folds = 10) {
-    split(resample(1:n), rep(1:folds, length = n))
   }
   permute.rows <-function(x) {
     n <- nrow(x)

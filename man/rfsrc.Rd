@@ -48,7 +48,7 @@ rfsrc(formula, data, ntree = 1000,
   ...)
 }
 \arguments{
-  
+
     \item{formula}{A symbolic description of the model to be fit.}
 
 
@@ -338,16 +338,16 @@ rfsrc(formula, data, ntree = 1000,
   and y-variables) using a modification of the missing data algorithm of
   Ishwaran et al. (2008).  Prior to splitting a node, missing data for a
   variable is imputed by randomly drawing values from non-missing in-bag
-  data.  The purpose of the imputed data is to make it possible to
+  data.  The purpose of this imputed data is to make it possible to
   assign cases to daughter nodes in the event the node is split on a
   variable with missing data.  Imputed data is however not used to
   calculate the split-statistic which uses non-missing data only.
   Following a node split, imputed data are reset to missing and the
-  process is repeated until terminal nodes are reached.  Missing data is
-  then imputed using OOB non-missing terminal node data.  For integer
-  valued variables and censoring indicators, imputation uses a maximal
-  class rule, whereas continuous variables and survival time use a mean
-  rule.
+  process is repeated until terminal nodes are reached.  Missing data in
+  terminal nodes are imputed using OOB non-missing terminal node data.
+  For integer valued variables and censoring indicators, imputation uses
+  a maximal class rule, whereas continuous variables and survival time
+  use a mean rule.
 
   Choosing the option \option{na.action="na.random"} implements a cruder
   version of the missing data algorithm but which should be

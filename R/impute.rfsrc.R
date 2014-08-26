@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.4
+####  Version 1.5.5
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -62,65 +62,38 @@
 
 impute.rfsrc <- function(formula,
                          data,
-                         ntree = 1000,
+                         ntree = 250,
                          mtry = NULL,
                          nodesize = NULL,
                          splitrule = NULL,
                          nsplit = 1,
                          na.action = c("na.impute", "na.random"),
-                         nimpute = 1,
-                         xvar.wt = NULL,
+                         nimpute = 1, 
+                         xvar.wt = NULL, 
                          seed = NULL,
                          do.trace = FALSE,
                          ...)
 {
-  importance <- "none"
-  na.action <- match.arg(na.action, c("na.impute", "na.random"))
-  forest <- FALSE
-  proximity <- FALSE
-  var.used <- FALSE
-  split.depth <- FALSE
-  membership <- FALSE
-  miss.tree <- FALSE
   if (missing(data)) {
     stop("data is missing")
   }
-  row.names.data <- rownames(data)
-  object <- rfsrc(formula = formula,
-                  data = data,
-                  ntree = ntree,
-                  mtry = mtry,
-                  nodesize = nodesize,
-                  splitrule = splitrule,
-                  nsplit = nsplit,
-                  nimpute = nimpute,
-                  xvar.wt = xvar.wt,
-                  seed = seed,
-                  do.trace = do.trace,
-                  importance = importance,
-                  na.action = na.action,
-                  forest = forest,
-                  proximity = proximity,
-                  var.used = var.used,
-                  split.depth = split.depth,
-                  membership = membership,
-                  impute.only = TRUE,
-                  miss.tree = miss.tree)
-  if (is.data.frame(object)) {
-    return(invisible(object))
+  which.na <- is.na(data)
+  if (!any(which.na)) {
+    return(data)
   }
-  if(is.null(object$yvar.names)) {
-    imputed.result <- object$xvar
+  mforest <- FALSE
+  if (!mforest) {
+    return(generic.impute.rfsrc(formula = formula,
+                         data = data,
+                         ntree = ntree,
+                         nimpute = nimpute,
+                         mtry = mtry,
+                         nodesize = nodesize,
+                         splitrule = splitrule,
+                         nsplit = nsplit,
+                         na.action = na.action,
+                         xvar.wt = xvar.wt,
+                         seed = seed,
+                         do.trace = do.trace))
   }
-  else {
-    imputed.result <- cbind(object$yvar, object$xvar)
-  }
-  colnames(imputed.result) <- c(object$yvar.names, object$xvar.names)
-  if (nimpute == 1) {
-    imputed.result[object$imputed.indv, ] <- object$imputed.data
-  }
-  if (nrow(imputed.result) == length(row.names.data)) {
-    rownames(imputed.result) <- row.names.data
-  }
-  invisible(imputed.result) 
 }

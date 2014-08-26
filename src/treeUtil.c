@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.4
+////  Version 1.5.5
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -479,6 +479,7 @@ char growTree (char     rootFlag,
             }
           }
         }
+        free_cvector(membershipIndicator, 1, RF_observationSize);
         leftResult = growTree (FALSE,
                                multImpFlag,
                                treeID,
@@ -515,15 +516,17 @@ char growTree (char     rootFlag,
         }
       }
       else {
+        free_cvector(membershipIndicator, 1, RF_observationSize);
         Rprintf("\nRF-SRC:  *** ERROR *** ");
         Rprintf("\nRF-SRC:  forkAndUpdate(%10d) failed.", treeID);
         Rprintf("\nRF-SRC:  Please Contact Technical Support.");
         error("\nRF-SRC:  The application will now exit.\n");
       }
-      free_cvector(membershipIndicator, 1, RF_observationSize);
     }  
     else {
       parent -> splitFlag = FALSE;
+      free_cvector(parent -> permissibleSplit, 1, parent -> xSize);
+      parent -> permissibleSplit = NULL;
     }
   }  
   else {
@@ -583,9 +586,8 @@ char restoreTree(uint    b,
   parent -> depth = depth;
   parent -> left  = NULL;
   parent -> right = NULL;
-  for (i = 1; i <= parent -> xSize; i++) {
-    parent -> permissibleSplit[i] = FALSE;
-  }
+  free_cvector(parent -> permissibleSplit, 1, parent -> xSize);
+  parent -> permissibleSplit = NULL;
   parent -> splitFlag = FALSE;
   parent -> predictedOutcome = NA_REAL;
   parent -> nodeID = nodeID[*offset];
