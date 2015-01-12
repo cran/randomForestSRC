@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,17 +64,19 @@
 #define RSFUTIL_H
 #include "node.h"
 void updateTerminalNodeOutcomes (uint b);
+void restoreTerminalNodeOutcomes (uint b);
+void restoreMembrCount(uint treeID);
 void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
                                  uint      b);
 void copyDenominator(uint mode, uint size, uint *demonPtr, uint *denominatorCopy);
 void copyEnsemble(uint mode, uint size, double **ensemblePtr, double **ensembleCopy);
 void getVariablesUsed(uint treeID, Node *rootPtr, uint *varUsedVector);
-char stackAndImputePerfResponse(uint      mode, 
-                                char      multipleImputeFlag, 
+char stackAndImputePerfResponse(uint      mode,
+                                char      multipleImputeFlag,
                                 uint      treeID,
-                                uint      serialID, 
-                                uint      rSize, 
+                                uint      serialID,
+                                uint      rSize,
                                 double ***responsePtr);
 double **stackAndImputeGenericResponse(char flag, uint mode, uint rSize, uint obsSize, uint treeID, uint serialID, double **responsePtr);
 void unstackImputeResponse(char flag, uint rSize, uint obsSize, double **mResponsePtr);

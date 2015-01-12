@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -98,7 +98,7 @@ char regressionXwghtSplit (uint    treeID,
   uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
   uint   *indxx;
   uint priorMembrIter, currentMembrIter;
-  uint leftSizeIter, rghtSizeIter;
+  uint leftSizeIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   uint splitLength;
@@ -111,7 +111,6 @@ char regressionXwghtSplit (uint    treeID,
   uint j, k;
   mwcpSizeAbsolute       = 0;  
   leftSizeIter           = 0;  
-  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -212,7 +211,6 @@ char regressionXwghtSplit (uint    treeID,
         sumLeft      = 0.0;
         sumLeftSqr   = 0.0;
         leftSizeIter = 0;
-        rghtSizeIter = nonMissMembrSize;
       }
       for (j = 1; j < splitLength; j++) {
         if (factorFlag == TRUE) {
@@ -282,7 +280,6 @@ char regressionXwghtSplit (uint    treeID,
               }
               break;
             }
-            rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
             leftSizeIter = currentMembrIter - 1;
           }
           switch(RF_splitRule) {

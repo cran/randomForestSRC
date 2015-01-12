@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.5
+####  Version 1.6.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -443,6 +443,23 @@ get.vimp.only <-  function (vimp.only) {
   else {
     stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
   }
+}
+get.fast.restore <- function (fast.restore) {
+  if (!is.null(fast.restore)) {
+    if (fast.restore == TRUE) {
+      fast.restore <- 2^6
+    }
+    else if (fast.restore == FALSE) {
+      fast.restore <- 0
+    }
+    else {
+      stop("Invalid choice for 'fast.restore' option:  ", fast.restore)
+    }
+  }
+  else {
+    stop("Invalid choice for 'fast.restore' option:  ", fast.restore)
+  }
+  return (fast.restore)
 }
 is.hidden.impute.only <-  function (user.option) {
   if (is.null(user.option$impute.only)) {

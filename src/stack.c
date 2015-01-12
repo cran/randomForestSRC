@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -121,29 +121,45 @@ void stackFactorArrays() {
                      &RF_rFactorMap,
                      &RF_rFactorCount,
                      &RF_rFactorIndex,
-                     &RF_rFactorSize);
+                     &RF_rFactorSize,
+                     &RF_rNonFactorMap,
+                     &RF_rNonFactorCount,
+                     &RF_rNonFactorIndex);
   stackFactorGeneric(RF_xSize,
                      RF_xType,
                      &RF_xFactorMap,
                      &RF_xFactorCount,
                      &RF_xFactorIndex,
-                     &RF_xFactorSize);
+                     &RF_xFactorSize,
+                     &RF_xNonFactorMap,
+                     &RF_xNonFactorCount,
+                     &RF_xNonFactorIndex);
 }
 void stackFactorGeneric(uint    size,
                         char  **type,
                         uint  **p_factorMap,
                         uint   *factorCount,
                         uint  **p_factorIndex,
-                        uint  **p_factorSize) {
+                        uint  **p_factorSize,
+                        uint  **p_nonfactorMap,
+                        uint   *nonfactorCount,
+                        uint  **p_nonfactorIndex) {
   uint i, j;
   if (size > 0) {
-    *p_factorMap = uivector(1, size);
-    *factorCount = 0;
+    *p_factorMap    = uivector(1, size);
+    *p_nonfactorMap = uivector(1, size);
+    *factorCount    = 0;
+    *nonfactorCount = 0;
     for (i = 1; i <= size; i++) {
-      (*p_factorMap)[i] = 0;
+      (*p_factorMap)[i]    = 0;
+      (*p_nonfactorMap)[i] = 0;
       if (strcmp(type[i], "C") == 0) {
         (*factorCount) ++;
         (*p_factorMap)[i] = *factorCount;
+      }
+      else {
+        (*nonfactorCount) ++;
+        (*p_nonfactorMap)[i] = *nonfactorCount;
       }
     }
     if (*factorCount > 0) {
@@ -156,9 +172,19 @@ void stackFactorGeneric(uint    size,
       }
       *p_factorSize = uivector(1, *factorCount);
     }
+    if (*nonfactorCount > 0) {
+      *p_nonfactorIndex = uivector(1, *nonfactorCount);
+      j = 0;
+      for (i = 1; i <= size; i++) {
+        if ((*p_nonfactorMap)[i] > 0) {
+          (*p_nonfactorIndex)[++j] = i;
+        }
+      }
+    }
   }
   else {
-    *factorCount = 0;
+    *factorCount    = 0;
+    *nonfactorCount = 0;
   }
 }
 void unstackFactorArrays() {
@@ -169,11 +195,19 @@ void unstackFactorArrays() {
       free_uivector(RF_rFactorIndex, 1, RF_rFactorCount);
       free_uivector(RF_rFactorSize, 1, RF_rFactorCount);
     }
+    free_uivector(RF_rNonFactorMap, 1, RF_rSize);
+    if (RF_rNonFactorCount > 0) {
+      free_uivector(RF_rNonFactorIndex, 1, RF_rNonFactorCount);
+    }
   }
   free_uivector(RF_xFactorMap, 1, RF_xSize);
   if (RF_xFactorCount > 0) {
     free_uivector(RF_xFactorIndex, 1, RF_xFactorCount);
     free_uivector(RF_xFactorSize, 1, RF_xFactorCount);
+  }
+  free_uivector(RF_xNonFactorMap, 1, RF_xSize);
+  if (RF_xNonFactorCount > 0) {
+    free_uivector(RF_xNonFactorIndex, 1, RF_xNonFactorCount);
   }
   if ((RF_rFactorCount + RF_xFactorCount) > 0) {
     for (j = 1; j <= RF_forestSize; j++) {
@@ -470,8 +504,6 @@ char stackMissingArrays(char mode) {
         RF_dmRecordBootFlag[j][i] = mFlag;
       }
     }
-    RF_mTermList = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_TPTR2);
-    RF_mTermMembership = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_TPTR2);
   }
   if (RF_rFactorCount + RF_xFactorCount > 0) {
     initializeFactorArrays(mode);
@@ -551,8 +583,6 @@ void unstackMissingArrays(char mode) {
   }  
   if (dualUseFlag == TRUE) {
     free_cmatrix(RF_dmRecordBootFlag, 1, RF_forestSize, 1, recordSize);
-    free_new_vvector(RF_mTermList, 1, RF_forestSize, NRUTIL_TPTR2);
-    free_new_vvector(RF_mTermMembership, 1, RF_forestSize, NRUTIL_TPTR2);
   }
 }
 void stackMissingSignatures(uint     obsSize,

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,7 +67,6 @@ struct node {
   struct node *parent;
   unsigned int xSize;
   char splitFlag;
-  double predictedOutcome;
   unsigned int splitParameter;
   double splitValueCont;
   double splitStatistic;
@@ -83,28 +82,6 @@ struct node {
   struct node *right;
   char *permissibleSplit;
   unsigned int *splitDepth;
-  unsigned int eTypeSize;
-  unsigned int mTimeSize;
-  unsigned int eTimeSize;
-  unsigned int sTimeSize;
-  unsigned int *atRiskCount;
-  unsigned int **eventCount;
-  unsigned int *eventTimeIndex;
-  double **localRatio;
-  double **localCSH;
-  double **localCIF;
-  double *localSurvival;
-  double *localNelsonAalen;
-  double **CSH;
-  double **CIF;
-  double *survival;
-  double *nelsonAalen;
-  double *mortality;
-  unsigned int   rfCount;
-  unsigned int  *rfSize;
-  unsigned int **multiClassProb;
-  double weight;
-  unsigned int membrCount;
   unsigned int mpIndexSize;
   unsigned int fmpIndexSize;
   int *mpSign;

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -63,6 +63,7 @@
 #include        <stdlib.h>
 #include        "nrutil.h"
 #include       "nodeOps.h"
+#include       "termOps.h"
 #include   <R_ext/Print.h>
 #include   <Rdefines.h>
 extern unsigned int getTraceFlag();
@@ -76,18 +77,6 @@ extern unsigned int getTurnOffTraceFlag();
 #ifndef FALSE
 #define FALSE  0x00
 #endif
-Terminal *makeTerminal() {
-  Terminal *parent = (Terminal*) gblock((size_t) sizeof(Terminal));
-  parent -> lmiIndex      = NULL;
-  parent -> lmiSize       = 0;
-  parent -> lmiValue  = NULL;
-  parent -> nodeID     = 0;
-  return parent;
-}
-void freeTerminal(Terminal        *parent) {
-  unstackTermLMIIndex(parent);
-  free_gblock(parent, sizeof(Terminal));
-}
 Node *makeNode(unsigned int xSize) {
   unsigned int i;
   Node *parent = (Node*) gblock((size_t) sizeof(Node));
@@ -100,7 +89,6 @@ Node *makeNode(unsigned int xSize) {
   parent -> left               = NULL;
   parent -> right              = NULL;
   parent -> splitFlag            = TRUE;
-  parent -> predictedOutcome     = NA_REAL;
   parent -> splitParameter       = 0;
   parent -> splitValueCont       = NA_REAL;
   parent -> splitValueFactSize   = 0;
@@ -112,27 +100,6 @@ Node *makeNode(unsigned int xSize) {
   parent -> depth                = 0;
   parent -> splitDepth           = NULL;
   parent -> pseudoTerminal       = FALSE;
-  parent -> eTypeSize            = 0;
-  parent -> mTimeSize            = 0;
-  parent -> eTimeSize            = 0;
-  parent -> sTimeSize            = 0;
-  parent -> atRiskCount          = NULL;
-  parent -> eventCount           = NULL;
-  parent -> eventTimeIndex       = NULL;
-  parent -> localRatio           = NULL;
-  parent -> localCSH             = NULL;
-  parent -> localCIF             = NULL;
-  parent -> localSurvival        = NULL;
-  parent -> localNelsonAalen     = NULL;
-  parent -> CSH                  = NULL;
-  parent -> CIF                  = NULL;
-  parent -> survival             = NULL;
-  parent -> nelsonAalen          = NULL;
-  parent -> rfCount              = 0;
-  parent -> rfSize               = NULL;
-  parent -> multiClassProb       = NULL;
-  parent -> weight               = 0.0;
-  parent -> membrCount           = 0;
   parent -> mpIndexSize          = 0;
   parent -> fmpIndexSize         = 0;
   parent -> mpSign               = NULL;
@@ -177,30 +144,7 @@ void freeNode(Node         *parent) {
   unstackNodeFLMPIndex(parent);
   unstackNodeLMRIndex(parent);
   unstackNodeFLMRIndex(parent);
-  if ((parent -> splitParameter) == 0) {
-    freeTerminalNodeSurvivalStructures(parent);
-  }
   free_gblock(parent, sizeof(Node));
-}
-void freeTerminalNodeLocalSurvivalStructures(Node *terminalNode) {
-  unstackLocalRatio(terminalNode);
-  unstackLocalSurvival(terminalNode);
-  unstackLocalNelsonAalen(terminalNode);
-  if (terminalNode -> eTypeSize > 1) {
-    unstackLocalCSH(terminalNode);
-    unstackLocalCIF(terminalNode);
-  }
-}
-void freeTerminalNodeSurvivalStructures(Node *terminalNode) {
-  if (terminalNode -> eTypeSize > 1) {
-  }
-  unstackEventTimeIndex(terminalNode);
-  unstackNelsonAalen(terminalNode);
-  unstackSurvival(terminalNode);
-  if (terminalNode -> eTypeSize > 1) {
-    unstackCSH(terminalNode);
-    unstackCIF(terminalNode);
-  }
 }
 void getNodeInfo(Node *nodePtr) {
   unsigned int i;
@@ -314,337 +258,6 @@ char forkNode(Node         *parent,
   parent -> permissibleSplit = NULL;
   parent -> splitFlag = FALSE;
   return TRUE;
-}
-void stackAtRiskAndEventCounts(Node *tNode, unsigned int eTypeSize, unsigned int mTimeSize) {
-  if (tNode -> eTypeSize > 0) {
-    if (tNode -> eTypeSize != eTypeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTypeSize = eTypeSize;
-  }
-  if (tNode -> mTimeSize > 0) {
-    if (tNode -> mTimeSize != mTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  mTimeSize has been previously defined:  %10d vs %10d", tNode -> mTimeSize, mTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> mTimeSize = mTimeSize;
-  }
-  tNode -> atRiskCount     = uivector(1, mTimeSize);
-  tNode -> eventCount      = uimatrix(1, eTypeSize, 1, mTimeSize);
-}
-void stackEventTimeIndex(Node *tNode, unsigned int eTimeSize) {
-  if (tNode -> eTimeSize > 0) {
-    if (tNode -> eTimeSize != eTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTimeSize has been previously defined:  %10d vs %10d", tNode -> eTimeSize, eTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTimeSize = eTimeSize;
-  }
-  tNode -> eventTimeIndex  = uivector(1, eTimeSize + 1);
-}
-void unstackAtRiskAndEventCounts(Node *tNode) {
-  if (tNode -> atRiskCount != NULL) {
-    free_uivector(tNode -> atRiskCount, 1, tNode -> mTimeSize);
-    tNode -> atRiskCount = NULL;
-  }
-  if (tNode -> eventCount != NULL) {
-    free_uimatrix(tNode -> eventCount, 1, tNode -> eTypeSize, 1, tNode -> mTimeSize);
-    tNode -> eventCount = NULL;
-  }
-}
-void unstackEventTimeIndex(Node *tNode) {
-  if (tNode -> eventTimeIndex != NULL) {
-    free_uivector(tNode -> eventTimeIndex, 1, tNode -> eTimeSize + 1);
-    tNode -> eventTimeIndex = NULL;
-  }
-}
-void stackLocalRatio(Node *tNode, unsigned int eTypeSize, unsigned int eTimeSize) {
-  if (tNode -> eTypeSize > 0) {
-    if (tNode -> eTypeSize != eTypeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTypeSize = eTypeSize;
-  }
-  if (tNode -> eTimeSize > 0) {
-    if (tNode -> eTimeSize != eTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTimeSize has been previously defined:  %10d vs %10d", tNode -> eTimeSize, eTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTimeSize = eTimeSize;
-  }
-  tNode -> localRatio = dmatrix(1, eTypeSize, 1, tNode -> eTimeSize);
-}
-void unstackLocalRatio(Node *tNode) {
-  if(tNode -> eTimeSize > 0) {
-    if (tNode -> localRatio != NULL) {
-      free_dmatrix(tNode -> localRatio, 1, tNode -> eTypeSize, 1, tNode -> eTimeSize);
-      tNode -> localRatio = NULL;
-    }
-  }
-}
-void stackLocalSurvival(Node *tNode, unsigned int eTimeSize) {
-  if (tNode -> eTimeSize > 0) {
-    if (tNode -> eTimeSize != eTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTimeSize has been previously defined:  %10d vs %10d", tNode -> eTimeSize, eTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTimeSize = eTimeSize;
-  }
-  tNode -> localSurvival = dvector(1, tNode -> eTimeSize);
-}
-void unstackLocalSurvival(Node *tNode) {
-  if(tNode -> eTimeSize > 0) {
-    if (tNode -> localSurvival != NULL) {
-      free_dvector(tNode -> localSurvival, 1, tNode -> eTimeSize);
-      tNode -> localSurvival = NULL;
-    }
-  }
-}
-void stackLocalNelsonAalen(Node *tNode, unsigned int eTimeSize) {
-  if (tNode -> eTimeSize > 0) {
-    if (tNode -> eTimeSize != eTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTimeSize has been previously defined:  %10d vs %10d", tNode -> eTimeSize, eTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTimeSize = eTimeSize;
-  }
-  tNode -> localNelsonAalen = dvector(1, tNode -> eTimeSize);
-}
-void unstackLocalNelsonAalen(Node *tNode) {
-  if(tNode -> eTimeSize > 0) {
-    if (tNode -> localNelsonAalen != NULL) {
-      free_dvector(tNode -> localNelsonAalen, 1, tNode -> eTimeSize);
-      tNode -> localNelsonAalen = NULL;
-    }
-  }
-}
-void stackLocalCSH(Node *tNode, unsigned int eTypeSize, unsigned int eTimeSize) {
-  if (tNode -> eTypeSize > 0) {
-    if (tNode -> eTypeSize != eTypeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTypeSize = eTypeSize;
-  }
-  if (tNode -> eTimeSize > 0) {
-    if (tNode -> eTimeSize != eTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTimeSize has been previously defined:  %10d vs %10d", tNode -> eTimeSize, eTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTimeSize = eTimeSize;
-  }
-  tNode -> localCSH = dmatrix(1, eTypeSize, 1, tNode -> eTimeSize);
-}
-void unstackLocalCSH(Node *tNode) {
-  if(tNode -> eTimeSize > 0) {
-    if (tNode -> localCSH != NULL) {
-      free_dmatrix(tNode -> localCSH, 1, tNode -> eTypeSize, 1, tNode -> eTimeSize);
-      tNode -> localCSH = NULL;
-    }
-  }
-}
-void stackLocalCIF(Node *tNode, unsigned int eTypeSize, unsigned int eTimeSize) {
-  if (tNode -> eTypeSize > 0) {
-    if (tNode -> eTypeSize != eTypeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTypeSize = eTypeSize;
-  }
-  if (tNode -> eTimeSize > 0) {
-    if (tNode -> eTimeSize != eTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTimeSize has been previously defined:  %10d vs %10d", tNode -> eTimeSize, eTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTimeSize = eTimeSize;
-  }
-  tNode -> localCIF = dmatrix(1, eTypeSize, 1, tNode -> eTimeSize);
-}
-void unstackLocalCIF(Node *tNode) {
-  if(tNode -> eTimeSize > 0) {
-    if (tNode -> localCIF != NULL) {
-      free_dmatrix(tNode -> localCIF, 1, tNode -> eTypeSize, 1, tNode -> eTimeSize);
-      tNode -> localCIF = NULL;
-    }
-  }
-}
-void stackNelsonAalen(Node *tNode, unsigned int sTimeSize) {
-  if (tNode -> sTimeSize > 0) {
-    if (tNode -> sTimeSize != sTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  sTimeSize has been previously defined:  %10d vs %10d", tNode -> sTimeSize, sTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> sTimeSize = sTimeSize;
-  }
-  tNode -> nelsonAalen = dvector(1, tNode -> sTimeSize);
-}
-void unstackNelsonAalen(Node *tNode) {
-  if(tNode -> sTimeSize > 0) {
-    if (tNode -> nelsonAalen != NULL) {
-      free_dvector(tNode -> nelsonAalen, 1, tNode -> sTimeSize);
-      tNode -> nelsonAalen = NULL;
-    }
-  }
-}
-void stackSurvival(Node *tNode, unsigned int sTimeSize) {
-  if (tNode -> sTimeSize > 0) {
-    if (tNode -> sTimeSize != sTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  sTimeSize has been previously defined:  %10d vs %10d", tNode -> sTimeSize, sTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> sTimeSize = sTimeSize;
-  }
-  tNode -> survival = dvector(1, tNode -> sTimeSize);
-}
-void unstackSurvival(Node *tNode) {
-  if(tNode -> sTimeSize > 0) {
-    if (tNode -> survival != NULL) {
-      free_dvector(tNode -> survival, 1, tNode -> sTimeSize);
-      tNode -> survival = NULL;
-    }
-  }
-}
-void stackCSH(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize) {
-  if (tNode -> eTypeSize > 0) {
-    if (tNode -> eTypeSize != eTypeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTypeSize = eTypeSize;
-  }
-  if (tNode -> sTimeSize > 0) {
-    if (tNode -> sTimeSize != sTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  sTimeSize has been previously defined:  %10d vs %10d", tNode -> sTimeSize, sTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> sTimeSize = sTimeSize;
-  }
-  tNode -> CSH = dmatrix(1, eTypeSize, 1, tNode -> sTimeSize);
-}
-void unstackCSH(Node *tNode) {
-  if(tNode -> sTimeSize > 0) {
-    if (tNode -> CSH != NULL) {
-      free_dmatrix(tNode -> CSH, 1, tNode -> eTypeSize, 1, tNode -> sTimeSize);
-      tNode -> CSH = NULL;
-    }
-  }
-}
-void stackCIF(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize) {
-  if (tNode -> eTypeSize > 0) {
-    if (tNode -> eTypeSize != eTypeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTypeSize = eTypeSize;
-  }
-  if (tNode -> sTimeSize > 0) {
-    if (tNode -> sTimeSize != sTimeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  sTimeSize has been previously defined:  %10d vs %10d", tNode -> sTimeSize, sTimeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> sTimeSize = sTimeSize;
-  }
-  tNode -> CIF = dmatrix(1, eTypeSize, 1, tNode -> sTimeSize);
-}
-void unstackCIF(Node *tNode) {
-  if(tNode -> sTimeSize > 0) {
-    if (tNode -> CIF != NULL) {
-      free_dmatrix(tNode -> CIF, 1, tNode -> eTypeSize, 1, tNode -> sTimeSize);
-      tNode -> CIF = NULL;
-    }
-  }
-}
-void stackMortality(Node *tNode, unsigned int eTypeSize) {
-  if (tNode -> eTypeSize > 0) {
-    if (tNode -> eTypeSize != eTypeSize) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize has been previously defined:  %10d vs %10d", tNode -> eTypeSize, eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> eTypeSize = eTypeSize;
-  }
-  tNode -> mortality = dvector(1, eTypeSize);
-}
-void unstackMortality(Node *tNode) {
-  if(tNode -> eTypeSize > 0) {
-    if (tNode -> mortality != NULL) {
-      free_dvector(tNode -> mortality, 1, tNode -> eTypeSize);
-      tNode -> mortality = NULL;
-    }
-  }
 }
 void stackMPSign(Node *tNode, unsigned int mpIndexSize) {
   if (tNode -> mpIndexSize > 0) {
@@ -774,70 +387,6 @@ void unstackNodeFLMRIndex(Node *tNode) {
     }
   }
 }
-void stackTermLMIIndex(Terminal *tNode, unsigned int size) {
-  if (tNode -> lmiSize > 0) {
-    Rprintf("\nRF-SRC:  *** ERROR *** ");
-    Rprintf("\nRF-SRC:  lmiIndex has been previously defined:  %10d vs %10d", tNode -> lmiSize, size);
-    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-    error("\nRF-SRC:  The application will now exit.\n");
-  }
-  else {
-    tNode -> lmiSize = size;
-  }
-  tNode -> lmiIndex = uivector(1, tNode -> lmiSize);
-  tNode -> lmiValue = dvector(1, tNode -> lmiSize);
-}
-void unstackTermLMIIndex(Terminal *tNode) {
-  if(tNode -> lmiSize > 0) {
-    if (tNode -> lmiIndex != NULL) {
-      free_uivector(tNode -> lmiIndex, 1, tNode -> lmiSize);
-      tNode -> lmiIndex = NULL;
-    }
-    if (tNode -> lmiValue != NULL) {
-      free_dvector(tNode -> lmiValue, 1, tNode -> lmiSize);
-      tNode -> lmiValue = NULL;
-    }
-  }
-}
-void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize) {
-  unsigned int j;
-  if (tNode -> rfCount > 0) {
-    if (tNode -> rfCount != rfCount) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  rfCount has been previously defined:  %10d vs %10d", tNode -> rfCount, rfCount);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
-    }
-  }
-  else {
-    tNode -> rfCount = rfCount;
-  }
-  tNode -> rfSize = uivector(1, tNode -> rfCount);
-  tNode -> multiClassProb = (unsigned int **) new_vvector(1, tNode -> rfCount, NRUTIL_UPTR);
-  for (j = 1; j <= tNode -> rfCount; j++) {
-    (tNode -> rfSize)[j] = rfSize[j];
-    (tNode -> multiClassProb)[j] = uivector(1, (tNode -> rfSize)[j]);
-  }
-}
-void unstackMultiClassProb(Node *tNode) {
-  unsigned int j;
-  if (tNode -> rfCount > 0) {
-    if (tNode -> rfSize != NULL) {
-      if (tNode -> multiClassProb != NULL) {
-        for (j = 1; j <= tNode -> rfCount; j++) {
-          if (tNode -> multiClassProb[j] != NULL) {
-            free_uivector(tNode -> multiClassProb[j], 1, tNode -> rfSize[j]);
-            tNode -> multiClassProb[j] = NULL;
-          }
-        }
-        free_new_vvector(tNode -> multiClassProb, 1, tNode -> rfCount, NRUTIL_UPTR);
-        tNode -> multiClassProb = NULL;
-      }
-    }
-    free_uivector(tNode -> rfSize, 1, tNode -> rfCount);
-    tNode -> rfSize = NULL;
-  }
-}
 void stackSplitDepth(Node *tNode, unsigned int depth) {
   if (tNode -> depth > 0) {
     if (tNode -> depth != depth) {
@@ -856,13 +405,5 @@ void unstackSplitDepth(Node *tNode) {
   if (tNode -> splitDepth != NULL) {
     free_uivector(tNode -> splitDepth, 1, tNode -> depth);
     tNode -> splitDepth = NULL;
-  }
-}
-void checkEventType(Node *tNode) {
-  if (tNode -> eTypeSize <= 1) {
-      Rprintf("\nRF-SRC:  *** ERROR *** ");
-      Rprintf("\nRF-SRC:  eTypeSize must be greater than one (1):  %10d ", tNode -> eTypeSize);
-      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-      error("\nRF-SRC:  The application will now exit.\n");
   }
 }

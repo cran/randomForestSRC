@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,6 +65,7 @@
 #include         "trace.h"
 #include        "nrutil.h"
 #include       "nodeOps.h"
+#include       "termOps.h"
 #include     "factorOps.h"
 #include     "bootstrap.h"
 #include        "impute.h"
@@ -541,10 +542,8 @@ char growTree (char     rootFlag,
     if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
       bsUpdateFlag = TRUE;
     }
-    if (!(RF_opt & OPT_IMPU_ONLY)) {
-      if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
-        getSplitDepth(parent, maximumDepth);
-      }
+    if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
+      getSplitDepth(parent, maximumDepth);
     }
     parent -> orderedNodeID = ++RF_orderedLeafCount[treeID];
   }  
@@ -589,7 +588,6 @@ char restoreTree(uint    b,
   free_cvector(parent -> permissibleSplit, 1, parent -> xSize);
   parent -> permissibleSplit = NULL;
   parent -> splitFlag = FALSE;
-  parent -> predictedOutcome = NA_REAL;
   parent -> nodeID = nodeID[*offset];
   parent -> splitParameter = parmID[*offset];
   if ((parent -> splitParameter) != 0) {
@@ -649,10 +647,10 @@ char restoreTree(uint    b,
   if (!notTerminal) {
     parent -> pseudoTerminal = TRUE;
     RF_tNodeList[b][parent -> nodeID] = parent;
-    if (!(RF_opt & OPT_IMPU_ONLY)) {
-      if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
-        getSplitDepth(parent, maximumDepth);
-      }
+    RF_tTermList[b][parent -> nodeID] = makeTerminal();
+    RF_tTermList[b][parent -> nodeID] -> nodeID = parent -> nodeID;
+    if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
+      getSplitDepth(parent, maximumDepth);
     }
     parent -> orderedNodeID = ++RF_orderedLeafCount[b];
   }
@@ -809,5 +807,11 @@ void getPTNodeList(Node    *parent,
   else {
     (*offset) ++;
     list[*offset] = parent;
+  }
+}
+void restoreNodeMembershipGrow(uint treeID) {
+  uint i;
+  for (i = 1; i <= RF_observationSize; i++) {
+    RF_tNodeMembership[treeID][i] = RF_tNodeList[treeID][RF_TN_MEMB_ptr[treeID][i]];
   }
 }

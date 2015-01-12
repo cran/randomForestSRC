@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,14 +64,20 @@
 #define RSFTREE_H
 void acquireTree(uint mode, uint r, uint b);
 void getWeight(uint mode);
-void updateWeight(uint b, char flag, uint obsSize, Node ***gNodeMembership);
-void getProximity(uint mode);
-void updateProximity(uint b, uint *offset, uint obsSize, char flag);
+void updateWeight(uint b, char flag, uint obsSize, Terminal ***gTermMembership);
+void getProximity(uint mode, double *proximityPtr);
+void updateProximity(uint b, uint *offset, uint obsSize, char flag, double *proximityPtr);
 void anticipateProximity(char mode, uint b);
 void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth);
-char pruneBranch(uint mode, uint treeID, Node **nodesAtDepth, uint nadCount, uint ptnTarget, uint ptnCurrent);
-uint pruneTree(uint mode, uint treeID, uint ptnCount);
+char pruneBranch(uint obsSize, uint treeID, Node **nodesAtDepth, uint nadCount, uint ptnTarget, uint ptnCurrent);
+uint pruneTree(uint obsSize, uint treeID, uint ptnCount);
 void unstackAuxiliary(uint mode, uint b);
 void stackNodeList(uint treeID);
+void unstackNodeList(uint treeID);
+void stackTermList(uint treeID);
+void unstackTermList(uint treeID);
+void stackAndInitTermMembership(uint mode, uint treeID);
+void unstackTermMembership(uint mode, uint treeID);
 void initNodeList(uint treeID);
+void initTermList(uint treeID);
 #endif

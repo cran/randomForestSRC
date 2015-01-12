@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -103,4 +103,17 @@ char multivariateSplit (uint    treeID,
                         double *splitStatistic,
                         char  **splitIndicator,
                         char    multImpFlag);
+char customSplitMultivariate(uint    treeID,
+                             Node   *parent,
+                             uint   *repMembrIndx,
+                             uint    repMembrSize,
+                             uint   *allMembrIndx,
+                             uint    allMembrSize,
+                             uint   *splitParameterMax,
+                             double *splitValueMaxCont,
+                             uint   *splitValueMaxFactSize,
+                             uint  **splitValueMaxFactPtr,
+                             double *splitStatistic,
+                             char  **splitIndicator,
+                             char    multImpFlag);
 #endif

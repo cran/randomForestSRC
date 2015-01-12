@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -86,7 +86,7 @@ uint stackDefinedOutputObjects(char      mode,
                                double  **pRF_fullEnsembleSRV,
                                double  **pRF_oobEnsembleMRT,
                                double  **pRF_fullEnsembleMRT,
-                               uint    **pRF_tNodeMembershipIndex,
+                               uint    **pRF_tTermMembershipIndex,
                                uint    **pRF_pNodeMembershipIndex,
                                uint    **pRF_bootstrapMembership,
                                uint     *stackCount,
@@ -107,4 +107,29 @@ uint stackVariableOutputObjects(char     mode,
                                 uint     sexpLength,
                                 char   **sexpString,
                                 SEXP    *sexpVector);
+uint stackVariableTerminalNodeOutputObjects(char     mode,
+                                            double **pRF_TN_SURV,
+                                            double **pRF_TN_MORT,
+                                            double **pRF_TN_NLSN,
+                                            double **pRF_TN_CSHZ,
+                                            double **pRF_TN_CIFN,
+                                            double **pRF_TN_REGR,
+                                            uint   **pRF_TN_CLAS,
+                                            uint   **pRF_TN_MCNT,
+                                            uint   **pRF_TN_MEMB,
+                                            uint     sexpIndex,
+                                            char   **sexpString,
+                                            SEXP    *sexpVector);
+void stackAuxVariableTerminalNodeOutputObjects(char    mode,
+                                               double *pRF_TN_SURV,
+                                               double *pRF_TN_MORT,
+                                               double *pRF_TN_NLSN,
+                                               double *pRF_TN_CSHZ,
+                                               double *pRF_TN_CIFN,
+                                               double *pRF_TN_REGR,
+                                               uint   *pRF_TN_CLAS,
+                                               uint   *pRF_TN_MCNT,
+                                               uint   *pRF_TN_MEMB);
+void unstackAuxVariableTerminalNodeOutputObjects(char mode);
+void saveTerminalNodeOutputObjects (uint mode);
 #endif

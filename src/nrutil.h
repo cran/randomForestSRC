@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -71,22 +71,25 @@
 #define FALSE  0x00
 #endif
 enum alloc_type{
-  NRUTIL_DPTR,
-  NRUTIL_UPTR,
-  NRUTIL_IPTR,
-  NRUTIL_CPTR,
-  NRUTIL_NPTR,
-  NRUTIL_TPTR,
-  NRUTIL_DPTR2,
-  NRUTIL_UPTR2,
-  NRUTIL_IPTR2,
-  NRUTIL_CPTR2,
-  NRUTIL_NPTR2,
-  NRUTIL_TPTR2,
-  NRUTIL_DPTR3,
-  NRUTIL_NPTR3,
-  NRUTIL_FPTR,
-  NRUTIL_FPTR2
+  NRUTIL_DPTR,   
+  NRUTIL_UPTR,   
+  NRUTIL_IPTR,   
+  NRUTIL_CPTR,   
+  NRUTIL_NPTR,   
+  NRUTIL_TPTR,   
+  NRUTIL_FPTR,   
+  NRUTIL_DPTR2,  
+  NRUTIL_UPTR2,  
+  NRUTIL_IPTR2,  
+  NRUTIL_CPTR2,  
+  NRUTIL_NPTR2,  
+  NRUTIL_TPTR2,  
+  NRUTIL_FPTR2,  
+  NRUTIL_DPTR3,  
+  NRUTIL_UPTR3,  
+  NRUTIL_NPTR3,  
+  NRUTIL_DPTR4,  
+  NRUTIL_UPTR4   
 };
 unsigned int upower (unsigned int x, unsigned int n);
 unsigned int upower2 (unsigned int n);

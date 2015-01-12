@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.5
+####  Version 1.6.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -84,7 +84,8 @@ generic.impute.rfsrc <- function(formula,
   impute.only <- TRUE
   membership <- FALSE
   miss.tree <- FALSE
-  row.names.data <- rownames(data)
+  c.names <- colnames(data)
+  r.names <- rownames(data)
   object <- rfsrc(formula = formula,
                   data = data,
                   ntree = ntree,
@@ -106,9 +107,12 @@ generic.impute.rfsrc <- function(formula,
                   membership = membership,
                   impute.only = impute.only,
                   miss.tree = miss.tree)
+  if (is.null(object)) {
+    return(NULL)
+  }
   rm(data)
   if (is.data.frame(object)) {
-    return(invisible(object))
+    return(invisible(list(data = object, missing = row.col.deleted(object, r.names, c.names)))) 
   }
   if(is.null(object$yvar.names)) {
     imputed.result <- object$xvar
@@ -121,8 +125,5 @@ generic.impute.rfsrc <- function(formula,
     imputed.result[object$imputed.indv, ] <- object$imputed.data
   }
   rm(object)
-  if (nrow(imputed.result) == length(row.names.data)) {
-    rownames(imputed.result) <- row.names.data
-  }
-  invisible(imputed.result) 
+  invisible(list(data = imputed.result, missing = row.col.deleted(imputed.result, r.names, c.names)))
 }

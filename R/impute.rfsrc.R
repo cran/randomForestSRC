@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.5
+####  Version 1.6.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -64,13 +64,12 @@ impute.rfsrc <- function(formula,
                          data,
                          ntree = 250,
                          mtry = NULL,
-                         nodesize = NULL,
+                         nodesize = 1,
                          splitrule = NULL,
                          nsplit = 1,
                          na.action = c("na.impute", "na.random"),
                          nimpute = 1, 
                          xvar.wt = NULL, 
-                         seed = NULL,
                          do.trace = FALSE,
                          ...)
 {
@@ -78,22 +77,56 @@ impute.rfsrc <- function(formula,
     stop("data is missing")
   }
   which.na <- is.na(data)
+  if (!any(which.na) || all(which.na)) {
+    return(invisible(data))
+  }
+  p <- ncol(data)
+  n <- nrow(data)
+  all.r.na <- rowSums(which.na) == p
+  all.c.na <- colSums(which.na) == n
+  data <- data[!all.r.na, !all.c.na, drop = FALSE]
+  which.na <- which.na[!all.r.na, !all.c.na, drop = FALSE]
   if (!any(which.na)) {
     return(data)
   }
+  p <- ncol(data)
+  n <- nrow(data)
+  all.var.names <- colnames(data)
   mforest <- FALSE
+  blocks <- list(1:nrow(data))
   if (!mforest) {
-    return(generic.impute.rfsrc(formula = formula,
-                         data = data,
-                         ntree = ntree,
-                         nimpute = nimpute,
-                         mtry = mtry,
-                         nodesize = nodesize,
-                         splitrule = splitrule,
-                         nsplit = nsplit,
-                         na.action = na.action,
-                         xvar.wt = xvar.wt,
-                         seed = seed,
-                         do.trace = do.trace))
+    if (missing(formula)) {
+      ytry <- min(p - 1, max(25, ceiling(sqrt(p))))
+      formula <- as.formula(paste("Unsupervised(", ytry, ") ~ ."))
+    }
+    nullBlocks <- lapply(blocks, function(blk) {
+      dta <- data[blk,, drop = FALSE]
+      retO <- tryCatch({generic.impute.rfsrc(formula = formula,
+                                   data = dta,
+                                   ntree = ntree,
+                                   nimpute = nimpute,
+                                   mtry = mtry,
+                                   nodesize = nodesize,
+                                   splitrule = splitrule,
+                                   nsplit = nsplit,
+                                   na.action = na.action,
+                                   xvar.wt = xvar.wt,
+                                   do.trace = do.trace)}, error = function(e) {NULL})
+      if (!is.null(retO)) {
+        if (!is.null(retO$missing$row)) {
+          blk <- blk[-retO$missing$row]
+        }
+        if (!is.null(retO$missing$col)) {
+          ynames <- all.var.names[-retO$missing$col]
+        }
+        else {
+          ynames <- all.var.names
+        }
+        data[blk, ynames] <<- retO$data[, ynames, drop = FALSE]
+      }
+      NULL
+    })
+    rm(nullBlocks)
   }
+  invisible(data)
 }

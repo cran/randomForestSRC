@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -70,7 +70,6 @@
 #include     "splitRegr.h"
 #include     "splitClas.h"
 #include     "splitUspv.h"
-#include    "regression.h"
 #include         "split.h"
 char getBestSplit(uint    treeID,
                   Node   *parent,
@@ -297,6 +296,21 @@ char getBestSplit(uint    treeID,
                                splitStatistic,
                                splitIndicator,
                                multImpFlag);
+    break;
+  case CUST_SPLIT:
+    result = customSplitMultivariate(treeID,
+                                     parent,
+                                     repMembrIndx,
+                                     repMembrSize,
+                                     allMembrIndx,
+                                     allMembrSize,
+                                     splitParameterMax,
+                                     splitValueMaxCont,
+                                     splitValueMaxFactSize,
+                                     splitValueMaxFactPtr,
+                                     splitStatistic,
+                                     splitIndicator,
+                                     multImpFlag);
     break;
   default:
     Rprintf("\nRF-SRC:  *** ERROR *** ");

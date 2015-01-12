@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -394,6 +394,9 @@ void *new_vvector(unsigned long nl, unsigned long nh, enum alloc_type type) {
   case NRUTIL_CPTR:
     v = ((char **) gvector(nl, nh, sizeof(char*)) -nl+NR_END);
     break;
+  case NRUTIL_DPTR4:
+    v = ((double *****) gvector(nl, nh, sizeof(double****)) -nl+NR_END);
+    break;
   case NRUTIL_TPTR:
     v = ((Terminal **) gvector(nl, nh, sizeof(Terminal*)) -nl+NR_END);
     break;
@@ -412,8 +415,20 @@ void *new_vvector(unsigned long nl, unsigned long nh, enum alloc_type type) {
   case NRUTIL_FPTR2:
     v = ((Factor ***) gvector(nl, nh, sizeof(Factor**)) -nl+NR_END);
     break;
+  case NRUTIL_DPTR3:
+    v = ((double ****) gvector(nl, nh, sizeof(double***)) -nl+NR_END);
+    break;
+  case NRUTIL_UPTR3:
+    v = ((unsigned int ****) gvector(nl, nh, sizeof(unsigned int***)) -nl+NR_END);
+    break;
+  case NRUTIL_UPTR4:
+    v = ((unsigned int *****) gvector(nl, nh, sizeof(unsigned int****)) -nl+NR_END);
+    break;
+  case NRUTIL_UPTR2:
+    v = ((unsigned int ***) gvector(nl, nh, sizeof(unsigned int**)) -nl+NR_END);
+    break;
   default:
-    v = NULL;
+    nrerror("\n  Illegal case in new_vvector().");
     break;
   }
   return v;
@@ -438,6 +453,9 @@ void free_new_vvector(void *v, unsigned long nl, unsigned long nh, enum alloc_ty
   case NRUTIL_CPTR:
     free_gvector((char*) v+nl-NR_END, nl, nh, sizeof(char*));
     break;
+  case NRUTIL_DPTR4:
+    free_gvector((double****) v+nl-NR_END, nl, nh, sizeof(double****));
+    break;
   case NRUTIL_TPTR:
     free_gvector((Terminal*) v+nl-NR_END, nl, nh, sizeof(Terminal*));
     break;
@@ -456,7 +474,20 @@ void free_new_vvector(void *v, unsigned long nl, unsigned long nh, enum alloc_ty
   case NRUTIL_FPTR2:
     free_gvector((Factor**) v+nl-NR_END, nl, nh, sizeof(Factor**));
     break;
+  case NRUTIL_DPTR3:
+    free_gvector((double***) v+nl-NR_END, nl, nh, sizeof(double***));
+    break;
+  case NRUTIL_UPTR3:
+    free_gvector((unsigned int***) v+nl-NR_END, nl, nh, sizeof(unsigned int***));
+    break;
+  case NRUTIL_UPTR4:
+    free_gvector((unsigned int****) v+nl-NR_END, nl, nh, sizeof(unsigned int****));
+    break;
+  case NRUTIL_UPTR2:
+    free_gvector((unsigned int**) v+nl-NR_END, nl, nh, sizeof(unsigned int**));
+    break;
   default:
+    nrerror("\n  Illegal case in free_new_vvector().");
     break;
   }
 }

@@ -1,9 +1,18 @@
 Package: randomForestSRC
-Version: 1.5.5
-BUILD: bld20140826
+Version: 1.6.0
+BUILD: bld20150105
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.5.5
+CHANGES TO RELEASE 1.6.0
+---------------------------------------------------------------------------------
+RELEASE 1.6.0
+Bug fix to duplicating missingness protocol when restoring a forest.
+Added fast.restore option to grow call.  Change to pass through
+xvar.wt as entered by user. RAM profile reduction in vimp().  Added
+versioning checks of forest object, thanks to suggestions by John
+Ehrlinger.  Bug fix to allow logical responses, treated as reals. User
+trace functionality restored.
+
 ---------------------------------------------------------------------------------
 RELEASE 1.5.5
 Bug fix to daughter assignment in classification.  Significant RAM
@@ -34,7 +43,7 @@ Fix to UBSAN warnings.  Implementation of new RG protocols.
 ---------------------------------------------------------------------------------
 RELEASE 1.5.0
 Significant improvements to CPU and RAM usage profiles in serial and
-OpenMP modes of execution.  Proximity options allow inbag, oob and all.
+OpenMP modes of execution.  Proximity options allow inbag, OOB and all.
 VIMP implements subsetting and conditional variable importance. NA
 options allow the split statistic to be based on non-missing values
 only.  In addition it allows random assignment of missing values.
@@ -44,7 +53,7 @@ RELEASE 1.4.0
 Modification of terminal node imputation protocol.  We now assign all
 individuals the same value rather than sampling from the distribution.
 Implementation of split.null option.  Implementation of unsupervised
-splitting for missing data in impute.rfsrc().  Modification of nipmute
+splitting for missing data in impute.rfsrc().  Modification of nimpute
 > 1 protocols.  In-bag, OOB, and all now depend on the mode.
 Reduction in impute memory footprint.  Modification of proximity
 option to allow in-bag, OOB, and all.  Fixed bug in predict involving

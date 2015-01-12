@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -67,17 +67,18 @@ void getMultiClassProb (uint treeID);
 void updateMultiClassProb (uint mode, uint treeID, double *ensemblePredictor);
 void updateEnsembleMultiClass(uint mode, uint treeID, double  *ensembleOutcome);
 double getBrierScore(uint     obsSize,
-                     double  *responsePtr, 
+                     double  *responsePtr,
                      double **ensemblePtr,
                      uint    *denomPtr,
                      double  *condPerformance);
-void getConditionalClassificationIndex(uint    size, 
-                                       double *responsePtr, 
+void getConditionalClassificationIndex(uint    size,
+                                       double *responsePtr,
                                        double *predictedOutcome,
                                        uint   *oobCount,
                                        double *condPerformance);
-double getClassificationIndex(uint    size, 
-                              double *responsePtr, 
+double getClassificationIndex(uint    size,
+                              double *responsePtr,
                               double *predictedOutcome,
                               uint   *oobCount);
+void restoreMultiClassProb(uint treeID);
 #endif

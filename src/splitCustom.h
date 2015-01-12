@@ -60,77 +60,14 @@
 ////**********************************************************************
 
 
-#include  <time.h>
-#include "trace.h"
-#include   <R_ext/Print.h>
-#ifndef TRUE
-#define TRUE   0x01
+#ifndef RSFSPLITCUST_H
+#define RSFSPLITCUST_H
+#include "node.h"
+double getCustomSplitStatistic (uint    n,
+                                char   *membership,
+                                double *time,
+                                double *event,
+                                double *response,
+                                double  mean,
+                                double  variance);
 #endif
-#ifndef FALSE
-#define FALSE  0x00
-#endif
-unsigned int    RF_traceFlagDiagLevel;
-unsigned int    RF_traceFlagIterValue;
-size_t          RF_memor_maxMemoryAllocation;
-size_t          RF_memor_minMemoryAllocation;
-void setTraceFlag(unsigned int traceFlag, unsigned int tree) {
-  RF_traceFlagDiagLevel = traceFlag & TRACE_MASK;
-  RF_traceFlagIterValue = tree;
-}
-unsigned int getTraceFlag(unsigned int tree) {
-  unsigned int result;
-  result = FALSE;
-  if (RF_traceFlagIterValue == tree) {
-    result = RF_traceFlagDiagLevel;
-  }
-  else {
-    if (RF_traceFlagIterValue == 0) {
-      result = RF_traceFlagDiagLevel;
-    }
-  }
-  return result;
-}
-unsigned int updateTimeStamp(unsigned int before) {
-  unsigned int stamp;
-  double cpuTimeUsed;
-  stamp = clock();
-  cpuTimeUsed = ((double) (stamp - before)) / CLOCKS_PER_SEC;
-  Rprintf("\nRF-SRC:  CPU process time:  %20.3f \n", cpuTimeUsed);
-  return stamp;
-}
-unsigned int getNodeDefTraceFlag() {
-  return(NODE_DEF_TRACE);
-}
-unsigned int getForkDefTraceFlag() {
-  return(FORK_DEF_TRACE);
-}
-unsigned int getTurnOffTraceFlag() {
-  return(TURN_OFF_TRACE);
-}
-unsigned int getNumrDefTraceFlag() {
-  return(NUMR_DEF_TRACE);
-}
-unsigned int getTimeDefTraceFlag() {
-  return(TIME_DEF_TRACE);
-}
-void setMaxMemoryAllocation(size_t value) {
-  RF_memor_maxMemoryAllocation = value;
-}
-void setMinMemoryAllocation(size_t value) {
-  RF_memor_minMemoryAllocation = value;
-}
-size_t getMaxMemoryAllocation() {
-  return (RF_memor_maxMemoryAllocation);
-}
-size_t getMinMemoryAllocation() {
-  return (RF_memor_minMemoryAllocation);
-}
-void increaseMemoryAllocation(size_t amount) {
-  RF_memor_minMemoryAllocation += amount;
-  if (RF_memor_minMemoryAllocation > RF_memor_maxMemoryAllocation) {
-    RF_memor_maxMemoryAllocation = RF_memor_minMemoryAllocation;
-  }
-}
-void decreaseMemoryAllocation(size_t amount) {
-    RF_memor_minMemoryAllocation -= amount;
-}

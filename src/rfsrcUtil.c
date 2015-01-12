@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,6 +65,7 @@
 #include           "trace.h"
 #include          "nrutil.h"
 #include         "nodeOps.h"
+#include         "termOps.h"
 #include        "treeUtil.h"
 #include          "impute.h"
 #include      "importance.h"
@@ -97,7 +98,7 @@ void updateTerminalNodeOutcomes (uint b) {
           getLocalCSH(b, leaf);
           getLocalCIF(b, leaf);
         }
-        unstackAtRiskAndEventCounts(RF_tNodeList[b][leaf]);
+        unstackAtRiskAndEventCounts(RF_tTermList[b][leaf]);
         getSurvival(b, leaf);
         if (!(RF_opt & OPT_COMP_RISK)) {
           getNelsonAalen(b, leaf);
@@ -107,16 +108,56 @@ void updateTerminalNodeOutcomes (uint b) {
           getCIF(b, leaf);
         }
         getMortality(b, leaf);
-        freeTerminalNodeLocalSurvivalStructures(RF_tNodeList[b][leaf]);
+        freeTerminalNodeLocalSurvivalStructures(RF_tTermList[b][leaf]);
       }  
     }
     else {
-      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+      if(RF_rFactorCount > 0) {
         getMultiClassProb(b);
       }
-      else {
+      if(RF_rNonFactorCount > 0) {
         getMeanResponse(b);
       }
+    }
+  }  
+}
+void restoreTerminalNodeOutcomes (uint b) {
+  if (RF_tLeafCount[b] > 0) {
+    restoreMembrCount(b);
+    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+      for (uint leaf = 1; leaf <= RF_tLeafCount[b]; leaf++) {
+        restoreSurvival(b, leaf);
+        if (!(RF_opt & OPT_COMP_RISK)) {
+          restoreNelsonAalen(b, leaf);
+        }
+        else {
+          restoreCSH(b, leaf);
+          restoreCIF(b, leaf);
+        }
+        restoreMortality(b, leaf);
+      }  
+    }
+    else {
+      if(RF_rFactorCount > 0) {
+        restoreMultiClassProb(b);
+      }
+      if(RF_rNonFactorCount > 0) {
+        restoreMeanResponse(b);
+      }
+    }
+  }  
+}
+void restoreMembrCount(uint treeID) {
+  Terminal *parent;
+  uint leaf;
+  for (leaf = 1; leaf <= RF_tLeafCount[treeID]; leaf++) {
+    parent = RF_tTermList[treeID][leaf];
+    (parent -> membrCount) = RF_TN_MCNT_ptr[treeID][leaf];
+    if (parent -> membrCount == 0) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Zero node count encountered in restoreMembrCount() in leaf:  %10d", leaf);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
     }
   }  
 }
@@ -142,7 +183,17 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
   ensembleDenPtr       = NULL;  
   denominatorCopy      = NULL;  
   thisSerialTreeCount  = 0;     
-  updateTerminalNodeOutcomes(b);
+  if (mode == RF_GROW) {
+    updateTerminalNodeOutcomes(b);
+  }
+  else {
+    if(!(RF_optHigh & OPT_TERM)) {
+      updateTerminalNodeOutcomes(b);
+    }
+    else {
+      restoreTerminalNodeOutcomes(b);
+    }
+  }
   if (RF_tLeafCount[b] > 0) {
     switch (mode) {
     case RF_PRED:
@@ -255,8 +306,49 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
                      RF_performancePtr[thisSerialTreeCount]);
       unstackImputeResponse(respImputeFlag, RF_rSize, obsSize, responsePtr);
     }
-    for (j = 1; j <= RF_tLeafCount[b]; j++) {
-      freeTerminalNodeSurvivalStructures(RF_tNodeList[b][j]);
+    if (mode == RF_GROW) {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        if (!(RF_optHigh & OPT_TERM)) {
+          for (j = 1; j <= RF_tLeafCount[b]; j++) {
+            freeTerminalNodeSurvivalStructuresNonVimp(RF_tTermList[b][j]);
+          }
+        }
+        if (!(RF_opt & OPT_VIMP)) {
+          if (!(RF_optHigh & OPT_TERM)) {
+            for (j = 1; j <= RF_tLeafCount[b]; j++) {
+              freeTerminalNodeSurvivalStructuresFinal(RF_tTermList[b][j]);
+            }
+          }
+        }
+      }
+      else {
+        if (!(RF_opt & OPT_VIMP)) {
+          if (!(RF_optHigh & OPT_TERM)) {
+            for (j = 1; j <= RF_tLeafCount[b]; j++) {
+              freeTerminalNodeNonSurvivalStructures(RF_tTermList[b][j]);
+            }
+          }
+        }
+      }
+    }
+    else {
+      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+        for (j = 1; j <= RF_tLeafCount[b]; j++) {
+          freeTerminalNodeSurvivalStructuresNonVimp(RF_tTermList[b][j]);
+        }
+        if (!(RF_opt & OPT_VIMP)) {
+          for (j = 1; j <= RF_tLeafCount[b]; j++) {
+            freeTerminalNodeSurvivalStructuresFinal(RF_tTermList[b][j]);
+          }
+        }
+      }
+      else {
+        if (!(RF_opt & OPT_VIMP)) {
+          for (j = 1; j <= RF_tLeafCount[b]; j++) {
+            freeTerminalNodeNonSurvivalStructures(RF_tTermList[b][j]);
+          }
+        }
+      }
     }
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       if (RF_opt & OPT_PERF) {

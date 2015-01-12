@@ -60,77 +60,46 @@
 ////**********************************************************************
 
 
-#include  <time.h>
-#include "trace.h"
-#include   <R_ext/Print.h>
-#ifndef TRUE
-#define TRUE   0x01
+#ifndef TERMOPS_H
+#define TERMOPS_H
+#include "node.h"
+#include "terminal.h"
+Terminal *makeTerminal();
+void freeTerminal(Terminal *parent);
+void stackTermLMIIndex(Terminal *tTerm, unsigned int size);
+void unstackTermLMIIndex(Terminal *tTerm);
+void freeTerminalNodeLocalSurvivalStructures(Terminal *tTerm);
+void freeTerminalNodeSurvivalStructuresNonVimp(Terminal *tTerm);
+void freeTerminalNodeSurvivalStructuresFinal(Terminal *tTerm);
+void freeTerminalNodeNonSurvivalStructures(Terminal *tTerm);
+void stackAtRiskAndEventCounts(Terminal *tTerm, unsigned int eTypeSize, unsigned int mTimeSize);
+void stackEventTimeIndex(Terminal *tTerm, unsigned int mTimeSize);
+void unstackAtRiskAndEventCounts(Terminal *tTerm);
+void unstackEventTimeIndex(Terminal *tTerm);
+void unstackAtRisk(Terminal *tTerm);
+void stackLocalRatio(Terminal *tTerm, unsigned int eTypeSize, unsigned int eTimeSize);
+void unstackLocalRatio(Terminal *tTerm);
+void stackLocalSurvival(Terminal *tTerm, unsigned int eTimeSize);
+void unstackLocalSurvival(Terminal *tTerm);
+void stackLocalNelsonAalen(Terminal *tTerm, unsigned int eTimeSize);
+void unstackLocalNelsonAalen(Terminal *tTerm);
+void stackLocalCSH(Terminal *tTerm, unsigned int eTypeSize, unsigned int eTimeSize);
+void unstackLocalCSH(Terminal *tTerm);
+void stackLocalCIF(Terminal *tTerm, unsigned int eTypeSize, unsigned int eTimeSize);
+void unstackLocalCIF(Terminal *tTerm);
+void stackNelsonAalen(Terminal *tTerm, unsigned int sTimeSize);
+void unstackNelsonAalen(Terminal *tTerm);
+void stackSurvival(Terminal *tTerm, unsigned int sTimeSize);
+void unstackSurvival(Terminal *tTerm);
+void stackCSH(Terminal *tTerm, unsigned int eTypeSize, unsigned int sTimeSize);
+void unstackCSH(Terminal *tTerm);
+void stackCIF(Terminal *tTerm, unsigned int eTypeSize, unsigned int sTimeSize);
+void unstackCIF(Terminal *tTerm);
+void stackMortality(Terminal *tTerm, unsigned int eTypeSize);
+void unstackMortality(Terminal *tTerm);
+void stackMultiClassProb(Terminal *tTerm, unsigned int rfCount, unsigned int *rfSize);
+void unstackMultiClassProb(Terminal *tTerm);
+void stackMeanResponse(Terminal *tTerm, unsigned int rnfCount);
+void unstackMeanResponse(Terminal *tTerm);
+void getTerminalInfo(Terminal *termPtr);
 #endif
-#ifndef FALSE
-#define FALSE  0x00
-#endif
-unsigned int    RF_traceFlagDiagLevel;
-unsigned int    RF_traceFlagIterValue;
-size_t          RF_memor_maxMemoryAllocation;
-size_t          RF_memor_minMemoryAllocation;
-void setTraceFlag(unsigned int traceFlag, unsigned int tree) {
-  RF_traceFlagDiagLevel = traceFlag & TRACE_MASK;
-  RF_traceFlagIterValue = tree;
-}
-unsigned int getTraceFlag(unsigned int tree) {
-  unsigned int result;
-  result = FALSE;
-  if (RF_traceFlagIterValue == tree) {
-    result = RF_traceFlagDiagLevel;
-  }
-  else {
-    if (RF_traceFlagIterValue == 0) {
-      result = RF_traceFlagDiagLevel;
-    }
-  }
-  return result;
-}
-unsigned int updateTimeStamp(unsigned int before) {
-  unsigned int stamp;
-  double cpuTimeUsed;
-  stamp = clock();
-  cpuTimeUsed = ((double) (stamp - before)) / CLOCKS_PER_SEC;
-  Rprintf("\nRF-SRC:  CPU process time:  %20.3f \n", cpuTimeUsed);
-  return stamp;
-}
-unsigned int getNodeDefTraceFlag() {
-  return(NODE_DEF_TRACE);
-}
-unsigned int getForkDefTraceFlag() {
-  return(FORK_DEF_TRACE);
-}
-unsigned int getTurnOffTraceFlag() {
-  return(TURN_OFF_TRACE);
-}
-unsigned int getNumrDefTraceFlag() {
-  return(NUMR_DEF_TRACE);
-}
-unsigned int getTimeDefTraceFlag() {
-  return(TIME_DEF_TRACE);
-}
-void setMaxMemoryAllocation(size_t value) {
-  RF_memor_maxMemoryAllocation = value;
-}
-void setMinMemoryAllocation(size_t value) {
-  RF_memor_minMemoryAllocation = value;
-}
-size_t getMaxMemoryAllocation() {
-  return (RF_memor_maxMemoryAllocation);
-}
-size_t getMinMemoryAllocation() {
-  return (RF_memor_minMemoryAllocation);
-}
-void increaseMemoryAllocation(size_t amount) {
-  RF_memor_minMemoryAllocation += amount;
-  if (RF_memor_minMemoryAllocation > RF_memor_maxMemoryAllocation) {
-    RF_memor_maxMemoryAllocation = RF_memor_minMemoryAllocation;
-  }
-}
-void decreaseMemoryAllocation(size_t amount) {
-    RF_memor_minMemoryAllocation -= amount;
-}

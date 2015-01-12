@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,9 +65,10 @@
 #include           "trace.h"
 #include          "nrutil.h"
 #include         "nodeOps.h"
+#include         "termOps.h"
 #include  "classification.h"
 void getMultiClassProb (uint treeID) {
-  Node *parent;
+  Terminal *parent;
   double maxValue, maxClass;
   uint leaf, i, j, k;
   uint *membershipIndex;
@@ -78,7 +79,7 @@ void getMultiClassProb (uint treeID) {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
   for (leaf = 1; leaf <= RF_tLeafCount[treeID]; leaf++) {
-    parent = RF_tNodeList[treeID][leaf];
+    parent = RF_tTermList[treeID][leaf];
     stackMultiClassProb(parent, RF_rFactorCount, RF_rFactorSize);
     for (j=1; j <= RF_rFactorCount; j++) {
       for (k=1; k <= RF_rFactorSize[j]; k++) {
@@ -87,7 +88,7 @@ void getMultiClassProb (uint treeID) {
     }
     parent -> membrCount = 0;
     for (i = 1; i <= RF_observationSize; i++) {
-      if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
+      if (RF_tTermMembership[treeID][membershipIndex[i]] == parent) {
         for (j=1; j <= RF_rFactorCount; j++) {
           (parent -> multiClassProb)[j][(uint) RF_response[treeID][RF_rFactorIndex[j]][membershipIndex[i]]] ++;
         }
@@ -95,15 +96,17 @@ void getMultiClassProb (uint treeID) {
       }
     }
     if ((parent -> membrCount) > 0) {
-      maxValue = 0;
-      maxClass = 0;
-      for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
-        if (maxValue < (parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k])) {
-          maxValue = parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k];
-          maxClass = (double) k;
+      if (strcmp(RF_rType[RF_rTarget], "C") == 0) {
+        maxValue = 0;
+        maxClass = 0;
+        for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
+          if (maxValue < (parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k])) {
+            maxValue = parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k];
+            maxClass = (double) k;
+          }
         }
+        parent -> predictedOutcome = maxClass;
       }
-      parent -> predictedOutcome = maxClass;
     }
     else {
       parent -> predictedOutcome = NA_REAL;
@@ -121,11 +124,11 @@ void updateEnsembleMultiClass(uint     mode,
                               double  *ensembleOutcome) {
   uint obsSize;
   unsigned char oobFlag, fullFlag, selectionFlag, outcomeFlag;
-  double ***ensemblePtr;
-  Node   ***nodeMembershipPtr;
+  double   ***ensemblePtr;
+  Terminal ***termMembershipPtr;
   uint     *ensembleDenPtr;
   uint i, k;
-  Node *parent;
+  Terminal *parent;
   double maxValue;
   double maxClass;
   ensemblePtr    = NULL;  
@@ -139,7 +142,7 @@ void updateEnsembleMultiClass(uint     mode,
       fullFlag = TRUE;
     }
     outcomeFlag = TRUE;
-    nodeMembershipPtr = RF_ftNodeMembership;
+    termMembershipPtr = RF_ftTermMembership;
     break;
   default:
     obsSize = RF_observationSize;
@@ -152,7 +155,7 @@ void updateEnsembleMultiClass(uint     mode,
       fullFlag = TRUE;
     }
     outcomeFlag = TRUE;
-    nodeMembershipPtr = RF_tNodeMembership;
+    termMembershipPtr = RF_tTermMembership;
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
@@ -177,7 +180,7 @@ void updateEnsembleMultiClass(uint     mode,
         }
       }
       if (selectionFlag) {
-        parent = nodeMembershipPtr[treeID][i];
+        parent = termMembershipPtr[treeID][i];
         if (RF_opt & OPT_OUTC_TYPE) {
           if (!ISNA(parent -> predictedOutcome)) {
           }
@@ -337,4 +340,31 @@ double getClassificationIndex(uint    size,
     result = 1.0 - result / (double) cumDenomCount;
   }
   return result;
+}
+void restoreMultiClassProb(uint treeID) {
+  Terminal *parent;
+  double maxValue, maxClass;
+  uint leaf;
+  uint k;
+  for (leaf = 1; leaf <= RF_tLeafCount[treeID]; leaf++) {
+    parent = RF_tTermList[treeID][leaf];
+    (parent -> multiClassProb) = RF_TN_CLAS_ptr[treeID][leaf];
+    if ((parent -> membrCount) > 0) {
+      maxValue = 0;
+      maxClass = 0;
+      for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTarget]]; k++) {
+        if (maxValue < (parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k])) {
+          maxValue = parent -> multiClassProb[RF_rFactorMap[RF_rTarget]][k];
+          maxClass = (double) k;
+        }
+      }
+      parent -> predictedOutcome = maxClass;
+    }
+    else {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Zero node count encountered in restoreMultiClassProb() in leaf:  %10d", leaf);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
 }

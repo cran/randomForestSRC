@@ -122,9 +122,8 @@ R-side forking (accessed via \command{mclapply} in package
 
 \enumerate{
   \item Once the package has been compiled with OpenMP enabled, trees
-        will be grown in parallel using the \command{rf.cores} option.  The
-        package lists \pkg{parallel} as a dependency because we utilize
-        \command{mclapply} and the \command{mc.cores} option to
+        will be grown in parallel using the \command{rf.cores} option.
+        Independently of this, we also utilize \command{mclapply} to
         parallelize loops in R-side pre-processing and post-processing
         of the forest.  This is always available and independent of
         whether the user chooses to compile the package with the OpenMP

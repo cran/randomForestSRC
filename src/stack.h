@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,25 +65,28 @@
 #include "node.h"
 void initializeTimeArrays(char mode);
 void stackFactorArrays();
-void stackFactorGeneric(uint    size, 
-                        char  **type, 
+void stackFactorGeneric(uint    size,
+                        char  **type,
                         uint  **p_factorMap,
                         uint   *factorCount,
                         uint  **p_factorIndex,
-                        uint  **p_factorSize);
+                        uint  **p_factorSize,
+                        uint  **p_nonfactorMap,
+                        uint   *nonfactorCount,
+                        uint  **p_nonfactorIndex);
 void unstackFactorArrays();
 void initializeFactorArrays(char mode);
 char stackMissingArrays(char mode);
 void unstackMissingArrays(char mode);
-void stackMissingSignatures(uint     obsSize, 
+void stackMissingSignatures(uint     obsSize,
                             uint     rspSize,
                             double **responsePtr,
                             double **predictorPtr,
                             uint    *recordMap,
-                            uint     recordSize, 
-                            uint   **p_recordIndex, 
+                            uint     recordSize,
+                            uint   **p_recordIndex,
                             uint    *p_vSize,
-                            int   ***p_vSign, 
+                            int   ***p_vSign,
                             int    **p_vIndex,
                             uint    *pRF_mrFactorSize,
                             uint   **pRF_mrFactorIndex,
@@ -94,10 +97,10 @@ void stackMissingSignatures(uint     obsSize,
                             char    *pRF_mResponseFlag,
                             char    *pRF_mPredictorFlag);
 void unstackMissingSignatures(uint      rspSize,
-                              uint      recordSize, 
-                              uint     *recordIndex, 
+                              uint      recordSize,
+                              uint     *recordIndex,
                               uint      vSize,
-                              int     **vSign, 
+                              int     **vSign,
                               int      *vIndex,
                               uint      mrFactorSize,
                               uint     *mrFactorIndex,
@@ -107,18 +110,18 @@ char stackCompetingArrays(char mode);
 void unstackCompetingArrays(char mode);
 char stackClassificationArrays(char mode);
 void unstackClassificationArrays(char mode);
-void getEventTypeSize(uint     obsSize, 
-                      double  *status, 
-                      uint    *mRecordMap, 
-                      int    **mpSign,  
+void getEventTypeSize(uint     obsSize,
+                      double  *status,
+                      uint    *mRecordMap,
+                      int    **mpSign,
                       char     overWriteFlag,
                       uint    *eventTypeSize,
                       uint    *msize,
                       uint    *eventType);
-void getClassLevelSize(uint      obsSize, 
-                       double  **response, 
-                       uint     *mRecordMap, 
-                       int     **mpSign,  
+void getClassLevelSize(uint      obsSize,
+                       double  **response,
+                       uint     *mRecordMap,
+                       int     **mpSign,
                        uint     *classLevelSize,
                        uint    **classLevel);
 #endif

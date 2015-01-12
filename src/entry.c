@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -209,15 +209,15 @@ SEXP rfsrcGrow(SEXP traceFlag,
     if ( RF_xSize < 2) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
       Rprintf("\nRF-SRC:  Parameter verification failed.");
-      Rprintf("\nRF-SRC:  Number of covariates must be greater than two (2) with specified split rule:  %10d \n", RF_xSize);
+      Rprintf("\nRF-SRC:  Number of covariates must be greater than or equal to two (2) with specified split rule:  %10d \n", RF_xSize);
       Rprintf("\nRF-SRC:  The application will now exit.\n");
       return R_NilValue;
     }
-    if ( ((int) (RF_randomCovariateCount - RF_randomResponseCount) < 1) || (RF_randomCovariateCount > RF_xSize) ) {
+    if ( ((int) (RF_xSize - RF_randomResponseCount) < 1) || (RF_randomCovariateCount > RF_xSize) ) {
       Rprintf("\nRF-SRC:  *** ERROR *** ");
       Rprintf("\nRF-SRC:  Parameter verification failed.");
-      Rprintf("\nRF-SRC:  Number of random covariate parameters");
-      Rprintf("\nRF-SRC:  must be within range:  %10d \n", RF_randomCovariateCount);
+      Rprintf("\nRF-SRC:  Number of random responses and random covariates parameters");
+      Rprintf("\nRF-SRC:  must be within range:  %10d %10d \n", RF_randomResponseCount,  RF_randomCovariateCount);
       Rprintf("\nRF-SRC:  The application will now exit.\n");
       return R_NilValue;
     }
@@ -276,6 +276,15 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP contPT,
                   SEXP mwcpSZ,
                   SEXP mwcpPT,
+                  SEXP tnSURV,
+                  SEXP tnMORT,
+                  SEXP tnNLSN,
+                  SEXP tnCSHZ,
+                  SEXP tnCIFN,
+                  SEXP tnREGR,
+                  SEXP tnCLAS,
+                  SEXP tnMCNT,
+                  SEXP tnMEMB,
                   SEXP totalNodeCount,
                   SEXP seed,
                   SEXP intrPredictorSize,
@@ -317,6 +326,15 @@ SEXP rfsrcPredict(SEXP traceFlag,
   RF_intrPredictor        = (uint*) INTEGER(intrPredictor);  RF_intrPredictor --;
   RF_ptnCount             = INTEGER(ptnCount)[0];
   RF_numThreads           = INTEGER(numThreads)[0];
+  RF_TN_SURV_ = REAL(tnSURV);
+  RF_TN_MORT_ = REAL(tnMORT);
+  RF_TN_NLSN_ = REAL(tnNLSN) ;
+  RF_TN_CSHZ_ = REAL(tnCSHZ);
+  RF_TN_CIFN_ = REAL(tnCIFN);
+  RF_TN_REGR_ = REAL(tnREGR);
+  RF_TN_CLAS_ = (uint*) INTEGER(tnCLAS);
+  RF_TN_MCNT_ = (uint*) INTEGER(tnMCNT);
+  RF_TN_MEMB_ = (uint*) INTEGER(tnMEMB);
   RF_opt                  = RF_opt & (~OPT_OENS);
   RF_opt                  = RF_opt | OPT_FENS;
   RF_opt                  = RF_opt | OPT_MISS;
@@ -334,6 +352,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
   if (RF_opt & OPT_OUTC_TYPE) {
     RF_opt = RF_opt | OPT_REST;
     RF_opt = RF_opt & (~OPT_BOOT_NODE) & (~OPT_BOOT_NONE);
+    RF_optHigh = RF_optHigh & (~OPT_TERM);
     RF_frSize = 0;
   }
   if(RF_sobservationSize > 0) {

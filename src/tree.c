@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -68,6 +68,7 @@
 #include        "impute.h"
 #include     "bootstrap.h"
 #include       "nodeOps.h"
+#include       "termOps.h"
 #include      "treeUtil.h"
 #include     "splitUspv.h"
 #include    "importance.h"
@@ -90,15 +91,14 @@ void acquireTree(uint mode, uint r, uint b) {
   uint  ngAllMembrSizeImputed;
   Node *parent;
   uint bootMembrIndxIter;
-  uint mRecordSize;
-  uint *mRecordIndex;
-  Node ***nodeMembershipPtr;
   char  result;
-  Node  ***gNodeMembership;
+  Node     ***gNodeMembership;
+  Terminal ***gTermMembership;
   uint     obsSize;
   uint i, j;
   obsSize    = 0;  
   gNodeMembership = NULL;  
+  gTermMembership = NULL;  
   multipleImputeFlag = FALSE;
   if (mode == RF_GROW) {
     if (r > 1) {
@@ -120,10 +120,12 @@ void acquireTree(uint mode, uint r, uint b) {
   if (mode != RF_PRED) {
     obsSize = RF_observationSize;
     gNodeMembership = RF_tNodeMembership;
+    gTermMembership = RF_tTermMembership;
   }
   else {
     obsSize = RF_fobservationSize;
     gNodeMembership = RF_ftNodeMembership;
+    gTermMembership = RF_ftTermMembership;
   }
   if (mode == RF_PRED) {
     fallMembrIndx = uivector(1, RF_fobservationSize);
@@ -188,8 +190,18 @@ void acquireTree(uint mode, uint r, uint b) {
                        0,
                        RF_maxDepth + b,
                        & bootMembrIndxIter);
-    stackNodeList(b);
-    initNodeList(b);
+#ifdef SUPPORT_OPENMP
+#else
+    if (getTraceFlag(b) & SUMM_USR_TRACE) {
+        Rprintf("\nTree Complete:  (MII:  %10d, ID:  %10d)", r, b);
+    }
+#endif
+    if (result) {
+      stackNodeList(b);
+      initNodeList(b);
+      stackTermList(b);
+      initTermList(b);
+    }
   }  
   else {
     if (mode == RF_PRED) {
@@ -205,7 +217,10 @@ void acquireTree(uint mode, uint r, uint b) {
       mwcpPtr += RF_mwcpCount[j];
       nodeOffset += RF_nodeCount[j];
     }
-    stackNodeList(b);
+    if (RF_tLeafCount[b] > 0) {
+      stackNodeList(b);
+      stackTermList(b);
+    }
     restoreTree(b,
                 rootPtr,
                 & nodeOffset,
@@ -228,32 +243,14 @@ void acquireTree(uint mode, uint r, uint b) {
                                    fallMembrIndx,
                                    RF_fobservationSize,
                                    & bootMembrIndxIter);
+    if (result) {
+      if ((RF_optHigh & OPT_TERM) && !(RF_opt & (OPT_BOOT_NODE | OPT_BOOT_NONE)) && RF_fmRecordSize == 0) {
+        restoreNodeMembershipGrow(b);
+      }
+    }
   }  
   if (result) {
-    if (RF_opt & OPT_MISS) {
-      switch (mode) {
-      case RF_PRED:
-        mRecordSize = RF_fmRecordSize;
-        mRecordIndex = RF_fmRecordIndex;
-        nodeMembershipPtr = RF_ftNodeMembership;
-        break;
-      default:
-        mRecordSize = RF_mRecordSize;
-        mRecordIndex = RF_mRecordIndex;
-        nodeMembershipPtr = RF_tNodeMembership;
-        break;
-      }
-      RF_mTermList[b] = (Terminal **) new_vvector(1, RF_tLeafCount[b], NRUTIL_TPTR);
-      RF_mTermMembership[b] = (Terminal **) new_vvector(1, mRecordSize, NRUTIL_TPTR);
-      for (j = 1; j <= RF_tLeafCount[b]; j++) {
-        RF_mTermList[b][j] = makeTerminal();
-        RF_mTermList[b][j] -> nodeID = RF_tNodeList[b][j] -> nodeID;
-        RF_tNodeList[b][j] -> mate = RF_mTermList[b][j];
-      }
-      for (j = 1; j <= mRecordSize; j++) {
-        RF_mTermMembership[b][j] = nodeMembershipPtr[b][mRecordIndex[j]] -> mate;
-      }
-    }  
+    stackAndInitTermMembership(mode, b);
     if (r == 1) {
       if (RF_mRecordSize > 0) {
         repMembrIndxImputed = uivector(1, RF_observationSize);
@@ -345,7 +342,7 @@ void acquireTree(uint mode, uint r, uint b) {
       for (i = 1; i <= obsSize; i++) {
         RF_pNodeMembership[b][i] = gNodeMembership[b][i];
       }
-      RF_pLeafCount[b] = pruneTree(mode, b, RF_ptnCount);
+      RF_pLeafCount[b] = pruneTree(obsSize, b, RF_ptnCount);
       RF_pNodeList[b] = (Node **) new_vvector(1, RF_pLeafCount[b] + 1, NRUTIL_NPTR);
       i = 0;
       getPTNodeList(RF_root[b], RF_pNodeList[b], &i);
@@ -383,13 +380,26 @@ void acquireTree(uint mode, uint r, uint b) {
   if (result) {
     if (RF_opt & OPT_MEMB) {
       for (i=1; i <= obsSize; i++) {
-        RF_tNodeMembershipIndexPtr[b][i] = gNodeMembership[b][i] -> nodeID;
+        RF_tTermMembershipIndexPtr[b][i] = gTermMembership[b][i] -> nodeID;
         if (RF_ptnCount > 0) {
           RF_pNodeMembershipIndexPtr[b][i] = RF_pNodeMembership[b][i] -> nodeID;
         }
       }
     }
     if (r == RF_nImpute) {
+      if ((RF_opt & OPT_PERF) |
+          (RF_opt & OPT_PERF_CALB) |
+          (RF_opt & OPT_OENS) |
+          (RF_opt & OPT_FENS)) {
+        char multipleImputeFlag;
+        multipleImputeFlag = FALSE;
+        if (mode == RF_GROW) {
+          if (r > 1) {
+            multipleImputeFlag = TRUE;
+          }
+        }
+        updateEnsembleCalculations(multipleImputeFlag, mode, b);
+      }
       if (RF_opt & OPT_VIMP) {
         uint vimpCount;
         if (RF_opt & OPT_VIMP_JOIN) {
@@ -408,6 +418,8 @@ void acquireTree(uint mode, uint r, uint b) {
           }
           stackVimpMembership(mode, & RF_vimpMembership[intrIndex][b]);
           getVimpMembership(mode, b, RF_vimpMembership[intrIndex][b], pp);
+          updateVimpCalculations(mode, b, intrIndex, RF_vimpMembership[intrIndex][b]);
+          unstackVimpMembership(mode, RF_vimpMembership[intrIndex][b]);
         }
       }
     }  
@@ -424,18 +436,18 @@ void acquireTree(uint mode, uint r, uint b) {
   }
 }
 void getWeight(uint mode) {
-  Node ***gNodeMembership;
+  Terminal ***gTermMembership;
   uint    obsSize;
   char    flag;
   uint   *weightDenom;
   uint i,j;
   int b;
   if (mode != RF_PRED) {
-    gNodeMembership = RF_tNodeMembership;
+    gTermMembership = RF_tTermMembership;
     obsSize         = RF_observationSize;
   }
   else {
-    gNodeMembership = RF_ftNodeMembership;
+    gTermMembership = RF_ftTermMembership;
     obsSize         = RF_fobservationSize;
   }
   if(RF_optHigh & OPT_WGHT_TYP2) {
@@ -455,7 +467,7 @@ void getWeight(uint mode) {
       error("\nRF-SRC:  The application will now exit.\n");
     }
   }
-  if ((RF_splitRule == USPV_SPLIT) || (RF_splitRule == MVRG_SPLIT) || (RF_splitRule == MVCL_SPLIT)) {
+  if (!((RF_opt & OPT_OENS) | (RF_opt & OPT_FENS))) {
     if (RF_numThreads > 0) {
 #ifdef SUPPORT_OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
@@ -472,12 +484,12 @@ void getWeight(uint mode) {
   }
   if (RF_numThreads > 0) {
     for (b = 1; b <= RF_forestSize; b++) {
-      updateWeight(b, flag, obsSize, gNodeMembership);
+      updateWeight(b, flag, obsSize, gTermMembership);
     }
   }
   else {
     for (b = 1; b <= RF_forestSize; b++) {
-      updateWeight(b, flag, obsSize, gNodeMembership);
+      updateWeight(b, flag, obsSize, gTermMembership);
     }
   }
   if (flag != ACTIVE) {
@@ -521,8 +533,8 @@ void getWeight(uint mode) {
     }
   }
 }
-void updateWeight(uint b, char flag, uint obsSize, Node ***gNodeMembership) {
-  Node *parent;
+void updateWeight(uint b, char flag, uint obsSize, Terminal ***gTermMembership) {
+  Terminal *parent;
   uint leaf;
   uint i, j;
   if (RF_tLeafCount[b] > 0) {
@@ -530,8 +542,8 @@ void updateWeight(uint b, char flag, uint obsSize, Node ***gNodeMembership) {
       if (flag == TRUE) {
         for (i = 1; i <= RF_observationSize; i++) {
           for (j = 1; j <= obsSize; j++) {
-            if ( RF_tNodeMembership[b][i] == gNodeMembership[b][j] ) {
-                RF_weightPtr[j][i] +=  (double) RF_bootMembershipCount[b][i] / (double) (gNodeMembership[b][j] -> membrCount);
+            if ( RF_tTermMembership[b][i] == gTermMembership[b][j] ) {
+                RF_weightPtr[j][i] +=  (double) RF_bootMembershipCount[b][i] / (double) (gTermMembership[b][j] -> membrCount);
             }
           }
         }
@@ -540,8 +552,8 @@ void updateWeight(uint b, char flag, uint obsSize, Node ***gNodeMembership) {
         for (i = 1; i <= RF_observationSize; i++) {
           for (j = 1; j <= RF_observationSize; j++) {
             if (RF_bootMembershipCount[b][j] == 0) {
-              if ( RF_tNodeMembership[b][i] == RF_tNodeMembership[b][j] ) {
-                RF_weightPtr[j][i] +=  (double) RF_bootMembershipCount[b][i] / (double) (RF_tNodeMembership[b][j] -> membrCount);
+              if ( RF_tTermMembership[b][i] == RF_tTermMembership[b][j] ) {
+                RF_weightPtr[j][i] +=  (double) RF_bootMembershipCount[b][i] / (double) (RF_tTermMembership[b][j] -> membrCount);
               }
             }
           }
@@ -550,25 +562,25 @@ void updateWeight(uint b, char flag, uint obsSize, Node ***gNodeMembership) {
     }
     else {
       for (leaf = 1; leaf <= RF_tLeafCount[b]; leaf++) {
-        parent = RF_tNodeList[b][leaf];
+        parent = RF_tTermList[b][leaf];
         parent -> weight = 0.0;
         for (i = 1; i <= RF_observationSize; i++) {
-          if ( RF_tNodeMembershipIndexPtr[b][i] == leaf) {
+          if ((RF_tTermMembership[b][i] -> nodeID)  == leaf) {
             (parent -> weight) ++;
           }
         }
       }
       for (i = 1; i <= RF_observationSize; i++) {
         for (j = 1; j <= obsSize; j++) {
-          if ( RF_tNodeMembership[b][i] == gNodeMembership[b][j] ) {
-            RF_weightPtr[j][i] +=  1.0 / (double) (gNodeMembership[b][j] -> weight);
+          if ( RF_tTermMembership[b][i] == gTermMembership[b][j] ) {
+            RF_weightPtr[j][i] +=  1.0 / (double) (gTermMembership[b][j] -> weight);
           }
         }
       }
     }
   }  
 }
-void getProximity(uint mode) {
+void getProximity(uint mode, double *proximityPtr) {
   uint  obsSize;
   char  flag;
   uint  i, j;
@@ -603,19 +615,19 @@ void getProximity(uint mode) {
   }
   if (RF_numThreads > 0) {
     for (b = 1; b <= RF_forestSize; b++) {
-      updateProximity(b, offset, obsSize, flag);
+      updateProximity(b, offset, obsSize, flag, proximityPtr);
     }
   }
   else {
     for (b = 1; b <= RF_forestSize; b++) {
-      updateProximity(b, offset, obsSize, flag);
+      updateProximity(b, offset, obsSize, flag, proximityPtr);
     }
   }
   if (flag != ACTIVE) {
     for (i = 1; i <= obsSize; i++) {
       for (j = 1; j <= i; j++) {
         if (RF_proximityDen[offset[i] + j] > 0) {
-          RF_proximity_[offset[i] + j] = RF_proximity_[offset[i] + j] /  RF_proximityDen[offset[i] + j];
+          proximityPtr[offset[i] + j] = proximityPtr[offset[i] + j] /  RF_proximityDen[offset[i] + j];
         }
       }
     }
@@ -623,21 +635,21 @@ void getProximity(uint mode) {
   else {
     for (i = 1; i <= obsSize; i++) {
       for (j = 1; j <= i; j++) {
-        RF_proximity_[offset[i] + j] = RF_proximity_[offset[i] + j] /  RF_validTreeCount;
+        proximityPtr[offset[i] + j] = proximityPtr[offset[i] + j] /  RF_validTreeCount;
       }
     }
   }
   free_uivector(offset, 1, obsSize);
 }
-void updateProximity(uint b, uint *offset, uint obsSize, char flag) {
+void updateProximity(uint b, uint *offset, uint obsSize, char flag, double *proximityPtr) {
   uint i, j;
   if (flag != ACTIVE) {
     for (i = 1; i <= obsSize; i++) {
       for (j = 1; j <= i; j++) {
         if ((RF_bootMembershipFlag[b][i] == flag) && (RF_bootMembershipFlag[b][j] == flag)) {
           RF_proximityDen[offset[i] + j] ++;
-          if ( RF_tNodeMembershipIndexPtr[b][i] == RF_tNodeMembershipIndexPtr[b][j] ) {
-            RF_proximity_[offset[i] + j] ++;
+          if ( RF_tTermMembershipIndexPtr[b][i] == RF_tTermMembershipIndexPtr[b][j] ) {
+            proximityPtr[offset[i] + j] ++;
           }
         }
       }
@@ -646,8 +658,8 @@ void updateProximity(uint b, uint *offset, uint obsSize, char flag) {
   else {
     for (i = 1; i <= obsSize; i++) {
       for (j = 1; j <= i; j++) {
-        if ( RF_tNodeMembershipIndexPtr[b][i] == RF_tNodeMembershipIndexPtr[b][j] ) {
-          RF_proximity_[offset[i] + j] ++;
+        if ( RF_tTermMembershipIndexPtr[b][i] == RF_tTermMembershipIndexPtr[b][j] ) {
+          proximityPtr[offset[i] + j] ++;
         }
       }
     }
@@ -666,7 +678,7 @@ void anticipateProximity(char mode, uint b) {
     obsSize = RF_fobservationSize;
   }
   for (i=1; i <= obsSize; i++) {
-    RF_tNodeMembershipIndexPtr[b][i] = i;
+    RF_tTermMembershipIndexPtr[b][i] = i;
   }
 }
 void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth) {
@@ -714,19 +726,12 @@ void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth) {
     freeSplitDepth(treeID);
   }
 }
-char pruneBranch(uint mode, uint treeID, Node **nodesAtDepth, uint nadCount, uint ptnTarget, uint ptnCurrent) {
+char pruneBranch(uint obsSize, uint treeID, Node **nodesAtDepth, uint nadCount, uint ptnTarget, uint ptnCurrent) {
   char pruneFlag;
-  uint obsSize;
   uint i, j;
   pruneFlag = TRUE;
   double *varianceAtDepth =  dvector(1, nadCount);
   uint   *vadSortedIndex  = uivector(1, nadCount);
-  if (mode != RF_PRED) {
-    obsSize = RF_observationSize;
-  }
-  else {
-    obsSize = RF_fobservationSize;
-  }
   for (i = 1; i <= nadCount; i++) {
     varianceAtDepth[i] = nodesAtDepth[i] -> variance;
   }
@@ -752,7 +757,7 @@ char pruneBranch(uint mode, uint treeID, Node **nodesAtDepth, uint nadCount, uin
   free_uivector(vadSortedIndex, 1, nadCount);
   return pruneFlag;
 }
-uint pruneTree(uint mode, uint treeID, uint ptnTarget) {
+uint pruneTree(uint obsSize, uint treeID, uint ptnTarget) {
   Node **nodesAtDepth;
   uint   ptnCurrent;
   uint   nadCount;
@@ -781,7 +786,7 @@ uint pruneTree(uint mode, uint treeID, uint ptnTarget) {
     }
     nadCount = 0;
     getNodesAtDepth(RF_root[treeID], tagDepth, nodesAtDepth, &nadCount);
-    pruneFlag = pruneBranch(mode, treeID, nodesAtDepth, nadCount, ptnTarget, ptnCurrent);
+    pruneFlag = pruneBranch(obsSize, treeID, nodesAtDepth, nadCount, ptnTarget, ptnCurrent);
     if(pruneFlag) {
       ptnCurrent -= nadCount;
       tagDepth --;
@@ -801,7 +806,6 @@ void unstackAuxiliary(uint mode, uint b) {
   free_cvector(RF_bootMembershipFlag[b], 1, RF_observationSize);
   free_uivector(RF_bootMembershipCount[b], 1, RF_observationSize);
   free_cvector(RF_oobMembershipFlag[b], 1, RF_observationSize);
-  free_new_vvector(RF_tNodeList[b], 1, RF_tLeafCount[b] + 1, NRUTIL_NPTR);
   if (mode == RF_PRED) {
     free_new_vvector(RF_ftNodeMembership[b],  1, RF_fobservationSize, NRUTIL_NPTR);
   }
@@ -816,11 +820,46 @@ void unstackAuxiliary(uint mode, uint b) {
   }
 }
 void stackNodeList(uint treeID) {
-  RF_tNodeList[treeID] = (Node **) new_vvector(1, RF_tLeafCount[treeID] + 1, NRUTIL_NPTR);
+  RF_tNodeList[treeID] = (Node **) new_vvector(1, RF_tLeafCount[treeID], NRUTIL_NPTR);
+}
+void unstackNodeList(uint treeID) {
+  free_new_vvector(RF_tNodeList[treeID], 1, RF_tLeafCount[treeID], NRUTIL_NPTR);
 }
 void initNodeList(uint treeID) {
   uint j;
   for (j = 1; j <= RF_tLeafCount[treeID]; j++) {
     RF_tNodeList[treeID][j] = getTerminalNode(treeID, j);
+  }
+}
+void stackTermList(uint treeID) {
+  RF_tTermList[treeID] = (Terminal **) new_vvector(1, RF_tLeafCount[treeID], NRUTIL_TPTR);
+}
+void unstackTermList(uint treeID) {
+  free_new_vvector(RF_tTermList[treeID], 1, RF_tLeafCount[treeID], NRUTIL_NPTR);
+}
+void initTermList(uint treeID) {
+  uint j;
+  for (j = 1; j <= RF_tLeafCount[treeID]; j++) {
+    RF_tTermList[treeID][j] = makeTerminal();
+    RF_tTermList[treeID][j] -> nodeID = j;
+  }
+}
+void stackAndInitTermMembership(uint mode, uint treeID) {
+  uint j;
+  RF_tTermMembership[treeID] = (Terminal **) new_vvector(1, RF_observationSize, NRUTIL_TPTR);
+  for (j = 1; j <= RF_observationSize; j++) {
+    RF_tTermMembership[treeID][j] = RF_tTermList[treeID][RF_tNodeMembership[treeID][j] -> nodeID];
+  }
+  if (mode == RF_PRED) {
+    RF_ftTermMembership[treeID] = (Terminal **) new_vvector(1, RF_fobservationSize, NRUTIL_TPTR);
+    for (j = 1; j <= RF_fobservationSize; j++) {
+      RF_ftTermMembership[treeID][j] = RF_tTermList[treeID][RF_ftNodeMembership[treeID][j] -> nodeID];
+    }
+  }
+}
+void unstackTermMembership(uint mode, uint treeID) {
+  free_new_vvector(RF_tTermMembership[treeID], 1, RF_observationSize, NRUTIL_TPTR);
+  if (mode == RF_PRED) {
+    free_new_vvector(RF_ftTermMembership[treeID], 1, RF_fobservationSize, NRUTIL_TPTR);
   }
 }

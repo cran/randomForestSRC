@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -98,7 +98,7 @@ char logRankNCR (uint    treeID,
   uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
   uint   *indxx;
   uint priorMembrIter, currentMembrIter;
-  uint leftSizeIter, rghtSizeIter;
+  uint leftSizeIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   uint splitLength;
@@ -111,7 +111,6 @@ char logRankNCR (uint    treeID,
   uint j, k, m;
   mwcpSizeAbsolute       = 0;  
   leftSizeIter           = 0;  
-  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -254,7 +253,6 @@ char logRankNCR (uint    treeID,
             localSplitIndicator[ nonMissMembrIndx[indxx[j]] ] = RIGHT;
           }
           leftSizeIter = 0;
-          rghtSizeIter = nonMissMembrSize;
           switch(RF_splitRule) {
           case SURV_LGRNK:
             for (m = 1; m <= localEventTimeSize; m++) {
@@ -383,7 +381,6 @@ char logRankNCR (uint    treeID,
               default:
                 break;
               }
-              rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
               leftSizeIter = currentMembrIter - 1;
             }
             switch(RF_splitRule) {
@@ -569,7 +566,7 @@ char logRankCR (uint    treeID,
   uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
   uint   *indxx;
   uint priorMembrIter, currentMembrIter;
-  uint leftSizeIter, rghtSizeIter;
+  uint leftSizeIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   uint splitLength;
@@ -582,7 +579,6 @@ char logRankCR (uint    treeID,
   uint j, k, m;
   mwcpSizeAbsolute       = 0;  
   leftSizeIter           = 0;  
-  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -777,7 +773,6 @@ char logRankCR (uint    treeID,
             }
           }
           leftSizeIter = 0;
-          rghtSizeIter = nonMissMembrSize;
         }
         for (j = 1; j < splitLength; j++) {
           if (factorFlag == TRUE) {
@@ -842,7 +837,6 @@ char logRankCR (uint    treeID,
                   nodeLeftEventCR[RF_eventTypeIndex[(uint) RF_status[treeID][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]][tIndx] ++;
                 }
               }
-              rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
               leftSizeIter = currentMembrIter - 1;
             }
             switch(RF_splitRule) {

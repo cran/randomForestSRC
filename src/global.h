@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -91,7 +91,7 @@
 #define LEFT      0x01
 #define RIGHT     0x00
 #define NEITHER   0x03
-#define EPSILON 1.0e-7
+#define EPSILON 1.0e-9
 #define OPT_FENS       0x000001  
 #define OPT_OENS       0x000002  
 #define OPT_PERF       0x000004  
@@ -125,6 +125,7 @@
 #define OPT_WGHT_TYP2 0x00000004 
 #define OPT_MISS_SKIP 0x00000010 
 #define OPT_MISS_RAND 0x00000020 
+#define OPT_TERM      0x00000040 
 #define RF_OUTP_ID   0  
 #define RF_STRG_ID   1  
 #define RF_FENS_ID   2  
@@ -156,7 +157,16 @@
 #define RF_SPLT_VR  28  
 #define RF_PMBR_ID  29  
 #define RF_WGHT_ID  30  
-#define RF_SEXP_CNT 31  
+#define RF_TN_SURV  31  
+#define RF_TN_MORT  32  
+#define RF_TN_NLSN  33  
+#define RF_TN_CSHZ  34  
+#define RF_TN_CIFN  35  
+#define RF_TN_REGR  36  
+#define RF_TN_CLAS  37  
+#define RF_TN_MCNT  38  
+#define RF_TN_MEMB  39  
+#define RF_SEXP_CNT 40  
 #define RF_GROW   0x01
 #define RF_PRED   0x02
 #define RF_REST   0x08
@@ -174,7 +184,8 @@
 #define USPV_SPLIT  12
 #define MVRG_SPLIT  13 
 #define MVCL_SPLIT  14 
-#define MAXM_SPLIT  14 
+#define CUST_SPLIT  15
+#define MAXM_SPLIT  15 
 #define APROX 0
 #define EXACT 1
 #define SIZE_OF_INTEGER sizeof(uint)

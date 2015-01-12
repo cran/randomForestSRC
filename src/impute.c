@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -66,6 +66,7 @@
 #include        "nrutil.h"
 #include        "random.h"
 #include       "nodeOps.h"
+#include       "termOps.h"
 #include     "bootstrap.h"
 #include    "splitUtil.h"
 #include      "treeUtil.h"
@@ -486,7 +487,6 @@ char restoreNodeMembership(uint  mode,
   uint jRght;
   char factorFlag;
   char daughterFlag;
-  char *randomMembrFlag;
   uint nonMissAllMembrSize;
   double leftProbability;
   char mPredictorFlag;
@@ -535,28 +535,28 @@ char restoreNodeMembership(uint  mode,
   }
   if (bootResult) {
     if (!(RF_optHigh & OPT_MISS_RAND)) {
-    if (RF_mRecordSize > 0) {
-      imputeNode(RF_GROW,
-                 FALSE,
-                 TRUE,
-                 treeID,
-                 parent,
-                 bootMembrIndx,
-                 bootMembrSize,
-                 allMembrIndx,
-                 allMembrSize);
-      if (RF_timeIndex > 0) {
-        if (RF_mTimeFlag == TRUE) {
-          updateTimeIndexArray(treeID,
-                               allMembrIndx,
-                               allMembrSize,
-                               RF_time[treeID],
-                               (RF_optHigh & OPT_MISS_RAND) ? TRUE : FALSE,
-                               FALSE,
-                               RF_masterTimeIndex[treeID]);
+      if (RF_mRecordSize > 0) {
+        imputeNode(RF_GROW,
+                   FALSE,
+                   TRUE,
+                   treeID,
+                   parent,
+                   bootMembrIndx,
+                   bootMembrSize,
+                   allMembrIndx,
+                   allMembrSize);
+        if (RF_timeIndex > 0) {
+          if (RF_mTimeFlag == TRUE) {
+            updateTimeIndexArray(treeID,
+                                 allMembrIndx,
+                                 allMembrSize,
+                                 RF_time[treeID],
+                                 (RF_optHigh & OPT_MISS_RAND) ? TRUE : FALSE,
+                                 FALSE,
+                                 RF_masterTimeIndex[treeID]);
+          }
         }
       }
-    }
     }
     switch (mode) {
     case RF_PRED:
@@ -577,113 +577,129 @@ char restoreNodeMembership(uint  mode,
     }
   }  
   if (bootResult) {
-    if ((RF_opt & OPT_NODE_STAT) || (RF_ptnCount > 0)) {
-      getVariance(repMembrSize, repMembrIndx, 0, NULL, RF_response[treeID][RF_rTarget], NULL, & (parent -> variance));
+    if (RF_opt & OPT_NODE_STAT) {
+      if (RF_ptnCount == 0) {
+        if (((RF_timeIndex > 0) && (RF_statusIndex > 0)) || (RF_rSize == 0)) {
+          parent -> variance = NA_REAL;
+        }
+        else {
+          getVariance(repMembrSize, repMembrIndx, 0, NULL, RF_response[treeID][RF_rTarget], NULL, & (parent -> variance));
+        }
+      }
     }
     if (((parent -> left) != NULL) && ((parent -> right) != NULL)) {
       tnUpdateFlag = FALSE;
-      uint *membershipIndicator = uivector(1, RF_observationSize);
-      randomMembrFlag = cvector(1, allMembrSize + 1);
+      leftAllMembrIndx = rghtAllMembrIndx = NULL;
       leftAllMembrSize = rghtAllMembrSize = 0;
-      for (i = 1; i <= allMembrSize; i++) {
-        membershipIndicator[allMembrIndx[i]] = NEITHER;
+      leftRepMembrIndx = rghtRepMembrIndx = NULL;
+      leftRepMembrSize = rghtRepMembrSize = 0;
+      if ((RF_optHigh & OPT_TERM) && !(RF_opt & (OPT_BOOT_NODE | OPT_BOOT_NONE)) && (RF_fmRecordSize == 0)) {
       }
-      offset = RF_rSize + parent -> splitParameter;
-      for (i = 1; i <= allMembrSize; i++) {
-        mPredictorFlag = FALSE;
-        if (RF_mRecordSize > 0) {
-          if (RF_mRecordMap[allMembrIndx[i]] > 0) {
-            if (RF_mpSign[offset][RF_mRecordMap[allMembrIndx[i]]] == 1) {
-              if (termOverrideFlag) {
-                mPredictorFlag = TRUE;
+      else {
+        uint *membershipIndicator = uivector(1, RF_observationSize);
+        char *randomMembrFlag = cvector(1, allMembrSize + 1);
+        leftAllMembrSize = rghtAllMembrSize = 0;
+        for (i = 1; i <= allMembrSize; i++) {
+          membershipIndicator[allMembrIndx[i]] = NEITHER;
+        }
+        offset = RF_rSize + parent -> splitParameter;
+        for (i = 1; i <= allMembrSize; i++) {
+          mPredictorFlag = FALSE;
+          if (RF_mRecordSize > 0) {
+            if (RF_mRecordMap[allMembrIndx[i]] > 0) {
+              if (RF_mpSign[offset][RF_mRecordMap[allMembrIndx[i]]] == 1) {
+                if (termOverrideFlag) {
+                  mPredictorFlag = TRUE;
+                }
               }
             }
           }
+          randomMembrFlag[i] = mPredictorFlag;
         }
-        randomMembrFlag[i] = mPredictorFlag;
-      }
-      factorFlag = FALSE;
-      if (strcmp(RF_xType[parent -> splitParameter], "C") == 0) {
-        factorFlag = TRUE;
-      }
-      for (i = 1; i <= allMembrSize; i++) {
-        if (randomMembrFlag[i] == FALSE) {
-          daughterFlag = RIGHT;
-          if (factorFlag == TRUE) {
-            daughterFlag = splitOnFactor((uint) RF_observation[treeID][parent -> splitParameter][allMembrIndx[i]], parent -> splitValueFactPtr);
-          }
-          else {
-            if ( RF_observation[treeID][parent -> splitParameter][allMembrIndx[i]] <= (parent -> splitValueCont) ) {
-              daughterFlag = LEFT;
+        factorFlag = FALSE;
+        if (strcmp(RF_xType[parent -> splitParameter], "C") == 0) {
+          factorFlag = TRUE;
+        }
+        for (i = 1; i <= allMembrSize; i++) {
+          if (randomMembrFlag[i] == FALSE) {
+            daughterFlag = RIGHT;
+            if (factorFlag == TRUE) {
+              daughterFlag = splitOnFactor((uint) RF_observation[treeID][parent -> splitParameter][allMembrIndx[i]], parent -> splitValueFactPtr);
+            }
+            else {
+              if ( RF_observation[treeID][parent -> splitParameter][allMembrIndx[i]] <= (parent -> splitValueCont) ) {
+                daughterFlag = LEFT;
+              }
+            }
+            membershipIndicator[allMembrIndx[i]] = daughterFlag;
+            if (daughterFlag == LEFT) {
+              leftAllMembrSize ++;
+              RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
+            }
+            else {
+              rghtAllMembrSize ++;
+              RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
             }
           }
-          membershipIndicator[allMembrIndx[i]] = daughterFlag;
-          if (daughterFlag == LEFT) {
-            leftAllMembrSize ++;
-            RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
-          }
           else {
-            rghtAllMembrSize ++;
-            RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
-          }
-        }
-        else {
+          }  
         }  
-      }  
-      nonMissAllMembrSize = leftAllMembrSize + rghtAllMembrSize;
-      if (nonMissAllMembrSize > 0) {
-        leftProbability = (double) leftAllMembrSize / (double) nonMissAllMembrSize;
-      }
-      else {
-        leftProbability = 0.50;
-      }
-      for (i = 1; i <= allMembrSize; i++) {
-        if (randomMembrFlag[i] == TRUE) {
-          if (ran1A(treeID) <= leftProbability) {
-            daughterFlag = LEFT;
-            membershipIndicator[allMembrIndx[i]] = LEFT;
-            leftAllMembrSize ++;
-            RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
-          }
-          else {
-            daughterFlag = RIGHT;
-            membershipIndicator[allMembrIndx[i]] = RIGHT;
-            rghtAllMembrSize ++;
-            RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
-          }
-        }
-      }
-      free_cvector(randomMembrFlag, 1, allMembrSize + 1);
-      leftAllMembrIndx  = uivector(1, leftAllMembrSize + 1);
-      rghtAllMembrIndx  = uivector(1, rghtAllMembrSize + 1);
-      jLeft = jRght = 0;
-      for (i = 1; i <= allMembrSize; i++) {
-        if (membershipIndicator[allMembrIndx[i]] == LEFT) {
-          leftAllMembrIndx[++jLeft] = allMembrIndx[i];
+        nonMissAllMembrSize = leftAllMembrSize + rghtAllMembrSize;
+        if (nonMissAllMembrSize > 0) {
+          leftProbability = (double) leftAllMembrSize / (double) nonMissAllMembrSize;
         }
         else {
-          rghtAllMembrIndx[++jRght] = allMembrIndx[i];
+          leftProbability = 0.50;
         }
-      }
-      if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
-        leftRepMembrIndx = leftAllMembrIndx;
-        leftRepMembrSize = leftAllMembrSize;
-        rghtRepMembrIndx = rghtAllMembrIndx;
-        rghtRepMembrSize = rghtAllMembrSize;
-      }
-      else {
-        leftRepMembrIndx  = uivector(1, bootMembrSize + 1);
-        rghtRepMembrIndx  = uivector(1, bootMembrSize + 1);
-        leftRepMembrSize = rghtRepMembrSize = 0;
-        for (i = 1; i <= bootMembrSize; i++) {
-          if (membershipIndicator[bootMembrIndx[i]] == LEFT) {
-            leftRepMembrIndx[++leftRepMembrSize] = bootMembrIndx[i];
+        for (i = 1; i <= allMembrSize; i++) {
+          if (randomMembrFlag[i] == TRUE) {
+            if (ran1A(treeID) <= leftProbability) {
+              daughterFlag = LEFT;
+              membershipIndicator[allMembrIndx[i]] = LEFT;
+              leftAllMembrSize ++;
+              RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> left;
+            }
+            else {
+              daughterFlag = RIGHT;
+              membershipIndicator[allMembrIndx[i]] = RIGHT;
+              rghtAllMembrSize ++;
+              RF_tNodeMembership[treeID][allMembrIndx[i]] = parent -> right;
+            }
+          }
+        }
+        free_cvector(randomMembrFlag, 1, allMembrSize + 1);
+        leftAllMembrIndx  = uivector(1, leftAllMembrSize + 1);
+        rghtAllMembrIndx  = uivector(1, rghtAllMembrSize + 1);
+        jLeft = jRght = 0;
+        for (i = 1; i <= allMembrSize; i++) {
+          if (membershipIndicator[allMembrIndx[i]] == LEFT) {
+            leftAllMembrIndx[++jLeft] = allMembrIndx[i];
           }
           else {
-            rghtRepMembrIndx[++rghtRepMembrSize] = bootMembrIndx[i];
+            rghtAllMembrIndx[++jRght] = allMembrIndx[i];
           }
         }
-      }
+        if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+          leftRepMembrIndx = leftAllMembrIndx;
+          leftRepMembrSize = leftAllMembrSize;
+          rghtRepMembrIndx = rghtAllMembrIndx;
+          rghtRepMembrSize = rghtAllMembrSize;
+        }
+        else {
+          leftRepMembrIndx  = uivector(1, bootMembrSize + 1);
+          rghtRepMembrIndx  = uivector(1, bootMembrSize + 1);
+          leftRepMembrSize = rghtRepMembrSize = 0;
+          for (i = 1; i <= bootMembrSize; i++) {
+            if (membershipIndicator[bootMembrIndx[i]] == LEFT) {
+              leftRepMembrIndx[++leftRepMembrSize] = bootMembrIndx[i];
+            }
+            else {
+              rghtRepMembrIndx[++rghtRepMembrSize] = bootMembrIndx[i];
+            }
+          }
+        }
+        free_uivector(membershipIndicator, 1, RF_observationSize);
+      }  
       ngLeftAllMembrIndx = ngRghtAllMembrIndx = NULL;
       ngLeftAllMembrSize = ngRghtAllMembrSize = 0;
       if (mode == RF_PRED) {
@@ -748,19 +764,22 @@ char restoreNodeMembership(uint  mode,
                                          bootMembrIndxIter);
       if(!rghtResult) {
       }
-      free_uivector(leftAllMembrIndx, 1, leftAllMembrSize + 1);
-      free_uivector(rghtAllMembrIndx, 1, rghtAllMembrSize + 1);
-      if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+      if ((RF_optHigh & OPT_TERM) && !(RF_opt & (OPT_BOOT_NODE | OPT_BOOT_NONE)) && (RF_fmRecordSize == 0)) {
       }
       else {
-        free_uivector(leftRepMembrIndx, 1, bootMembrSize + 1);
-        free_uivector(rghtRepMembrIndx, 1, bootMembrSize + 1);
+        free_uivector(leftAllMembrIndx, 1, leftAllMembrSize + 1);
+        free_uivector(rghtAllMembrIndx, 1, rghtAllMembrSize + 1);
+        if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
+        }
+        else {
+          free_uivector(leftRepMembrIndx, 1, bootMembrSize + 1);
+          free_uivector(rghtRepMembrIndx, 1, bootMembrSize + 1);
+        }
       }
       if (mode == RF_PRED) {
         free_uivector(ngLeftAllMembrIndx, 1, ngLeftAllMembrSize + 1);
         free_uivector(ngRghtAllMembrIndx, 1, ngRghtAllMembrSize + 1);
       }
-      free_uivector(membershipIndicator, 1, RF_observationSize);
     }  
     else {
     }
@@ -792,8 +811,9 @@ char restoreNodeMembership(uint  mode,
 }
 void imputeUpdateSummary (uint     mode,
                           uint     treeID) {
-  Node     *leafNodePtr;
-  Terminal *infoNodePtr;
+  Node     **nodeListPtr;
+  Terminal **termListPtr;
+  Terminal **termMembershipPtr;
   double **response;
   double **predictor;
   double  *valuePtr;
@@ -807,28 +827,30 @@ void imputeUpdateSummary (uint     mode,
   uint  unsignedSignatureIndex;
   uint  absoluteTargetIndex;
   uint r, p, t;
+  if (mode != RF_PRED) {
+    mRecordIndex = RF_mRecordIndex;
+    mpSign       = RF_mpSign;
+    mpIndex      = RF_mpIndex;
+    mRecordSize  = RF_mRecordSize;
+    response  = RF_response[treeID];
+    predictor = RF_observation[treeID];
+    termMembershipPtr = RF_tTermMembership[treeID];
+  }
+  else {
+    mRecordIndex = RF_fmRecordIndex;
+    mpSign       = RF_fmpSign;
+    mpIndex      = RF_fmpIndex;
+    mRecordSize  = RF_fmRecordSize;
+    response  = RF_fresponse[treeID];
+    predictor = RF_fobservation[treeID];
+    termMembershipPtr = RF_ftTermMembership[treeID];
+  }
+  nodeListPtr = RF_tNodeList[treeID];
+  termListPtr = RF_tTermList[treeID];
   for (t = 1; t <= RF_tLeafCount[treeID]; t++) {
-    leafNodePtr = RF_tNodeList[treeID][t];
-    infoNodePtr = RF_mTermList[treeID][t];
-    if (xferMissingness(mode, leafNodePtr, infoNodePtr)) {
-      if (mode != RF_PRED) {
-        mRecordIndex = RF_mRecordIndex;
-        mpSign  = RF_mpSign;
-        mpIndex = RF_mpIndex;
-        response = RF_response[treeID];
-        predictor = RF_observation[treeID];
-        mRecordSize  = RF_mRecordSize;
-      }
-      else {
-        mRecordIndex = RF_fmRecordIndex;
-        mpSign  = RF_fmpSign;
-        mpIndex = RF_fmpIndex;
-        response = RF_fresponse[treeID];
-        predictor = RF_fobservation[treeID];
-        mRecordSize  = RF_fmRecordSize;
-      }
-      lmiSize = infoNodePtr -> lmiSize;
-      lmiIndex = infoNodePtr -> lmiIndex;
+    if (xferMissingness(mode, nodeListPtr[t], termListPtr[t])) {
+      lmiSize = termListPtr[t] -> lmiSize;
+      lmiIndex = termListPtr[t] -> lmiIndex;
       for (p = 1; p <= lmiSize; p++) {
         signedSignatureIndex = mpIndex[lmiIndex[p]];
         if (signedSignatureIndex < 0) {
@@ -848,8 +870,8 @@ void imputeUpdateSummary (uint     mode,
           }
         }
       }
-      for (p = 1; p <= infoNodePtr -> lmiSize; p++) {
-        (infoNodePtr -> lmiValue)[p] = NA_REAL;
+      for (p = 1; p <= termListPtr[t] -> lmiSize; p++) {
+        (termListPtr[t] -> lmiValue)[p] = NA_REAL;
       }
       for (p = 1; p <= lmiSize; p++) {
         signedSignatureIndex = mpIndex[lmiIndex[p]];
@@ -874,9 +896,9 @@ void imputeUpdateSummary (uint     mode,
           valuePtr = predictor[absoluteTargetIndex];
         }
         for (r = 1; r <= mRecordSize; r++) {
-          if (RF_mTermMembership[treeID][r] == infoNodePtr) {
+          if (termMembershipPtr[mRecordIndex[r]] == termListPtr[t]) {
             if(mpSign[unsignedSignatureIndex][r] == 1) {
-              (infoNodePtr -> lmiValue)[p] = valuePtr[mRecordIndex[r]];
+              (termListPtr[t] -> lmiValue)[p] = valuePtr[mRecordIndex[r]];
               r = mRecordSize;
             }
           }
@@ -1023,6 +1045,7 @@ void imputeCommon(uint      mode,
   double *valuePtr;
   double *naivePtr;
   uint    unsignedSignatureIndex;
+  Terminal ***termMembershipPtr;
   Terminal *info;
   double imputedValue;
   uint localDistributionSize;
@@ -1062,6 +1085,7 @@ void imputeCommon(uint      mode,
       outResponse  = RF_sImputeResponsePtr;
       outPredictor = RF_sImputePredictorPtr;
       rspSize = RF_frSize;
+      termMembershipPtr = RF_ftTermMembership;
       result = TRUE;
     }
     break;
@@ -1076,6 +1100,7 @@ void imputeCommon(uint      mode,
       outResponse  = RF_sImputeResponsePtr;
       outPredictor = RF_sImputePredictorPtr;
       rspSize = RF_rSize;
+      termMembershipPtr = RF_tTermMembership;
       result = TRUE;
     }
     break;
@@ -1124,7 +1149,7 @@ void imputeCommon(uint      mode,
           for (tree = 1; tree <= localSerialCount; tree++) {
             if (RF_tLeafCount[serialPtr[tree]] > 0) {
               if ((RF_dmRecordBootFlag[serialPtr[tree]][i] == selectionFlag) || (selectionFlag == ACTIVE)) {
-                info = RF_mTermMembership[serialPtr[tree]][i];
+                info = termMembershipPtr[serialPtr[tree]][mRecordIndex[i]];
                 for (v = 1; v <= info -> lmiSize; v++) {
                   if ((info -> lmiIndex)[v] == p) {
                         if (!ISNA((info -> lmiValue)[v])) {

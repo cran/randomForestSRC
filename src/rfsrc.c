@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -69,6 +69,7 @@
 #include     "stackOutput.h"
 #include           "stack.h"
 #include         "nodeOps.h"
+#include         "termOps.h"
 #include            "tree.h"
 #include        "treeUtil.h"
 #include       "bootstrap.h"
@@ -109,7 +110,16 @@ char  *sexpString[RF_SEXP_CNT] = {
   "spltST",        
   "spltVR",        
   "ptnMembership", 
-  "weight"         
+  "weight",        
+  "tnSURV",        
+  "tnMORT",        
+  "tnNLSN",        
+  "tnCSHZ",        
+  "tnCIFN",        
+  "tnREGR",        
+  "tnCLAS",        
+  "tnMCNT",        
+  "tnMEMB"         
 };
 SEXP sexpVector[RF_SEXP_CNT];
 uint     *RF_treeID_;
@@ -121,6 +131,15 @@ uint     *RF_mwcpPT_;
 double   *RF_spltST_;
 double   *RF_spltVR_;
 uint      RF_totalNodeCount;
+double   *RF_TN_SURV_;
+double   *RF_TN_MORT_;
+double   *RF_TN_NLSN_;
+double   *RF_TN_CSHZ_;
+double   *RF_TN_CIFN_;
+double   *RF_TN_REGR_;
+uint     *RF_TN_CLAS_;
+uint     *RF_TN_MCNT_;
+uint     *RF_TN_MEMB_;
 double   *RF_importance_;
 double   *RF_imputation_;
 uint     *RF_varUsed_;
@@ -128,7 +147,7 @@ double   *RF_splitDepth_;
 int      *RF_seed_;
 uint     *RF_tLeafCount_;
 double   *RF_performance_;
-uint     *RF_tNodeMembershipIndex_;
+uint     *RF_tTermMembershipIndex_;
 uint     *RF_bootstrapMembership_;
 uint     *RF_pNodeMembershipIndex_;
 double   *RF_fullEnsemble_;
@@ -215,6 +234,9 @@ uint      RF_mrFactorSize;
 uint      RF_fmrFactorSize;
 uint     *RF_mrFactorIndex;
 uint     *RF_fmrFactorIndex;
+uint      RF_rNonFactorCount;
+uint     *RF_rNonFactorMap;
+uint     *RF_rNonFactorIndex;
 uint      RF_xFactorCount;
 uint     *RF_xFactorMap;
 uint     *RF_xFactorIndex;
@@ -223,6 +245,9 @@ uint      RF_mxFactorSize;
 uint      RF_fmxFactorSize;
 uint     *RF_mxFactorIndex;
 uint     *RF_fmxFactorIndex;
+uint      RF_xNonFactorCount;
+uint     *RF_xNonFactorMap;
+uint     *RF_xNonFactorIndex;
 uint      RF_rMaxFactorLevel;
 uint      RF_xMaxFactorLevel;
 uint      RF_maxFactorLevel;
@@ -252,13 +277,22 @@ double **RF_sImputeResponsePtr;
 double **RF_sImputePredictorPtr;
 double **RF_sOOBImputeResponsePtr;
 double **RF_sOOBImputePredictorPtr;
-uint  **RF_tNodeMembershipIndexPtr;
+uint  **RF_tTermMembershipIndexPtr;
 uint  **RF_bootstrapMembershipPtr;
 uint  **RF_pNodeMembershipIndexPtr;
 double *RF_proximityDen;
 uint    RF_rejectedTreeCount;
 uint    RF_validTreeCount;
 uint    RF_stumpedTreeCount;
+double  ***RF_TN_SURV_ptr;
+double  ***RF_TN_MORT_ptr;
+double  ***RF_TN_NLSN_ptr;
+double ****RF_TN_CSHZ_ptr;
+double ****RF_TN_CIFN_ptr;
+double  ***RF_TN_REGR_ptr;
+uint   ****RF_TN_CLAS_ptr;
+uint     **RF_TN_MCNT_ptr;
+uint     **RF_TN_MEMB_ptr;
 double ***RF_oobEnsemblePtr;
 double ***RF_fullEnsemblePtr;
 double ***RF_oobCIFPtr;
@@ -279,9 +313,6 @@ double ***RF_splitDepthPtr;
 uint    *RF_serialTreeIndex;
 uint     RF_serialTreeCount;
 char    **RF_dmRecordBootFlag;
-double ***RF_dmvImputation;
-Terminal ***RF_mTermList;
-Terminal ***RF_mTermMembership;
 double **RF_performancePtr;
 uint   **RF_varUsedPtr;
 uint    *RF_oobSize;
@@ -295,15 +326,20 @@ Node    **RF_root;
 Node   ***RF_tNodeMembership;
 Node   ***RF_ftNodeMembership;
 Node   ***RF_pNodeMembership;
+Node   ***RF_tNodeList;
+Node   ***RF_pNodeList;
+Terminal   ***RF_tTermMembership;
+Terminal   ***RF_ftTermMembership;
+Terminal   ***RF_pTermMembership;
+Terminal   ***RF_tTermList;
+Terminal   ***RF_pTermList;
 uint    **RF_bootMembershipIndex;
 uint     *RF_identityMembershipIndex;
 char    **RF_bootMembershipFlag;
 uint    **RF_bootMembershipCount;
 char    **RF_oobMembershipFlag;
-Node   ***RF_tNodeList;
-Node   ***RF_pNodeList;
 uint     *RF_orderedLeafCount;
-Node ****RF_vimpMembership;
+Terminal ****RF_vimpMembership;
 double  **RF_status;
 double  **RF_time;
 double ***RF_response;
@@ -328,11 +364,11 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   uint **mwcpPtrPtr;
   uint  *mwcpPtr;
   uint   totalMWCPCount;
-  uint recordSize;
   uint i, j, r;
-  int vimpCount, intrIndex, b, p;
+  int vimpCount, b, p;
   uint seedValueLC;
   totalMWCPCount = 0; 
+  setTraceFlag(traceFlag, 0);
   if (RF_nImpute < 1) {
     Rprintf("\nRF-SRC:  *** ERROR *** ");
     Rprintf("\nRF-SRC:  Parameter verification failed.");
@@ -414,7 +450,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                         & RF_fullEnsembleSRV_,
                                         & RF_oobEnsembleMRT_,
                                         & RF_fullEnsembleMRT_,
-                                        & RF_tNodeMembershipIndex_,
+                                        & RF_tTermMembershipIndex_,
                                         & RF_pNodeMembershipIndex_,
                                         & RF_bootstrapMembership_,
                                         & stackCount,
@@ -575,6 +611,27 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       RF_serialTreeIndex[b] = 0;
     }
     RF_serialTreeCount = 0;
+    if (r == RF_nImpute) {
+      if (mode != RF_GROW) {
+        if ((RF_opt & OPT_PERF) |
+            (RF_opt & OPT_PERF_CALB) |
+            (RF_opt & OPT_OENS) |
+            (RF_opt & OPT_FENS)) {
+          if (RF_optHigh & OPT_TERM) {
+            stackAuxVariableTerminalNodeOutputObjects(mode,
+                                                      RF_TN_SURV_,         
+                                                      RF_TN_MORT_,         
+                                                      RF_TN_NLSN_,         
+                                                      RF_TN_CSHZ_,         
+                                                      RF_TN_CIFN_,         
+                                                      RF_TN_REGR_,         
+                                                      RF_TN_CLAS_,         
+                                                      RF_TN_MCNT_,         
+                                                      RF_TN_MEMB_);        
+          }
+        }
+      }
+    }  
     if (RF_numThreads > 0) {
 #ifdef SUPPORT_OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
@@ -602,7 +659,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         }
       }
       if (RF_opt & OPT_PROX) {
-        getProximity(mode);
+        getProximity(mode, RF_proximity_);
       }
       if (RF_opt & (OPT_SPLDPTH_F | OPT_SPLDPTH_T)) {
         for (b = 1; b <= RF_forestSize; b++) {
@@ -616,68 +673,8 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
     }  
     if (r == RF_nImpute) {
-      if (!(RF_opt & OPT_IMPU_ONLY)) {
-        if ((RF_opt & OPT_PERF) |
-            (RF_opt & OPT_PERF_CALB) |
-            (RF_opt & OPT_OENS) |
-            (RF_opt & OPT_FENS)) {
-          char multipleImputeFlag;
-          multipleImputeFlag = FALSE;
-          if (mode == RF_GROW) {
-            if (r > 1) {
-              multipleImputeFlag = TRUE;
-            }
-          }
-          if (RF_numThreads > 0) {
-#ifdef SUPPORT_OPENMP
-#pragma omp parallel for num_threads(RF_numThreads)
-#endif
-            for (b = 1; b <= RF_forestSize; b++) {
-              updateEnsembleCalculations(multipleImputeFlag, mode, b);
-            }
-          }
-          else {
-            for (b = 1; b <= RF_forestSize; b++) {
-              updateEnsembleCalculations(multipleImputeFlag, mode, b);
-            }
-          }
-        }
-      }
-    }  
-    if (r == RF_nImpute) {
       if (RF_optHigh & OPT_WGHT) {
         getWeight(mode);
-      }
-      if (RF_opt & OPT_VIMP) {
-        if (RF_opt & OPT_VIMP_JOIN) {
-          vimpCount = 1;
-        }
-        else {
-          vimpCount = RF_intrPredictorSize;
-        }
-          if (RF_numThreads > 0) {
-#ifdef SUPPORT_OPENMP
-#pragma omp parallel for num_threads(RF_numThreads)
-#endif
-            for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
-              for (uint bb = 1; bb <= RF_forestSize; bb++) {
-                if (RF_tLeafCount[bb] > 0) {
-                  updateVimpCalculations(mode, bb, intrIndex, RF_vimpMembership[intrIndex][bb]);
-                  unstackVimpMembership(mode, RF_vimpMembership[intrIndex][bb]);
-                }
-              }
-            }
-          }
-          else {
-            for (intrIndex = 1; intrIndex <= vimpCount; intrIndex++) {
-              for (uint bb = 1; bb <= RF_forestSize; bb++) {
-                if (RF_tLeafCount[bb] > 0) {
-                  updateVimpCalculations(mode, bb, intrIndex, RF_vimpMembership[intrIndex][bb]);
-                  unstackVimpMembership(mode, RF_vimpMembership[intrIndex][bb]);
-                }
-              }
-            }
-          }
       }
     }  
     if (RF_opt & OPT_MISS) {
@@ -746,46 +743,35 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       else {
         imputeSummary(RF_PRED, ACTIVE);
       }
-    }
+    }  
     if (r != RF_nImpute) {
       for (b = 1; b <= RF_forestSize; b++) {
         freeTree(b, RF_root[b], TRUE);
         unstackAuxiliary(mode, b);
+        if (RF_tLeafCount[b] > 0) {
+          unstackNodeList(b);
+        }
         unstackShadow(mode, b, TRUE, FALSE);
       }
-      if (RF_opt & OPT_MISS) {
-        switch (mode) {
-        case RF_PRED:
-          recordSize = RF_fmRecordSize;
-          break;
-        default:
-          recordSize = RF_mRecordSize;
-          break;
+      for (b = 1; b <= RF_forestSize; b++) {
+        for (j = 1; j <= RF_tLeafCount[b]; j++) {
+          freeTerminal(RF_tTermList[b][j]);
         }
-        for (b = 1; b <= RF_forestSize; b++) {
-          for (j = 1; j <= RF_tLeafCount[b]; j++) {
-            freeTerminal(RF_mTermList[b][j]);
-          }
-          if (RF_tLeafCount[b] > 0) {
-            free_new_vvector(RF_mTermList[b], 1, RF_tLeafCount[b], NRUTIL_TPTR);
-            free_new_vvector(RF_mTermMembership[b], 1, recordSize, NRUTIL_TPTR);
-          }
+        if (RF_tLeafCount[b] > 0) {
+          unstackTermList(b);
+          unstackTermMembership(mode, b);
         }
       }
     }  
   }  
+  if (getTraceFlag(0) & SUMM_USR_TRACE) {
+    Rprintf("\n\n");
+  }
   for (b = 1; b <= RF_forestSize; b++) {
-    for (j = 1; j <= RF_tLeafCount[b]; j++) {
-      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-        unstackMortality(RF_tNodeList[b][j]);
-      }
-      else {
-        if (RF_rFactorCount > 0) {
-          unstackMultiClassProb(RF_tNodeList[b][j]);
-        }
-      }
-    }
     unstackAuxiliary(mode, b);
+    if (RF_tLeafCount[b] > 0) {
+      unstackNodeList(b);
+    }
     unstackShadow(mode, b, TRUE, FALSE);
   }
   if (RF_rejectedTreeCount < RF_forestSize) {
@@ -873,23 +859,68 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                sexpIndex,
                                sexpString,
                                sexpVector);
-  if (RF_opt & OPT_TREE) {
-    mwcpPtr = RF_mwcpPT_;
-    mwcpPtrPtr = & mwcpPtr;
-    RF_totalNodeCount = 1;
-    for (b = 1; b <= RF_forestSize; b++) {
-      saveTree(b,
-               RF_root[b],
-               & RF_totalNodeCount,
-               RF_treeID_,
-               RF_nodeID_,
-               RF_parmID_,
-               RF_contPT_,
-               RF_mwcpSZ_,
-               mwcpPtrPtr);
+  sexpIndex =
+    stackVariableTerminalNodeOutputObjects(mode,
+                                           & RF_TN_SURV_,         
+                                           & RF_TN_MORT_,         
+                                           & RF_TN_NLSN_,         
+                                           & RF_TN_CSHZ_,         
+                                           & RF_TN_CIFN_,         
+                                           & RF_TN_REGR_,         
+                                           & RF_TN_CLAS_,         
+                                           & RF_TN_MCNT_,         
+                                           & RF_TN_MEMB_,         
+                                           sexpIndex,
+                                           sexpString,
+                                           sexpVector);
+  if (mode == RF_GROW) {
+    if (RF_opt & OPT_TREE) {
+      mwcpPtr = RF_mwcpPT_;
+      mwcpPtrPtr = & mwcpPtr;
+      RF_totalNodeCount = 1;
+      for (b = 1; b <= RF_forestSize; b++) {
+        saveTree(b,
+                 RF_root[b],
+                 & RF_totalNodeCount,
+                 RF_treeID_,
+                 RF_nodeID_,
+                 RF_parmID_,
+                 RF_contPT_,
+                 RF_mwcpSZ_,
+                 mwcpPtrPtr);
+      }
+      RF_totalNodeCount --;
+    }  
+  }
+  if (mode == RF_GROW) {
+    if (RF_opt & OPT_TREE) {
+      if (RF_optHigh & OPT_TERM) {
+        saveTerminalNodeOutputObjects(mode);
+      }
     }
-    RF_totalNodeCount --;
-  }  
+  }
+  if (mode == RF_GROW) {
+    if (RF_opt & OPT_TREE) {
+      if ((RF_opt & OPT_PERF) |
+          (RF_opt & OPT_PERF_CALB) |
+          (RF_opt & OPT_OENS) |
+          (RF_opt & OPT_FENS)) {
+        if (RF_optHigh & OPT_TERM) {
+          unstackAuxVariableTerminalNodeOutputObjects(mode);
+        }
+      }
+    }
+  }
+  else {
+    if ((RF_opt & OPT_PERF) |
+        (RF_opt & OPT_PERF_CALB) |
+        (RF_opt & OPT_OENS) |
+        (RF_opt & OPT_FENS)) {
+      if (RF_optHigh & OPT_TERM) {
+        unstackAuxVariableTerminalNodeOutputObjects(mode);
+      }
+    }
+  }
   if (RF_opt & OPT_NODE_STAT) {
     RF_totalNodeCount = 1;
     for (b = 1; b <= RF_forestSize; b++) {
@@ -903,29 +934,17 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     }
     RF_totalNodeCount --;
   }  
-  if (RF_opt & OPT_MISS) {
-    switch (mode) {
-    case RF_PRED:
-      recordSize = RF_fmRecordSize;
-      break;
-    default:
-      recordSize = RF_mRecordSize;
-      break;
-    }
-    for (b = 1; b <= RF_forestSize; b++) {
-      for (j = 1; j <= RF_tLeafCount[b]; j++) {
-        freeTerminal(RF_mTermList[b][j]);
-      }
-      if (RF_tLeafCount[b] > 0) {
-        free_new_vvector(RF_mTermList[b], 1, RF_tLeafCount[b], NRUTIL_TPTR);
-        free_new_vvector(RF_mTermMembership[b], 1, recordSize, NRUTIL_TPTR);
-      }
-    }
-  }  
   for (b = 1; b <= RF_forestSize; b++) {
-    if (!(RF_opt & OPT_TREE)) {
-      freeTree(b, RF_root[b], TRUE);
+    for (j = 1; j <= RF_tLeafCount[b]; j++) {
+      freeTerminal(RF_tTermList[b][j]);
     }
+    if (RF_tLeafCount[b] > 0) {
+      unstackTermList(b);
+      unstackTermMembership(mode, b);
+    }
+  }
+  for (b = 1; b <= RF_forestSize; b++) {
+    freeTree(b, RF_root[b], TRUE);
   }
   unstackDefinedOutputObjects(mode, RF_root);
   if (RF_statusIndex > 0) {

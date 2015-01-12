@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.5
+####  Version 1.6.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -152,8 +152,8 @@ print.rfsrc <- function(x, ...) {
     }
     if (!is.null(x$imputed.indv)) {
       cat("                    Was data imputed: ", "yes",               "\n", sep="")
-      cat("                         Missingness: ",
-          round(100*length(x$imputed.indv)/x$n,2), "%\n", sep="")      
+      #cat("                         Missingness: ",
+      #    round(100*length(x$imputed.indv)/x$n,2), "%\n", sep="")      
     }
     cat("                     Number of trees: ", x$ntree,                "\n",sep="")
     cat("          Minimum terminal node size: ", x$nodesize,             "\n", sep="")
@@ -204,8 +204,8 @@ print.rfsrc <- function(x, ...) {
     }
     if (!is.null(x$imputed.data)) {
       cat("               Was test data imputed: ", "yes",               "\n", sep="")
-      cat("                         Missingness: ",
-          round(100*length(x$imputed.indv)/x$n,2), "%\n", sep="")      
+      #cat("                         Missingness: ",
+      #    round(100*length(x$imputed.indv)/x$n,2), "%\n", sep="")      
     }
     cat("                Number of grow trees: ", x$ntree,             "\n",sep="")
     cat("  Average no. of grow terminal nodes: ", mean(x$leaf.count),  "\n", sep="")

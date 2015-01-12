@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -119,6 +119,15 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP contPT,
                   SEXP mwcpSZ,
                   SEXP mwcpPT,
+                  SEXP tnSURV,
+                  SEXP tnMORT,
+                  SEXP tnNLSN,
+                  SEXP tnCSHZ,
+                  SEXP tnCIFN,
+                  SEXP tnREGR,
+                  SEXP tnCLAS,
+                  SEXP tnMCNT,
+                  SEXP tnMEMB,
                   SEXP totalNodeCount,
                   SEXP seed,
                   SEXP intrPredictorSize,

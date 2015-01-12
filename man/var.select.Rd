@@ -85,9 +85,8 @@
     \item{\code{nsplit}:}{nsplit value used in the preliminary analysis.}
     }
   }  
-  \item{do.trace}{Should trace output be enabled? Default is
-      \command{FALSE}. A positive integer value causes output to be printed
-      each \code{do.trace} iteration.}
+  \item{do.trace}{Logical. Should trace output be enabled on each
+      iteration? Default is \code{FALSE}.}
   \item{verbose}{Set to \code{TRUE} for verbose output.}
   \item{...}{Further arguments passed to or from other methods.}
 }

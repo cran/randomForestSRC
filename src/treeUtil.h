@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,14 +65,14 @@
 #include "node.h"
 Node *getTerminalNode(uint treeID, uint leaf);
 void getRawNodeSize(uint  type,
-                    uint  treeID, 
-                    Node *parent, 
+                    uint  treeID,
+                    Node *parent,
                     uint *repMembrIndx,
                     uint *repMembrSize,
                     uint *allMembrIndx,
                     uint *allMembrSize);
-char forkAndUpdate(uint    treeID, 
-                   Node   *parent, 
+char forkAndUpdate(uint    treeID,
+                   Node   *parent,
                    uint   *repMembrIndx,
                    uint    repMembrSize,
                    uint   *allMembrIndx,
@@ -133,4 +133,5 @@ void getTreeInfo(uint treeID, Node *parent);
 void getPTNodeList(Node    *parent,
                    Node   **list,
                    uint    *offset);
+void restoreNodeMembershipGrow(uint treeID);
 #endif

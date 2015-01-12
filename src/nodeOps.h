@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,12 +64,8 @@
 #define NODEOPS_H
 #include "node.h"
 #include "terminal.h"
-Terminal *makeTerminal();
-void freeTerminal(Terminal *parent);
 Node *makeNode(unsigned int xSize);
 void freeNode(Node *parent);
-void freeTerminalNodeLocalSurvivalStructures(Node *terminalNode);
-void freeTerminalNodeSurvivalStructures(Node *terminalNode);
 void getNodeInfo(Node *leaf);
 void setParent(
   Node *daughter,
@@ -88,31 +84,6 @@ char forkNode(Node         *parent,
               double        splitValueMaxCont,
               unsigned int  splitValueMaxFactSize,
               unsigned int *splitValueMaxFactPtr);
-void stackAtRiskAndEventCounts(Node *tNode, unsigned int eTypeSize, unsigned int mTimeSize);
-void stackEventTimeIndex(Node *tNode, unsigned int mTimeSize);
-void unstackAtRiskAndEventCounts(Node *tNode);
-void unstackEventTimeIndex(Node *tNode);
-void unstackAtRisk(Node *tNode);
-void stackLocalRatio(Node *tNode, unsigned int eTypeSize, unsigned int eTimeSize);
-void unstackLocalRatio(Node *tNode);
-void stackLocalSurvival(Node *tNode, unsigned int eTimeSize);
-void unstackLocalSurvival(Node *tNode);
-void stackLocalNelsonAalen(Node *tNode, unsigned int eTimeSize);
-void unstackLocalNelsonAalen(Node *tNode);
-void stackLocalCSH(Node *tNode, unsigned int eTypeSize, unsigned int eTimeSize);
-void unstackLocalCSH(Node *tNode);
-void stackLocalCIF(Node *tNode, unsigned int eTypeSize, unsigned int eTimeSize);
-void unstackLocalCIF(Node *tNode);
-void stackNelsonAalen(Node *tNode, unsigned int sTimeSize);
-void unstackNelsonAalen(Node *tNode);
-void stackSurvival(Node *tNode, unsigned int sTimeSize);
-void unstackSurvival(Node *tNode);
-void stackCSH(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize);
-void unstackCSH(Node *tNode);
-void stackCIF(Node *tNode, unsigned int eTypeSize, unsigned int sTimeSize);
-void unstackCIF(Node *tNode);
-void stackMortality(Node *tNode, unsigned int eTypeSize);
-void unstackMortality(Node *tNode);
 void stackMPSign(Node *node, unsigned int mpIndexSize);
 void unstackMPSign(Node *node);
 void stackFMPSign(Node *node, unsigned int fmpIndexSize);
@@ -125,10 +96,6 @@ void stackNodeLMRIndex(Node *node, unsigned int size);
 void unstackNodeLMRIndex(Node *node);
 void stackNodeFLMRIndex(Node *node, unsigned int size);
 void unstackNodeFLMRIndex(Node *node);
-void stackTermLMIIndex(Terminal *tNode, unsigned int size);
-void unstackTermLMIIndex(Terminal *tNode);
-void stackMultiClassProb(Node *tNode, unsigned int rfCount, unsigned int *rfSize);
-void unstackMultiClassProb(Node *tNode);
 void stackSplitDepth(Node *tNode, unsigned int depth);
 void unstackSplitDepth(Node *tNode);
 #endif

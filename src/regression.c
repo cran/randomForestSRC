@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -64,11 +64,12 @@
 #include          "extern.h"
 #include           "trace.h"
 #include          "nrutil.h"
+#include         "nodeOps.h"
+#include         "termOps.h"
 #include  "regression.h"
 void getMeanResponse(uint treeID) {
-  Node *parent;
-  uint leaf, i;
-  double sumResponse;
+  Terminal *parent;
+  uint leaf, i, j;
   uint *membershipIndex;
   if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
     membershipIndex = RF_identityMembershipIndex;
@@ -77,17 +78,27 @@ void getMeanResponse(uint treeID) {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
   for (leaf = 1; leaf <= RF_tLeafCount[treeID]; leaf++) {
-    parent = RF_tNodeList[treeID][leaf];
+    parent = RF_tTermList[treeID][leaf];
+    stackMeanResponse(parent, RF_rNonFactorCount);
+    for (j=1; j <= RF_rNonFactorCount; j++) {
+      (parent -> meanResponse)[j] = 0.0;
+    }
     parent -> membrCount = 0;
-    sumResponse = 0.0;
     for (i=1; i <= RF_observationSize; i++) {
-      if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
-        sumResponse += RF_response[treeID][RF_rTarget][membershipIndex[i]];
+      if (RF_tTermMembership[treeID][membershipIndex[i]] == parent) {
+        for (j=1; j <= RF_rNonFactorCount; j++) {
+          (parent -> meanResponse)[j] += RF_response[treeID][RF_rNonFactorIndex[j]][membershipIndex[i]];
+        }
         parent -> membrCount ++;
       }
     }
     if (parent -> membrCount > 0) {
-      parent -> predictedOutcome =  sumResponse / (double) (parent -> membrCount);
+      if (!(strcmp(RF_rType[RF_rTarget], "C") == 0)) {
+        for (j=1; j <= RF_rNonFactorCount; j++) {
+          (parent -> meanResponse)[j] = (parent -> meanResponse)[j] / (double) (parent -> membrCount);
+        }
+        parent -> predictedOutcome = (parent -> meanResponse)[RF_rNonFactorMap[RF_rTarget]];
+      }
     }
     else {
       parent -> predictedOutcome =  NA_REAL;
@@ -105,10 +116,10 @@ void updateEnsembleMean(uint     mode,
                         double  *ensembleOutcome) {
   uint  obsSize;
   unsigned char oobFlag, fullFlag, selectionFlag, outcomeFlag;
-  double ***ensemblePtr;
-  Node   ***nodeMembershipPtr;
+  double   ***ensemblePtr;
+  Terminal ***termMembershipPtr;
   uint     *ensembleDenPtr;
-  Node* parent;
+  Terminal *parent;
   uint i;
   ensemblePtr    = NULL;  
   ensembleDenPtr = NULL;  
@@ -121,7 +132,7 @@ void updateEnsembleMean(uint     mode,
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_ftNodeMembership;
+    termMembershipPtr = RF_ftTermMembership;
     break;
   default:
     obsSize = RF_observationSize;
@@ -133,7 +144,7 @@ void updateEnsembleMean(uint     mode,
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_tNodeMembership;
+    termMembershipPtr = RF_tTermMembership;
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
@@ -158,7 +169,7 @@ void updateEnsembleMean(uint     mode,
         }
       }
       if (selectionFlag) {
-        parent = nodeMembershipPtr[treeID][i];
+        parent = termMembershipPtr[treeID][i];
         if (RF_opt & OPT_OUTC_TYPE) {
           if (!ISNA(parent -> predictedOutcome)) {
           }
@@ -272,4 +283,21 @@ char getVariance(uint    repMembrSize,
     *variance = varResult;
   }
   return(result);
+}
+void restoreMeanResponse(uint treeID) {
+  Terminal *parent;
+  uint leaf;
+  for (leaf = 1; leaf <= RF_tLeafCount[treeID]; leaf++) {
+    parent = RF_tTermList[treeID][leaf];
+    (parent -> meanResponse) = RF_TN_REGR_ptr[treeID][leaf];
+    if ((parent -> membrCount) > 0) {
+      parent -> predictedOutcome = (parent -> meanResponse)[RF_rNonFactorMap[RF_rTarget]];
+    }
+    else {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Zero node count encountered in restoreMeanResponse() in leaf:  %10d", leaf);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
+    }
+  }
 }

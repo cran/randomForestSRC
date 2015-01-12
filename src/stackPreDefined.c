@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -215,7 +215,8 @@ void stackIncomingArrays(uint mode) {
           (RF_splitRule != CLAS_WT_HVY) &&
           (RF_splitRule != MVRG_SPLIT)  &&
           (RF_splitRule != MVCL_SPLIT)  &&
-          (RF_splitRule != USPV_SPLIT)) {
+          (RF_splitRule != USPV_SPLIT)  &&
+          (RF_splitRule != CUST_SPLIT)) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
         Rprintf("\nRF-SRC:  !SURV data and split rule specified are incompatible.");
         Rprintf("\nRF-SRC:  Please Contact Technical Support.");
@@ -227,7 +228,8 @@ void stackIncomingArrays(uint mode) {
           (RF_splitRule != SURV_CR_LOG) &&
           (RF_splitRule != SURV_LRSCR)  &&
           (RF_splitRule != SURV_CR_LAU) &&
-          (RF_splitRule != RAND_SPLIT)) {
+          (RF_splitRule != RAND_SPLIT)  &&
+          (RF_splitRule != CUST_SPLIT)) {
         Rprintf("\nRF-SRC:  *** ERROR *** ");
         Rprintf("\nRF-SRC:  SURV data and split rule specified are incompatible.");
         Rprintf("\nRF-SRC:  Please Contact Technical Support.");
@@ -248,12 +250,14 @@ void unstackIncomingArrays(uint mode) {
 }
 void stackPreDefinedCommonArrays() {
   uint i;
-  RF_tNodeMembership = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+  RF_tNodeMembership = (Node ***)     new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+  RF_tTermMembership = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+  RF_tNodeList = (Node ***)     new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+  RF_tTermList = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
   RF_bootMembershipIndex = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
   RF_bootMembershipFlag = (char **) new_vvector(1, RF_forestSize, NRUTIL_CPTR);
   RF_bootMembershipCount = (uint **) new_vvector(1, RF_forestSize, NRUTIL_UPTR);
   RF_oobMembershipFlag = (char **) new_vvector(1, RF_forestSize, NRUTIL_CPTR);
-  RF_tNodeList = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
   RF_identityMembershipIndex = uivector(1, RF_observationSize);
   for (i = 1; i <= RF_observationSize; i++) {
     RF_identityMembershipIndex[i] = i;
@@ -270,8 +274,10 @@ void stackPreDefinedCommonArrays() {
     RF_root[i] = NULL;
   }
   if (RF_ptnCount > 0) {
-    RF_pNodeMembership = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
-    RF_pNodeList = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+    RF_pNodeMembership = (Node ***)     new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+    RF_pTermMembership = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+    RF_pNodeList = (Node ***)     new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+    RF_pTermList = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
     RF_pLeafCount = uivector(1, RF_forestSize);
   }
   RF_orderedLeafCount = uivector(1, RF_forestSize);
@@ -281,11 +287,13 @@ void stackPreDefinedCommonArrays() {
 }
 void unstackPreDefinedCommonArrays() {
   free_new_vvector(RF_tNodeMembership, 1, RF_forestSize, NRUTIL_NPTR2);
+  free_new_vvector(RF_tTermMembership, 1, RF_forestSize, NRUTIL_NPTR2);
+  free_new_vvector(RF_tNodeList, 1, RF_forestSize, NRUTIL_NPTR2);
+  free_new_vvector(RF_tTermList, 1, RF_forestSize, NRUTIL_NPTR2);
   free_new_vvector(RF_bootMembershipIndex, 1, RF_forestSize, NRUTIL_UPTR);
   free_new_vvector(RF_bootMembershipFlag, 1, RF_forestSize, NRUTIL_CPTR);
   free_new_vvector(RF_bootMembershipCount, 1, RF_forestSize, NRUTIL_UPTR);
   free_new_vvector(RF_oobMembershipFlag, 1, RF_forestSize, NRUTIL_CPTR);
-  free_new_vvector(RF_tNodeList, 1, RF_forestSize, NRUTIL_NPTR2);
   free_uivector(RF_identityMembershipIndex, 1, RF_observationSize);
   free_uivector(RF_oobSize, 1, RF_forestSize);
   free_uivector(RF_maxDepth, 1, RF_forestSize);
@@ -297,7 +305,9 @@ void unstackPreDefinedCommonArrays() {
   free_new_vvector(RF_root, 1, RF_forestSize, NRUTIL_NPTR);
   if (RF_ptnCount > 0) {
     free_new_vvector(RF_pNodeMembership, 1, RF_forestSize, NRUTIL_NPTR2);
+    free_new_vvector(RF_pTermMembership, 1, RF_forestSize, NRUTIL_NPTR2);
     free_new_vvector(RF_pNodeList, 1, RF_forestSize, NRUTIL_NPTR2);
+    free_new_vvector(RF_pTermList, 1, RF_forestSize, NRUTIL_NPTR2);
     free_uivector(RF_pLeafCount, 1, RF_forestSize);
   }
   free_uivector(RF_orderedLeafCount, 1, RF_forestSize);
@@ -438,7 +448,8 @@ void unstackPreDefinedRestoreArrays() {
 }
 void stackPreDefinedPredictArrays() {
   uint i;
-  RF_ftNodeMembership = (Node ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+  RF_ftNodeMembership = (Node ***)     new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
+  RF_ftTermMembership = (Terminal ***) new_vvector(1, RF_forestSize, NRUTIL_NPTR2);
   RF_testMembershipFlag = cvector(1, RF_fobservationSize);
   for (i = 1; i <= RF_fobservationSize; i++) {
     RF_testMembershipFlag[i] = ACTIVE;
@@ -465,6 +476,7 @@ void stackPreDefinedPredictArrays() {
 }
 void unstackPreDefinedPredictArrays() {
   free_new_vvector(RF_ftNodeMembership, 1, RF_forestSize, NRUTIL_NPTR2);
+  free_new_vvector(RF_ftTermMembership, 1, RF_forestSize, NRUTIL_NPTR2);
   free_cvector(RF_testMembershipFlag, 1, RF_fobservationSize);
   free_uivector(RF_nodeCount, 1, RF_forestSize);
   free_uivector(RF_mwcpCount, 1, RF_forestSize);

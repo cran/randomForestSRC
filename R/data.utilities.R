@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.5
+####  Version 1.6.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -447,9 +447,16 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
     nonMissingOutcome <- which(!is.na(cens) & !is.na(time))
     nonMissingDeathFlag <- (cens[nonMissingOutcome] != 0)
     time.interest <- sort(unique(time[nonMissingOutcome[nonMissingDeathFlag]]))
-    if (!missing(ntime) && length(time.interest) > ntime) {
-      time.interest <- time.interest[
-         unique(round(seq.int(1, length(time.interest), length.out = ntime)))]
+    if (!missing(ntime)) {
+      if (length(ntime) == 1 && length(time.interest) > ntime) {
+        time.interest <- time.interest[
+           unique(round(seq.int(1, length(time.interest), length.out = ntime)))]
+      }
+      if (length(ntime) > 1) {
+        time.interest <- unique(sapply(ntime, function(tt) {
+          time.interest[max(1, sum(tt >= time.interest, na.rm = TRUE))]
+        }))
+      }
     }
   }
   else {
@@ -515,7 +522,8 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
       if ((splitrule != "class") &
           (splitrule != "class.unwt") &
           (splitrule != "class.hvwt") &
-          (splitrule != "random")) {
+          (splitrule != "random") &
+          (splitrule != "custom")) {
         stop("Invalid split rule specified:  ", splitrule)
       }
       splitrule.idx <- which(splitrule.names == splitrule)
@@ -530,7 +538,8 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
       if ((splitrule != "regr") &
           (splitrule != "regr.unwt") &
           (splitrule != "regr.hvwt") &
-          (splitrule != "random")) {
+          (splitrule != "random") &
+          (splitrule != "custom")) {
         stop("Invalid split rule specified:  ", splitrule)
       }
       splitrule.idx <- which(splitrule.names == splitrule)
@@ -554,17 +563,22 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
   splitinfo <- list(name = splitrule, index = splitrule.idx, nsplit = nsplit)
   return (splitinfo)
 }
-get.grow.x.wt <- function(weight, n.xvar) {
-  if (is.null(weight)) {
+get.grow.xvar.wt <- function(weight, n.xvar) {
+  if (is.null(weight)          ||
+      any(weight < 0)          ||
+      all(weight == 0)         ||
+      length(weight) != n.xvar ||
+      any(is.na(weight))) {
     weight <- rep(1, n.xvar)
   }
-  else {
-    if (any(weight < 0) | length(weight) != n.xvar | all(weight == 0)) {
-      weight <- rep(1, n.xvar)
-    }
-    else {
-      weight <- round(weight / min(weight, na.rm = TRUE))
-    }
+  weight
+}
+get.grow.split.wt <- function(weight, n.xvar) {
+  if (is.null(weight)          ||
+      any(weight <= 0)         ||
+      length(weight) != n.xvar ||
+      any(is.na(weight))) {
+    weight <- rep(1, n.xvar)
   }
   weight
 }
@@ -582,6 +596,8 @@ get.grow.mtry <- function (mtry = NULL, n.xvar, fmly) {
     }
   }
   return (mtry)
+}
+get.ytry <- function(f) {
 }
 get.yvar.type <- function(fmly, yvar) {
   switch(fmly,
@@ -630,6 +646,9 @@ parseFormula <- function(f, data) {
         stop("formula is incorrectly specified.")
     }
     Y <- data[, yvar.names]
+    if (is.logical(Y)) {
+      Y <- as.numeric(Y)
+    }
     if (!(is.factor(Y) | is.numeric(Y))) {
       stop("the y-outcome must be either real or a factor.")
     }
@@ -666,12 +685,28 @@ parseMissingData <- function(formula.obj, data) {
   return(data)
 }
 resample <- function(x, size, ...) {
-    if (length(x) <= 1) {
-      if (!missing(size) && size == 0) x[FALSE] else x
-    }
-    else {
-      sample(x, size, ...)
-    }
+  if (length(x) <= 1) {
+    if (!missing(size) && size == 0) x[FALSE] else x
+  }
+  else {
+    sample(x, size, ...)
+  }
 }
-get.ytry <- function(f) {
+row.col.deleted <- function(dat, r.n, c.n)
+{
+  which.r <- setdiff(r.n, rownames(dat))
+  if (length(which.r) > 0) {
+    which.r <- match(which.r, r.n)
+  }
+  else {
+    which.r <- NULL
+  }
+  which.c <- setdiff(c.n, colnames(dat))
+  if (length(which.c) > 0) {
+    which.c <- match(which.c, c.n)
+  }
+  else {
+    which.c <- NULL
+  }
+  return(list(row = which.r, col = which.c))
 }

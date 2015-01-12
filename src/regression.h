@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -78,4 +78,5 @@ char getVariance(uint    repMembrSize,
                  double *targetResponse,
                  double *mean,
                  double *variance);
+void restoreMeanResponse(uint treeID);
 #endif

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -74,10 +74,10 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
   double  **ensSRVPtr;
   double ***ensCIFPtr;
   double  **ensMRTPtr;
-  Node   ***nodeMembershipPtr;
+  Terminal ***termMembershipPtr;
   uint     *ensembleDenPtr;
   uint i, j, k;
-  Node *parent;
+  Terminal *parent;
   ensemblePtr       = NULL;  
   ensembleDenPtr    = NULL;  
   ensSRVPtr         = NULL;  
@@ -91,7 +91,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_ftNodeMembership;
+    termMembershipPtr = RF_ftTermMembership;
     break;
   default:
     obsSize = RF_observationSize;
@@ -103,7 +103,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
-    nodeMembershipPtr = RF_tNodeMembership;
+    termMembershipPtr = RF_tTermMembership;
     break;
   }
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
@@ -142,7 +142,7 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
         }
       }
       if (selectionFlag) {
-        parent = nodeMembershipPtr[treeID][i];
+        parent = termMembershipPtr[treeID][i];
         if (RF_opt & OPT_OUTC_TYPE) {
           if (!ISNA(parent -> predictedOutcome)) {
           }

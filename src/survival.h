@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -69,9 +69,14 @@ void getLocalCSH(uint treeID, uint leaf);
 void getLocalCIF(uint treeID, uint leaf);
 void getLocalSurvival(uint treeID, uint leaf);
 void getLocalNelsonAalen(uint treeID, uint leaf);
-void getNelsonAalen(uint treeID, uint leaf);
 void getSurvival(uint treeID, uint leaf);
+void getMortality(uint treeID, uint leaf);
+void getNelsonAalen(uint treeID, uint leaf);
 void getCSH(uint treeID, uint leaf);
 void getCIF(uint treeID, uint leaf);
-void getMortality(uint treeID, uint leaf);
+void restoreSurvival(uint treeID, uint leaf);
+void restoreMortality(uint treeID, uint leaf);
+void restoreNelsonAalen(uint treeID, uint leaf);
+void restoreCSH(uint treeID, uint leaf);
+void restoreCIF(uint treeID, uint leaf);
 #endif

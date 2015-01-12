@@ -60,77 +60,42 @@
 ////**********************************************************************
 
 
-#include  <time.h>
-#include "trace.h"
-#include   <R_ext/Print.h>
-#ifndef TRUE
-#define TRUE   0x01
-#endif
-#ifndef FALSE
-#define FALSE  0x00
-#endif
-unsigned int    RF_traceFlagDiagLevel;
-unsigned int    RF_traceFlagIterValue;
-size_t          RF_memor_maxMemoryAllocation;
-size_t          RF_memor_minMemoryAllocation;
-void setTraceFlag(unsigned int traceFlag, unsigned int tree) {
-  RF_traceFlagDiagLevel = traceFlag & TRACE_MASK;
-  RF_traceFlagIterValue = tree;
-}
-unsigned int getTraceFlag(unsigned int tree) {
-  unsigned int result;
-  result = FALSE;
-  if (RF_traceFlagIterValue == tree) {
-    result = RF_traceFlagDiagLevel;
-  }
-  else {
-    if (RF_traceFlagIterValue == 0) {
-      result = RF_traceFlagDiagLevel;
+#include        "global.h"
+#include        "extern.h"
+#include         "trace.h"
+#include        "nrutil.h"
+#include     "factorOps.h"
+#include     "splitUtil.h"
+#include    "regression.h"
+#include   "splitCustom.h"
+double getCustomSplitStatistic (uint    n,
+                                char   *membership,
+                                double *time,
+                                double *event,
+                                double *response,
+                                double  mean,
+                                double  variance)
+{
+  double sumLeftSqr, sumRghtSqr;
+  double delta;
+  double sumLeft, sumRght;
+  unsigned int leftSize, rghtSize;
+  unsigned int j;
+  sumLeft = sumRght = 0.0;
+  leftSize = rghtSize = 0;
+  delta = 0.0;
+  for (j = 1; j <= n; j++) {
+    if (membership[j] == LEFT) {
+      sumLeft += response[j] - mean;
+      leftSize ++;
+    }
+    else {
+      sumRght += response[j] - mean;
+      rghtSize ++;
     }
   }
-  return result;
-}
-unsigned int updateTimeStamp(unsigned int before) {
-  unsigned int stamp;
-  double cpuTimeUsed;
-  stamp = clock();
-  cpuTimeUsed = ((double) (stamp - before)) / CLOCKS_PER_SEC;
-  Rprintf("\nRF-SRC:  CPU process time:  %20.3f \n", cpuTimeUsed);
-  return stamp;
-}
-unsigned int getNodeDefTraceFlag() {
-  return(NODE_DEF_TRACE);
-}
-unsigned int getForkDefTraceFlag() {
-  return(FORK_DEF_TRACE);
-}
-unsigned int getTurnOffTraceFlag() {
-  return(TURN_OFF_TRACE);
-}
-unsigned int getNumrDefTraceFlag() {
-  return(NUMR_DEF_TRACE);
-}
-unsigned int getTimeDefTraceFlag() {
-  return(TIME_DEF_TRACE);
-}
-void setMaxMemoryAllocation(size_t value) {
-  RF_memor_maxMemoryAllocation = value;
-}
-void setMinMemoryAllocation(size_t value) {
-  RF_memor_minMemoryAllocation = value;
-}
-size_t getMaxMemoryAllocation() {
-  return (RF_memor_maxMemoryAllocation);
-}
-size_t getMinMemoryAllocation() {
-  return (RF_memor_minMemoryAllocation);
-}
-void increaseMemoryAllocation(size_t amount) {
-  RF_memor_minMemoryAllocation += amount;
-  if (RF_memor_minMemoryAllocation > RF_memor_maxMemoryAllocation) {
-    RF_memor_maxMemoryAllocation = RF_memor_minMemoryAllocation;
-  }
-}
-void decreaseMemoryAllocation(size_t amount) {
-    RF_memor_minMemoryAllocation -= amount;
+  sumLeftSqr = pow(sumLeft, 2.0) / ((double) leftSize * variance);
+  sumRghtSqr = pow(sumRght, 2.0) / ((double) rghtSize * variance);
+  delta += sumLeftSqr + sumRghtSqr;
+  return delta;
 }

@@ -6,10 +6,10 @@
   missing data.  No ensemble estimates or error rates are calculated.
 }
 \usage{\method{impute}{rfsrc}(formula, data, ntree = 250, mtry = NULL,
-  nodesize = NULL, splitrule = NULL, nsplit = 1,
-  na.action = c("na.impute", "na.random"), nimpute = 1, 
+  nodesize = 1, splitrule = NULL, nsplit = 1, na.action = c("na.impute", "na.random"),
+  nimpute = 1, 
   xvar.wt = NULL, 
-  seed = NULL, do.trace = FALSE, ...)
+  do.trace = FALSE, ...)
 }
 \arguments{
   \item{formula}{A symbolic description of the model to be fit.  Can be
@@ -28,8 +28,8 @@
     
     \item{xvar.wt}{Weights for selecting variables for splitting on.}
 
-    \item{seed}{Seed for random number generator.}
-    \item{do.trace}{Should trace output be enabled?} 
+    \item{do.trace}{Logical. Should trace output be enabled on each
+      iteration? Default is \code{FALSE}.}
     \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -40,9 +40,12 @@
   data.
 
   \item Data is imputed using the default missing data algorithm,
-  however users can select \option{na.action="na.random"} for a
-  cruder, but faster imputation.  See the the \code{rfsrc} help file
-  for details.
+  however users can select \option{na.action="na.random"} for a cruder,
+  but faster imputation.  Unlike \option{na.action="na.impute"}, data is not imputed
+  as the tree is grown, instead tree nodes are split using non-missing
+  in-bag data.  Following the split to a node, data points with
+  missing values on the variable used to split the node are randomly
+  assigned to daughter nodes. 
 
   
   \item If no formula is specified, unsupervised splitting
@@ -64,7 +67,7 @@
 }   
 \value{
   Invisibly, the data frame containing the orginal data with imputed
-  data overlayed.  The first column(s) contain the y outcome values.
+  data overlayed.
 }
 \author{
     Hemant Ishwaran and Udaya B. Kogalur

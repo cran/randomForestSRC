@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -65,10 +65,11 @@
 #include         "trace.h"
 #include        "nrutil.h"
 #include       "nodeOps.h"
+#include       "termOps.h"
 #include        "impute.h"
 #include      "survival.h"
 void getAtRiskAndEventCounts(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint i, j, k;
   uint *membershipIndex;
   char eventFlag;
@@ -78,146 +79,146 @@ void getAtRiskAndEventCounts(uint treeID, uint leaf) {
   else {
     membershipIndex = RF_bootMembershipIndex[treeID];
   }
-    parent = RF_tNodeList[treeID][leaf];
-    stackAtRiskAndEventCounts(parent, RF_eventTypeSize, RF_masterTimeSize);
-    for (j = 1; j <= RF_masterTimeSize; j++) {
-      (parent -> atRiskCount)[j]    = 0;
-      for (k = 1; k <= RF_eventTypeSize; k++) {
-        (parent -> eventCount)[k][j] = 0;
-      }
+  parent = RF_tTermList[treeID][leaf];
+  stackAtRiskAndEventCounts(parent, RF_eventTypeSize, RF_masterTimeSize);
+  for (j = 1; j <= RF_masterTimeSize; j++) {
+    (parent -> atRiskCount)[j]    = 0;
+    for (k = 1; k <= RF_eventTypeSize; k++) {
+      (parent -> eventCount)[k][j] = 0;
     }
-    parent -> membrCount = 0;
-    for (i=1; i <= RF_observationSize; i++) {
-      if (RF_tNodeMembership[treeID][membershipIndex[i]] == parent) {
-        for (j = 1; j <= RF_masterTimeIndex[treeID][membershipIndex[i]]; j++) {
-          (parent -> atRiskCount)[j] ++;
+  }
+  parent -> membrCount = 0;
+  for (i=1; i <= RF_observationSize; i++) {
+    if (RF_tTermMembership[treeID][membershipIndex[i]] == parent) {
+      for (j = 1; j <= RF_masterTimeIndex[treeID][membershipIndex[i]]; j++) {
+        (parent -> atRiskCount)[j] ++;
+      }
+      if (RF_status[treeID][membershipIndex[i]] > 0) {
+        if (RF_eventTypeSize > 1) {
+          k = RF_eventTypeIndex[(uint) RF_status[treeID][membershipIndex[i]]];
         }
-        if (RF_status[treeID][membershipIndex[i]] > 0) {
-          if (RF_eventTypeSize > 1) {
-            k = RF_eventTypeIndex[(uint) RF_status[treeID][membershipIndex[i]]];
-          }
-          else {
-            k = 1;
-          }
-          (parent -> eventCount)[k][RF_masterTimeIndex[treeID][membershipIndex[i]]] ++;
+        else {
+          k = 1;
         }
-        (parent -> membrCount) ++;
+        (parent -> eventCount)[k][RF_masterTimeIndex[treeID][membershipIndex[i]]] ++;
+      }
+      (parent -> membrCount) ++;
+    }
+  }
+  parent -> eTimeSize = 0;
+  for (j = 1; j <= RF_masterTimeSize; j++) {
+    eventFlag = FALSE;
+    for (k = 1; k <= RF_eventTypeSize; k++) {
+      if ((parent -> eventCount)[k][j] > 0) {
+        eventFlag = TRUE;
+        k = RF_eventTypeSize;
       }
     }
-    parent -> eTimeSize = 0;
-    for (j = 1; j <= RF_masterTimeSize; j++) {
-      eventFlag = FALSE;
-      for (k = 1; k <= RF_eventTypeSize; k++) {
-        if ((parent -> eventCount)[k][j] > 0) {
-          eventFlag = TRUE;
-          k = RF_eventTypeSize;
-        }
-      }
-      if (eventFlag == TRUE) {
-        (parent -> eTimeSize)++;
-      }
+    if (eventFlag == TRUE) {
+      (parent -> eTimeSize)++;
     }
-    stackEventTimeIndex(parent, parent -> eTimeSize);
-    for (j = 1; j <= parent -> eTimeSize; j++) {
-      (parent -> eventTimeIndex)[j] = 0;
-    }
-    i = 0;
-    for (j = 1; j <= RF_masterTimeSize; j++) {
-      eventFlag = FALSE;
-      for (k = 1; k <= RF_eventTypeSize; k++) {
-        if ((parent -> eventCount)[k][j] > 0) {
-          eventFlag = TRUE;
-          k = RF_eventTypeSize;
-        }
-      }
-      if (eventFlag == TRUE) {
-        (parent -> eventTimeIndex)[++i] = j;
+  }
+  stackEventTimeIndex(parent, parent -> eTimeSize);
+  for (j = 1; j <= parent -> eTimeSize; j++) {
+    (parent -> eventTimeIndex)[j] = 0;
+  }
+  i = 0;
+  for (j = 1; j <= RF_masterTimeSize; j++) {
+    eventFlag = FALSE;
+    for (k = 1; k <= RF_eventTypeSize; k++) {
+      if ((parent -> eventCount)[k][j] > 0) {
+        eventFlag = TRUE;
+        k = RF_eventTypeSize;
       }
     }
-    if (parent -> membrCount > 0) {
-      parent -> predictedOutcome = 0.0;
+    if (eventFlag == TRUE) {
+      (parent -> eventTimeIndex)[++i] = j;
     }
-    else {
-      parent -> predictedOutcome = NA_REAL;
-      if (!(RF_opt & OPT_OUTC_TYPE)) {
-        Rprintf("\nRF-SRC:  *** ERROR *** ");
-        Rprintf("\nRF-SRC:  Zero node count encountered for Nelson-Aalen estimate in leaf:  %10d", leaf);
-        Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-        error("\nRF-SRC:  The application will now exit.\n");
-      }
+  }
+  if (parent -> membrCount > 0) {
+    parent -> predictedOutcome = 0.0;
+  }
+  else {
+    parent -> predictedOutcome = NA_REAL;
+    if (!(RF_opt & OPT_OUTC_TYPE)) {
+      Rprintf("\nRF-SRC:  *** ERROR *** ");
+      Rprintf("\nRF-SRC:  Zero node count encountered in getAtRiskAndEventCounts() in leaf:  %10d", leaf);
+      Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+      error("\nRF-SRC:  The application will now exit.\n");
     }
+  }
 }
 void getLocalRatio(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint j, q;
-    parent = RF_tNodeList[treeID][leaf];
-    if (parent -> membrCount > 0) {
-      if(parent -> eTimeSize > 0) {
-        stackLocalRatio(parent, RF_eventTypeSize, parent -> eTimeSize);
-        for (j=1; j <= RF_eventTypeSize; j++) {
-          for (q = 1; q <= parent -> eTimeSize; q++) {
-            (parent -> localRatio)[j][q] = 0.0;
-          }
+  parent = RF_tTermList[treeID][leaf];
+  if (parent -> membrCount > 0) {
+    if(parent -> eTimeSize > 0) {
+      stackLocalRatio(parent, RF_eventTypeSize, parent -> eTimeSize);
+      for (j=1; j <= RF_eventTypeSize; j++) {
+        for (q = 1; q <= parent -> eTimeSize; q++) {
+          (parent -> localRatio)[j][q] = 0.0;
         }
-        for (j=1; j <= RF_eventTypeSize; j++) {
-          for (q = 1; q <= parent -> eTimeSize; q++) {
-            if ((parent -> eventCount)[j][(parent -> eventTimeIndex)[q]] > 0) {
-              if ((parent -> atRiskCount)[(parent -> eventTimeIndex)[q]] >= 1) {
-                (parent -> localRatio)[j][q] = ((double) (parent -> eventCount)[j][(parent -> eventTimeIndex)[q]] / (parent -> atRiskCount)[(parent -> eventTimeIndex)[q]]);
-              }
-              else {
-                Rprintf("\nRF-SRC:  *** ERROR *** ");
-                Rprintf("\nRF-SRC:  Zero At Risk Count encountered in local ratio calculation for (tree, node) = (%10d, %10d)", treeID, leaf);
-                Rprintf("\nRF-SRC:  Please Contact Technical Support.");
-                error("\nRF-SRC:  The application will now exit.\n");
-              }
+      }
+      for (j=1; j <= RF_eventTypeSize; j++) {
+        for (q = 1; q <= parent -> eTimeSize; q++) {
+          if ((parent -> eventCount)[j][(parent -> eventTimeIndex)[q]] > 0) {
+            if ((parent -> atRiskCount)[(parent -> eventTimeIndex)[q]] >= 1) {
+              (parent -> localRatio)[j][q] = ((double) (parent -> eventCount)[j][(parent -> eventTimeIndex)[q]] / (parent -> atRiskCount)[(parent -> eventTimeIndex)[q]]);
+            }
+            else {
+              Rprintf("\nRF-SRC:  *** ERROR *** ");
+              Rprintf("\nRF-SRC:  Zero At Risk Count encountered in local ratio calculation for (tree, node) = (%10d, %10d)", treeID, leaf);
+              Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+              error("\nRF-SRC:  The application will now exit.\n");
             }
           }
         }
       }
     }
+  }
 }
 void getLocalSurvival(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint j, q;
-    parent = RF_tNodeList[treeID][leaf];
-    if(parent -> eTimeSize > 0) {
-      stackLocalSurvival(parent, parent -> eTimeSize);
-      for (q = 1; q <= parent -> eTimeSize; q++) {
-        (parent -> localSurvival)[q] = 0.0;
-      }
-      for (q = 1; q <= parent -> eTimeSize; q++) {
-        for (j = 1; j <= RF_eventTypeSize; j++) {
-          (parent -> localSurvival)[q] += (parent -> localRatio)[j][q];
-        }
-        (parent -> localSurvival)[q] = 1.0 - (parent -> localSurvival)[q];
-      }  
-      for (q = 2; q <= parent -> eTimeSize; q++) {
-        (parent -> localSurvival)[q] *= (parent -> localSurvival)[q-1];
-      }
+  parent = RF_tTermList[treeID][leaf];
+  if(parent -> eTimeSize > 0) {
+    stackLocalSurvival(parent, parent -> eTimeSize);
+    for (q = 1; q <= parent -> eTimeSize; q++) {
+      (parent -> localSurvival)[q] = 0.0;
     }
+    for (q = 1; q <= parent -> eTimeSize; q++) {
+      for (j = 1; j <= RF_eventTypeSize; j++) {
+        (parent -> localSurvival)[q] += (parent -> localRatio)[j][q];
+      }
+      (parent -> localSurvival)[q] = 1.0 - (parent -> localSurvival)[q];
+    }  
+    for (q = 2; q <= parent -> eTimeSize; q++) {
+      (parent -> localSurvival)[q] *= (parent -> localSurvival)[q-1];
+    }
+  }
 }
 void getLocalNelsonAalen(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint q;
-    parent = RF_tNodeList[treeID][leaf];
-    if (parent -> eTimeSize > 0) {
-      stackLocalNelsonAalen(parent, parent -> eTimeSize);
-      for (q = 1; q <= parent -> eTimeSize; q++) {
-        (parent -> localNelsonAalen)[q] = 0.0;
-      }
-      for (q = 1; q <= parent -> eTimeSize; q++) {
-        (parent -> localNelsonAalen)[q] = (parent -> localRatio)[1][q];
-      }
-      for (q = 2; q <= parent -> eTimeSize; q++) {
-        (parent -> localNelsonAalen)[q] += (parent -> localNelsonAalen)[q-1];
-      }
+  parent = RF_tTermList[treeID][leaf];
+  if (parent -> eTimeSize > 0) {
+    stackLocalNelsonAalen(parent, parent -> eTimeSize);
+    for (q = 1; q <= parent -> eTimeSize; q++) {
+      (parent -> localNelsonAalen)[q] = 0.0;
     }
+    for (q = 1; q <= parent -> eTimeSize; q++) {
+      (parent -> localNelsonAalen)[q] = (parent -> localRatio)[1][q];
+    }
+    for (q = 2; q <= parent -> eTimeSize; q++) {
+      (parent -> localNelsonAalen)[q] += (parent -> localNelsonAalen)[q-1];
+    }
+  }
 }
 void getLocalCSH(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint j, q;
-    parent = RF_tNodeList[treeID][leaf];
+    parent = RF_tTermList[treeID][leaf];
     if (parent -> eTimeSize > 0) {
       stackLocalCSH(parent, RF_eventTypeSize, parent -> eTimeSize);
       for (j=1; j <= RF_eventTypeSize; j++) {
@@ -236,9 +237,9 @@ void getLocalCSH(uint treeID, uint leaf) {
     }
 }
 void getLocalCIF(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint j, q;
-    parent = RF_tNodeList[treeID][leaf];
+    parent = RF_tTermList[treeID][leaf];
     if(parent -> eTimeSize > 0) {
       stackLocalCIF(parent, RF_eventTypeSize, parent -> eTimeSize);
       for (j=1; j <= RF_eventTypeSize; j++) {
@@ -257,45 +258,11 @@ void getLocalCIF(uint treeID, uint leaf) {
       }
     }
 }
-void getNelsonAalen(uint treeID, uint leaf) {
-  Node *parent;
-  uint i, k, q;
-  uint priorTimePointIndex, currentTimePointIndex;
-    parent = RF_tNodeList[treeID][leaf];
-    stackNelsonAalen(parent, RF_sortedTimeInterestSize);
-    for (q = 1; q <= RF_sortedTimeInterestSize; q++) {
-      (parent -> nelsonAalen)[q] = 0.0;
-    }
-    priorTimePointIndex = 0;
-    currentTimePointIndex = 1;
-    for (i = 1; i <= (parent -> eTimeSize); i++) {
-      for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-        if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
-          currentTimePointIndex = k;
-        }
-        else {
-          k = RF_sortedTimeInterestSize;
-        }
-      }
-      (parent -> nelsonAalen)[currentTimePointIndex] = (parent -> localNelsonAalen)[i];
-      if (i > 1) {
-        for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
-          (parent -> nelsonAalen)[k] = (parent -> nelsonAalen)[priorTimePointIndex];
-        }
-      }
-      if (i == (parent -> eTimeSize)) {
-        for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-          (parent -> nelsonAalen)[k] = (parent -> nelsonAalen)[currentTimePointIndex];
-        }
-      }
-      priorTimePointIndex = currentTimePointIndex;
-    }
-}
 void getSurvival(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint priorTimePointIndex, currentTimePointIndex;
   uint i, k;
-    parent = RF_tNodeList[treeID][leaf];
+    parent = RF_tTermList[treeID][leaf];
     stackSurvival(parent, RF_sortedTimeInterestSize);
     for (k=1; k <= RF_sortedTimeInterestSize; k++) {
       (parent -> survival)[k] = 0.0;
@@ -337,100 +304,168 @@ void getSurvival(uint treeID, uint leaf) {
       }
     }
 }
+void getNelsonAalen(uint treeID, uint leaf) {
+  Terminal *parent;
+  uint i, k, q;
+  uint priorTimePointIndex, currentTimePointIndex;
+  parent = RF_tTermList[treeID][leaf];
+  stackNelsonAalen(parent, RF_sortedTimeInterestSize);
+  for (q = 1; q <= RF_sortedTimeInterestSize; q++) {
+    (parent -> nelsonAalen)[q] = 0.0;
+  }
+  priorTimePointIndex = 0;
+  currentTimePointIndex = 1;
+  for (i = 1; i <= (parent -> eTimeSize); i++) {
+    for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+      if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
+        currentTimePointIndex = k;
+      }
+      else {
+        k = RF_sortedTimeInterestSize;
+      }
+    }
+    (parent -> nelsonAalen)[currentTimePointIndex] = (parent -> localNelsonAalen)[i];
+    if (i > 1) {
+      for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
+        (parent -> nelsonAalen)[k] = (parent -> nelsonAalen)[priorTimePointIndex];
+      }
+    }
+    if (i == (parent -> eTimeSize)) {
+      for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+        (parent -> nelsonAalen)[k] = (parent -> nelsonAalen)[currentTimePointIndex];
+      }
+    }
+    priorTimePointIndex = currentTimePointIndex;
+  }
+}
 void getCSH(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint priorTimePointIndex, currentTimePointIndex;
   uint i, j, k;
-    parent = RF_tNodeList[treeID][leaf];
-    stackCSH(parent, RF_eventTypeSize, RF_sortedTimeInterestSize);
+  parent = RF_tTermList[treeID][leaf];
+  stackCSH(parent, RF_eventTypeSize, RF_sortedTimeInterestSize);
+  for (j=1; j <= RF_eventTypeSize; j++) {
+    for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+      (parent -> CSH)[j][k] = 0.0;
+    }
+  }
+  priorTimePointIndex = 0;
+  currentTimePointIndex = 1;
+  for (i = 1; i <= (parent -> eTimeSize); i++) {
+    for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+      if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
+        currentTimePointIndex = k;
+      }
+      else {
+        k = RF_sortedTimeInterestSize;
+      }
+    }
     for (j=1; j <= RF_eventTypeSize; j++) {
-      for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-        (parent -> CSH)[j][k] = 0.0;
+      (parent -> CSH)[j][currentTimePointIndex] = (parent -> localCSH)[j][i];
+      if (i > 1) {
+        for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
+          (parent -> CSH)[j][k] = (parent -> CSH)[j][priorTimePointIndex];
+        }
+      }
+      if (i == (parent -> eTimeSize)) {
+        for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+          (parent -> CSH)[j][k] = (parent -> CSH)[j][currentTimePointIndex];
+        }
       }
     }
-    priorTimePointIndex = 0;
-    currentTimePointIndex = 1;
-    for (i = 1; i <= (parent -> eTimeSize); i++) {
-      for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-        if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
-          currentTimePointIndex = k;
-        }
-        else {
-          k = RF_sortedTimeInterestSize;
-        }
-      }
-      for (j=1; j <= RF_eventTypeSize; j++) {
-        (parent -> CSH)[j][currentTimePointIndex] = (parent -> localCSH)[j][i];
-        if (i > 1) {
-          for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
-            (parent -> CSH)[j][k] = (parent -> CSH)[j][priorTimePointIndex];
-          }
-        }
-        if (i == (parent -> eTimeSize)) {
-          for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-            (parent -> CSH)[j][k] = (parent -> CSH)[j][currentTimePointIndex];
-          }
-        }
-      }
-      priorTimePointIndex = currentTimePointIndex;
-    }
+    priorTimePointIndex = currentTimePointIndex;
+  }
 }
 void getCIF(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint priorTimePointIndex, currentTimePointIndex;
   uint i, j, k;
-    parent = RF_tNodeList[treeID][leaf];
-    stackCIF(parent, RF_eventTypeSize, RF_sortedTimeInterestSize);
+  parent = RF_tTermList[treeID][leaf];
+  stackCIF(parent, RF_eventTypeSize, RF_sortedTimeInterestSize);
+  for (j=1; j <= RF_eventTypeSize; j++) {
+    for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+      (parent -> CIF)[j][k] = 0.0;
+    }
+  }
+  priorTimePointIndex = 0;
+  currentTimePointIndex = 1;
+  for (i = 1; i <= (parent -> eTimeSize); i++) {
+    for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+      if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
+        currentTimePointIndex = k;
+      }
+      else {
+        k = RF_sortedTimeInterestSize;
+      }
+    }
     for (j=1; j <= RF_eventTypeSize; j++) {
-      for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-        (parent -> CIF)[j][k] = 0.0;
+      (parent -> CIF)[j][currentTimePointIndex] = (parent -> localCIF)[j][i];
+      if (i > 1) {
+        for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
+          (parent -> CIF)[j][k] = (parent -> CIF)[j][priorTimePointIndex];
+        }
+      }
+      if (i == (parent -> eTimeSize)) {
+        for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+          (parent -> CIF)[j][k] = (parent -> CIF)[j][currentTimePointIndex];
+        }
       }
     }
-    priorTimePointIndex = 0;
-    currentTimePointIndex = 1;
-    for (i = 1; i <= (parent -> eTimeSize); i++) {
-      for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-        if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
-          currentTimePointIndex = k;
-        }
-        else {
-          k = RF_sortedTimeInterestSize;
-        }
-      }
-      for (j=1; j <= RF_eventTypeSize; j++) {
-        (parent -> CIF)[j][currentTimePointIndex] = (parent -> localCIF)[j][i];
-        if (i > 1) {
-          for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
-            (parent -> CIF)[j][k] = (parent -> CIF)[j][priorTimePointIndex];
-          }
-        }
-        if (i == (parent -> eTimeSize)) {
-          for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-            (parent -> CIF)[j][k] = (parent -> CIF)[j][currentTimePointIndex];
-          }
-        }
-      }
-      priorTimePointIndex = currentTimePointIndex;
-    }
+    priorTimePointIndex = currentTimePointIndex;
+  }
 }
 void getMortality(uint treeID, uint leaf) {
-  Node *parent;
+  Terminal *parent;
   uint j, q;
-    parent = RF_tNodeList[treeID][leaf];
-    stackMortality(parent, RF_eventTypeSize);
-    for (j=1; j <= RF_eventTypeSize; j++) {
-      (parent -> mortality)[j] = 0.0;
+  parent = RF_tTermList[treeID][leaf];
+  stackMortality(parent, RF_eventTypeSize);
+  for (j=1; j <= RF_eventTypeSize; j++) {
+    (parent -> mortality)[j] = 0.0;
+  }
+  if (!(RF_opt & OPT_COMP_RISK)) {
+    for (q = 1; q <= RF_sortedTimeInterestSize; q++) {
+      (parent -> mortality)[1] += (parent -> nelsonAalen)[q];
     }
-    if (!(RF_opt & OPT_COMP_RISK)) {
-      for (q = 1; q <= RF_sortedTimeInterestSize; q++) {
-        (parent -> mortality)[1] += (parent -> nelsonAalen)[q];
+  }
+  else {
+    for (j = 1; j <= RF_eventTypeSize; j ++) {
+      for (q=1; q <= RF_sortedTimeInterestSize - 1; q++) {
+        (parent -> mortality)[j] += (parent -> CIF)[j][q] * (RF_timeInterest[q+1] - RF_timeInterest[q]);
       }
     }
-    else {
-      for (j = 1; j <= RF_eventTypeSize; j ++) {
-        for (q=1; q <= RF_sortedTimeInterestSize - 1; q++) {
-          (parent -> mortality)[j] += (parent -> CIF)[j][q] * (RF_timeInterest[q+1] - RF_timeInterest[q]);
-        }
-      }
-    }
+  }
+}
+void restoreSurvival(uint treeID, uint leaf) {
+  Terminal *parent;
+  parent = RF_tTermList[treeID][leaf];
+  (parent -> survival) = RF_TN_SURV_ptr[treeID][leaf];
+  if (parent -> membrCount > 0) {
+    parent -> predictedOutcome = 0.0;
+  }
+  else {
+    Rprintf("\nRF-SRC:  *** ERROR *** ");
+    Rprintf("\nRF-SRC:  Zero node count encountered in restoreSurvival() in leaf:  %10d", leaf);
+    Rprintf("\nRF-SRC:  Please Contact Technical Support.");
+    error("\nRF-SRC:  The application will now exit.\n");
+  }
+}
+void restoreMortality(uint treeID, uint leaf) {
+  Terminal *parent;
+  parent = RF_tTermList[treeID][leaf];
+  (parent -> mortality) = RF_TN_MORT_ptr[treeID][leaf];
+}
+void restoreNelsonAalen(uint treeID, uint leaf) {
+  Terminal *parent;
+  parent = RF_tTermList[treeID][leaf];
+  (parent -> nelsonAalen) = RF_TN_NLSN_ptr[treeID][leaf];
+}
+void restoreCSH(uint treeID, uint leaf) {
+  Terminal *parent;
+  parent = RF_tTermList[treeID][leaf];
+  (parent -> CSH) = RF_TN_CSHZ_ptr[treeID][leaf];
+}
+void restoreCIF(uint treeID, uint leaf) {
+  Terminal *parent;
+  parent = RF_tTermList[treeID][leaf];
+  (parent -> CIF) = RF_TN_CIFN_ptr[treeID][leaf];
 }

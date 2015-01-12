@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.5.5
+####  Version 1.6.0
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -270,7 +270,7 @@ var.select.rfsrc <-
   else {
     always.use.pt <- NULL
   }
-  xvar.wt <- get.grow.x.wt(xvar.wt, P)
+  xvar.wt <- get.grow.xvar.wt(xvar.wt, P)
   if (!is.null(mtry)) {
     mtry <- round(mtry)
     if (mtry < 1 | mtry > P) mtry <- max(1, min(mtry, P))
@@ -302,7 +302,7 @@ var.select.rfsrc <-
       rfsrc.prefit.obj <- extract.imp.err(rfsrc.prefit.obj, outcome.target)
       wts <- pmax(get.imp(rfsrc.prefit.obj, target.dim), 0)
       if (any(wts > 0)) {
-        xvar.wt <- get.grow.x.wt(wts, P)
+        xvar.wt <- get.grow.xvar.wt(wts, P)
       }
     }
     if (!missing(object) && !prefit.flag) {

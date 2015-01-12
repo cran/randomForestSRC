@@ -36,9 +36,8 @@
       values.  Applies only when \option{method="vimp"}.}
     \item{seed}{Seed for random number generator.  Must be a negative
       integer.}
-    \item{do.trace}{Logical. Should trace output be enabled? Default is
-      \code{FALSE}. Integer values can also be passed.  A positive value
-      causes output to be printed each \code{do.trace} iteration.}
+    \item{do.trace}{Logical. Should trace output be enabled on each
+      iteration? Default is \code{FALSE}.}
     \item{verbose}{Set to \code{TRUE} for verbose output.}
     \item{...}{Further arguments passed to or from other methods.}
 }

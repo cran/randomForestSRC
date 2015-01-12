@@ -45,9 +45,8 @@
     \item{split.depth}{Return minimal depth for each variable for each case?}
     \item{seed}{Negative integer specifying seed for the random number
       generator.} 
-    \item{do.trace}{Should trace output be enabled? 
-        Integer values can also be passed.  A positive value
-	causes output to be printed each \code{do.trace} iteration.}
+    \item{do.trace}{Logical. Should trace output be enabled on each
+      iteration? Default is \code{FALSE}.}
     \item{membership}{Should terminal node membership and inbag
       information be returned?}
  \item{statistics}{Should split statistics be returned?  Values can be
@@ -116,8 +115,8 @@
        growing the forest.}
      \item{imputed.indv}{Vector of indices of records in test data with
          missing values.}
-     \item{imputed.data}{Data frame comprising imputed test data.  First
-       columns are the y-outcomes.}
+     \item{imputed.data}{Data frame comprising imputed test data.  The first
+       columns are the y-outcomes followed by the x-variables.}
      \item{split.depth}{Matrix [i][j] or array [i][j][k] recording the
      minimal depth for variable [j] for case [i], either averaged over
      the forest, or by tree [k].}

@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -1172,16 +1172,21 @@ char updateMaximumSplit(uint    treeID,
                         char  **splitIndicator) {
   char flag;
   uint k;
-  delta = delta * RF_splitWeight[randomCovariate];
-  if(ISNA(*deltaMax)) {
-    flag = TRUE;
+  if(ISNA(delta)) {
+    flag = FALSE;
   }
   else {
-    if (delta > *deltaMax) {
+    delta = delta * RF_splitWeight[randomCovariate];
+    if(ISNA(*deltaMax)) {
       flag = TRUE;
     }
     else {
-      flag = FALSE;
+      if ((delta - *deltaMax) > EPSILON) {
+        flag = TRUE;
+      }
+      else {
+        flag = FALSE;
+      }
     }
   }
   if (flag) {

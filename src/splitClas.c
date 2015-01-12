@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.5.5
+////  Version 1.6.0
 ////
 ////  Copyright 2012, University of Miami
 ////
@@ -98,7 +98,7 @@ char classificationXwghtSplit (uint    treeID,
   uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
   uint   *indxx;
   uint priorMembrIter, currentMembrIter;
-  uint leftSizeIter, rghtSizeIter;
+  uint leftSizeIter;
   uint leftSize, rghtSize;
   char *localSplitIndicator;
   uint splitLength;
@@ -111,7 +111,6 @@ char classificationXwghtSplit (uint    treeID,
   uint j, k, p;
   mwcpSizeAbsolute       = 0;  
   leftSizeIter           = 0;  
-  rghtSizeIter           = 0;  
   *splitParameterMax     = 0;
   *splitValueMaxFactSize = 0;
   *splitValueMaxFactPtr  = NULL;
@@ -203,7 +202,6 @@ char classificationXwghtSplit (uint    treeID,
           leftClassProp[p] = 0;
         }
         leftSizeIter = 0;
-        rghtSizeIter = nonMissMembrSize;
       }
       for (j = 1; j < splitLength; j++) {
         if (factorFlag == TRUE) {
@@ -245,7 +243,6 @@ char classificationXwghtSplit (uint    treeID,
               leftClassProp[RF_classLevelIndex[1][(uint) RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
               rghtClassProp[RF_classLevelIndex[1][(uint) RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] --;
             }
-            rghtSizeIter = rghtSizeIter - (currentMembrIter - (leftSizeIter + 1));
             leftSizeIter = currentMembrIter - 1;
           }
           sumLeft = sumRght = 0.0;
