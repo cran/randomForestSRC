@@ -1,11 +1,16 @@
 Package: randomForestSRC
-Version: 1.6.0
-BUILD: bld20150105
+Version: 1.6.1
+BUILD: bld20150304
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.6.0
+CHANGES TO RELEASE 1.6.1
 ---------------------------------------------------------------------------------
-RELEASE 1.6.0
+RELEASE 1.6.1
+Fix to donttest example in rfsrc.Rd, and other adjustments per
+CRAN packaging protocols.
+  
+---------------------------------------------------------------------------------
+RELEASE 1.6.0  
 Bug fix to duplicating missingness protocol when restoring a forest.
 Added fast.restore option to grow call.  Change to pass through
 xvar.wt as entered by user. RAM profile reduction in vimp().  Added

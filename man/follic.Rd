@@ -22,7 +22,7 @@
       Practical Perspective.} West Sussex: John Wiley and Sons.
 }
 \examples{
-\donttest{
+\dontrun{
 data(follic, package = "randomForestSRC")
 follic.obj <- rfsrc(Surv(time, status) ~ ., follic, nsplit = 3, ntree = 100)
 }}

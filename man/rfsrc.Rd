@@ -31,7 +31,8 @@ rfsrc(formula, data, ntree = 1000,
   splitrule = NULL,
   nsplit = 0,
   split.null = FALSE,
-  importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
+  importance = c("permute", "random", "permute.ensemble",
+                 "random.ensemble", "none"),
   na.action = c("na.omit", "na.impute", "na.random"),
   nimpute = 1,
   ntime,
@@ -638,7 +639,7 @@ matplot(v.obj$time.interest, 100 * t(v.obj$survival[1:10, ]),
 # indirect way: using plot.survival (also generates hazard plots)
 plot.survival(v.obj, subset = 1:10, haz.model = "ggamma")
 
-\donttest{
+\dontrun{
 ## Primary biliary cirrhosis (PBC) of the liver
 
 data(pbc, package = "randomForestSRC")
@@ -683,7 +684,9 @@ pbc.fast.imp.data <- impute.rfsrc(data = pbc, nsplit = 10, nimpute = 5)
 ##------------------------------------------------------------
 
 if (library("survival", logical.return = TRUE)
-    & library("pec", logical.return = TRUE))
+    & library("pec", logical.return = TRUE)
+    & library("prodlim", logical.return = TRUE)
+    & library("Hmisc", logical.return = TRUE))  
 {
   ##prediction function required for pec
   predictSurvProb.rfsrc <- function(object, newdata, times, ...){
@@ -745,8 +748,10 @@ plot.competing.risk(wihs.obj)
 cif <- wihs.obj$cif
 Time <- wihs.obj$time.interest
 idu <- wihs$idu
-cif.haart <- cbind(apply(cif[,,1][idu == 0,], 2, mean), apply(cif[,,1][idu == 1,], 2, mean))
-cif.aids  <- cbind(apply(cif[,,2][idu == 0,], 2, mean), apply(cif[,,2][idu == 1,], 2, mean))
+cif.haart <- cbind(apply(cif[,,1][idu == 0,], 2, mean),
+                   apply(cif[,,1][idu == 1,], 2, mean))
+cif.aids  <- cbind(apply(cif[,,2][idu == 0,], 2, mean),
+                   apply(cif[,,2][idu == 1,], 2, mean))
 matplot(Time, cbind(cif.haart, cif.aids), type = "l",
         lty = c(1,2,1,2), col = c(4, 4, 2, 2), lwd = 3,
         ylab = "Cumulative Incidence")

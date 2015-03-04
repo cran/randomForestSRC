@@ -8,8 +8,8 @@
 \usage{\method{find.interaction}{rfsrc}(object, xvar.names, cause,
   importance = c("permute", "random", "permute.ensemble", "random.ensemble"),
   method = c("maxsubtree", "vimp"), sorted = TRUE, nvar, nrep = 1, subset, 
-  na.action = c("na.omit", "na.impute", "na.random"), seed = NULL, do.trace = FALSE,
-  verbose = TRUE, ...)
+  na.action = c("na.omit", "na.impute", "na.random"),
+  seed = NULL, do.trace = FALSE, verbose = TRUE, ...)
 }
 \arguments{
     \item{object}{An object of class \code{(rfsrc, grow)} or
@@ -107,7 +107,7 @@
   \command{\link{vimp}}
 }
 \examples{
-\donttest{
+\dontrun{
 ## ------------------------------------------------------------
 ## find interactions, survival setting
 ## ------------------------------------------------------------

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.0
+####  Version 1.6.1
 ####
 ####  Copyright 2012, University of Miami
 ####
@@ -145,7 +145,7 @@ generic.predict.rfsrc <-
       stop("this function only works with objects created with this version of the package")
   }
   else {
-      if (object$version != "1.6.0") {
+      if (object$version != "1.6.1") {
           stop("this function only works with objects created with this version of the package")
       }
   }

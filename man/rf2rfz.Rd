@@ -59,7 +59,7 @@ rf2rfz(object, forestName = NULL, ...)
   \command{\link{rfsrc}}
 }
 \examples{
-\donttest{
+\dontrun{
 # Example 1:  Growing a forest, saving it as a \emph{.rfz} file ready
 # for import into the Java plugin.
 

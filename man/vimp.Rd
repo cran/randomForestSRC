@@ -7,8 +7,10 @@
   variables for training or test data.
 }
 \usage{\method{vimp}{rfsrc}(object, xvar.names,
-  importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-  joint = FALSE, newdata, subset, na.action = c("na.omit", "na.impute", "na.random"),
+  importance = c("permute", "random", "permute.ensemble",
+                 "random.ensemble", "none"),
+  joint = FALSE, newdata, subset,
+  na.action = c("na.omit", "na.impute", "na.random"),
   seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
@@ -67,7 +69,7 @@
   \command{\link{rfsrc}}
 }
 \examples{
-\donttest{
+\dontrun{
 ## ------------------------------------------------------------
 ## classification example
 ## showcase different vimp

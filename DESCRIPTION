@@ -1,16 +1,16 @@
 Package: randomForestSRC
-Version: 1.6.0
-Date: 2015-01-05
+Version: 1.6.1
+Date: 2015-03-04
 Title: Random Forests for Survival, Regression and Classification
         (RF-SRC)
 Author: Hemant Ishwaran <hemant.ishwaran@gmail.com>, Udaya B. Kogalur <ubk@kogalur.com>
 Maintainer: Udaya B. Kogalur <ubk@kogalur.com>
 Depends: R (>= 3.1.0), parallel
-Suggests: glmnet, XML, survival, pec, Hmisc, mlbench
+Suggests: glmnet, XML, survival, pec, prodlim, Hmisc, mlbench
 Description: A unified treatment of Breiman's random forests for survival, regression and classification problems based on Ishwaran and Kogalur's random survival forests (RSF) package.  The package runs in both serial and parallel (OpenMP) modes. 
 License: GPL (>= 3)
 URL: http://web.ccs.miami.edu/~hishwaran http://www.kogalur.com
-Packaged: 2015-01-05 14:11:58 UTC; kogalur
 NeedsCompilation: yes
+Packaged: 2015-03-04 19:33:31 UTC; kogalur
 Repository: CRAN
-Date/Publication: 2015-01-12 23:15:25
+Date/Publication: 2015-03-04 21:35:14

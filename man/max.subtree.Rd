@@ -117,7 +117,7 @@
   \command{\link{vimp}}
 }
 \examples{
-\donttest{
+\dontrun{
 ## ------------------------------------------------------------
 ## survival analysis
 ## first and second order depths for all variables

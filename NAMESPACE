@@ -30,4 +30,12 @@ export(find.interaction.rfsrc,
 S3method(print, rfsrc)
 S3method(plot, rfsrc)
 S3method(predict, rfsrc)
+S3method(max, subtree)
+S3method(max, subtree.rfsrc)
+S3method(plot, competing.risk)
+S3method(plot, competing.risk.rfsrc)
+S3method(plot, variable)
+S3method(plot, variable.rfsrc)
+S3method(plot, survival)
+S3method(plot, survival.rfsrc)
 

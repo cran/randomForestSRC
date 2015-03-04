@@ -6,7 +6,8 @@
   missing data.  No ensemble estimates or error rates are calculated.
 }
 \usage{\method{impute}{rfsrc}(formula, data, ntree = 250, mtry = NULL,
-  nodesize = 1, splitrule = NULL, nsplit = 1, na.action = c("na.impute", "na.random"),
+  nodesize = 1, splitrule = NULL, nsplit = 1,
+  na.action = c("na.impute", "na.random"),
   nimpute = 1, 
   xvar.wt = NULL, 
   do.trace = FALSE, ...)
@@ -85,7 +86,7 @@
   \command{\link{rfsrc}}
 }
 \examples{
-\donttest{
+\dontrun{
 ## ------------------------------------------------------------
 ## example of survival imputation
 ## ------------------------------------------------------------

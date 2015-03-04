@@ -6,7 +6,8 @@
     Plot various survival estimates.
   }
 \usage{\method{plot.survival}{rfsrc}(x, plots.one.page = TRUE, show.plots = TRUE,
-  subset, collapse = FALSE, haz.model = c("spline", "ggamma", "nonpar", "none"),
+  subset, collapse = FALSE,
+  haz.model = c("spline", "ggamma", "nonpar", "none"),
   k = 25, span = "cv", cens.model = c("km", "rfsrc"), ...)
 }
 \arguments{
@@ -134,7 +135,7 @@
   \command{\link{rfsrc}}
 }
 \examples{
-\donttest{
+\dontrun{
 ## veteran data
 data(veteran, package = "randomForestSRC") 
 plot.survival(rfsrc(Surv(time, status)~ ., veteran), cens.model = "rfsrc")

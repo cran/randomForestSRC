@@ -6,7 +6,8 @@
     Variable selection using minimal depth.
 }
 \usage{\method{var.select}{rfsrc}(formula, data, object, cause,
-  method = c("md", "vh", "vh.vimp"), conservative = c("medium", "low", "high"),
+  method = c("md", "vh", "vh.vimp"),
+  conservative = c("medium", "low", "high"),
   ntree = (if (method == "md") 1000 else 500),
   mvars = (if (method != "md") ceiling(ncol(data)/5) else NULL),
   mtry = (if (method == "md") ceiling(ncol(data)/3) else NULL),
@@ -15,7 +16,8 @@
   na.action = c("na.omit", "na.impute", "na.random"), 
   always.use = NULL, nrep = 50, K = 5, nstep = 1,
   prefit =  list(action = (method != "md"), ntree = 100,
-  mtry = 500, nodesize = 3, nsplit = 1), do.trace = 0, verbose = TRUE, ...)
+  mtry = 500, nodesize = 3, nsplit = 1),
+  do.trace = 0, verbose = TRUE, ...)
 }
 \arguments{
    \item{formula}{A symbolic description of the model to be fit. 
@@ -207,7 +209,7 @@
   \command{\link{vimp}}
 }
 \examples{
-\donttest{
+\dontrun{
 ## ------------------------------------------------------------
 ## Minimal depth variable selection
 ## survival analysis

@@ -6,9 +6,11 @@
    values if the test data contains y-outcomes.
 }
 \usage{\method{predict}{rfsrc}(object, newdata,
-  importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-  na.action = c("na.omit", "na.impute", "na.random"), outcome = c("train", "test"),
-  proximity = FALSE,  var.used = c(FALSE, "all.trees", "by.tree"),
+  importance = c("permute", "random", "permute.ensemble",
+                 "random.ensemble", "none"),
+  na.action = c("na.omit", "na.impute", "na.random"),
+  outcome = c("train", "test"), proximity = FALSE, 
+  var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
   do.trace = FALSE, membership = TRUE, statistics = FALSE, 
   ...)
@@ -194,7 +196,7 @@ veteran.pred <- predict(veteran.grow, veteran[-train , ])
 print(veteran.grow)
 print(veteran.pred)
 
-\donttest{
+\dontrun{
 ## ------------------------------------------------------------
 ## predicted probability and predicted class labels are returned
 ## in the predict object for classification analyses
