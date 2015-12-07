@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -61,15 +61,15 @@
 
 
 max.subtree.rfsrc <- function(object,
-                        max.order = 2,
-                        sub.order = FALSE,
-                        conservative = FALSE,
-                        ...)
+                              max.order = 2,
+                              sub.order = FALSE,
+                              conservative = FALSE,
+                              ...)
 {
   if (is.null(object)) stop("Object is empty!")
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
       sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2)
-  stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'")
+    stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'")
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
     if (is.null(object$forest)) 
       stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
@@ -100,17 +100,17 @@ max.subtree.rfsrc <- function(object,
   subtree.obj <- mclapply(1:numTree, function(b) {
     subtree <- vector("list", 8)
     names(subtree) <- c("count",
-                      "order",
-                      "meanSum",
-                      "depth",
-                      "terminalDepthSum",
-                      "subOrder",
-                      "subOrderDiag",
-                      "nodesAtDepth")
+                        "order",
+                        "meanSum",
+                        "depth",
+                        "terminalDepthSum",
+                        "subOrder",
+                        "subOrderDiag",
+                        "nodesAtDepth")
     recursiveObject <- list(offset = min(which(nativeArray$treeID == b)),
-                          subtree = subtree,
-                          diagnostic = 0,
-                          diagnostic2 = 0)
+                            subtree = subtree,
+                            diagnostic = 0,
+                            diagnostic2 = 0)
     recursiveObject$subtree$nodesAtDepth <- rep(NA, MAX.DEPTH)
     recursiveObject$subtree$meanSum <- rep(NA, numParm)
     recursiveObject$subtree$order <- matrix(NA, nrow=numParm, ncol=max(max.order, 1))
@@ -149,16 +149,16 @@ max.subtree.rfsrc <- function(object,
         diag(recursiveObject$subtree$subOrder) <-  diag(recursiveObject$subtree$subOrder) / recursiveObject$subtree$depth
         subOrderSum <- recursiveObject$subtree$subOrder
       }
-      else {
-        subOrderSum <- NULL
-      }
+        else {
+          subOrderSum <- NULL
+        }
       nodesAtDepthMatrix <- recursiveObject$subtree$nodesAtDepth
     }
-    else {
-      stumpCnt <- 1
-      forestMeanSum <- orderTree <- subtreeCountSum <-
-        terminalDepth <- subOrderSum <- nodesAtDepthMatrix <- NULL
-    }
+      else {
+        stumpCnt <- 1
+        forestMeanSum <- orderTree <- subtreeCountSum <-
+          terminalDepth <- subOrderSum <- nodesAtDepthMatrix <- NULL
+      }
     return(list(forestMeanSum = forestMeanSum,
                 orderTree = orderTree,
                 subtreeCountSum = subtreeCountSum,
@@ -185,9 +185,9 @@ max.subtree.rfsrc <- function(object,
         orderSum   <- orderSum + local.obj$orderTree
         order.tree[ , b] <- local.obj$orderTree[, 1]
       }
-      else {
-        order.tree[ , b] <- local.obj$orderTree
-      }
+        else {
+          order.tree[ , b] <- local.obj$orderTree
+        }
       subtreeCountSum <- subtreeCountSum + local.obj$subtreeCountSum
       terminalDepth[b] <- local.obj$terminalDepth
       if (sub.order == TRUE) {
@@ -195,9 +195,9 @@ max.subtree.rfsrc <- function(object,
       }
       nodesAtDepthMatrix[, b] <- local.obj$nodesAtDepthMatrix
     }
-    else {
-      stumpCnt <- stumpCnt + 1
-    }
+      else {
+        stumpCnt <- stumpCnt + 1
+      }
   }
   nameVector <- c("mean",
                   "order",
@@ -222,10 +222,10 @@ max.subtree.rfsrc <- function(object,
       result$order <- orderSum / (numTree - stumpCnt)
       rownames(result$order) <- xvar.names
     }
-    else {
-      result$order <- minDepthVarTree
-      rownames(result$order) <- xvar.names
-    }
+      else {
+        result$order <- minDepthVarTree
+        rownames(result$order) <- xvar.names
+      }
     result$count <- subtreeCountSum / (numTree - stumpCnt)
     names(result$count) <- xvar.names
     result$nodes.at.depth <- nodesAtDepthMatrix
@@ -244,31 +244,31 @@ max.subtree.rfsrc <- function(object,
       result$second.order.threshold <- parseDepthOrderObj$second.order.moment
     }
   }
-  else {
-    parseDepthOrderObj <- parseDepthOrder(result, 0)
-    if (!is.null(parseDepthOrderObj)) {
-      threshold.con <- parseDepthOrder(result, 1)$first.moment
-      threshold.lib <- mean(parseDepthOrderObj$first.moment, na.rm = TRUE)
-      result$threshold <- ifelse(threshold.lib - 0.5 > threshold.con, threshold.lib - 0.5, threshold.lib)
-      result$threshold.1se <- result$threshold + mean(parseDepthOrderObj$sd, na.rm = TRUE) / sqrt(numSamp)    
-      result$density <- apply(parseDepthOrderObj$prob, 1, mean, na.rm = TRUE)
-      result$second.order.threshold <- mean(parseDepthOrderObj$second.order.moment, na.rm = TRUE)
+    else {
+      parseDepthOrderObj <- parseDepthOrder(result, 0)
+      if (!is.null(parseDepthOrderObj)) {
+        threshold.con <- parseDepthOrder(result, 1)$first.moment
+        threshold.lib <- mean(parseDepthOrderObj$first.moment, na.rm = TRUE)
+        result$threshold <- ifelse(threshold.lib - 0.5 > threshold.con, threshold.lib - 0.5, threshold.lib)
+        result$threshold.1se <- result$threshold + mean(parseDepthOrderObj$sd, na.rm = TRUE) / sqrt(numSamp)    
+        result$density <- apply(parseDepthOrderObj$prob, 1, mean, na.rm = TRUE)
+        result$second.order.threshold <- mean(parseDepthOrderObj$second.order.moment, na.rm = TRUE)
+      }
     }
-  }
   if (!is.null(result$density)) {
     names(result$density) <- paste(0:(length(result$density) - 1))
   }
   if (max.order > 0) {
     minDepthVar <- result$order[, 1]
   }
-  else {
-    if (!is.null(result$order)) {
-      minDepthVar <- apply(minDepthVarTree, 1, mean, na.rm = TRUE)
-    }
     else {
-      minDepthVar <- NULL
+      if (!is.null(result$order)) {
+        minDepthVar <- apply(minDepthVarTree, 1, mean, na.rm = TRUE)
+      }
+        else {
+          minDepthVar <- NULL
+        }
     }
-  }
   top.pt <- minDepthVar <= result$threshold
   top.pt[is.na(top.pt)] <- FALSE
   if (sum(top.pt) > 0) {
@@ -284,23 +284,23 @@ max.subtree.rfsrc <- function(object,
     if (conservative == TRUE) {
       result$percentile <- cdf[pmax(round(minDepthVar), 1)]      
     }
-    else {
-      result$percentile <- apply(rbind(sapply(1:ncol(minDepthVarTree), function(b) {
-        cdf[pmax(minDepthVarTree[, b], 1)]
-      })), 1, mean, na.rm = TRUE)
-    }
+      else {
+        result$percentile <- apply(rbind(sapply(1:ncol(minDepthVarTree), function(b) {
+          cdf[pmax(minDepthVarTree[, b], 1)]
+        })), 1, mean, na.rm = TRUE)
+      }
     names(result$percentile) <- xvar.names
   }
   result$terminal <- result$mean <- NULL
   invisible(result)
 }
 rfsrcParseTree <- function(recursiveObject,
-                         max.order,
-                         sub.order,
-                         nativeArray,
-                         b,
-                         distance,
-                         subtreeFlag) {
+                           max.order,
+                           sub.order,
+                           nativeArray,
+                           b,
+                           distance,
+                           subtreeFlag) {
   recursiveObject$diagnostic <- recursiveObject$diagnostic + 1
   if(b != nativeArray$treeID[recursiveObject$offset]) {
     stop("Invalid nativeArray input record (treeID) at ", recursiveObject$offset, ".  Please contact Technical Support.")
@@ -310,27 +310,27 @@ rfsrcParseTree <- function(recursiveObject,
       if (is.na(recursiveObject$subtree$nodesAtDepth[distance])) {
         recursiveObject$subtree$nodesAtDepth[distance] <- 1
       }
-      else {
-        recursiveObject$subtree$nodesAtDepth[distance] <- recursiveObject$subtree$nodesAtDepth[distance] + 1
-      }
+        else {
+          recursiveObject$subtree$nodesAtDepth[distance] <- recursiveObject$subtree$nodesAtDepth[distance] + 1
+        }
     }
   }
   splitParameter <- nativeArray$parmID[recursiveObject$offset]
   if (splitParameter == 0) {
     terminalFlag <- TRUE
   }
-  else if (splitParameter != 0) {
-    terminalFlag <- FALSE
-  }
+    else if (splitParameter != 0) {
+      terminalFlag <- FALSE
+    }
   if (!terminalFlag) {
     if (subtreeFlag[splitParameter] == FALSE) {
       recursiveObject$subtree$count[splitParameter] <- recursiveObject$subtree$count[splitParameter] + 1
       if (is.na(recursiveObject$subtree$meanSum[splitParameter])) {
         recursiveObject$subtree$meanSum[splitParameter] <- distance
       }
-      else {
-        recursiveObject$subtree$meanSum[splitParameter] <- recursiveObject$subtree$meanSum[splitParameter] + distance
-      }
+        else {
+          recursiveObject$subtree$meanSum[splitParameter] <- recursiveObject$subtree$meanSum[splitParameter] + distance
+        }
       if (max.order > 0) {
         orderVector <- c(recursiveObject$subtree$order[splitParameter, ], distance, NA)
         index <- which.max(is.na(orderVector))
@@ -339,38 +339,38 @@ rfsrcParseTree <- function(recursiveObject,
         if (index <= max.order) {
           orderVector <- c(sortedVector, rep(NA, max.order-index))
         }
-        else {
-          orderVector <- sortedVector[1:max.order]
-        }
+          else {
+            orderVector <- sortedVector[1:max.order]
+          }
         recursiveObject$subtree$order[splitParameter, ] <- orderVector
       }
-      else {
-        if (is.na(recursiveObject$subtree$order[splitParameter])) {
-          recursiveObject$subtree$order[splitParameter] <- distance
-        }
         else {
-          recursiveObject$subtree$order[splitParameter] <- min(recursiveObject$order[splitParameter], distance, na.rm = TRUE)
+          if (is.na(recursiveObject$subtree$order[splitParameter])) {
+            recursiveObject$subtree$order[splitParameter] <- distance
+          }
+            else {
+              recursiveObject$subtree$order[splitParameter] <- min(recursiveObject$order[splitParameter], distance, na.rm = TRUE)
+            }
         }
-      }
       subtreeFlag[splitParameter] <- TRUE
       if (sub.order == TRUE) {
         if (is.na(recursiveObject$subtree$subOrderDiag[splitParameter])) {
           recursiveObject$subtree$subOrderDiag[splitParameter] <- distance
         }
-        else {
-          recursiveObject$subtree$subOrderDiag[splitParameter] <- min(recursiveObject$subtree$subOrderDiag[splitParameter], distance, na.rm = TRUE)
-        }
+          else {
+            recursiveObject$subtree$subOrderDiag[splitParameter] <- min(recursiveObject$subtree$subOrderDiag[splitParameter], distance, na.rm = TRUE)
+          }
         recursive2Object <- list(offset = recursiveObject$offset,
-          depth = 0,
-          minimumVector = rep(NA, dim(recursiveObject$subtree$subOrder)[2]),
-          diagnostic = recursiveObject$diagnostic2)
+                                 depth = 0,
+                                 minimumVector = rep(NA, dim(recursiveObject$subtree$subOrder)[2]),
+                                 diagnostic = recursiveObject$diagnostic2)
         subtree2Flag <- rep(FALSE, dim(recursiveObject$subtree$subOrder)[2])        
         subtree2Flag[splitParameter] <- TRUE
         recursive2Object <- rfsrcParse2Tree(recursive2Object,
-          nativeArray,
-          b,
-          distance=0,
-          subtreeFlag=subtree2Flag)
+                                            nativeArray,
+                                            b,
+                                            distance=0,
+                                            subtreeFlag=subtree2Flag)
         recursiveObject$diagnostic2 <- recursiveObject$diagnostic2 + recursive2Object$diagnostic
         recursive2Object$minimumVector[splitParameter] <- recursive2Object$depth
         recursive2Object$minimumVector[which(is.na(recursive2Object$minimumVector))] <- recursive2Object$depth
@@ -379,9 +379,9 @@ rfsrcParseTree <- function(recursiveObject,
       }  
     }  
   }  
-  else if (distance > 0) {
-    recursiveObject$subtree$nodesAtDepth[distance] <- recursiveObject$subtree$nodesAtDepth[distance] - 1
-  }
+    else if (distance > 0) {
+      recursiveObject$subtree$nodesAtDepth[distance] <- recursiveObject$subtree$nodesAtDepth[distance] - 1
+    }
   recursiveObject$subtree$depth <- max(recursiveObject$subtree$depth, distance)
   recursiveObject$offset <- recursiveObject$offset + 1
   if (terminalFlag == FALSE) {
@@ -389,16 +389,16 @@ rfsrcParseTree <- function(recursiveObject,
     recursiveObject <- rfsrcParseTree(recursiveObject, max.order, sub.order, nativeArray, b, distance, subtreeFlag)
     recursiveObject <- rfsrcParseTree(recursiveObject, max.order, sub.order, nativeArray, b, distance, subtreeFlag)
   }
-  else {
-    recursiveObject$subtree$terminalDepthSum <- recursiveObject$subtree$terminalDepthSum + distance
-  }
+    else {
+      recursiveObject$subtree$terminalDepthSum <- recursiveObject$subtree$terminalDepthSum + distance
+    }
   return(recursiveObject)
 }
 rfsrcParse2Tree <- function(recursiveObject,
-                          nativeArray,
-                          b,
-                          distance,
-                          subtreeFlag) {
+                            nativeArray,
+                            b,
+                            distance,
+                            subtreeFlag) {
   recursiveObject$diagnostic = recursiveObject$diagnostic + 1
   if(b != nativeArray$treeID[recursiveObject$offset]) {
     stop("Invalid nativeArray input record (treeID) at ", recursiveObject$offset, ".  Please contact Technical Support.")
@@ -407,17 +407,17 @@ rfsrcParse2Tree <- function(recursiveObject,
   if (splitParameter == 0) {
     terminalFlag = TRUE
   }
-  else if (splitParameter != 0) {
-    terminalFlag = FALSE
-  }
+    else if (splitParameter != 0) {
+      terminalFlag = FALSE
+    }
   if (splitParameter != 0) {
     if (subtreeFlag[splitParameter] == FALSE) {
       if (is.na(recursiveObject$minimumVector[splitParameter])) {
         recursiveObject$minimumVector[splitParameter] = distance
       }
-      else {
-        recursiveObject$minimumVector[splitParameter] = min(recursiveObject$minimumVector[splitParameter], distance, na.rm = TRUE)
-      }
+        else {
+          recursiveObject$minimumVector[splitParameter] = min(recursiveObject$minimumVector[splitParameter], distance, na.rm = TRUE)
+        }
       subtreeFlag[splitParameter] = TRUE
     }
   }
@@ -430,112 +430,112 @@ rfsrcParse2Tree <- function(recursiveObject,
   }
   return(recursiveObject)
 }
-  minDepthProb <- function(p, D, l) {
-    if (!is.null(l)) Ld <- 0
-    prob <- rep(0, D+1)
-    nullObj <- sapply(0:(D-1), function(d) {
-      if (is.null(l)) {
-        Ld <- 2^d-1
-        ld <- 2^d
-      }
-      else{
-       ld <- l[d+1]
-       if (d > 0) Ld <- Ld + l[d] 
-      }
-      prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      prob[d+1] <<- exp(prob.1) * (1 - exp(prob.2))
-      NULL
-    })
-    prob[D+1] <- 1 - sum(prob[1:D])
-    if (prob[D+1] < 0) {
-      prob[D+1] <- 0
-      prob <- prob / sum(prob)
-    }
-    prob
-  }
-  secondOrderDepthProb <- function(p, D, l) {
-    md.prob <- rep(0, D+1)
-    Ld <- 0
+minDepthProb <- function(p, D, l) {
+  if (!is.null(l)) Ld <- 0
+  prob <- rep(0, D+1)
+  nullObj <- sapply(0:(D-1), function(d) {
     if (is.null(l)) {
-      l <- sapply(0:(D-1), function(d) 2^d)
+      Ld <- 2^d-1
+      ld <- 2^d
     }
-    nullObj <- sapply(0:(D-1), function(d) {
-      ld <- l[d+1]
-      if (d > 0) Ld <- Ld + l[d] 
-      md.prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      md.prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
-      md.prob[d+1] <<- exp(md.prob.1) * (1 - exp(md.prob.2))
+      else{
+        ld <- l[d+1]
+        if (d > 0) Ld <- Ld + l[d] 
+      }
+    prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
+    prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
+    prob[d+1] <<- exp(prob.1) * (1 - exp(prob.2))
+    NULL
+  })
+  prob[D+1] <- 1 - sum(prob[1:D])
+  if (prob[D+1] < 0) {
+    prob[D+1] <- 0
+    prob <- prob / sum(prob)
+  }
+  prob
+}
+secondOrderDepthProb <- function(p, D, l) {
+  md.prob <- rep(0, D+1)
+  Ld <- 0
+  if (is.null(l)) {
+    l <- sapply(0:(D-1), function(d) 2^d)
+  }
+  nullObj <- sapply(0:(D-1), function(d) {
+    ld <- l[d+1]
+    if (d > 0) Ld <- Ld + l[d] 
+    md.prob.1 <- Ld * ifelse(p > 1, log(1 - 1 / p), 0)
+    md.prob.2 <- ld * ifelse(p > 1, log(1 - 1 / p), 0)
+    md.prob[d+1] <<- exp(md.prob.1) * (1 - exp(md.prob.2))
+    NULL
+  })
+  md.prob[D+1] <- 1 - sum(md.prob[1:D])
+  if (md.prob[D+1] < 0) {
+    md.prob[D+1] <- 0
+    md.prob <- md.prob / sum(md.prob)
+  }
+  prob <- rep(0, D+1)
+  if (D >= 2) {
+    nullObj <- sapply(1:(D-1), function(d) {
+      prob.d <- l[1:d] * ifelse(p > 1, log(1 - 1 / p), 0)
+      prob[d+1] <<- md.prob[d+1] * sum(exp(-prob.d) - 1)
       NULL
     })
-    md.prob[D+1] <- 1 - sum(md.prob[1:D])
-    if (md.prob[D+1] < 0) {
-      md.prob[D+1] <- 0
-      md.prob <- md.prob / sum(md.prob)
-    }
-    prob <- rep(0, D+1)
-    if (D >= 2) {
-      nullObj <- sapply(1:(D-1), function(d) {
-        prob.d <- l[1:d] * ifelse(p > 1, log(1 - 1 / p), 0)
-        prob[d+1] <<- md.prob[d+1] * sum(exp(-prob.d) - 1)
-        NULL
-      })
-    }
-    prob[D+1] <- 1 - sum(prob[1:D])
-    if (prob[D+1] < 0) {
-      prob[D+1] <- 0
-      prob <- prob/sum(prob)
-    }
-    prob
   }
-  minDepthStat <- function(p, D=NULL, l=NULL) {
-    if (is.null(D) & is.null(l)) stop("set D or l")
-    if (!is.null(l)) {
-      D <- length(l)
-    }
-    D.support <- c(0:D)
-    prob <- minDepthProb(p, D=D, l=l)
-    prob.robust <- prob
-    prob.robust[length(prob)] <- 0
-    prob.robust <- prob.robust / sum(prob.robust, na.rm = TRUE) 
-    first.moment <- sum(D.support * prob, na.rm = TRUE)
-    second.moment <- sum((D.support^2) * prob, na.rm = TRUE)
-    sd.robust <- sqrt(sum((D.support^2) * prob.robust, na.rm = TRUE)
-                     - (sum(D.support * prob.robust, na.rm = TRUE))^2)
-    return(list(prob = prob, first.moment = first.moment, second.moment = second.moment, sd.robust = sd.robust))
+  prob[D+1] <- 1 - sum(prob[1:D])
+  if (prob[D+1] < 0) {
+    prob[D+1] <- 0
+    prob <- prob/sum(prob)
   }
-  secondOrderDepthStat <- function(p, D=NULL, l=NULL) {
-    if (is.null(D) & is.null(l)) stop("set D or l")
-    if (!is.null(l)) {
-      D <- length(l)
-    }
-    D.support <- c(0:D)
-    prob <- secondOrderDepthProb(p, D=D, l=l)
-    sum(D.support * prob, na.rm = TRUE)
+  prob
+}
+minDepthStat <- function(p, D=NULL, l=NULL) {
+  if (is.null(D) & is.null(l)) stop("set D or l")
+  if (!is.null(l)) {
+    D <- length(l)
   }
-  parseDepthOrder <- function(v, max.order) {
-    if (is.null(v$mean) & max.order > 0) {
-      return(NULL)
-    }
-    if (is.null(v$order) & max.order == 0) {
-      return(NULL)
-    }
-    nodes.at.depth <- rbind(1, v$nodes.at.depth)
-    treeHeight <- apply(nodes.at.depth, 2, function(l) {sum(!is.na(l))})
-    avgTreeHeight <- mean(treeHeight, na.rm=TRUE)
-    maxTreeHeight <- max(treeHeight, na.rm=TRUE)
-    ntree <- length(v$terminal)
-    if (max.order > 0) {
-      p <- length(v$mean)
-      nodes.at.depth.avg <- apply(nodes.at.depth, 1, mean, na.rm = TRUE)
-      l <- nodes.at.depth.avg[1:max(avgTreeHeight - 1, 1)]
-      minDepthStatObj <- minDepthStat(p, l = l)
-      first.moment <- minDepthStatObj$first.moment
-      second.moment <- minDepthStatObj$second.moment
-      sd.robust <- minDepthStatObj$sd.robust
-      prob <- minDepthStatObj$prob
-      second.order.moment <- secondOrderDepthStat(p, l = l)
-    }
+  D.support <- c(0:D)
+  prob <- minDepthProb(p, D=D, l=l)
+  prob.robust <- prob
+  prob.robust[length(prob)] <- 0
+  prob.robust <- prob.robust / sum(prob.robust, na.rm = TRUE) 
+  first.moment <- sum(D.support * prob, na.rm = TRUE)
+  second.moment <- sum((D.support^2) * prob, na.rm = TRUE)
+  sd.robust <- sqrt(sum((D.support^2) * prob.robust, na.rm = TRUE)
+                    - (sum(D.support * prob.robust, na.rm = TRUE))^2)
+  return(list(prob = prob, first.moment = first.moment, second.moment = second.moment, sd.robust = sd.robust))
+}
+secondOrderDepthStat <- function(p, D=NULL, l=NULL) {
+  if (is.null(D) & is.null(l)) stop("set D or l")
+  if (!is.null(l)) {
+    D <- length(l)
+  }
+  D.support <- c(0:D)
+  prob <- secondOrderDepthProb(p, D=D, l=l)
+  sum(D.support * prob, na.rm = TRUE)
+}
+parseDepthOrder <- function(v, max.order) {
+  if (is.null(v$mean) & max.order > 0) {
+    return(NULL)
+  }
+  if (is.null(v$order) & max.order == 0) {
+    return(NULL)
+  }
+  nodes.at.depth <- rbind(1, v$nodes.at.depth)
+  treeHeight <- apply(nodes.at.depth, 2, function(l) {sum(!is.na(l))})
+  avgTreeHeight <- mean(treeHeight, na.rm=TRUE)
+  maxTreeHeight <- max(treeHeight, na.rm=TRUE)
+  ntree <- length(v$terminal)
+  if (max.order > 0) {
+    p <- length(v$mean)
+    nodes.at.depth.avg <- apply(nodes.at.depth, 1, mean, na.rm = TRUE)
+    l <- nodes.at.depth.avg[1:max(avgTreeHeight - 1, 1)]
+    minDepthStatObj <- minDepthStat(p, l = l)
+    first.moment <- minDepthStatObj$first.moment
+    second.moment <- minDepthStatObj$second.moment
+    sd.robust <- minDepthStatObj$sd.robust
+    prob <- minDepthStatObj$prob
+    second.order.moment <- secondOrderDepthStat(p, l = l)
+  }
     else {
       p <- nrow(v$order)
       prob <- sapply(1:ntree, function(tree) {
@@ -559,10 +559,10 @@ rfsrcParse2Tree <- function(recursiveObject,
         secondOrderDepthStat(p, l = l)
       }))
     }
-    return(list(prob = prob,
-                first.moment = first.moment,
-                sd = sqrt(second.moment - first.moment^2),
-                sd.robust = sd.robust,
-                second.order.moment = second.order.moment))
-  }   
+  return(list(prob = prob,
+              first.moment = first.moment,
+              sd = sqrt(second.moment - first.moment^2),
+              sd.robust = sd.robust,
+              second.order.moment = second.order.moment))
+}   
 max.subtree <- max.subtree.rfsrc

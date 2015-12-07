@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -71,17 +71,17 @@ stat.split.rfsrc <- function(object, ...)
     stop("This function only works for objects of class `(rfsrc, grow)' or `(rfsrc, pred)',")
   inbag <- object$inbag
   if (is.null(object$node.stats)) {    
-    stop("RFSRC statistics content is NULL.  Please re-run grow call with 'statistics=TRUE'")
+    stop("RF-SRC statistics content is NULL.  Please re-run grow call with 'statistics=TRUE'")
   }
-  else {
-    extendedNativeArray <- object$node.stats
-  }
+    else {
+      extendedNativeArray <- object$node.stats
+    }
   if (is.null(object$ptn.membership)) {
     prune <- FALSE
   }
-  else {
-    prune <- TRUE
-  }
+    else {
+      prune <- TRUE
+    }
   if (is.null(object$forest)) {
     stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'.")
   }
@@ -140,9 +140,9 @@ spParseTree <- function(recursiveObject, extendedNativeArray, xvar,
   if (parmID == 0) {
     recursiveObject$terminal <- TRUE    
   }
-  else {
-    recursiveObject$terminal <- FALSE
-  }
+    else {
+      recursiveObject$terminal <- FALSE
+    }
   if (prune) {
     if (ptnFlag == FALSE) {
       if (spltST == 1) {
@@ -167,9 +167,9 @@ spParseTree <- function(recursiveObject, extendedNativeArray, xvar,
       recursiveObject$splitInfo[[parmID]] <- rbind(recursiveObject$splitInfo[[parmID]], localInfo, deparse.level = 0)
       colnames(recursiveObject$splitInfo[[parmID]]) <- c("treeID", "nodeID", "parmID", "contPT", "mwcpSZ", "dpthID",  "spltTY", "spltEC", "spltST")  
     }
-    else {
-      recursiveObject$splitInfo[[parmID]] <- rbind(recursiveObject$splitInfo[[parmID]], localInfo, deparse.level = 0)
-    }
+      else {
+        recursiveObject$splitInfo[[parmID]] <- rbind(recursiveObject$splitInfo[[parmID]], localInfo, deparse.level = 0)
+      }
     col.idx <-  which(colnames(recursiveObject$splitInfo[[parmID]]) == "spltTY")    
     row.idx <-  dim(recursiveObject$splitInfo[[parmID]])[1]
   }

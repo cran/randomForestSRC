@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -61,14 +61,14 @@
 
 
 .onAttach <- function(libname, pkgname) {
-    rfsrc.version <- read.dcf(file=system.file("DESCRIPTION", package=pkgname), 
-                      fields="Version")
-    packageStartupMessage(paste("\n",
-                                pkgname,
-                                rfsrc.version,
-                                "\n",
-                                "\n",
-                                "Type rfsrc.news() to see new features, changes, and bug fixes.",
-                                "\n",
-                                "\n"))
+  rfsrc.version <- read.dcf(file=system.file("DESCRIPTION", package=pkgname), 
+                            fields="Version")
+  packageStartupMessage(paste("\n",
+                              pkgname,
+                              rfsrc.version,
+                              "\n",
+                              "\n",
+                              "Type rfsrc.news() to see new features, changes, and bug fixes.",
+                              "\n",
+                              "\n"))
 }

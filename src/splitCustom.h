@@ -1,73 +1,108 @@
-////**********************************************************************
-////**********************************************************************
-////
-////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 1.6.1
-////
-////  Copyright 2012, University of Miami
-////
-////  This program is free software; you can redistribute it and/or
-////  modify it under the terms of the GNU General Public License
-////  as published by the Free Software Foundation; either version 2
-////  of the License, or (at your option) any later version.
-////
-////  This program is distributed in the hope that it will be useful,
-////  but WITHOUT ANY WARRANTY; without even the implied warranty of
-////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-////  GNU General Public License for more details.
-////
-////  You should have received a copy of the GNU General Public
-////  License along with this program; if not, write to the Free
-////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-////  Boston, MA  02110-1301, USA.
-////
-////  ----------------------------------------------------------------
-////  Project Partially Funded By: 
-////  ----------------------------------------------------------------
-////  Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-////  National Science Foundation and grant R01 CA163739 from the National
-////  Cancer Institute.
-////
-////  Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-////  National Cancer Institute.
-////  ----------------------------------------------------------------
-////  Written by:
-////  ----------------------------------------------------------------
-////    Hemant Ishwaran, Ph.D.
-////    Director of Statistical Methodology
-////    Professor, Division of Biostatistics
-////    Clinical Research Building, Room 1058
-////    1120 NW 14th Street
-////    University of Miami, Miami FL 33136
-////
-////    email:  hemant.ishwaran@gmail.com
-////    URL:    http://web.ccs.miami.edu/~hishwaran
-////    --------------------------------------------------------------
-////    Udaya B. Kogalur, Ph.D.
-////    Adjunct Staff
-////    Dept of Quantitative Health Sciences
-////    Cleveland Clinic Foundation
-////    
-////    Kogalur & Company, Inc.
-////    5425 Nestleway Drive, Suite L1
-////    Clemmons, NC 27012
-////
-////    email:  commerce@kogalur.com
-////    URL:    http://www.kogalur.com
-////    --------------------------------------------------------------
-////
-////**********************************************************************
-////**********************************************************************
+#ifndef RFSRCSPLITCUST_H
+#define RFSRCSPLITCUST_H
+
+/* 
+   vvvvvvvv External Constants Below -- Do Not Change vvvvvvvv
+*/
+
+#define LEFT      0x01
+#define RIGHT     0x00
+
+#define CLAS_FAM     0
+#define REGR_FAM     1
+#define SURV_FAM     2
+#define CRSK_FAM     3
+
+/* 
+   ^^^^^^^^ External Constants Above -- Do Not Change ^^^^^^^^
+*/
 
 
-#ifndef RSFSPLITCUST_H
-#define RSFSPLITCUST_H
-#include "node.h"
-double getCustomSplitStatistic (uint    n,
-                                char   *membership,
-                                double *time,
-                                double *event,
-                                double *response,
-                                double  mean,
-                                double  variance);
+/* 
+   vvvvvvvv Do Not Touch These Delarations Below vvvvvvvv
+*/
+
+void registerCustomFunctions();
+
+extern void registerThis (void *func, unsigned int family, unsigned int slot);
+
+/* 
+   ^^^^^^^^ Do Not Touch These Delarations Above ^^^^^^^^
+*/
+
+
+
+
+/*
+   Declare your custom funtions below:
+*/
+
+double getCustomSplitStatisticMultivariateRegression (unsigned int  n,
+                                                      char         *membership,
+                                                      double       *time,
+                                                      double       *event,
+
+                                                      unsigned int  eventTypeSize,
+                                                      unsigned int  eventTimeSize,
+                                                      double       *eventTime,
+
+                                                      double       *response,
+                                                      double        mean,
+                                                      double        variance,
+                                                      unsigned int  maxLevel);
+
+double getCustomSplitStatisticMultivariateClassification (unsigned int  n,
+                                                          char         *membership,
+                                                          double       *time,
+                                                          double       *event,
+
+                                                          unsigned int  eventTypeSize,
+                                                          unsigned int  eventTimeSize,
+                                                          double       *eventTime,
+
+                                                          double       *response,
+                                                          double        mean,
+                                                          double        variance,
+                                                          unsigned int  maxLevel);
+
+double getCustomSplitStatisticSurvival (unsigned int  n,
+                                        char         *membership,
+                                        double       *time,
+                                        double       *event,
+
+                                        unsigned int  eventTypeSize,
+                                        unsigned int  eventTimeSize,
+                                        double       *eventTime,
+
+                                        double       *response,
+                                        double        mean,
+                                        double        variance,
+                                        unsigned int  maxLevel);
+
+double getCustomSplitStatisticCompetingRisk (unsigned int  n,
+                                             char         *membership,
+                                             double       *time,
+                                             double       *event,
+
+                                             unsigned int  eventTypeSize,
+                                             unsigned int  eventTimeSize,
+                                             double       *eventTime,
+
+                                             double       *response,
+                                             double        mean,
+                                             double        variance,
+                                             unsigned int  maxLevel);
+
+
+unsigned int *alloc_uivector(unsigned long nh);
+void          dealloc_uivector(unsigned int *v, unsigned long nh);
+
+double       *alloc_dvector(double *v, unsigned long nh);
+void          dealloc_dvector(double *v, unsigned long nh);
+
+unsigned int **alloc_uimatrix(unsigned long n2h, unsigned long nh);
+void          dealloc_uimatrix(unsigned int **v, unsigned long n2h, unsigned long nh);
+
+/* RF_CRAN_BEG */
 #endif
+/* RF_CRAN_END */

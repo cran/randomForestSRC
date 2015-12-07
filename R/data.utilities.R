@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -60,69 +60,95 @@
 ####**********************************************************************
 
 
-adrop <- function(x, d, keepColNames = FALSE) {
+adrop3d.last <- function(x, d, keepColNames = FALSE) {
   if (!is.array(x)) {
     x
   }
-  else {
-    if (d > 1) {
-      x[,,1:d, drop = FALSE]
-    }
     else {
-      if (dim(x)[1] == 1) {
-        rbind(x[,,1, drop = TRUE])
+      if (d > 1) {
+        x[,,1:d, drop = FALSE]
       }
-      else {
-        if (dim(x)[2] == 1) {
-          if (keepColNames) {
-            xnew <- cbind(x[,,1, drop = TRUE])
-            colnames(xnew) <- colnames(x)
-            xnew
-          }
-          else {
-            cbind(x[,,1, drop = TRUE])
-          }
-        }
         else {
-          x[,,1, drop = TRUE]
+          if (dim(x)[1] == 1) {
+            rbind(x[,,1, drop = TRUE])
+          }
+            else {
+              if (dim(x)[2] == 1) {
+                if (keepColNames) {
+                  xnew <- cbind(x[,,1, drop = TRUE])
+                  colnames(xnew) <- colnames(x)
+                  xnew
+                }
+                  else {
+                    cbind(x[,,1, drop = TRUE])
+                  }
+              }
+                else {
+                  x[,,1, drop = TRUE]
+                }
+            }
         }
-      }
     }
+}
+adrop2d.first <- function(x, d, keepColNames = FALSE) {
+  if (!is.array(x)) {
+    x
   }
+    else {
+      if (d > 1) {
+        x[1:d,, drop = FALSE]
+      }
+        else {
+          x[1, , drop = TRUE]
+        }
+    }
+}
+adrop2d.last <- function(x, d, keepColNames = FALSE) {
+  if (!is.array(x)) {
+    x
+  }
+    else {
+      if (d > 1) {
+        x[,1:d, drop = FALSE]
+      }
+        else {
+          x[,1, drop = TRUE]
+        }
+    }
 }
 amatrix <- function(x, d, names) {
   x <- matrix(x, d, dimnames = names)
   if (ncol(x) > 1) {
     x
-   }
-  else {
-    c(x)
   }
+    else {
+      c(x)
+    }
 }
 amatrix.remove.names <- function(x) {
   if (!is.null(dim(x)) && ncol(x) == 1) {
     unlist(c(x), use.names = FALSE)
   }
-  else {
-    x
-  }
+    else {
+      x
+    }
 }
 atmatrix <- function(x, d, names, keep.names = FALSE) {
   x <- t(matrix(x, ncol = d, dimnames = names))
   if (ncol(x) > 1) {
     x
   }
-  else {
-    if (keep.names == FALSE) {
-      c(x)
-    }
     else {
-      x.names <- rownames(x)
-      x <- c(x)
-      names(x) <- x.names
-      x
+      if (keep.names == FALSE) {
+        c(x)
+      }
+        else {
+          x.names <- rownames(x)
+          x <- c(x)
+          names(x) <- x.names
+          x
+        }
     }
-  }
 }
 avector <- function(x, name = FALSE) {
   if (!is.null(dim(x)) && nrow(x) > 1 && ncol(x) == 1) {
@@ -131,18 +157,18 @@ avector <- function(x, name = FALSE) {
     if (name) names(x) <- x.names else names(x) <- NULL
     x
   }
-  else if (!is.null(dim(x)) && nrow(x) == 1 && ncol(x) > 1) {
-    x.names <- colnames(x)
-    x <- unlist(c(x))
-    if (name) names(x) <- x.names else names(x) <- NULL
-    x
-  }
-  else if (!is.null(dim(x)) && nrow(x) == 1 && ncol(x) == 1) {
-    unlist(c(x))
-  }
-  else {
-    x
-  }
+    else if (!is.null(dim(x)) && nrow(x) == 1 && ncol(x) > 1) {
+      x.names <- colnames(x)
+      x <- unlist(c(x))
+      if (name) names(x) <- x.names else names(x) <- NULL
+      x
+    }
+      else if (!is.null(dim(x)) && nrow(x) == 1 && ncol(x) == 1) {
+        unlist(c(x))
+      }
+        else {
+          x
+        }
 }
 available <- function (package, lib.loc = NULL, quietly = TRUE)
 {
@@ -151,9 +177,9 @@ available <- function (package, lib.loc = NULL, quietly = TRUE)
   if (installed) {
     require(package, quietly = TRUE, character.only = TRUE)
   }
-  else {
-    return(invisible(FALSE))
-  }
+    else {
+      return(invisible(FALSE))
+    }
 }
 bayes.rule <- function(prob) {
   levels.class <- colnames(prob)
@@ -161,81 +187,88 @@ bayes.rule <- function(prob) {
     if (!all(is.na(x))) {
       resample(which(x == max(x, na.rm = TRUE)), 1)
     }
-    else {
-      NA
-    }
+      else {
+        NA
+      }
   })], levels = levels.class)
 }
-brier <- function(ytest, pred) {
-  cl <- colnames(pred)
-  mean(sapply(1:length(cl), function(k)
-     {mean((1 * (ytest == cl[k]) - pred[, k]) ^ 2, na.rm = TRUE)}), na.rm = TRUE)
+brier <- function(ytest, prob) {
+  cl <- colnames(prob)
+  J <- length(cl)
+  bs <- rep(NA, J)
+  nullO <- sapply(1:J, function(j) {
+    bs[j] <<- mean((1 * (ytest == cl[j]) - prob[, j]) ^ 2, na.rm = TRUE)
+    NULL
+  })
+  norm.const <- (J / (J - 1))
+  sum(bs * norm.const, na.rm = TRUE)
 }
 cv.folds <- function (n, folds = 10) {
   split(resample(1:n), rep(1:folds, length = n))
 }
 data.matrix <- function(x) {
   as.data.frame(lapply(x, function(xi) {
-     if (is.integer(xi) || is.numeric(xi)) {
-       xi
-     }
-     else if (is.logical(xi) || is.factor(xi)) {
-       as.integer(xi)
-     }
-     else {
-       as.numeric(xi)
-     }
+    if (is.integer(xi) || is.numeric(xi)) {
+      xi
+    }
+      else if (is.logical(xi) || is.factor(xi)) {
+        as.integer(xi)
+      }
+        else {
+          as.numeric(xi)
+        }
   }))
 }
-extract.pred <- function(obj, type, subset, time, which.outcome, oob = FALSE) {
+extract.pred <- function(obj, type, subset, time, outcome.target, which.class, oob = FALSE) {
+  obj <- coerce.multivariate(obj, outcome.target)
   if (oob == FALSE) {
     pred <- obj$predicted
     surv <- obj$survival
     chf <- obj$chf
     cif <- obj$cif
   }
-  else {
-    pred <- obj$predicted.oob
-    surv <- obj$survival.oob
-    chf <- obj$chf.oob
-    cif <- obj$cif.oob
-  }
+    else {
+      pred <- obj$predicted.oob
+      surv <- obj$survival.oob
+      chf <- obj$chf.oob
+      cif <- obj$cif.oob
+    }
   if (obj$family == "surv") {
     n <- length(pred)
     if (missing(subset)) subset <- 1:n
     surv.type <- match.arg(type, c("mort", "rel.freq", "surv"))
     time.idx <-  max(which(obj$time.interest <= time))
     return(switch(surv.type,
-             "mort" = pred[subset],
-             "rel.freq" = pred[subset]/max(n, na.omit(pred)),
-             "surv" =  100 * surv[subset, time.idx]
-    ))
+                  "mort" = pred[subset],
+                  "rel.freq" = pred[subset]/max(n, na.omit(pred)),
+                  "surv" =  100 * surv[subset, time.idx]
+                  ))
   }
-  else if (obj$family == "surv-CR") {
-    n <- length(pred)
-    if (missing(subset)) subset <- 1:n
-    if (missing(which.outcome)) which.outcome <- 1
-    cr.type <- match.arg(type, c("years.lost", "cif", "chf"))
-    time.idx <-  max(which(obj$time.interest <= time))
-    return(switch(cr.type,
-             "years.lost" = pred[subset, which.outcome],
-             "cif" = cif[subset, time.idx, which.outcome],
-             "chf" = chf[subset, time.idx, which.outcome]
-    ))
-  }
-  else if (obj$family == "class" || obj$family == "class+" || (obj$family ==  "mix+" && ncol(pred) > 1)) {
-    class.type <- match.arg(type, c("response", "prob"))
-    if (missing(subset)) subset <- 1:nrow(pred)
-    if (missing(which.outcome)) which.outcome <- 1
-    prob <- pred[subset,, drop = FALSE]
-    return(switch(class.type,
-                  "prob" = prob[, which.outcome],
-                  "response" =  bayes.rule(prob)))
-  }
-  else {
-    if (missing(subset)) subset <- 1:length(pred)
-    return(pred[subset])
-  }
+    else if (obj$family == "surv-CR") {
+      n <- length(pred)
+      if (missing(subset)) subset <- 1:n
+      if (missing(which.class)) which.class <- 1
+      cr.type <- match.arg(type, c("years.lost", "cif", "chf"))
+      time.idx <-  max(which(obj$time.interest <= time))
+      return(switch(cr.type,
+                    "years.lost" = pred[subset, which.class],
+                    "cif" = cif[subset, time.idx, which.class],
+                    "chf" = chf[subset, time.idx, which.class]
+                    ))
+    }
+      else if (obj$family == "class" || obj$family == "class+" || (obj$family ==  "mix+" && ncol(pred) > 1)) {
+        class.type <- match.arg(type, c("response", "prob"))
+        if (missing(subset)) subset <- 1:nrow(pred)
+        if (missing(which.class)) which.class <- 1
+        prob <- pred[subset,, drop = FALSE]
+        return(switch(class.type,
+                      "prob" = prob[, which.class],
+                      "response" =  bayes.rule(prob)))
+      }
+        else {
+          if (missing(subset)) subset <- 1:length(pred)
+          return(pred[subset])
+        }
 }
 family.pretty <- function(fmly) {
   switch(fmly,
@@ -244,6 +277,9 @@ family.pretty <- function(fmly) {
          "regr"     = "RF-R",
          "class"    = "RF-C",
          "unsupv"   = "RF-U",
+         "regr+"    = "mRF-R",
+         "class+"   = "mRF-C",
+         "mix+"     = "mRF-RC"
          )
 }
 finalizeFormula <- function(formula.obj, data) {
@@ -259,22 +295,22 @@ finalizeFormula <- function(formula.obj, data) {
     if(index == 0) {
       xvar.names <- names(data)
     }
-    else {
-      xvar.names <- names(data)[!is.element(names(data), all.names[1:index])]
-    }
+      else {
+        xvar.names <- names(data)[!is.element(names(data), all.names[1:index])]
+      }
   }
-  else {
-    if(index == 0) {
-      xvar.names <- all.names
-    }
     else {
-      xvar.names <- all.names[-c(1:index)]
+      if(index == 0) {
+        xvar.names <- all.names
+      }
+        else {
+          xvar.names <- all.names[-c(1:index)]
+        }
+      not.specified <- !is.element(xvar.names, names(data))
+      if (sum(not.specified) > 0) {
+        stop("formula is misspecified, object ", xvar.names[not.specified], " not found")
+      }
     }
-    not.specified <- !is.element(xvar.names, names(data))
-    if (sum(not.specified) > 0) {
-      stop("formula is misspecified, object ", xvar.names[not.specified], " not found")
-    }
-  }
   return (list(family=fmly, yvar.names=yvar.names, xvar.names=xvar.names, ytry=ytry))
 }
 finalizeData <- function(fnames, data, na.action, miss.flag = TRUE) {
@@ -306,30 +342,42 @@ get.importance.xvar <- function(importance.xvar, importance, object) {
     if (missing(importance.xvar) || is.null(importance.xvar)) {
       importance.xvar <- object$xvar.names
     }
-    else {
-      importance.xvar <- unique(importance.xvar)
-      importance.xvar <- intersect(importance.xvar, object$xvar.names)
-    }
+      else {
+        importance.xvar <- unique(importance.xvar)
+        importance.xvar <- intersect(importance.xvar, object$xvar.names)
+      }
     if (length(importance.xvar) == 0) {
       stop("xvar names do not match object xvar matrix")
     }
   }
-  else {
-    importance.xvar <- 0
-  }
+    else {
+      importance.xvar <- 0
+    }
   return (importance.xvar)
 }
 get.nmiss <- function(xvar, yvar = NULL) {
   if (!is.null(yvar)) {
     sum(apply(yvar, 1, function(x){any(is.na(x))}) | apply(xvar, 1, function(x){any(is.na(x))}))
   }
-  else {
-    sum(apply(xvar, 1, function(x){any(is.na(x))}))
-  }
+    else {
+      sum(apply(xvar, 1, function(x){any(is.na(x))}))
+    }
 }
-get.outcome.target <- function(family, outcome.target) {
-    outcome.target <- 1
-  outcome.target
+get.outcome.target <- function(family, yvar.names, outcome.target) {
+  if (family == "regr" | family == "regr+" | family == "class" | family == "class+" | family == "mix+") {
+    if (is.null(outcome.target)) {
+      outcome.target <- yvar.names
+    }
+    outcome.target <- unique(outcome.target)
+    outcome.target <- intersect(outcome.target, yvar.names)
+    if (length(outcome.target) == 0) {
+      stop("yvar target names do not match object yvar names")
+    }
+    outcome.target <- match(outcome.target, yvar.names)
+  }
+    else {
+      outcome.target <- 0
+    }
 }
 get.grow.nodesize <- function(fmly, nodesize) {
   if (fmly == "surv"){
@@ -337,64 +385,54 @@ get.grow.nodesize <- function(fmly, nodesize) {
       nodesize <- 3
     }
   }
-  else if (fmly == "surv-CR"){
-    if (is.null(nodesize)) {
-      nodesize <- 6
+    else if (fmly == "surv-CR"){
+      if (is.null(nodesize)) {
+        nodesize <- 6
+      }
     }
-  }
-  else if (fmly == "class" | fmly == "class+") {
-    if (is.null(nodesize)) {
-      nodesize <- 1
-    }
-  }
-  else if (fmly == "regr" | fmly == "regr+") {
-    if (is.null(nodesize)) {
-      nodesize <- 5
-    }
-  }
-  else if (fmly == "mix+") {
-    if (is.null(nodesize)) {
-      nodesize <- 3
-    }
-  }
-  else if (fmly == "unsupv") {
-    if (is.null(nodesize)) {
-      nodesize <- 3
-    }
-  }
-  else if (is.null(nodesize)) {
-    stop("family is misspecified")
-  }
+      else if (fmly == "class" | fmly == "class+") {
+        if (is.null(nodesize)) {
+          nodesize <- 1
+        }
+      }
+        else if (fmly == "regr" | fmly == "regr+") {
+          if (is.null(nodesize)) {
+            nodesize <- 5
+          }
+        }
+          else if (fmly == "mix+") {
+            if (is.null(nodesize)) {
+              nodesize <- 3
+            }
+          }
+            else if (fmly == "unsupv") {
+              if (is.null(nodesize)) {
+                nodesize <- 3
+              }
+            }
+              else if (is.null(nodesize)) {
+                stop("family is misspecified")
+              }
   nodesize <- round(nodesize)
 }
-get.sexp.dim <- function(fmly, event.type, yfactor, splitrule = NULL) {
+get.coerced.fmly <- function(fmly, event.type, splitrule = NULL) {
   if (grepl("surv", fmly)) {
+    coerced.fmly <- "surv"
     if (!is.null(splitrule)) {
       if ((length(event.type) > 1) & (splitrule != "logrankscore")) {
-        sexp.dim <- length(event.type)
+        coerced.fmly <- "surv-CR"
       }
+    }
       else {
-        sexp.dim <- 1
+        if (length(event.type) > 1) {
+          coerced.fmly <- "surv-CR"
+        }
       }
-    }
-    else {
-      if (length(event.type) > 1) {
-        sexp.dim <- length(event.type)
-      }
-      else {
-        sexp.dim <- 1
-      }
-    }
   }
-  else {
-    if (fmly == "unsupv") {
-      sexp.dim <- 0
-    }
     else {
-      sexp.dim <- yfactor$nlevels + 1
+      stop("attempt to coerce a non-survival family")
     }
-  }
-  sexp.dim
+  coerced.fmly
 }
 get.event.info <- function(obj, subset = NULL) {
   if (grepl("surv", obj$family)) {
@@ -409,18 +447,23 @@ get.event.info <- function(obj, subset = NULL) {
         stop("for survival families censoring variable must be coded as a non-negative integer")
       }
       event <- na.omit(cens)[na.omit(cens) > 0]
-      event.type <- unique(event)
+      event.type <- sort(unique(event))
     }
-    else {
-      r.dim <- 0
-      event <- event.type <- cens <- cens <- time <- NULL
-    }
+      else {
+        r.dim <- 0
+        event <- event.type <- cens <- cens <- time <- NULL
+      }
     time.interest <- obj$time.interest
   }
-  else {
-      r.dim <- 1
-    event <- event.type <- cens <- time.interest <- cens <- time <- NULL
-  }
+    else {
+      if ((obj$family == "regr+") | (obj$family == "class+")) {
+        r.dim <- dim(obj$yvar)[2]
+      }
+        else {
+          r.dim <- 1
+        }
+      event <- event.type <- cens <- time.interest <- cens <- time <- NULL
+    }
   return(list(event = event, event.type = event.type, cens = cens,
               time.interest = time.interest, time = time, r.dim = r.dim))
 }
@@ -450,7 +493,7 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
     if (!missing(ntime)) {
       if (length(ntime) == 1 && length(time.interest) > ntime) {
         time.interest <- time.interest[
-           unique(round(seq.int(1, length(time.interest), length.out = ntime)))]
+                                       unique(round(seq.int(1, length(time.interest), length.out = ntime)))]
       }
       if (length(ntime) > 1) {
         time.interest <- unique(sapply(ntime, function(tt) {
@@ -459,15 +502,20 @@ get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
       }
     }
   }
-  else {
-      if (fmly == "unsupv") {
-        r.dim <- 0
+    else {
+      if ((fmly == "regr+") | (fmly == "class+") | (fmly == "mix+")) {
+        r.dim <- dim(yvar)[2]
       }
-      else {
-        r.dim <- 1
-      }
-    event <- event.type <- cens <- time.interest <- cens <- time <- NULL
-  }
+        else {
+          if (fmly == "unsupv") {
+            r.dim <- 0
+          }
+            else {
+              r.dim <- 1
+            }
+        }
+      event <- event.type <- cens <- time.interest <- cens <- time <- NULL
+    }
   return(list(event = event, event.type = event.type, cens = cens,
               time.interest = time.interest,
               time = time, r.dim = r.dim))
@@ -478,89 +526,138 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
                        "logrankCR",            
                        "logrankACR",           
                        "random",               
-                       "regr",                 
-                       "regr.unwt",            
-                       "regr.hvwt",            
-                       "class",                
-                       "class.unwt",           
-                       "class.hvwt",           
-                       "unsupv")               
+                       "mse",                  
+                       "mse.unwt",             
+                       "mse.hvwt",             
+                       "gini",                 
+                       "gini.unwt",            
+                       "gini.hvwt",            
+                       "unsupv",               
+                       "mv.mse",               
+                       "mv.gini",              
+                       "custom")               
   fmly <- formula.detail$family
   nsplit <- round(nsplit)
   if (nsplit < 0) {
     stop("Invalid nsplit value specified.")
   }
-  if (grepl("surv", fmly)) {
-    if (is.null(splitrule)) {
-      if (length(event.type) ==  1) {
-        splitrule.idx <- which(splitrule.names == "logrank")
-      }
-      else {
-        splitrule.idx <- which(splitrule.names == "logrankCR")
-      }
-      splitrule <- splitrule.names[splitrule.idx]
+  cust.idx <- NULL
+  splitpass <- FALSE
+  if (!is.null(splitrule)) {
+    if(grepl("custom", splitrule)) {
+      splitrule.idx <- which(splitrule.names == "custom")
+      cust.idx <- as.integer(sub("custom", "", splitrule))
+      if (is.na(cust.idx)) cust.idx <- 1
+      splitpass <- TRUE
     }
-    else {
-      splitrule.idx <- which(splitrule.names == splitrule)
-      if (length(splitrule.idx) != 1) {
-        stop("Invalid split rule specified:  ", splitrule)
+      else if (splitrule == "random") {
+        splitrule.idx <- which(splitrule.names == "random")
+        nsplit <- 1
+        splitpass <- TRUE
       }
-      if ((length(event.type) ==  1) & (splitrule.idx == which(splitrule.names == "logrankCR"))) {
-        stop("Cannot specify logrankCR splitting for right-censored data")
+  }
+  if (!splitpass) {
+    if (grepl("surv", fmly)) {
+      if (is.null(splitrule)) {
+        if (length(event.type) ==  1) {
+          splitrule.idx <- which(splitrule.names == "logrank")
+        }
+          else {
+            splitrule.idx <- which(splitrule.names == "logrankCR")
+          }
+        splitrule <- splitrule.names[splitrule.idx]
       }
-      if ((length(event.type) >   1) & (splitrule.idx == which(splitrule.names == "logrank"))) {
-        splitrule.idx <- which(splitrule.names == "logrankACR")
+        else {
+          splitrule.idx <- which(splitrule.names == splitrule)
+          if (length(splitrule.idx) != 1) {
+            stop("Invalid split rule specified:  ", splitrule)
+          }
+          if ((length(event.type) ==  1) & (splitrule.idx == which(splitrule.names == "logrankCR"))) {
+            stop("Cannot specify logrankCR splitting for right-censored data")
+          }
+          if ((length(event.type) >   1) & (splitrule.idx == which(splitrule.names == "logrank"))) {
+            splitrule.idx <- which(splitrule.names == "logrankACR")
+          }
+        }
+    }
+    if (fmly == "class") {
+      if (is.null(splitrule)) {
+        splitrule.idx <- which(splitrule.names == "gini")
+        splitrule <- splitrule.names[splitrule.idx]
       }
+        else {
+          if ((splitrule != "gini") &
+              (splitrule != "gini.unwt") &
+              (splitrule != "gini.hvwt")) {
+            stop("Invalid split rule specified:  ", splitrule)
+          }
+          splitrule.idx <- which(splitrule.names == splitrule)
+        }
+    }
+    if (fmly == "regr") {
+      if (is.null(splitrule)) {
+        splitrule.idx <- which(splitrule.names == "mse")
+        splitrule <- splitrule.names[splitrule.idx]
+      }
+        else {
+          if ((splitrule != "mse") &
+              (splitrule != "mse.unwt") &
+              (splitrule != "mse.hvwt")) {
+            stop("Invalid split rule specified:  ", splitrule)
+          }
+          splitrule.idx <- which(splitrule.names == splitrule)
+        }
+    }
+    if (fmly == "regr+") {
+      if (is.null(splitrule)) {
+        splitrule.idx <- which(splitrule.names == "mv.mse")
+        splitrule <- splitrule.names[splitrule.idx]
+      }
+        else {
+          if ((splitrule != "mv.mse")) {
+            stop("Invalid split rule specified:  ", splitrule)
+          }
+          splitrule.idx <- which(splitrule.names == splitrule)
+        }
+    }
+    if (fmly == "class+") {
+      if (is.null(splitrule)) {
+        splitrule.idx <- which(splitrule.names == "mv.gini")
+        splitrule <- splitrule.names[splitrule.idx]
+      }
+        else {
+          if ((splitrule != "mv.gini")) {
+            stop("Invalid split rule specified:  ", splitrule)
+          }
+          splitrule.idx <- which(splitrule.names == splitrule)
+        }
+    }
+    if (fmly == "mix+") {
+      if (is.null(splitrule)) {
+        splitrule.idx <- which(splitrule.names == "mv.mse")
+        splitrule <- "mv.mix"
+      }
+        else {
+          if ((splitrule != "mv.mix")) {
+            stop("Invalid split rule specified:  ", splitrule)
+          }
+          splitrule.idx <- which(splitrule.names == splitrule)
+        }
+    }
+    if (fmly == "unsupv") {
+      if (is.null(splitrule)) {
+        splitrule.idx <- which(splitrule.names == "unsupv")
+        splitrule <- splitrule.names[splitrule.idx]
+      }
+        else {
+          if ((splitrule != "unsupv")) {
+            stop("Invalid split rule specified:  ", splitrule)
+          }
+          splitrule.idx <- which(splitrule.names == splitrule)
+        }
     }
   }
-  if (fmly == "class") {
-    if (is.null(splitrule)) {
-      splitrule.idx <- which(splitrule.names == "class")
-      splitrule <- splitrule.names[splitrule.idx]
-    }
-    else {
-      if ((splitrule != "class") &
-          (splitrule != "class.unwt") &
-          (splitrule != "class.hvwt") &
-          (splitrule != "random") &
-          (splitrule != "custom")) {
-        stop("Invalid split rule specified:  ", splitrule)
-      }
-      splitrule.idx <- which(splitrule.names == splitrule)
-    }
-  }
-  if (fmly == "regr") {
-    if (is.null(splitrule)) {
-      splitrule.idx <- which(splitrule.names == "regr")
-      splitrule <- splitrule.names[splitrule.idx]
-    }
-    else {
-      if ((splitrule != "regr") &
-          (splitrule != "regr.unwt") &
-          (splitrule != "regr.hvwt") &
-          (splitrule != "random") &
-          (splitrule != "custom")) {
-        stop("Invalid split rule specified:  ", splitrule)
-      }
-      splitrule.idx <- which(splitrule.names == splitrule)
-    }
-  }
-  if (fmly == "unsupv") {
-    if (is.null(splitrule)) {
-      splitrule.idx <- which(splitrule.names == "unsupv")
-      splitrule <- splitrule.names[splitrule.idx]
-    }
-    else {
-      if ((splitrule != "unsupv")) {
-        stop("Invalid split rule specified:  ", splitrule)
-      }
-      splitrule.idx <- which(splitrule.names == splitrule)
-    }
-  }
-  if ((splitrule == "random") & (nsplit == 0)) {
-    nsplit <- 1
-  }
-  splitinfo <- list(name = splitrule, index = splitrule.idx, nsplit = nsplit)
+  splitinfo <- list(name = splitrule, index = splitrule.idx, cust = cust.idx, nsplit = nsplit)
   return (splitinfo)
 }
 get.grow.xvar.wt <- function(weight, n.xvar) {
@@ -587,30 +684,30 @@ get.grow.mtry <- function (mtry = NULL, n.xvar, fmly) {
     mtry <- round(mtry)
     if (mtry < 1 | mtry > n.xvar) mtry <- max(1, min(mtry, n.xvar))
   }
-  else {
-    if (grepl("regr", fmly)) {
-      mtry <- max(ceiling(n.xvar/3), 1)
-    }
     else {
-      mtry <- max(ceiling(sqrt(n.xvar)), 1)
+      if (grepl("regr", fmly)) {
+        mtry <- max(ceiling(n.xvar/3), 1)
+      }
+        else {
+          mtry <- max(ceiling(sqrt(n.xvar)), 1)
+        }
     }
-  }
   return (mtry)
 }
 get.ytry <- function(f) {
 }
-get.yvar.type <- function(fmly, yvar) {
-  switch(fmly,
-         "surv" = c("T", "S"),
-         "surv-CR" = c("T", "S"),
-         "regr" = "R",
-         "class" = "C",
-         "unsupv" = NULL
-         )
-}
-get.yvar.target <- function(fmly, yvar.types, outcome.idx) {
-    outcome.idx <- 0
-  return(outcome.idx)
+get.yvar.type <- function(fmly, generic.types) {
+  if (fmly == "unsupv") {
+    yvar.type = NULL
+  }
+    else {
+      if (grepl("surv", fmly)) {
+        yvar.type <- c("T", "S")
+      }
+        else {
+          yvar.type <- c("R","C")[1 + (generic.types == "C")]
+        }
+    }
 }
 parseFormula <- function(f, data) {
   if (!inherits(f, "formula")) {
@@ -633,33 +730,66 @@ parseFormula <- function(f, data) {
     family <- "surv"
     ytry <- NA
   }
-  else if (fmly == "Unsupervised") {
-    if (length(yvar.names) != 0) {
-      stop("Unsupervised forests require no y-responses")
+    else if ((fmly == "Multivar" || fmly == "cbind")  && length(yvar.names) > 1) {
+      if (sum(is.element(yvar.names, names(data))) < length(yvar.names)) {
+        stop("Multivariate formula incorrectly specified: y's listed in formula are not in data.")
+      }
+      Y <- data[, yvar.names, drop = FALSE]
+      logical.names <- unlist(lapply(Y, is.logical))
+      if (sum(logical.names) > 0) {
+        Y[, logical.names] <- 1 * Y[, logical.names, drop = FALSE]
+      }
+      if (all(unlist(lapply(Y, is.factor.not.ordered)))) {
+        family <- "class+"
+      }
+        else if (all(!unlist(lapply(Y, is.factor.not.ordered)))) {
+          family <- "regr+"
+        }
+          else if (all(unlist(lapply(Y, is.factor)) | (unlist(lapply(Y, is.numeric))))) {
+            family <- "mix+"
+          }
+            else {
+              stop("y-outcomes must be either real or factors in multivariate forests.")
+            }
+      ytry <- NA
     }
-    family <- "unsupv"
-    yvar.names <- NULL
-    ytry <- 1
-  }
-  else {
-    if (sum(is.element(yvar.names, names(data))) != 1) {
-        stop("formula is incorrectly specified.")
-    }
-    Y <- data[, yvar.names]
-    if (is.logical(Y)) {
-      Y <- as.numeric(Y)
-    }
-    if (!(is.factor(Y) | is.numeric(Y))) {
-      stop("the y-outcome must be either real or a factor.")
-    }
-    if (is.factor(Y)) {
-      family <- "class"
-    }
-    else {
-      family <- "regr"
-    }
-    ytry <- NA
-  }
+      else if (fmly == "Unsupervised") {
+        if (length(yvar.names) != 0) {
+          stop("Unsupervised forests require no y-responses")
+        }
+        family <- "unsupv"
+        yvar.names <- NULL
+        temp <- gsub(fmly, "", as.character(f)[2])
+        temp <- gsub("\\(|\\)", "", temp)
+        ytry <- as.integer(temp)
+        if (is.na(ytry)) {
+          ytry <- 1
+        }
+          else {
+            if (ytry <= 0) {
+              stop("Unsupervised forests require positive ytry value")
+            }
+          }
+      }
+        else {
+          if (sum(is.element(yvar.names, names(data))) != 1) {
+            stop("formula is incorrectly specified.")
+          }
+          Y <- data[, yvar.names]
+          if (is.logical(Y)) {
+            Y <- as.numeric(Y)
+          }
+          if (!(is.factor(Y) | is.numeric(Y))) {
+            stop("the y-outcome must be either real or a factor.")
+          }
+          if (is.factor.not.ordered(Y)) {
+            family <- "class"
+          }
+            else {
+              family <- "regr"
+            }
+          ytry <- NA
+        }
   return (list(all.names=all.names, family=family, yvar.names=yvar.names, ytry=ytry))
 }
 is.all.na <- function(x) {all(is.na(x))}
@@ -688,9 +818,9 @@ resample <- function(x, size, ...) {
   if (length(x) <= 1) {
     if (!missing(size) && size == 0) x[FALSE] else x
   }
-  else {
-    sample(x, size, ...)
-  }
+    else {
+      sample(x, size, ...)
+    }
 }
 row.col.deleted <- function(dat, r.n, c.n)
 {
@@ -698,15 +828,15 @@ row.col.deleted <- function(dat, r.n, c.n)
   if (length(which.r) > 0) {
     which.r <- match(which.r, r.n)
   }
-  else {
-    which.r <- NULL
-  }
+    else {
+      which.r <- NULL
+    }
   which.c <- setdiff(c.n, colnames(dat))
   if (length(which.c) > 0) {
     which.c <- match(which.c, c.n)
   }
-  else {
-    which.c <- NULL
-  }
+    else {
+      which.c <- NULL
+    }
   return(list(row = which.r, col = which.c))
 }

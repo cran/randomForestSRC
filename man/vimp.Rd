@@ -6,12 +6,10 @@
   Calculate variable importance (VIMP) for a single variable or group of
   variables for training or test data.
 }
-\usage{\method{vimp}{rfsrc}(object, xvar.names,
-  importance = c("permute", "random", "permute.ensemble",
-                 "random.ensemble", "none"),
-  joint = FALSE, newdata, subset,
-  na.action = c("na.omit", "na.impute", "na.random"),
-  seed = NULL, do.trace = FALSE, ...)
+\usage{\method{vimp}{rfsrc}(object, xvar.names, outcome.target=NULL, 
+  importance = c("permute", "random", "anti",
+                 "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
+  joint = FALSE, subset, seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{
   \item{object}{An object of class \code{(rfsrc, grow)} or
@@ -19,51 +17,49 @@
     original \command{rfsrc} call.}
   \item{xvar.names}{Names of the x-variables to be used.  If not
     specified all variables are used.}
-
+  \item{outcome.target}{Character vector for multivariate families
+    specifying the target outcomes to be used. The default is to use all
+    coordinates.}
   \item{importance}{Type of VIMP.}
   \item{joint}{Individual or joint VIMP?}
-  \item{newdata}{Test data.  Default is to use the original grow
-    (training) data.}
   \item{subset}{Vector indicating which rows of the grow data to
     restrict VIMP calculations to; i.e. this option yields VIMP which is
     restricted to a specific subset of the data.  Note that the vector
     should correspond to the rows of \code{object$xvar} and not the
     original data passed in the grow call.  All rows used if not
     specified.}
-  \item{na.action}{Action to be taken if the data contains \code{NA} values.}
   \item{seed}{Negative integer specifying seed for the random number
-      generator.} 
-  \item{do.trace}{Logical. Should trace output be enabled on each
-    iteration? Default is \code{FALSE}.}
+    generator.} 
+  \item{do.trace}{Parameter ignored.} 
   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
-    Using a previously grown forest, calculate the VIMP for variables
-    \code{xvar.names}.  By default, VIMP is calculated for the original
-    data, but the user can specify a new test data for the VIMP
-    calculation using \code{newdata}.  Depending upon the option
-    \code{importance}, VIMP is calculated either by random daughter
-    assignment or by random permutation of the variable(s).  The default
-    is Breiman-Cutler permutation VIMP.  See \command{rfsrc} for more
-    details.
-
-    Joint VIMP is requested using \option{joint}.  The joint VIMP is the
-    importance for a group of variables when the group is perturbed
-    simultaneously.
+  Using a previously grown forest, calculate the VIMP for variables
+  \code{xvar.names}.  By default, VIMP is calculated for the original
+  data, but the user can specify a new test data for the VIMP
+  calculation using \code{newdata}.  Depending upon the option
+  \code{importance}, VIMP is calculated either by random daughter
+  assignment or by random permutation of the variable(s).  The default
+  is Breiman-Cutler permutation VIMP.  See \command{rfsrc} for more
+  details.
+  
+  Joint VIMP is requested using \option{joint}.  The joint VIMP is the
+  importance for a group of variables when the group is perturbed
+  simultaneously.
 }
 \value{
-   An object of class \code{(rfsrc, predict)}, which is a list with
-   the following key components:
-    \item{err.rate}{OOB error rate for the ensemble restricted to the
-      subsetted data.}
-    \item{importance}{Variable importance (VIMP).}
+  An object of class \code{(rfsrc, predict)}, which is a list with
+  the following key components:
+  \item{err.rate}{OOB error rate for the ensemble restricted to the
+    subsetted data.}
+  \item{importance}{Variable importance (VIMP).}
 }
 \author{
-    Hemant Ishwaran and Udaya B. Kogalur
+  Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
-    Ishwaran H. (2007).  Variable importance in binary regression
-    trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
+  Ishwaran H. (2007).  Variable importance in binary regression
+  trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
 }
 \seealso{
   \command{\link{rfsrc}}
@@ -144,4 +140,3 @@ print(data.frame(vimp.not.na, vimp.na))
 }
 \keyword{variable selection}
 \keyword{predict}
-

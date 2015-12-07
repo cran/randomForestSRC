@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -72,10 +72,10 @@ plot.competing.risk.rfsrc <- function (x, plots.one.page = FALSE, ...) {
     stop("this function only supports competing risk settings")
   }
   matPlot <- function(matx, ylab = "", legend = "", pos = 1) {
-     m <- dim(cbind(matx))[2]
-     if (m > 1) legend <- paste(legend, 1:m, "  ")
-     matplot(x$time.interest, matx, xlab = "Time", ylab = ylab, type = "l",
-             col = (1:m), lty = 1, lwd = 3)
+    m <- dim(cbind(matx))[2]
+    if (m > 1) legend <- paste(legend, 1:m, "  ")
+    matplot(x$time.interest, matx, xlab = "Time", ylab = ylab, type = "l",
+            col = (1:m), lty = 1, lwd = 3)
     legend(c("topright", "bottomright")[pos], legend = legend, col = (1:m), lty = 1, lwd = 3)
   }
   opar <- par(no.readonly = TRUE)

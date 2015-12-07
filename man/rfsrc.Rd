@@ -11,16 +11,19 @@
   many useful values which can be directly extracted by the user and/or
   parsed using additional functions (see the examples below).  This is
   the main entry point to the \pkg{randomForestSRC} package.
-
-
-
+  
+  Note that the package now handles multivariate regression and
+  classification responses as well as mixed outcomes
+  (regression/classification responses).  In such cases, a multivariate
+  forest is grown, informally referred to as an mRF-SRC object.
+  Unsupervised forests are also available.
+  
   The package implements OpenMP shared-memory parallel programming.
   However, the default installation will only execute serially.  Users
   should consult the randomForestSRC-package help file for details on
   installing the OpenMP version of the package.  The help file is
   readily accessible via the command
   \code{package?randomForestSRC}.
-
 }
 \usage{
 rfsrc(formula, data, ntree = 1000,
@@ -31,15 +34,18 @@ rfsrc(formula, data, ntree = 1000,
   splitrule = NULL,
   nsplit = 0,
   split.null = FALSE,
-  importance = c("permute", "random", "permute.ensemble",
-                 "random.ensemble", "none"),
+  importance = c("permute", "random", "anti", "permute.ensemble",
+                 "random.ensemble", "anti.ensemble", "none"),
   na.action = c("na.omit", "na.impute", "na.random"),
   nimpute = 1,
   ntime,
   cause,
-  xvar.wt = NULL,  
   proximity = FALSE,
-  forest = TRUE,  
+
+   
+
+  xvar.wt = NULL,  
+  forest = TRUE,
   var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"),
   seed = NULL,
@@ -50,90 +56,70 @@ rfsrc(formula, data, ntree = 1000,
   ...)
 }
 \arguments{
-
-    \item{formula}{A symbolic description of the model to be fit.}
-
-
-    \item{data}{Data frame containing the y-outcome and x-variables in
-      the model.}
-    \item{ntree}{Number of trees in the forest.}
-    \item{bootstrap}{Bootstrap protocol.  The default is \code{by.root}
-      which bootstraps the data by sampling with replacement at the root
-      node before growing the tree.  If \code{by.node} is choosen, the
-      data is bootstrapped at each node during the grow process.  If
-      \code{none} is chosen, the data is not bootstrapped at all.  See
-      the details below on prediction error when the default choice
-      is not in effect.}
-    \item{mtry}{Number of variables randomly selected as candidates for
-      each node split. The default is sqrt(\code{p}), except for
-      regression families where \code{p}/3 is used, where \code{p}
-      equals the number of variables.  Values are rounded up.}
-    \item{nodesize}{Minimum number of unique cases (data points) in a
-      terminal node.  The defaults are: survival (3), competing
-      risk (6), regression (5), classification (1), mixed outcomes (3).}
-    \item{nodedepth}{Maximum depth to which a tree should be grown.  The
-      default behaviour is that this parameter is ignored.}
-    \item{splitrule}{Splitting rule used to grow trees.  Available rules
-      are as follows:
-      \describe{
-
-	\item{\kbd{Regression analysis:}}{The default rule is weighted mean-squared error
-	 splitting (Breiman et al. 1984, Chapter 8.4).}
-
-
-
-	\item{\kbd{Classification analysis:}}{The default rule is Gini
-	  index splitting (Breiman et al. 1984, Chapter 4.3).}
-
-
-	\item{\kbd{Survival analysis:}}{Two rules are available. (1) The default rule is
-	  \code{logrank} which implements log-rank splitting (Segal, 1988;
-	  Leblanc and Crowley, 1993); (2) \code{logrankscore} implements
-	  log-rank score splitting (Hothorn and Lausen, 2003).}
-
-	\item{\kbd{Competing risk analysis:}}{Two rules are available. (1) The
-	  default rule is \code{logrankCR} which implements a modified
-	  weighted log-rank splitting rule modeled after Gray's test
-	  (Gray, 1988); (2) \code{logrank} implements weighted log-rank
-	  splitting where each event type is treated as the event of
-	  interest and all other events are treated as censored.  The
-	  split rule is the weighted value of each of log-rank
-	  statistics, standardized by the variance.  For more details
-	  see Ishwaran et al. (2013).}
-    }}
-    \item{nsplit}{Non-negative integer value.  If non-zero, the
-      specified tree splitting rule is randomized which can
-      significantly increase speed.}
-    \item{split.null}{Set this value to TRUE when testing the null
-      hypothesis.  In particular, this assumes there is no relationship
-      between y and x.}
-    \item{importance}{Method for computing variable importance (VIMP).
-      Calculating VIMP can be computationally expensive when the
-      number of variables is high, thus if VIMP is not needed consider
-      setting \code{importance="none"}.  See the details below for more
-      about VIMP.}
-    \item{na.action}{Action taken if the data contains \code{NA}'s.
-        Possible values are \code{na.omit}, \code{na.impute} or \code{na.random}.
-        The default \code{na.omit} removes the entire record if
-        even one of its entries is \code{NA} (for x-variables this applies only
-        to those specifically listed in 'formula').  Selecting
+  \item{formula}{A symbolic description of the model to be fit.  If
+    missing, unsupervised splitting is implemented.}
+  \item{data}{Data frame containing the y-outcome and x-variables.}
+  \item{ntree}{Number of trees in the forest.}
+  \item{bootstrap}{Bootstrap protocol.  The default is \code{by.root}
+    which bootstraps the data by sampling with replacement at the root
+    node before growing the tree.  If \code{by.node} is choosen, the
+    data is bootstrapped at each node during the grow process.  If
+    \code{none} is chosen, the data is not bootstrapped at all.  See
+    the details below on prediction error when the default choice
+    is not in effect.}
+  \item{mtry}{Number of variables randomly selected as candidates for
+    each node split. The default is sqrt(\code{p}), except for
+    regression families where \code{p}/3 is used, where \code{p}
+    equals the number of variables.  Values are rounded up.}
+  \item{nodesize}{Minimum number of unique cases (data points) in a
+    terminal node.  The defaults are: survival (3), competing
+    risk (6), regression (5), classification (1), mixed outcomes (3).
+    It is recommended to experiment with different \code{nodesize}
+    values.}
+  \item{nodedepth}{Maximum depth to which a tree should be grown.  The
+    default behaviour is that this parameter is ignored.}
+  \item{splitrule}{Splitting rule used to grow trees.  See below for
+    details.}
+  \item{nsplit}{Non-negative integer value.  When zero,
+    deterministic splitting for an x-variable is in effect.  When
+    non-zero, a maximum of nsplit split points are randomly chosen
+    among the possible split points for the x-variable. This can
+    significantly increase speed over deterministic splitting.  In
+    the case of pure random splitting, a value of one is used as the
+    default, since deterministic splitting is not a compatible
+    concept in that scenario.  However, values greater than one are
+    accepted, as with the other split rules.}
+  \item{split.null}{Set this value to TRUE when testing the null
+    hypothesis.  In particular, this assumes there is no relationship
+    between y and x.}
+  \item{importance}{Method for computing variable importance (VIMP).
+    Calculating VIMP can be computationally expensive when the
+    number of variables is high, thus if VIMP is not needed consider
+    setting \code{importance="none"}.  See the details below for more
+    about VIMP.}
+  \item{na.action}{Action taken if the data contains \code{NA}'s.
+    Possible values are \code{na.omit}, \code{na.impute} or \code{na.random}.
+    The default \code{na.omit} removes the entire record if
+    even one of its entries is \code{NA} (for x-variables this applies only
+    to those specifically listed in 'formula').  Selecting
 	  \code{na.impute} or \code{na.random} imputes the data.
-	  See below for details.}
-    \item{nimpute}{Number of iterations of the missing data algorithm.
+	  See below for more details regarding missing data imputation.}
+  \item{nimpute}{Number of iterations of the missing data algorithm.
 	  Performance measures such as out-of-bag (OOB) error rates tend
 	  to become optimistic if \code{nimpute} is greater than 1.}
-     \item{ntime}{Integer value used for survival families to
-      constrain ensemble calculations to a grid of time values of no
-      more than \code{ntime} time points.  Alternatively if a vector of
-      values of length greater than one is supplied, it is assumed these
-      are the time points to be used to constrain the calculations (note
-      that the constrained time points used will be the observed event
-      times closest to the user supplied time points).  If no value is
-      specified, the default action is to use all observed event times.
-      Use this option when the sample size is large to improve
-      computational efficiency.}
-    \item{cause}{Integer value between 1 and \code{J} indicating
-	  the event of interest for competing risks, where \code{J} is
+  \item{ntime}{Integer value used for survival families to constrain
+    ensemble calculations to a grid of time values of no more than
+    \code{ntime} time points.  Alternatively if a vector of values of
+    length greater than one is supplied, it is assumed these are the
+    time points to be used to constrain the calculations (note that the
+    constrained time points used will be the observed event times
+    closest to the user supplied time points).  If no value is
+    specified, the default action is to use all observed event times.
+    Use this option when the sample size is large to improve
+    computational efficiency.}
+  \item{cause}{Integer value between 1 and
+    \code{J} indicating the event of interest for competing risks, where
+    \code{J} is
 	  the number of event types (this option applies only to
 	  competing risks and is ignored otherwise).  While growing a
 	  tree, the splitting of a node is restricted to the event type
@@ -148,374 +134,528 @@ rfsrc(formula, data, ntree = 1000,
 	  default.  Finally, note that regardless of how \code{cause} is
 	  specified, the returned forest object always provides
 	  estimates for all event types.}
-    \item{xvar.wt}{Vector of non-negative weights where entry
-        \code{k}, after normalizing, is the probability of selecting
-        variable \code{k} as a candidate for splitting a node.  Default is to
-        use uniform weights.  Vector must be of dimension \code{p},
-        where \code{p} equals the number of variables, otherwise the
-	default is invoked.}
-
-    \item{proximity}{Should the proximity between observations be
-        calculated?  Creates an \code{n}x\code{n} matrix, which can be
-        large.  Choices are \code{"inbag"}, \code{"oob"}, \code{"all"},
-	\code{TRUE}, or \code{FALSE}.  Note that setting \code{proximity
-	  = TRUE} is equivalent to \code{proximity = "inbag"}.}
-    \item{forest}{Should the forest object be returned?  Used for
-        prediction on new data and required by many of the functions
-	used to parse the RF-SRC object.}
-
-    \item{var.used}{Return variables used for splitting?  Default is
-        \code{FALSE}.  Possible values are \code{all.trees} and
-        \code{by.tree}.}
-   \item{split.depth}{Records the minimal depth for each variable.
-      Default is \code{FALSE}.  Possible values are \code{all.trees} and
-      \code{by.tree}. Used for variable selection.}
-    \item{seed}{Negative integer specifying seed for the random number
-      generator.}
-    \item{do.trace}{Logical. Should trace output be enabled on each
-      iteration? Default is \code{FALSE}.}
-    \item{membership}{Should terminal node membership and inbag
-      information be returned?}
- \item{statistics}{Should split statistics be returned?  Values can be
-   parsed using \command{stat.split}.}
- \item{fast.restore}{Should forest restoration be fast?  Be aware that
+  \item{proximity}{Proximity of cases as measured by the frequency of
+    sharing the same terminal node.  This is an \code{n}x\code{n}
+    matrix, which can be large.  Choices are \code{"inbag"},
+    \code{"oob"}, \code{"all"}, \code{TRUE}, or \code{FALSE}.  
+    Setting \code{proximity = TRUE} is equivalent to 
+    \code{proximity = "inbag"}.}
+  
+   
+  
+  \item{xvar.wt}{Vector of non-negative weights where entry
+    \code{k}, after normalizing, is the probability of selecting
+    variable \code{k} as a candidate for splitting a node.  Default is to
+    use uniform weights.  Vector must be of dimension \code{p},
+    where \code{p} equals the number of variables, otherwise the
+	  default is invoked.}
+  \item{forest}{Should the forest object be returned?  Used for
+    prediction on new data and required by many of the functions
+	  used to parse the RF-SRC object.  It is recommended not to
+    change the default setting.}
+  \item{var.used}{Return variables used for splitting?  Default is
+    \code{FALSE}.  Possible values are \code{all.trees} and
+    \code{by.tree}.}
+  \item{split.depth}{Records the minimal depth for each variable.
+    Default is \code{FALSE}.  Possible values are \code{all.trees} and
+    \code{by.tree}. Used for variable selection.}
+  \item{seed}{Negative integer specifying seed for the random number
+    generator.}
+  \item{do.trace}{Parameter ignored.}
+  \item{membership}{Should terminal node membership and inbag
+    information be returned?}
+  \item{statistics}{Should split statistics be returned?  Values can be
+    parsed using \command{stat.split}.}
+  \item{fast.restore}{Should forest restoration be fast?  Be aware that
 	  this option uses significantly more RAM and may not be
 	  suitable for all platforms depending on the size of the data
 	  set being analyzed.}
-    \item{...}{Further arguments passed to or from other methods.}
+  \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
   \enumerate{
-
-  \item \emph{Families}
-
-
-  There are four families of random forests:
-  \code{regr}, \code{class}, \code{surv}, and \code{surv-CR}.
-
-
-
-  \itemize{
-    \item Regression forests (\code{regr}) for continuous responses.
-
-    \item Classification forests (\code{class}) for factor responses.
-
-
-    \item Survival forest (\code{surv}) for right-censored survival settings.
-
-    \item Competing risk survival forests (\code{surv-CR}) for competing risk scenarios.
-  }
-
-  See below for how to code the response in the two different survival scenarios.
-
-
-\item \emph{Allowable data types and issues related to factors}
-
-  Data types must be real valued, integer, factor or logical -- however
-  all except factors are coerced and treated as if real valued.  For
-  ordered factors, splits are similar to real valued variables.  If the
-  factor is unordered, a split will move a subset of the levels in the
-  parent node to the left daughter, and the complementary subset to the
-  right daughter.  All possible complementary pairs are considered and
-  apply to factors with an unlimited number of levels.  However, there
-  is an optimization check to ensure that the number of splits attempted
-  is not greater than the number of cases in a node (this internal check
-  will override the \code{nsplit} value in random splitting mode if
-  \code{nsplit} is large enough; see below for information about
-  \code{nsplit}).
-
-  \item \emph{Randomized Splitting Rules}
-
-  A random version of a splitting rule can be invoked using
-  \option{nsplit}.  If \option{nsplit} is set to a non-zero positive
-  integer, then a maximum of \option{nsplit} split points are chosen
-  randomly for each of the \option{mtry} variables within a node (this is
-  in contrast to non-random splitting, i.e. \option{nsplit=0}, where
-  all possible split points for each of the \option{mtry} variables are
-  considered).  The splitting rule is applied to the random split
-  points and the node is split on that variable and random split point
-  yielding the best value (as measured by the splitting rule).
-
-  Pure random splitting can be invoked by setting
-  \option{splitrule="random"}.  For each node, a variable is randomly
-  selected and the node is split using a random split point (Cutler and
-  Zhao, 2001; Lin and Jeon, 2006).
-
-  Trees tend to favor splits on continuous variables (Loh and Shih,
-  1997), so it is good practice to use the \option{nsplit} option when
-  the data contains a mix of continuous and discrete variables.  Using a
-  reasonably small value mitigates bias and may not compromise accuracy.
-
-  \item \emph{Fast Splitting}
-
-  The value of \option{nsplit} has a significant impact on the time taken
-  to grow a forest.  When non-random splitting is in effect
-  (\option{nsplit=0}), iterating over each split point can sometimes be
-  CPU intensive.  However, when \code{nsplit} > 0, or when pure random
-  splitting is in effect, CPU times are drastically reduced.
-
-
-
-
-  \item \emph{Variable Importance (VIMP)}
-
-  The option \option{importance} allows four distinct ways to calculate
-  VIMP.  The default \code{permute} returns Breiman-Cutler permutation
-  VIMP as described in Breiman (2001).  For each tree, the prediction
-  error on the out-of-bag (OOB) data is recorded.  Then for a given
-  variable \emph{x}, OOB cases are randomly permuted in \emph{x} and the
-  prediction error is recorded.  The VIMP for \emph{x} is defined as the
-  difference between the perturbed and unperturbed error rate averaged
-  over all trees.  If \code{random} is used, then \emph{x} is not
-  permuted, but rather an OOB case is assigned a daughter node randomly
-  whenever a split on \emph{x} is encountered in the in-bag tree.  The
-  OOB error rate is compared to the OOB error rate without randomly
-  splitting on \emph{x}.  The VIMP is the difference averaged over the
-  forest.  If the options \code{permute.ensemble} or
-  \code{random.ensemble} are used, then VIMP is calculated by comparing
-  the error rate for the perturbed OOB forest ensemble to the
-  unperturbed OOB forest ensemble where the perturbed ensemble is
-  obtained by either permuting \emph{x} or by random daughter node
-  assignments for splits on \emph{x}.  Thus, unlike the Breiman-Cutler
-  measure, here VIMP does not measure the tree average effect of
-  \emph{x}, but rather its overall forest effect.  See Ishwaran et
-  al. (2008) for further details.  Finally, the option \code{none} turns
-  VIMP off entirely.
-
-  Note that the function \command{vimp} provides a friendly user
-  interface for extracting VIMP.
-
-  \item \emph{Prediction Error}
-
-  Prediction error is calculated using OOB data.  Performance is
-  measured in terms of mean-squared-error for regression and
-  misclassification error for classification.
-
-  For survival, prediction error is measured by 1-C, where C is
-  Harrell's (Harrell et al., 1982) concordance index.  Prediction error
-  is between 0 and 1, and measures how well the predictor correctly
-  ranks (classifies) two random individuals in terms of survival.  A
-  value of 0.5 is no better than random guessing. A value of 0 is
-  perfect.
-
-  When bootstrapping is \code{by.node} or \code{none}, a coherent OOB
-  subset is not available to assess prediction error.  Thus, all outputs
-  dependent on this are suppressed.  In such cases, prediction error is
-  only available via classical cross-validation (the user will need to
-  use \command{predict.rfsrc}, for example).
-
-
-  \item \emph{Survival, Competing Risks}
-
-  \enumerate{
-  \item Survival settings require a time and censoring variable which
-  should be identifed in the formula as the response using the standard
-  \code{Surv} formula specification.  A typical formula call looks like:
-
-  Surv(my.time, my.status) ~ .
-
-  where \code{my.time} and \code{my.status} are the variables names for
-  the event time and status variable in the users data set.
-
-  \item For survival forests (Ishwaran et al. 2008), the censoring
-  variable must be coded as a non-negative integer with 0 reserved for
-  censoring and (usually) 1=death (event).  The event time must be
-  non-negative.
-
-  \item For competing risk forests (Ishwaran et al., 2013), the
-  implementation is similar to survival, but with the following
-  caveats:
-
-  \itemize{
-    \item Censoring must be coded as a non-negative integer, where 0
-    indicates right-censoring, and non-zero values indicate different
-    event types.  While {0,1,2,..,J} is standard, and recommended,
-    events can be coded non-sequentially, although 0 must always be used
-    for censoring.
-
-    \item Setting the splitting rule to \code{logrankscore} will result
-    in a survival analysis in which all events are treated as if they
-    are the same type (indeed, they will coerced as such).
-
-    \item Generally, competing risks requires a larger \code{nodesize} than
-    survival settings.
-  }
-  }
-
-  \item \emph{Missing data imputation}
-
-  Setting \option{na.action="na.impute"} imputes missing data (both x
-  and y-variables) using a modification of the missing data algorithm of
-  Ishwaran et al. (2008).  Prior to splitting a node, missing data for a
-  variable is imputed by randomly drawing values from non-missing in-bag
-  data.  The purpose of this imputed data is to make it possible to
-  assign cases to daughter nodes in the event the node is split on a
-  variable with missing data.  Imputed data is however not used to
-  calculate the split-statistic which uses non-missing data only.
-  Following a node split, imputed data are reset to missing and the
-  process is repeated until terminal nodes are reached.  Missing data in
-  terminal nodes are imputed using OOB non-missing terminal node data.
-  For integer valued variables and censoring indicators, imputation uses
-  a maximal class rule, whereas continuous variables and survival time
-  use a mean rule.
-
-  Choosing the option \option{na.action="na.random"} implements a cruder
-  version of the missing data algorithm but which should be
-  computationally faster.  Unlike the default method, data is
-  not imputed as the tree is grown, instead tree nodes are split using
-  non-missing in-bag data.  Following the split to a node, data points
-  with missing values on the variable used to split the node are
-  randomly assigned to daughter nodes.  When terminal nodes are reached,
-  missing data are imputed as before by using out-of-bag (OOB)
-  non-missing terminal node data.
-
-  Both missing data algorithms can be iterated by setting \code{nimpute}
-  to a positive integer greater than 1.  Using only a few iterations are
-  needed to improve accuracy.  When the algorithm is iterated, at the
-  completion of each iteration, missing data is imputed using OOB
-  non-missing terminal node data which is then used as input to grow a
-  new forest.  Note that when the algorithm is iterated, a side effect
-  is that missing values in the returned objects \code{xvar},
-  \code{yvar} are replaced by imputed values.  Further, imputed objects
-  such as \code{imputed.data} are set to \code{NULL}.  Also, keep in
-  mind that if the algorithm is iterated, performance measures such as
-  error rates and VIMP become optimistically biased.
-
-  Regardless of what method is used, records in which all outcome and
-  x-variable information are missing are removed from the forest
-  analysis.  Variables having all missing values are also removed.
-
-  See the function \command{impute.rfsrc} for a fast impute interface.
-
-  \item \emph{Large sample size}
-
-  For increased efficiency for survival families, users should consider
-  setting \option{ntime} to a relatively small value when the sample
-  size (number of rows of the data) is large.  This constrains ensemble
-  calculations such as survival functions to a restricted grid of time
-  points of length no more than \option{ntime} which can considerably
-  reduce computational times.
-
-  \item \emph{Large number of variables}
-
-  For increased efficiency when the number of variables are large,
-  set \code{importance="none"} which turns off VIMP
-  calculations and can considerably reduce computational times.  Note
-  that VIMP calculations can always be recovered later from the grow
-  forest using the function \command{vimp}.
-
-
-  \item \emph{Miscellanea}
-  \enumerate{
-    \item Setting \option{var.used="all.trees"} returns a vector of size
-    \code{p} where each element is a count of the number of times a split
-    occurred on a variable.  If \option{var.used="by.tree"}, a matrix of
-    size \code{ntree}x\code{p} is returned.  Each element [i][j] is the
-    count of the number of times a split occurred on variable [j] in tree
-    [i].
-
-    \item Setting \option{split.depth="all.trees"} returns a matrix of
-    size \code{n}x\code{p} where entry [i][j] is the minimal depth for
-    variable [j] for case [i] averaged over the forest.  That is, for
-    case [i], the entry [i][j] records the first time case [i] splits on
-    variable [j] averaged over the forest.  If
-    \option{split.depth="by.tree"}, a three-dimensional array is
-    returned where the third dimension [k] records the tree and the
-    first two coordinates [i][j] record the case and the variable.  Thus
-    entry [i][j][k] is the minimal depth for case [i] for variable [j]
-    for tree [k].
-  }
+    
+    \item \emph{Families}
+    
+    The package automagically determines the underlying random forest
+    family to be fit from the following eight choices:
+    
+    \code{regr}, \code{regr+}, \code{class}, \code{class+}, \code{mix+},
+    \code{unsupv}, \code{surv}, and \code{surv-CR}.
+    
+    \enumerate{
+      \item Regression forests (\code{regr}) for continuous responses.
+      \item Multivariate regression forests (\code{regr+})
+      for multivariate continuous responses.
+      \item Classification forests (\code{class}) for factor responses.
+      \item Multivariate classification forests (\code{class+})
+      for multivariate factor responses.
+      \item Multivariate mixed forests (\code{mix+}) for mixed continuous
+      and factor responses.
+      \item Unsupervised forests (\code{unsupv}) when there is no response.
+      \item Survival forest (\code{surv}) for right-censored survival settings.
+      \item Competing risk survival forests (\code{surv-CR})
+      for competing risk scenarios.
+    }
+    
+    See below for how to code the response in the two different survival
+    scenarios and for responses for multivariate forests.
+    
+    \item \emph{Splitrules}
+    
+    Splitrules are set according to the option \code{splitrule} as follows:
+    \itemize{
+      
+      \item Regression analysis:
+      \enumerate{
+        \item The default rule is weighted mean-squared error splitting
+        \code{mse} (Breiman et al. 1984, Chapter 8.4).
+        \item Unweighted and heavy weighted mean-squared error splitting
+        rules can be invoked using splitrules \code{mse.unwt} and
+	      \code{mse.hvwt}.  Generally \code{mse} works best, but see
+	      Ishwaran (2015) for details.
+      }
+      
+      
+      \item Multivariate regression analysis: For multivariate regression
+      responses, a composite normalized mean-squared error splitting
+      rule is used.
+      
+      \item Classification analysis:
+      \enumerate{
+        \item The default rule is Gini index splitting \code{gini} (Breiman
+        et al. 1984, Chapter 4.3).
+        \item Unweighted and heavy weighted Gini index splitting rules can
+   	    be invoked using splitrules \code{gini.unwt} and
+	      \code{gini.hvwt}.  Generally \code{gini} works best, but see
+	      Ishwaran (2015) for details.
+      }	  
+      
+      \item Multivariate classification analysis: For multivariate
+      classification responses, a composite normalized Gini index
+      splitting rule is used.
+      
+	    
+      \item Mixed outcomes analysis: When both regression and
+	    classification responses are detected, a multivariate
+	    normalized composite split rule of mean-squared error and Gini
+	    index splitting is invoked.
+	    
+      
+      \item Unsupervised analysis: In settings where there is no outcome,
+	    unsupervised splitting is invoked.  In this case, the mixed
+	    outcome splitting rule (above) is applied.
+      
+      \item Survival analysis:
+      \enumerate{
+        \item The default rule is \code{logrank} which implements
+	      log-rank splitting (Segal, 1988; Leblanc and Crowley, 1993).
+        \item \code{logrankscore} implements log-rank score splitting
+        (Hothorn and Lausen, 2003).
+      }
+      
+      \item Competing risk analysis:
+      \enumerate{
+        
+        \item The default rule is \code{logrankCR} which implements a
+	      modified weighted log-rank splitting rule modeled after Gray's
+	      test (Gray, 1988).
+        
+        \item \code{logrank} implements weighted log-rank splitting where
+	      each event type is treated as the event of interest and all
+	      other events are treated as censored.  The split rule is the
+	      weighted value of each of log-rank statistics, standardized by
+	      the variance.  For more details see Ishwaran et al. (2014).
+      }
+    }
+    
+    
+    \item \emph{Allowable data types}
+    
+    Data types must be real valued, integer, factor or logical -- however
+    all except factors are coerced and treated as if real valued.  For
+    ordered factors, splits are similar to real valued variables.  If the
+    factor is unordered, a split will move a subset of the levels in the
+    parent node to the left daughter, and the complementary subset to the
+    right daughter.  All possible complementary pairs are considered and
+    apply to factors with an unlimited number of levels.  However, there
+    is an optimization check to ensure that the number of splits attempted
+    is not greater than the number of cases in a node (this internal check
+    will override the \code{nsplit} value in random splitting mode if
+    \code{nsplit} is large enough; see below for information about
+    \code{nsplit}).
+    
+    
+    
+    \item \emph{Improving computational speed}
+    
+    \itemize{
+      
+      \item \emph{Randomized Splitting Rules}
+      
+      Trees tend to favor splits on continuous variables and factors with
+      large numbers of levels (Loh and Shih, 1997).  To mitigate this
+      bias, and considerably improve computational speed, a randomize
+      version of a splitting rule can be invoked using \option{nsplit}.
+      If \option{nsplit} is set to a non-zero positive integer, then a
+      maximum of \option{nsplit} split points are chosen randomly for each
+      of the \option{mtry} variables within a node.  The splitting rule is
+      applied to the random split points and the node is split on that
+      variable and random split point yielding the best value (as measured
+      by the splitting rule).  Pure random splitting can be invoked by
+      setting \option{splitrule="random"}.  For each node, a variable is
+      randomly selected and the node is split using a random split point
+      (Cutler and Zhao, 2001; Lin and Jeon, 2006).
+      
+      The value of \option{nsplit} has a significant impact on the time
+      taken to grow a forest.  This is because non-random splitting
+      (i.e. the default option \option{nsplit=0}), considers all possible
+      split points for each of the \option{mtry} variables, and iterating
+      over each split point can be CPU intensive, especially in large
+      sample size settings.
+      
+      In general, regardless of computational speed, it is good practice
+      to use the \option{nsplit} when the data contains a mix of
+      continuous and discrete variables.  Using a reasonably small value
+      mitigates bias and may not compromise accuracy.
+      
+      
+      \item \emph{Large sample size}
+      
+      For increased efficiency for survival families, users should consider
+      setting \option{ntime} to a relatively small value when the sample
+      size (number of rows of the data) is large.  This constrains ensemble
+      calculations such as survival functions to a restricted grid of time
+      points of length no more than \option{ntime} which can considerably
+      reduce computational times.
+      
+      \item \emph{Large number of variables}
+      
+      For increased efficiency when the number of variables are large, set
+      \code{importance="none"} which turns off variable importance (VIMP)
+      calculations (see below for more details about variable importance)
+      and can considerably reduce computational times.  Note that variable
+      importance calculations can always be recovered later from the grow
+      forest using the function \command{vimp} and/or \command{predict}.
+      
+      \item \emph{Factors}
+      
+      For coherence, an immutable map is applied to each factor that
+      ensures that factor levels in the training data set are consistent
+      with the factor levels in any subsequent test data set.  This map is
+      applied to each factor before and after the native C library is
+      executed.  Because of this, if x-variables are all factors, then
+      computational times may become very long in high dimensional
+      problems.
+      
+    }
+    
+    \item \emph{Prediction Error}
+    
+    Prediction error is calculated using OOB data.  Performance is
+    measured in terms of mean-squared-error for regression, and
+    misclassification error for classification.  A normalized Brier score
+    (relative to a coin-toss) is also provided upon printing a
+    classification forest.
+    
+    For survival, prediction error is measured by 1-C, where C is
+    Harrell's (Harrell et al., 1982) concordance index.  Prediction error
+    is between 0 and 1, and measures how well the predictor correctly
+    ranks (classifies) two random individuals in terms of survival.  A
+    value of 0.5 is no better than random guessing. A value of 0 is
+    perfect.
+    
+    When bootstrapping is \code{by.node} or \code{none}, a coherent OOB
+    subset is not available to assess prediction error.  Thus, all outputs
+    dependent on this are suppressed.  In such cases, prediction error is
+    only available via classical cross-validation (the user will need to
+    use the \command{predict.rfsrc} function).
+    
+    \item \emph{Variable Importance (VIMP)}
+    
+    The option \option{importance} allows several ways to calculate VIMP.
+    The default \code{permute} returns Breiman-Cutler permutation VIMP as
+    described in Breiman (2001).  For each tree, the prediction error on
+    the out-of-bag (OOB) data is recorded.  Then for a given variable
+    \emph{x}, OOB cases are randomly permuted in \emph{x} and the
+    prediction error is recorded.  The VIMP for \emph{x} is defined as the
+    difference between the perturbed and unperturbed error rate, averaged
+    over all trees.  If \code{random} is used, then \emph{x} is not
+    permuted, but rather an OOB case is assigned a daughter node randomly
+    whenever a split on \emph{x} is encountered in the in-bag tree.  If
+    \code{anti} is used, then \emph{x} is assigned to the opposite node
+    whenever a split on \emph{x} is encountered in the in-bag tree.
+    
+    
+    When \option{importance} is selected from one of the \option{ensemble}
+    choices, then VIMP is calculated by comparing the error rate for the
+    perturbed OOB forest ensemble to the unperturbed OOB forest ensemble,
+    where the perturbed ensemble is obtained by either permuting \emph{x},
+    or by random daughter node assignment, or by anti-splitting on
+    \emph{x}.  Thus, unlike the Breiman-Cutler measure, here VIMP does not
+    measure the tree average effect of \emph{x}, but rather its overall
+    forest effect.  See Ishwaran et al. (2008) for further details.
+    
+    Finally, the option \code{none} turns VIMP off entirely.
+    
+    Note that the function \command{vimp} provides a friendly user
+    interface for extracting VIMP.
+    
+    
+    \item \emph{Multivariate Forests}
+    
+    Multivariate forests are specified by using the multivariate formula
+    interface.  Such a call can take one of two forms:
+    
+    rfsrc(Multivar(y1, y2, ..., yd) ~ . , my.data, ...)
+    
+    rfsrc(cbind(y1, y2, ..., yd) ~ . , my.data, ...)
+    
+    The nature of the outcomes will inform the code as to what type of
+    multivariate forest to grow; i.e. whether it is real-valued,
+    categorical, or a combination of both (mixed).  Note that performance
+    measures such as VIMP and error rates are returned for all outcomes.
+    For faster speed, VIMP can be turned off and the \command{predict}
+    function used later to extract these values.
+    
+    
+    \item \emph{Unsupervised Splitting}
+    
+    In the case where no y-outcomes are present, unsupervised splitting can
+    be invoked by one of two means:
+    
+    rfsrc(Unsupervised() ~ ., data = my.data)
+    
+    rfsrc(data = my.data)
+    
+    In this case, a random subset of \code{mtry} pairs of variables are
+    selected at each tree node.  For each pair, one is chosen at random to
+    be the response (called the pseudo-response) and the remaining
+    variable is treated as the candidate variable to be split on.  The
+    best split (measured in terms of the pseudo-response) over the
+    \code{mtry} pairs is used to split the node.
+    
+    Multivariate unsupervised splitting can also be implemented.  A
+    typical call looks like:
+    
+    rfsrc(Unsupervised(5) ~ ., my.data, mtry = 10)
+    
+    In the above, \code{mtry=10} variables are selected at random, and for
+    each of these a random subset of 5 variables are selected and defined
+    as the multivariate pseudo-responses.  In essence this creates a
+    collection of 10 multivariate regression problems (the number of
+    regressions, 10, is defined by \code{mtry} and the number of
+    pseudo-responses in each regression, 5, is determined by the
+    unsupervised formula; informally we call this value "ytry").  A
+    multivariate normalized composite splitting rule is then applied to
+    each of the 10 multivariate regression problems and the node split on
+    the variable leading to the best split.
+    
+    Note that all performance values (error rates, VIMP, prediction) are
+    turned off in unsupervised mode.
+    
+    \item \emph{Survival, Competing Risks}
+    
+    \enumerate{
+      \item Survival settings require a time and censoring variable which
+      should be identifed in the formula as the response using the standard
+      \code{Surv} formula specification.  A typical formula call looks like:
+      
+      Surv(my.time, my.status) ~ .
+      
+      where \code{my.time} and \code{my.status} are the variables names for
+      the event time and status variable in the users data set.
+      
+      \item For survival forests (Ishwaran et al. 2008), the censoring
+      variable must be coded as a non-negative integer with 0 reserved for
+      censoring and (usually) 1=death (event).  The event time must be
+      non-negative.
+      
+      \item For competing risk forests (Ishwaran et al., 2013), the
+      implementation is similar to survival, but with the following
+      caveats:
+      
+      \itemize{
+        \item Censoring must be coded as a non-negative integer, where 0
+        indicates right-censoring, and non-zero values indicate different
+        event types.  While {0,1,2,..,J} is standard, and recommended,
+        events can be coded non-sequentially, although 0 must always be used
+        for censoring.
+        
+        \item Setting the splitting rule to \code{logrankscore} will result
+        in a survival analysis in which all events are treated as if they
+        are the same type (indeed, they will coerced as such).
+        
+        \item Generally, competing risks requires a larger \code{nodesize} than
+        survival settings.
+      }
+    }
+    
+    \item \emph{Missing data imputation}
+    
+    Setting \option{na.action="na.impute"} imputes missing data (both x
+    and y-variables) using a modification of the missing data algorithm of
+    Ishwaran et al. (2008).  Prior to splitting a node, missing data for a
+    variable is imputed by randomly drawing values from non-missing in-bag
+    data.  The purpose of this imputed data is to make it possible to
+    assign cases to daughter nodes in the event the node is split on a
+    variable with missing data.  Imputed data is however not used to
+    calculate the split-statistic which uses non-missing data only.
+    Following a node split, imputed data are reset to missing and the
+    process is repeated until terminal nodes are reached.  Missing data in
+    terminal nodes are imputed using OOB non-missing terminal node data.
+    For integer valued variables and censoring indicators, imputation uses
+    a maximal class rule, whereas continuous variables and survival time
+    use a mean rule.
+    
+    Choosing the option \option{na.action="na.random"} implements a cruder
+    version of the missing data algorithm, but which should be
+    computationally faster.  Unlike the default method, data is not
+    imputed as the tree is grown, instead following the split to a node,
+    data points with missing values on the variable used to split the node
+    are randomly assigned to daughter nodes.  When terminal nodes are
+    reached, missing data are imputed as before by using out-of-bag (OOB)
+    non-missing terminal node data.
+    
+    Both missing data algorithms can be iterated by setting \code{nimpute}
+    to a positive integer greater than 1.  Using only a few iterations are
+    needed to improve accuracy.  When the algorithm is iterated, at the
+    completion of each iteration, missing data is imputed using OOB
+    non-missing terminal node data which is then used as input to grow a
+    new forest.  Note that when the algorithm is iterated, a side effect
+    is that missing values in the returned objects \code{xvar},
+    \code{yvar} are replaced by imputed values.  Further, imputed objects
+    such as \code{imputed.data} are set to \code{NULL}.  Also, keep in
+    mind that if the algorithm is iterated, performance measures such as
+    error rates and VIMP become optimistically biased.
+    
+    Regardless of what method is used, records in which all outcome and
+    x-variable information are missing are removed from the forest
+    analysis.  Variables having all missing values are also removed.
+    
+    See the function \command{impute.rfsrc} for a fast impute interface.
+    
+    
+    
+    \item \emph{Miscellanea}
+    \enumerate{
+      \item Setting \option{var.used="all.trees"} returns a vector of size
+      \code{p} where each element is a count of the number of times a split
+      occurred on a variable.  If \option{var.used="by.tree"}, a matrix of
+      size \code{ntree}x\code{p} is returned.  Each element [i][j] is the
+      count of the number of times a split occurred on variable [j] in tree
+      [i].
+      
+      \item Setting \option{split.depth="all.trees"} returns a matrix of
+      size \code{n}x\code{p} where entry [i][j] is the minimal depth for
+      variable [j] for case [i] averaged over the forest.  That is, for
+      case [i], the entry [i][j] records the first time case [i] splits on
+      variable [j] averaged over the forest.  If
+      \option{split.depth="by.tree"}, a three-dimensional array is
+      returned where the third dimension [k] records the tree and the
+      first two coordinates [i][j] record the case and the variable.  Thus
+      entry [i][j][k] is the minimal depth for case [i] for variable [j]
+      for tree [k].
+    }
 }}
 \value{
-     An object of class \code{(rfsrc, grow)} with the following
-     components:
-
-     \item{call}{The original call to \command{rfsrc}.}
-     \item{formula}{The formula used in the call.}
-     \item{family}{The family used in the analysis.}
-     \item{n}{Sample size of the data (depends upon \code{NA}'s, see \option{na.action}).}
-     \item{ntree}{Number of trees grown.}
-     \item{mtry}{Number of variables randomly selected for splitting at each node.}
-     \item{nodesize}{Minimum size of terminal nodes.}
-     \item{nodedepth}{Maximum depth allowed for a tree.}
-     \item{splitrule}{Splitting rule used.}
-     \item{nsplit}{Number of randomly selected split points.}
-     \item{yvar}{y-outcome values.}
-     \item{yvar.names}{A character vector of the y-outcome names.}
-     \item{xvar}{Data frame of x-variables.}
-     \item{xvar.names}{A character vector of the x-variable names.}
-     \item{xvar.wt}{Vector of non-negative weights specifying the
-        probability used to select a variable for splitting a node.}
-     \item{split.wt}{Vector of non-negative weights where entry
-        \code{k}, after normalizing, is the multiplier by which the
+  An object of class \code{(rfsrc, grow)} with the following
+  components:
+  
+  \item{call}{The original call to \command{rfsrc}.}
+  \item{formula}{The formula used in the call.}
+  \item{family}{The family used in the analysis.}
+  \item{n}{Sample size of the data (depends upon \code{NA}'s, see \option{na.action}).}
+  \item{ntree}{Number of trees grown.}
+  \item{mtry}{Number of variables randomly selected for splitting at each node.}
+  \item{nodesize}{Minimum size of terminal nodes.}
+  \item{nodedepth}{Maximum depth allowed for a tree.}
+  \item{splitrule}{Splitting rule used.}
+  \item{nsplit}{Number of randomly selected split points.}
+  \item{yvar}{y-outcome values.}
+  \item{yvar.names}{A character vector of the y-outcome names.}
+  \item{xvar}{Data frame of x-variables.}
+  \item{xvar.names}{A character vector of the x-variable names.}
+  \item{xvar.wt}{Vector of non-negative weights specifying the
+    probability used to select a variable for splitting a node.}
+  \item{split.wt}{Vector of non-negative weights where entry
+    \code{k}, after normalizing, is the multiplier by which the
 	  split statistic for a covariate is adjusted.}
-     \item{leaf.count}{Number of terminal nodes for each tree in the
-         forest. Vector of length \option{ntree}.  A value of zero indicates
-         a rejected tree (can occur when imputing missing data).
-         Values of one indicate tree stumps.}
-     \item{proximity}{Proximity matrix recording the frequency of pairs of data points
-         occur within the same terminal node.}
-     \item{forest}{If \option{forest=TRUE}, the forest object is returned.
-         This object is used for prediction with new test data
-	 sets and is required for other R-wrappers.}
-
-     \item{membership}{Matrix recording terminal node membership where
-       each column contains the node number that a case falls in for that tree.}
-     \item{inbag}{Matrix recording inbag membership where each column
-     contains the number of times that a case appears in the bootstrap
-     sample for that tree.}
-     \item{var.used}{Count of the number of times a variable is used in
-       growing the forest.}
-     \item{imputed.indv}{Vector of indices for cases with missing
-         values.}
-     \item{imputed.data}{Data frame of the imputed data. The first
-	 column(s) are reserved for the y-responses, after which the
-	 x-variables are listed.}
-     \item{split.depth}{Matrix [i][j] or array [i][j][k] recording the
-           minimal depth for variable [j] for case [i], either averaged over
-           the forest, or by tree [k].}
-     \item{node.stats}{Split statistics returned when
-     \code{statistics=TRUE} which can be parsed using \command{stat.split}.}
-     \item{err.rate}{Tree cumulative OOB error rate.}
-     \item{importance}{Variable importance (VIMP) for each x-variable.}
-     \item{predicted}{In-bag predicted value.}
-     \item{predicted.oob}{OOB predicted value.}\cr
-
-\item{...... class}{for classification settings, additionally the following ......} \cr
-      \item{class}{In-bag predicted class labels.}
-      \item{class.oob}{OOB predicted class labels.}\cr
-
-\item{...... surv}{for survival settings, additionally the following ......} \cr
-
-     \item{survival}{In-bag survival function.}
-     \item{survival.oob}{OOB survival function.}
-     \item{chf}{In-bag cumulative hazard function (CHF).}
-     \item{chf.oob}{OOB CHF.}
-     \item{time.interest}{Ordered unique death times.}
-     \item{ndead}{Number of deaths.}\cr
-
-\item{...... surv-CR}{for competing risks, additionally the following ......} \cr
-
-     \item{chf}{In-bag cause-specific cumulative hazard function (CSCHF)
-     for each event.}
-     \item{chf.oob}{OOB CSCHF.}
-     \item{cif}{In-bag cumulative incidence function (CIF) for each event.}
-     \item{cif.oob}{OOB CIF.}
-     \item{time.interest}{Ordered unique event times.}
-     \item{ndead}{Number of events.}
+  \item{leaf.count}{Number of terminal nodes for each tree in the
+    forest. Vector of length \option{ntree}.  A value of zero indicates
+    a rejected tree (can occur when imputing missing data).
+    Values of one indicate tree stumps.}
+  \item{proximity}{Proximity matrix recording the frequency of pairs of data points
+    occur within the same terminal node.}
+  \item{forest}{If \option{forest=TRUE}, the forest object is returned.
+    This object is used for prediction with new test data
+	  sets and is required for other R-wrappers.}
+  
+  \item{membership}{Matrix recording terminal node membership where
+    each column contains the node number that a case falls in for that tree.}
+  \item{inbag}{Matrix recording inbag membership where each column
+    contains the number of times that a case appears in the bootstrap
+    sample for that tree.}
+  \item{var.used}{Count of the number of times a variable is used in
+    growing the forest.}
+  \item{imputed.indv}{Vector of indices for cases with missing
+    values.}
+  \item{imputed.data}{Data frame of the imputed data. The first
+	  column(s) are reserved for the y-responses, after which the
+	  x-variables are listed.}
+  \item{split.depth}{Matrix [i][j] or array [i][j][k] recording the
+    minimal depth for variable [j] for case [i], either averaged over
+    the forest, or by tree [k].}
+  \item{node.stats}{Split statistics returned when
+    \code{statistics=TRUE} which can be parsed using \command{stat.split}.}
+  \item{err.rate}{Tree cumulative OOB error rate.}
+  \item{importance}{Variable importance (VIMP) for each x-variable.}
+  \item{predicted}{In-bag predicted value.}
+  \item{predicted.oob}{OOB predicted value.}\cr
+  
+  \item{++++++++}{for classification settings, additionally ++++++++} \cr
+  \item{class}{In-bag predicted class labels.}
+  \item{class.oob}{OOB predicted class labels.}\cr
+  
+  
+  \item{++++++++}{for multivariate settings, additionally ++++++++} \cr
+  
+  \item{regrOutput}{List containing performance values for
+	  regression responses (if they are present).}
+	\item{clasOutput}{List containing performance values for
+	  categorical (factor) responses (if they are present).}
+  
+  \item{++++++++}{for survival settings, additionally ++++++++} \cr
+  
+  \item{survival}{In-bag survival function.}
+  \item{survival.oob}{OOB survival function.}
+  \item{chf}{In-bag cumulative hazard function (CHF).}
+  \item{chf.oob}{OOB CHF.}
+  \item{time.interest}{Ordered unique death times.}
+  \item{ndead}{Number of deaths.}\cr
+  
+  \item{++++++++}{for competing risks, additionally ++++++++} \cr
+  
+  \item{chf}{In-bag cause-specific cumulative hazard function (CSCHF)
+    for each event.}
+  \item{chf.oob}{OOB CSCHF.}
+  \item{cif}{In-bag cumulative incidence function (CIF) for each event.}
+  \item{cif.oob}{OOB CIF.}
+  \item{time.interest}{Ordered unique event times.}
+  \item{ndead}{Number of events.}
 }
 \note{
   \enumerate{
-    \item The returned object depends heavily on the family.  In
+    \item Values returned depend heavily on the family.  In
     particular, \code{predicted} and \code{predicted.oob} are the
-    following values calculated using in-bag and OOB data.
-
+    following values calculated using in-bag and OOB data:
+    
     \enumerate{
       \item For regression, a vector of predicted y-responses.
-
+      
       \item For classification, a matrix with columns containing the
       estimated class probability for each class.
-
+      
       \item For survival, a vector of mortality values (Ishwaran et al.,
       2008) representing estimated risk for each individual calibrated
       to the scale of the number of events (as a specific example, if
@@ -525,7 +665,7 @@ rfsrc(formula, data, ntree = 1000,
       the CHF and survival function.  Each row corresponds to an
       individual's ensemble CHF or survival function evaluated at each
       time point in \code{time.interest}.
-
+      
       \item For competing risks, a matrix with one column for each event
       recording the expected number of life years lost due to the event
       specific cause up to the maximum follow up (Ishwaran et al.,
@@ -536,70 +676,75 @@ rfsrc(formula, data, ntree = 1000,
       event type, each time point in \code{time.interest} making up the
       second dimension (columns), and the case (individual) being the
       first dimension (rows).
+      
+      \item For multivariate families, predicted values (and other
+      performance values such as VIMP and error rates) are stored in 
+      the lists \code{regrOutput} and \code{clasOutput}.
+      
     }
-
+    
     \item Different R-wrappers are provided to aid in parsing the grow
     object.
   }
 }
 \author{
-    Hemant Ishwaran and Udaya B. Kogalur
+  Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
-    Breiman L., Friedman J.H., Olshen R.A. and Stone C.J.
-    \emph{Classification and Regression Trees}, Belmont, California, 1984.
-
-    Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
-
-    Cutler A. and Zhao G. (2001). Pert-Perfect random tree ensembles.
-    \emph{Comp. Sci. Statist.}, 33: 490-497.
-
-    Gray R.J. (1988).  A class of k-sample tests for comparing the
-    cumulative incidence of a competing risk, \emph{Ann. Statist.},
-    16: 1141-1154.
-
-    Harrell et al. F.E. (1982).  Evaluating the yield of medical tests,
-    \emph{J. Amer. Med. Assoc.}, 247:2543-2546.
-
-    Hothorn T. and Lausen B. (2003). On the exact distribution of maximally selected
-    rank statistics, \emph{Comp. Statist. Data Anal.}, 43:121-137.
-
-    Ishwaran H. (2007).  Variable importance in binary regression
-    trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
-
-    Ishwaran H. and Kogalur U.B. (2007).  Random survival forests for R,
-    \emph{Rnews}, 7(2):25-31.
-
-    Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
-    (2008).  Random survival forests, \emph{Ann. App.
+  Breiman L., Friedman J.H., Olshen R.A. and Stone C.J.
+  \emph{Classification and Regression Trees}, Belmont, California, 1984.
+  
+  Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
+  
+  Cutler A. and Zhao G. (2001). Pert-Perfect random tree ensembles.
+  \emph{Comp. Sci. Statist.}, 33: 490-497.
+  
+  Gray R.J. (1988).  A class of k-sample tests for comparing the
+  cumulative incidence of a competing risk, \emph{Ann. Statist.},
+  16: 1141-1154.
+  
+  Harrell et al. F.E. (1982).  Evaluating the yield of medical tests,
+  \emph{J. Amer. Med. Assoc.}, 247:2543-2546.
+  
+  Hothorn T. and Lausen B. (2003). On the exact distribution of maximally selected
+  rank statistics, \emph{Comp. Statist. Data Anal.}, 43:121-137.
+  
+  Ishwaran H. (2007).  Variable importance in binary regression
+  trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
+  
+  Ishwaran H. and Kogalur U.B. (2007).  Random survival forests for R,
+  \emph{Rnews}, 7(2):25-31.
+  
+  Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
+  (2008).  Random survival forests, \emph{Ann. App.
     Statist.}, 2:841-860.
-
-    Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and
-    Lauer M.S. (2010).  High-dimensional variable selection for survival
-    data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
-
-    Ishwaran H. (2014).  The effect of splitting on random forests.
-    \emph{Machine Learning (in press)}.
-
-    Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
-    B.M. (2014). Random survival forests for competing risks.
-    \emph{Biostatistics (in press)}.
-
-    Lin Y. and Jeon Y. (2006).  Random forests and adaptive nearest
-    neighbors, \emph{J. Amer. Statist. Assoc.}, 101:578-590.
-
-    LeBlanc M. and Crowley J. (1993).  Survival trees by goodness of split,
-    \emph{J. Amer. Statist. Assoc.}, 88:457-467.
-
-    Loh W.-Y and Shih Y.-S (1997).  Split selection methods for
-    classification trees, \emph{Statist. Sinica}, 7:815-840.
-
-    Mogensen, U.B, Ishwaran H. and Gerds T.A. (2012). Evaluating random
-    forests for survival analysis using prediction error curves,
-    \emph{J.  Statist. Software}, 50(11): 1-23.
-
-    Segal M.R. (1988).  Regression trees for censored data,
-    \emph{Biometrics},  44:35-47.
+  
+  Ishwaran H., Kogalur U.B., Gorodeski E.Z, Minn A.J. and
+  Lauer M.S. (2010).  High-dimensional variable selection for survival
+  data.  \emph{J. Amer. Statist. Assoc.}, 105:205-217.
+  
+  Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
+  B.M. (2014). Random survival forests for competing risks.
+  \emph{Biostatistics}, 15(4):757-773.
+  
+  Ishwaran H. (2015).  The effect of splitting on random forests.
+  \emph{Machine Learning}, 99:75-118.
+  
+  Lin Y. and Jeon Y. (2006).  Random forests and adaptive nearest
+  neighbors, \emph{J. Amer. Statist. Assoc.}, 101:578-590.
+  
+  LeBlanc M. and Crowley J. (1993).  Survival trees by goodness of split,
+  \emph{J. Amer. Statist. Assoc.}, 88:457-467.
+  
+  Loh W.-Y and Shih Y.-S (1997).  Split selection methods for
+  classification trees, \emph{Statist. Sinica}, 7:815-840.
+  
+  Mogensen, U.B, Ishwaran H. and Gerds T.A. (2012). Evaluating random
+  forests for survival analysis using prediction error curves,
+  \emph{J.  Statist. Software}, 50(11): 1-23.
+  
+  Segal M.R. (1988).  Regression trees for censored data,
+  \emph{Biometrics},  44:35-47.
 }
 \seealso{
   \command{\link{find.interaction}},
@@ -783,8 +928,8 @@ if (library("survival", logical.return = TRUE)) {
   ## extract VIMP from the log-rank forests: event-specific
   ## extract minimal depth from the Gray log-rank forest: non-event specific
   var.perf <- data.frame(md = max.subtree(pbc.cr)$order[, 1],
-                         vimp1 = pbc.log1$importance[,1],
-                         vimp2 = pbc.log2$importance[,2])
+                         vimp1 = 100 * pbc.log1$importance[ ,1],
+                         vimp2 = 100 * pbc.log2$importance[ ,2])
   print(var.perf[order(var.perf$md), ])
 
 }
@@ -826,7 +971,38 @@ data(breast, package = "randomForestSRC")
 breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
 plot(breast.obj)
 
+## ------------------------------------------------------------
+## Unsupervised analysis
+## ------------------------------------------------------------
 
-}}
+# two equivalent ways to implement unsupervised forests
+mtcars.unspv <- rfsrc(Unsupervised() ~., data = mtcars)
+mtcars2.unspv <- rfsrc(data = mtcars)
+
+#minimal depth variable selection applies!
+var.select(mtcars2.unspv)
+
+## ------------------------------------------------------------
+## Multivariate regression analysis
+## ------------------------------------------------------------
+mtcars.mreg <- rfsrc(Multivar(mpg, cyl) ~., data = mtcars)
+print(mtcars.mreg, outcome.target = "mpg")
+print(mtcars.mreg, outcome.target = "cyl")
+plot(mtcars.mreg, outcome.target = "mpg")
+plot(mtcars.mreg, outcome.target = "cyl")
+
+
+## ------------------------------------------------------------
+## Mixed outcomes analysis
+## ------------------------------------------------------------
+mtcars.new <- mtcars
+mtcars.new$cyl <- factor(mtcars.new$cyl)
+mtcars.new$carb <- factor(mtcars.new$carb, ordered = TRUE)
+mtcars.mix <- rfsrc(cbind(carb, mpg, cyl) ~., data = mtcars.new)
+print(mtcars.mix, outcome.target = "mpg")
+print(mtcars.mix, outcome.target = "cyl")
+plot(mtcars.mix, outcome.target = "mpg")
+plot(mtcars.mix, outcome.target = "cyl")
+}
+}
 \keyword{forest}
-

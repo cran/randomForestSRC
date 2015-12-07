@@ -1,16 +1,22 @@
 Package: randomForestSRC
-Version: 1.6.1
-BUILD: bld20150304
+Version: 2.0.0
+BUILD: bld20151204
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 1.6.1
+CHANGES TO RELEASE 2.0.0
 ---------------------------------------------------------------------------------
+RELEASE 2.0.0
+Multivariate capabilities added. Custom splitting harness
+modifications.  Redefinition of nodesize to allow terminal nodes less
+than said size, subject to the initial test for 2 x nodesize before
+the split, maximum depth, and purity.  Various bug fixes.
+
 RELEASE 1.6.1
 Fix to donttest example in rfsrc.Rd, and other adjustments per
 CRAN packaging protocols.
-  
+
 ---------------------------------------------------------------------------------
-RELEASE 1.6.0  
+RELEASE 1.6.0
 Bug fix to duplicating missingness protocol when restoring a forest.
 Added fast.restore option to grow call.  Change to pass through
 xvar.wt as entered by user. RAM profile reduction in vimp().  Added
@@ -104,5 +110,5 @@ prematurely de-allocating terminal node information.
 
 ---------------------------------------------------------------------------------
 RELEASE 1.0.0 represents the first release of the
-package.  Please report bugs to commerce@kogalur.com
+package.  
 

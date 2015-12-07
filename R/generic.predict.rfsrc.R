@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -61,642 +61,756 @@
 
 
 generic.predict.rfsrc <-
-  function(object,
-           newdata, 
-           importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-           importance.xvar,
-           subset = NULL,
-           na.action = c("na.omit", "na.impute", "na.random"),
-           outcome = c("train", "test"),
-           proximity = FALSE,
-           forest.wt = FALSE,
-           var.used = c(FALSE, "all.trees", "by.tree"),
-           split.depth = c(FALSE, "all.trees", "by.tree"),
-           seed = NULL,
-           do.trace = FALSE,
-           membership = TRUE,
-           statistics = FALSE,
-           ptn.count = 0,
-           ...)
+    function(object,
+             newdata,
+             outcome.target = NULL, 
+             importance = c("permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
+             importance.xvar,
+             subset = NULL,
+             na.action = c("na.omit", "na.impute", "na.random"),
+             outcome = c("train", "test"),
+             proximity = FALSE,
+             var.used = c(FALSE, "all.trees", "by.tree"),
+             split.depth = c(FALSE, "all.trees", "by.tree"),
+             seed = NULL,
+             do.trace = FALSE,
+             membership = TRUE,
+             statistics = FALSE,
+             ...)
 {
-  if (missing(object)) {
-    stop("object is missing!")
-  }
-  if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
-      sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2  &
-      sum(inherits(object, c("rfsrc", "partial"), TRUE) == c(1, 2)) != 2) {
-    stop("this function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'")
-  }
-  if (sum(inherits(object, c("rfsrc", "partial"), TRUE) == c(1, 2)) != 2) {
-    partial.class <- FALSE
-  }
-  else {
-   partial.class <- TRUE
-  }
-  importance <- match.arg(importance[1],
-      c("permute", "random", "permute.ensemble", "random.ensemble", "none",
-        "permute.joint", "random.joint", "permute.joint.ensemble", "random.joint.ensemble"))
-  if (grepl("joint", importance)) {
-    vimp.joint <- TRUE
-  }
-  else {
-    vimp.joint <- FALSE
-  }
-  importance.xvar <- get.importance.xvar(importance.xvar, importance, object)
-  importance.xvar.idx <- match(importance.xvar, object$xvar.names)
-  na.action <- match.arg(na.action, c("na.omit", "na.impute", "na.random"))
-  outcome <- match.arg(outcome, c("train", "test"))
-  proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
-  forest.wt <- match.arg(as.character(forest.wt), c(FALSE, TRUE, "inbag", "oob", "all"))
-  var.used <- match.arg(as.character(var.used), c("FALSE", "all.trees", "by.tree"))
-  if (var.used == "FALSE") var.used <- FALSE
-  split.depth <- match.arg(as.character(split.depth),  c("FALSE", "all.trees", "by.tree"))
-  if (split.depth == "FALSE") split.depth <- FALSE
-  seed <- get.seed(seed)
-  if (missing(newdata)) {
-    outcome <- "train"
-    restore.only <- TRUE
-  }
-  else {
-    restore.only <- FALSE
-  }
-  restore.only.bits <- get.restore.only(restore.only)
-  if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
-    if (is.null(object$forest)) {
-      stop("The forest is empty.  Re-run rfsrc (grow) call with forest=TRUE")
+    univariate.nomenclature = TRUE
+    if (missing(object)) {
+        stop("object is missing!")
     }
-    if (inherits(object, "bigdata")) {
-      big.data <- TRUE
+    if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
+        sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2  &
+        sum(inherits(object, c("rfsrc", "partial"), TRUE) == c(1, 2)) != 2) {
+        stop("this function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'")
+    }
+    if (sum(inherits(object, c("rfsrc", "partial"), TRUE) == c(1, 2)) != 2) {
+        partial.class <- FALSE
     }
     else {
-      big.data <- FALSE
+        partial.class <- TRUE
     }
-    object <- object$forest
-  }
-  else {
-    if (inherits(object, "bigdata")) {
-      big.data <- TRUE
-    }
-    else {
-      big.data <- FALSE
-    }
-  }
-  if (is.null(object$version)) {
-      stop("this function only works with objects created with this version of the package")
-  }
-  else {
-      if (object$version != "1.6.1") {
-          stop("this function only works with objects created with this version of the package")
-      }
-  }
-  outcome.target <- get.outcome.target(object$family, outcome.target)
-  yvar.types <- get.yvar.type(object$family, object$yvar)
-  yvar.target <- get.yvar.target(object$family, yvar.types, outcome.target)
-  yvar.target.names <- object$yvar[outcome.target]
-  object$yvar <- as.data.frame(object$yvar)
-  colnames(object$yvar) <- object$yvar.names
-  yfactor <- extract.factor(object$yvar)
-  event.info <- get.event.info(object)
-  object.family <- object$family
-  any.outcome.factor <- object.family == "class"
-  if (any.outcome.factor) {
-    count.I.occurences <- cumsum(yfactor$generic.types == "I")
-    count.C.occurences <- cumsum(yfactor$generic.types == "C")
-    yfactor$target.levels <- lapply(outcome.target, function(k) {
-      gtype <- yfactor$generic.types[k]
-      if (gtype == "R") {
-        NULL
-      }
-      else if (gtype == "I") {
-        yfactor$order.levels[[count.I.occurences[k]]]
-      }
-      else {
-        yfactor$levels[[count.C.occurences[k]]]
-      }
-    })
-  }
-  sexp.dim <- get.sexp.dim(object.family, event.info$event.type, yfactor)[outcome.target]
-  cr.bits <- get.cr.bits(object.family)
-  xfactor <- extract.factor(object$xvar)
-  if (object.family == "unsupv") {
-    outcome <- "train"
-    perf.flag <- FALSE
-    importance <- "none"
-  }
-  if (missing(newdata)) {
-    if (object.family != "unsupv") {
-      newdata <- cbind(object$yvar, object$xvar)
+    importance <- match.arg(importance[1],
+                            c("permute", "random", "anti",
+                              "permute.ensemble", "random.ensemble", "anti.ensemble",
+                              "permute.joint", "random.joint", "anti.joint",
+                              "permute.joint.ensemble", "random.joint.ensemble", "anti.joint.ensemble",
+                              "none"))
+    if (grepl("joint", importance)) {
+        vimp.joint <- TRUE
     }
     else {
-      newdata <- object$xvar
+        vimp.joint <- FALSE
     }
-  }
-  if (!is.data.frame(newdata)) {
-    stop("test data must be a data frame.")
-  }
-  if (!restore.only) {
-    if (!partial.class) {
-      newdata <- newdata[, is.element(names(newdata),
-                       c(object$yvar.names, object$xvar.names)), drop = FALSE]
-      newdata <- rm.na.levels(newdata, object$xvar.names)
-      newdata.xfactor <- extract.factor(newdata, object$xvar.names)
-      if (!setequal(xfactor$factor, newdata.xfactor$factor)) {
-        stop("x-variable factors from test data do not match original training data")
-      }
-      if (!setequal(xfactor$order, newdata.xfactor$order)) {
-        stop("(ordered) x-variable factors from test data do not match original training data")
-      }
-      if (any.outcome.factor) {
-        if (sum(is.element(names(newdata), object$yvar.names)) > 0) {
-          newdata <- rm.na.levels(newdata, object$yvar.names)
-          newdata.yfactor <- extract.factor(newdata, object$yvar.names)
-          if (!setequal(yfactor$factor, newdata.yfactor$factor)) {
-            stop("class outcome from test data does not match original training data")
-          }
-          if (!setequal(yfactor$order, newdata.yfactor$order)) {
-            stop("(ordered) class outcome from test data does not match original training data")
-          }
+    xvar.names <- object$xvar.names
+    yvar.names <- object$yvar.names
+    importance.xvar <- get.importance.xvar(importance.xvar, importance, object)
+    importance.xvar.idx <- match(importance.xvar, xvar.names)
+    na.action <- match.arg(na.action, c("na.omit", "na.impute", "na.random"))
+    outcome <- match.arg(outcome, c("train", "test"))
+    proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
+    var.used <- match.arg(as.character(var.used), c("FALSE", "all.trees", "by.tree"))
+    if (var.used == "FALSE") var.used <- FALSE
+    split.depth <- match.arg(as.character(split.depth),  c("FALSE", "all.trees", "by.tree"))
+    if (split.depth == "FALSE") split.depth <- FALSE
+    seed <- get.seed(seed)
+    if (missing(newdata)) {
+        outcome <- "train"
+        grow.equivalent <- TRUE
+    }
+    else {
+        grow.equivalent <- FALSE
+    }
+    if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
+        if (is.null(object$forest)) {
+            stop("The forest is empty.  Re-run rfsrc (grow) call with forest=TRUE")
         }
-      }
-      if (length(object$xvar.names) != sum(is.element(object$xvar.names, names(newdata)))) {
-        stop("x-variables in test data do not match original training data")
-      }
-      yvar.present <- sum(is.element(object$yvar.names, names(newdata))) > 0
-      if (yvar.present && length(object$yvar.names) != sum(is.element(object$yvar.names, names(newdata)))) {
-        stop("y-variables in test data do not match original training data")
-      }
-      newdata[, object$xvar.names] <- check.factor(object$xvar, newdata[, object$xvar.names, drop = FALSE], xfactor)
-      if (any.outcome.factor) {
-        if (yvar.present) {
-          newdata[, object$yvar.names] <- check.factor(object$yvar, newdata[, object$yvar.names, drop = FALSE], yfactor)
+        if (inherits(object, "bigdata")) {
+            big.data <- TRUE
         }
-      }
-      if (yvar.present) {
-        fnames <- c(object$yvar.names, object$xvar.names)
-      }
-      else {
-        fnames <- object$xvar.names
-      }
-      newdata <- finalizeData(fnames, newdata, na.action)
-      xvar.newdata  <- as.matrix(newdata[, object$xvar.names, drop = FALSE])
-      n.newdata <- nrow(newdata)
-      newdata.row.names <- rownames(xvar.newdata)
-      if (yvar.present) {
-        yvar.newdata <- as.matrix(newdata[, object$yvar.names, drop = FALSE])
-        event.info.newdata <- get.grow.event.info(yvar.newdata, object.family, need.deaths = FALSE)
-        r.dim.newdata <- event.info.newdata$r.dim
-        perf.flag <- TRUE
-        if (grepl("surv", object.family) && all(na.omit(event.info.newdata$cens) == 0)) {
-          perf.flag <- FALSE
-          importance <- "none"
+        else {
+            big.data <- FALSE
         }
-        if (grepl("surv", object.family) &&
-            length(setdiff(na.omit(event.info.newdata$cens), na.omit(event.info$cens))) > 1) {
-          stop("survival events in test data do not match training data")
+        object <- object$forest
+    }
+    else {
+        if (inherits(object, "bigdata")) {
+            big.data <- TRUE
         }
-      }
-      else {
-        if (outcome == "test") {
-          stop("outcome=TEST, but the test data has no y values, which is not permitted")
+        else {
+            big.data <- FALSE
         }
-        r.dim.newdata <- 0
-        yvar.newdata <-  NULL
+    }
+    if (is.null(object$version)) {
+        cat("\n  This function only works with objects created with this version of the package:")
+        cat("\n    Installed version:  ")
+        cat("2.0.0")
+        cat("\n    Object version:     ")
+        cat("unknown")
+        cat("\n")
+        stop()
+    }
+    else {
+        if (substring(object$version, 1, 3) != substring("2.0.0", 1, 3)) {
+            cat("\n  This function only works with objects created with this version of the package:")
+            cat("\n    Installed version:  ")
+            cat("2.0.0")
+            cat("\n    Object version:     ")
+            cat(object$version)
+            cat("\n")
+            stop()
+        }
+    }
+    splitrule <- object$splitrule
+    object$yvar <- as.data.frame(object$yvar)
+    colnames(object$yvar) <- object$yvar.names
+    yfactor <- extract.factor(object$yvar)
+    family <- object$family
+    outcome.target.idx <- get.outcome.target(family, object$yvar.names, outcome.target)
+    yvar.types <- get.yvar.type(family, yfactor$generic.types)
+    event.info <- get.event.info(object)
+    cr.bits <- get.cr.bits(family)
+    xfactor <- extract.factor(object$xvar)
+    any.xvar.factor <-  (length(xfactor$factor) + length(xfactor$order)) > 0
+    if (family == "unsupv") {
+        outcome <- "train"
         perf.flag <- FALSE
         importance <- "none"
-      }
+    }
+    if (!grow.equivalent) {
+        if (!partial.class) {
+            newdata <- newdata[, is.element(names(newdata),
+                                            c(object$yvar.names, xvar.names)), drop = FALSE]
+            newdata <- rm.na.levels(newdata, xvar.names)
+            newdata.xfactor <- extract.factor(newdata, xvar.names)
+            if (!setequal(xfactor$factor, newdata.xfactor$factor)) {
+                stop("x-variable factors from test data do not match original training data")
+            }
+            if (!setequal(xfactor$order, newdata.xfactor$order)) {
+                stop("(ordered) x-variable factors from test data do not match original training data")
+            }
+            any.outcome.factor <- family == "class"
+            if (family == "class+" | family ==  "mix+") {
+                if (length(intersect("R", yfactor$generic.types[outcome.target.idx])) == 0) {
+                    any.outcome.factor <- TRUE
+                }
+            }
+            if (any.outcome.factor) {
+                if (sum(is.element(names(newdata), object$yvar.names)) > 0) {
+                    newdata <- rm.na.levels(newdata, object$yvar.names)
+                    newdata.yfactor <- extract.factor(newdata, object$yvar.names)
+                    if (!setequal(yfactor$factor, newdata.yfactor$factor)) {
+                        stop("class outcome from test data does not match original training data")
+                    }
+                    if (!setequal(yfactor$order, newdata.yfactor$order)) {
+                        stop("(ordered) class outcome from test data does not match original training data")
+                    }
+                }
+            }
+            if (length(xvar.names) != sum(is.element(xvar.names, names(newdata)))) {
+                stop("x-variables in test data do not match original training data")
+            }
+            yvar.present <- sum(is.element(object$yvar.names, names(newdata))) > 0
+            if (yvar.present && length(object$yvar.names) != sum(is.element(object$yvar.names, names(newdata)))) {
+                stop("y-variables in test data do not match original training data")
+            }
+            if (any.xvar.factor) {
+                newdata <- check.factor(object$xvar, newdata, xfactor)
+            }
+            if (any.outcome.factor) {
+                if (yvar.present) {
+                    newdata <- check.factor(object$yvar, newdata, yfactor)
+                }
+            }
+            if (yvar.present) {
+                fnames <- c(object$yvar.names, xvar.names)
+            }
+            else {
+                fnames <- xvar.names
+            }
+            newdata <- finalizeData(fnames, newdata, na.action)
+            xvar.newdata  <- as.matrix(newdata[, xvar.names, drop = FALSE])
+            n.newdata <- nrow(newdata)
+            newdata.row.names <- rownames(xvar.newdata)
+            if (yvar.present) {
+                yvar.newdata <- as.matrix(newdata[, object$yvar.names, drop = FALSE])
+                event.info.newdata <- get.grow.event.info(yvar.newdata, family, need.deaths = FALSE)
+                r.dim.newdata <- event.info.newdata$r.dim
+                perf.flag <- TRUE
+                if (grepl("surv", family) && all(na.omit(event.info.newdata$cens) == 0)) {
+                    perf.flag <- FALSE
+                    importance <- "none"
+                }
+                if (grepl("surv", family) &&
+                    length(setdiff(na.omit(event.info.newdata$cens), na.omit(event.info$cens))) > 1) {
+                    stop("survival events in test data do not match training data")
+                }
+            }
+            else {
+                if (outcome == "test") {
+                    stop("outcome=TEST, but the test data has no y values, which is not permitted")
+                }
+                r.dim.newdata <- 0
+                yvar.newdata <-  NULL
+                perf.flag <- FALSE
+                importance <- "none"
+            }
+        } 
+        else {
+            newdata <- as.data.frame(data.matrix(newdata))
+            xvar.newdata <- as.matrix(newdata)
+            n.newdata <- nrow(xvar.newdata)
+            r.dim.newdata <- 0
+            yvar.newdata <- NULL
+            perf.flag <- FALSE
+            importance <- "none"
+        }
+        if (outcome != "test") {
+            rownames(xvar.newdata) <- colnames(xvar.newdata) <- NULL
+        }
+        remove(newdata)
+    }
+    else {
+        n.newdata <- 0
+        r.dim.newdata <- 0
+        xvar.newdata <- NULL
+        yvar.newdata <-  NULL
+        outcome <- "train"
+        if (object$bootstrap != "by.root" | family == "unsupv") {
+            importance <- "none"
+            perf.flag <- FALSE
+        }
+        else {
+            perf.flag <- TRUE
+        }
     } 
-    else {
-      newdata <- as.data.frame(data.matrix(newdata))
-      xvar.newdata <- as.matrix(newdata)
-      n.newdata <- nrow(xvar.newdata)
-      r.dim.newdata <- 0
-      yvar.newdata <- NULL
-      perf.flag <- FALSE
-      importance <- "none"
-    }
-    if (outcome != "test") {
-      rownames(xvar.newdata) <- colnames(xvar.newdata) <- NULL
-    }
-    remove(newdata)
-  }
-  else {
-    n.newdata <- 0
-    r.dim.newdata <- 0
-    xvar.newdata <- NULL
-    yvar.newdata <-  NULL
-    outcome <- "train"
-    if (object$bootstrap != "by.root" | object.family == "unsupv") {
-      importance <- "none"
-      perf.flag <- FALSE
+    if (outcome == "train") {
+        xvar <- as.matrix(data.matrix(object$xvar))
+        yvar <- as.matrix(data.matrix(object$yvar))
     }
     else {
-      perf.flag <- TRUE
+        xvar <- xvar.newdata
+        yvar <- yvar.newdata
+        grow.equivalent <- TRUE
+        n.newdata <- 0
+        r.dim.newdata <- 0
     }
-  } 
-  if (outcome == "train") {
-    xvar <- as.matrix(data.matrix(object$xvar))
-    yvar <- as.matrix(data.matrix(object$yvar))
-  }
-  else {
-    xvar <- xvar.newdata
-    yvar <- yvar.newdata
-    restore.only <- TRUE
-    n.newdata <- 0
-    r.dim.newdata <- 0
-  }
-  r.dim <- ncol(cbind(yvar))
-  rownames(xvar) <- colnames(xvar) <- NULL
-  n.xvar <- ncol(xvar)
-  n <- nrow(xvar)
-  split.null <- object$split.null
-  ntree <- object$ntree
-  importance.bits <- get.importance(importance)
-  proximity.bits <- get.proximity(restore.only, proximity)
-  split.null.bits <- get.split.null(split.null)
-  split.depth.bits <- get.split.depth(split.depth)
-  var.used.bits <- get.var.used(var.used)
-  outcome.bits <- get.outcome(outcome)
-  perf.bits <-  get.perf.bits(perf.flag)
-  membership.bits <-  get.membership(membership)
-  statistics.bits <- get.statistics(statistics)
-  forest.wt.bits <- get.forest.wt(restore.only, object$bootstrap, forest.wt)
-  if (outcome == "test") {
-  }
-  else {
-    na.action = object$na.action
-  }
-  na.action.bits <- get.na.action(na.action)
-  if (missing(subset) | is.null(subset)) {
-    subset <- NULL
-  }
-  else {
-    if (is.logical(subset)) {
-      subset <- which(subset)
-    }
-    subset <- unique(subset[subset >= 1 & subset <= n])
-    if (length(subset) == 0) {
-      stop("'subset' not set properly")
-    }
-  }
-  do.trace <- get.trace(do.trace)
-  nativeOutput <- tryCatch({.Call("rfsrcPredict",
-                        as.integer(do.trace),
-                        as.integer(seed),
-                        as.integer(restore.only.bits +
-                                   importance.bits +
-                                   object$bootstrap.bits +
-                                   proximity.bits +
-                                   split.null.bits +
-                                   split.depth.bits +
-                                   var.used.bits +
-                                   outcome.bits +
-                                   perf.bits +
-                                   membership.bits +
-                                   cr.bits +
-                                   statistics.bits),
-                        as.integer(forest.wt.bits +
-                                   na.action.bits +
-                                   object$fast.restore.bits),
-                        as.integer(ntree),
-                        as.integer(n),
-                        as.integer(r.dim),
-                        as.character(yvar.types),
-                        as.integer(yvar.target),
-                        as.integer(yfactor$nlevels),
-                        as.double(as.vector(yvar)),
-                        as.integer(ncol(xvar)),
-                        as.character(xfactor$generic.types),
-                        as.integer(xfactor$nlevels),
-                        as.double(xvar),
-                        as.integer(length(subset)),
-                        as.integer(subset),
-                        as.integer(n.newdata),
-                        as.integer(r.dim.newdata),
-                        as.double(if (outcome != "test") yvar.newdata else NULL),
-                        as.double(if (outcome != "test") xvar.newdata else NULL),
-                        as.integer(length(event.info$time.interest)),
-                        as.double(event.info$time.interest),
-                        as.integer((object$nativeArray)$treeID),
-                        as.integer((object$nativeArray)$nodeID),
-                        as.integer((object$nativeArray)$parmID),
-                        as.double((object$nativeArray)$contPT),
-                        as.integer((object$nativeArray)$mwcpSZ),
-                        as.integer(object$nativeFactorArray),
-                        as.double((object$nativeArrayTNDS$tnSURV)),
-                        as.double((object$nativeArrayTNDS$tnMORT)),
-                        as.double((object$nativeArrayTNDS$tnNLSN)),
-                        as.double((object$nativeArrayTNDS$tnCSHZ)),
-                        as.double((object$nativeArrayTNDS$tnCIFN)),
-                        as.double((object$nativeArrayTNDS$tnREGR)),
-                        as.integer((object$nativeArrayTNDS$tnCLAS)),
-                        as.integer((object$nativeArrayTNDS$tnMCNT)),
-                        as.integer((object$nativeArrayTNDS$tnMEMB)),
-                        as.integer(object$totalNodeCount),
-                        as.integer(object$seed),
-                        as.integer(length(importance.xvar.idx)),
-                        as.integer(importance.xvar.idx),
-                        as.integer(ptn.count),
-                        as.integer(get.rf.cores()))}, error = function(e) {NULL})
-  if (is.null(nativeOutput)) {
-    stop("An error has occurred in prediction.  Please turn trace on for further analysis.")
-  }
-  if (restore.only) {
-    n.miss <- get.nmiss(xvar, yvar)
-  }
-  else {
-    n.miss <- get.nmiss(xvar.newdata, yvar.newdata)
-  }
-  if (n.miss > 0) {
-    imputed.data <- matrix(nativeOutput$imputation, nrow = n.miss)
-    nativeOutput$imputation <- NULL
-    imputed.indv <- imputed.data[, 1]
-    imputed.data <- as.data.frame(imputed.data[, -1, drop = FALSE])
-    if (r.dim.newdata > 0 | perf.flag) {
-      colnames(imputed.data) <- c(object$yvar.names, object$xvar.names)
+    r.dim <- ncol(cbind(yvar))
+    rownames(xvar) <- colnames(xvar) <- NULL
+    n.xvar <- ncol(xvar)
+    n <- nrow(xvar)
+    split.null <- object$split.null
+    ntree <- object$ntree
+    importance.bits <- get.importance(importance)
+    proximity.bits <- get.proximity(grow.equivalent, proximity)
+    split.null.bits <- get.split.null(split.null)
+    split.depth.bits <- get.split.depth(split.depth)
+    var.used.bits <- get.var.used(var.used)
+    outcome.bits <- get.outcome(outcome)
+    perf.bits <-  get.perf.bits(perf.flag)
+    membership.bits <-  get.membership(membership)
+    statistics.bits <- get.statistics(statistics)
+    bootstrap.bits <- get.bootstrap(object$bootstrap)
+    if (outcome == "test") {
     }
     else {
-      colnames(imputed.data) <- object$xvar.names
+        na.action = object$na.action
     }
-  }
-  if ((!partial.class) & (!restore.only | outcome == "test")) {
-    xvar.newdata <- as.data.frame(xvar.newdata)
-    rownames(xvar.newdata) <- newdata.row.names
-    colnames(xvar.newdata) <- object$xvar.names
-    xvar.newdata <- map.factor(xvar.newdata, xfactor)
-    if (perf.flag) {
-      yvar.newdata <- as.data.frame(yvar.newdata)
-      colnames(yvar.newdata) <- object$yvar.names
-      yvar.newdata <- map.factor(yvar.newdata, yfactor)
-    }
-  }
-  if (n.miss > 0) {
-    imputed.data <- map.factor(imputed.data, xfactor)
-    if (perf.flag) {
-      imputed.data <- map.factor(imputed.data, yfactor)
-    }
-  }
-  if (grepl("surv", object.family)) {
-    if (object.family == "surv-CR") {
-      ens.names <- list(NULL, NULL, paste("condCHF.", 1:(sexp.dim), sep = ""))
-      cif.names <- list(NULL, NULL, paste("CIF.", 1:(sexp.dim), sep = ""))
-      err.names <- list(paste("event.", 1:(sexp.dim), sep = ""), NULL)
-      vimp.names <- list(paste("event.", 1:(sexp.dim), sep = ""),
-                           if(vimp.joint) "joint" else importance.xvar)
-      mortality.names <- list(NULL, paste("event.", 1:(sexp.dim), sep = ""))
+    na.action.bits <- get.na.action(na.action)
+    if (missing(subset) | is.null(subset)) {
+        subset <- NULL
     }
     else {
-      survival.names <- ens.names <- list(NULL, NULL, NULL)
-      mortality.names <- err.names <- list(NULL, NULL)
-      vimp.names <- list(NULL, if (vimp.joint) "joint" else importance.xvar)
+        if (is.logical(subset)) {
+            subset <- which(subset)
+        }
+        subset <- unique(subset[subset >= 1 & subset <= n])
+        if (length(subset) == 0) {
+            stop("'subset' not set properly")
+        }
     }
-  }
-  else {
-    if (any.outcome.factor) {
-      err.names <- list(c("all", yfactor$target.levels[[1]]), NULL)
-      vimp.names <- list(c("all", yfactor$target.levels[[1]]), if(vimp.joint) "joint" else importance.xvar)
-      ens.names <- list(NULL, yfactor$target.levels[[1]], NULL)
+    do.trace <- get.trace(do.trace)
+    nativeOutput <- tryCatch({.Call("rfsrcPredict",
+                                    as.integer(do.trace),
+                                    as.integer(seed),
+                                    as.integer(importance.bits +
+                                                   bootstrap.bits +
+                                                       proximity.bits +
+                                                           split.null.bits +
+                                                               split.depth.bits +
+                                                                   var.used.bits +
+                                                                       outcome.bits +
+                                                                           perf.bits +
+                                                                               membership.bits +
+                                                                                   cr.bits +
+                                                                                       statistics.bits),
+                                    as.integer(
+                                                na.action.bits +
+                                                    object$fast.restore.bits),
+                                    as.integer(ntree),
+                                    as.integer(n),
+                                    as.integer(r.dim),
+                                    as.character(yvar.types),
+                                    as.integer(outcome.target.idx),
+                                    as.integer(length(outcome.target.idx)),                                  
+                                    as.integer(yfactor$nlevels),
+                                    as.double(as.vector(yvar)),
+                                    as.integer(ncol(xvar)),
+                                    as.character(xfactor$generic.types),
+                                    as.integer(xfactor$nlevels),
+                                    as.double(xvar),
+                                    as.integer(length(subset)),
+                                    as.integer(subset),
+                                    as.integer(n.newdata),
+                                    as.integer(r.dim.newdata),
+                                    as.double(if (outcome != "test") yvar.newdata else NULL),
+                                    as.double(if (outcome != "test") xvar.newdata else NULL),
+                                    as.integer(length(event.info$time.interest)),
+                                    as.double(event.info$time.interest),
+                                    as.integer((object$nativeArray)$treeID),
+                                    as.integer((object$nativeArray)$nodeID),
+                                    as.integer((object$nativeArray)$parmID),
+                                    as.double((object$nativeArray)$contPT),
+                                    as.integer((object$nativeArray)$mwcpSZ),
+                                    as.integer(object$nativeFactorArray),
+                                    as.double((object$nativeArrayTNDS$tnSURV)),
+                                    as.double((object$nativeArrayTNDS$tnMORT)),
+                                    as.double((object$nativeArrayTNDS$tnNLSN)),
+                                    as.double((object$nativeArrayTNDS$tnCSHZ)),
+                                    as.double((object$nativeArrayTNDS$tnCIFN)),
+                                    as.double((object$nativeArrayTNDS$tnREGR)),
+                                    as.integer((object$nativeArrayTNDS$tnCLAS)),
+                                    as.integer((object$nativeArrayTNDS$tnMCNT)),
+                                    as.integer((object$nativeArrayTNDS$tnMEMB)),
+                                    as.integer(object$totalNodeCount),
+                                    as.integer(object$seed),
+                                    as.integer(length(importance.xvar.idx)),
+                                    as.integer(importance.xvar.idx),
+                                    as.integer(get.rf.cores()))}, error = function(e) {
+                                        print(e)
+                                        NULL})
+    if (is.null(nativeOutput)) {
+        stop("An error has occurred in prediction.  Please turn trace on for further analysis.")
     }
-    else {
-      err.names <- list(NULL, NULL)
-      ens.names <- list(NULL, NULL, NULL)
-      vimp.names <- list(NULL, if(vimp.joint) "joint" else importance.xvar)
-    }
-  }
-  if (proximity != FALSE) {
-    if (restore.only) {
-      prox.n <- n
-    }
-    else {
-      prox.n <- n.newdata
-    }
-    proximity.out <- matrix(0, prox.n, prox.n)
-    count <- 0
-    for (k in 1:prox.n) {
-      proximity.out[k,1:k] <- nativeOutput$proximity[(count+1):(count+k)]
-      proximity.out[1:k,k] <- proximity.out[k,1:k]
-      count <- count + k
-    }
-    proximity.out <- proximity.out / diag(proximity.out)
-    nativeOutput$proximity <- NULL
-  }
-  else {
-    proximity.out <- NULL
-  }
-  if (forest.wt != FALSE) {
-    if (restore.only) {
-      forest.wt.n <- c(n, n)
-    }
-    else {
-      forest.wt.n <- c(n.newdata, n)
-    }
-    forest.wt.out <- matrix(nativeOutput$weight, forest.wt.n, byrow = TRUE)
-    nativeOutput$weight <- NULL
-  }
-  else {
-    forest.wt.out <- NULL
-  }
-  if (membership) {
-    if (restore.only) {
-      membership.n <- n
-    }
-    else {
-      membership.n <- n.newdata
-    }
-    membership.out <- matrix(nativeOutput$nodeMembership, c(membership.n, ntree))
-    if (ptn.count > 0) {
-      ptn.membership.out <- matrix(nativeOutput$ptnMembership, c(membership.n, ntree))
-    }
-    else {
-      ptn.membership.out <- NULL
-    }
-    inbag.out <- matrix(nativeOutput$bootMembership, c(membership.n, ntree))
-    nativeOutput$nodeMembership <- NULL
-    nativeOutput$bootMembership <- NULL
-    if (ptn.count > 0) {
-      nativeOutput$ptnMembership <- NULL
-    }
-  }
-  else {
-    membership.out <- NULL
-    ptn.membership.out <- NULL
-    inbag.out <- NULL
-  }
-  if (var.used != FALSE) {
-    if (var.used == "all.trees") {
-      var.used.out <- nativeOutput$varUsed
-      names(var.used.out) <- object$xvar.names
+    if (grow.equivalent) {
+        n.miss <- get.nmiss(xvar, yvar)
     }
     else {
-      var.used.out <- matrix(nativeOutput$varUsed, nrow = ntree, byrow = TRUE)
-      colnames(var.used.out) <- object$xvar.names
+        n.miss <- get.nmiss(xvar.newdata, yvar.newdata)
     }
-    nativeOutput$varUsed <- NULL
-  }
-  else {
-    var.used.out <-  NULL
-  }
-  if (split.depth != FALSE) {
-    if (split.depth == "all.trees") {
-      split.depth.out <- array(nativeOutput$splitDepth, c(n, n.xvar))
+    if (n.miss > 0) {
+        imputed.data <- matrix(nativeOutput$imputation, nrow = n.miss)
+        nativeOutput$imputation <- NULL
+        imputed.indv <- imputed.data[, 1]
+        imputed.data <- as.data.frame(imputed.data[, -1, drop = FALSE])
+        if (r.dim.newdata > 0 | perf.flag) {
+            colnames(imputed.data) <- c(object$yvar.names, xvar.names)
+        }
+        else {
+            colnames(imputed.data) <- xvar.names
+        }
+    }
+    if ((!partial.class) & (!grow.equivalent | outcome == "test")) {
+        xvar.newdata <- as.data.frame(xvar.newdata)
+        rownames(xvar.newdata) <- newdata.row.names
+        colnames(xvar.newdata) <- xvar.names
+        xvar.newdata <- map.factor(xvar.newdata, xfactor)
+        if (perf.flag) {
+            yvar.newdata <- as.data.frame(yvar.newdata)
+            colnames(yvar.newdata) <- object$yvar.names
+            yvar.newdata <- map.factor(yvar.newdata, yfactor)
+        }
+    }
+    if (n.miss > 0) {
+        imputed.data <- map.factor(imputed.data, xfactor)
+        if (perf.flag) {
+            imputed.data <- map.factor(imputed.data, yfactor)
+        }
+    }
+    if (proximity != FALSE) {
+        if (grow.equivalent) {
+            prox.n <- n
+        }
+        else {
+            prox.n <- n.newdata
+        }
+        proximity.out <- matrix(0, prox.n, prox.n)
+        count <- 0
+        for (k in 1:prox.n) {
+            proximity.out[k,1:k] <- nativeOutput$proximity[(count+1):(count+k)]
+            proximity.out[1:k,k] <- proximity.out[k,1:k]
+            count <- count + k
+        }
+        nativeOutput$proximity <- NULL
     }
     else {
-      split.depth.out <- array(nativeOutput$splitDepth, c(n, n.xvar, ntree))
+        proximity.out <- NULL
     }
-    nativeOutput$splitDepth <- NULL
-  }
-  else {
-    split.depth.out <-  NULL
-  }
-  if (statistics == TRUE) {
-    node.stats <- as.data.frame(cbind(nativeOutput$spltST))
-    names(node.stats) <- c("spltST")
-  }
-  else {
-    node.stats <- NULL
-  }
-  if (perf.flag) {
-    ERR <- atmatrix(nativeOutput$performance, ntree, err.names)
-    nativeOutput$performance <- NULL
-  }
-  else {
-    ERR <- NULL
-  }
-  if ((importance != "none") & perf.flag) {
-    VIMP <- atmatrix(nativeOutput$importance, (if (vimp.joint) 1 else length(importance.xvar)),
-                      vimp.names, keep.names = TRUE)
-    nativeOutput$importance <- NULL
-  }
-  else {
-    VIMP <- NULL
-  }
-  rfsrcOutput <- list(
-    call = match.call(),
-    family = object.family,
-    n = (if (restore.only) n else n.newdata),
-    ntree = ntree,
-    yvar = (if ((outcome == "train" & restore.only) | perf.flag | partial.class) {
-      if (outcome == "train" & (restore.only | partial.class))
-        amatrix.remove.names(object$yvar) else amatrix.remove.names(yvar.newdata)} else NULL),
-    yvar.names = object$yvar.names,
-    xvar = (if(outcome != "test" & restore.only) object$xvar else xvar.newdata),
-    xvar.names = object$xvar.names,
-    leaf.count = nativeOutput$leafCount,
-    proximity = proximity.out,
-    forest = object,
-    forest.wt = forest.wt.out,
-    membership = membership.out,
-    ptn.membership = ptn.membership.out,
-    inbag = inbag.out,
-    var.used = var.used.out,
-    imputed.indv = (if (n.miss>0) imputed.indv else NULL),
-    imputed.data = (if (n.miss>0) imputed.data else NULL),
-    split.depth  = split.depth.out,
-    node.stats = node.stats,
-    err.rate = ERR,
-    importance = VIMP
-  )
-  nativeOutput$leafCount <- NULL
-  remove(object)
-  remove(proximity.out)
-  remove(forest.wt.out)
-  remove(membership.out)
-  remove(ptn.membership.out)
-  remove(inbag.out)
-  if (n.miss > 0) remove(imputed.indv)
-  if (n.miss > 0) remove(imputed.data)
-  remove(var.used.out)
-  remove(split.depth.out)
-  remove(node.stats)
-  remove(ERR)
-  remove(VIMP)
-  if (grepl("surv", object.family)) {
-    predicted <- (if (!is.null(nativeOutput$fullMortality))
-             amatrix(nativeOutput$fullMortality, c(if (restore.only) n else n.newdata, sexp.dim),
-                     mortality.names) else NULL)
-    nativeOutput$fullMortality
-    survOutput <- list(predicted = predicted)
-    remove(predicted)
-    predicted.oob <-  (if (!is.null(nativeOutput$oobMortality))
-             amatrix(nativeOutput$oobMortality, c(n, sexp.dim), mortality.names) else NULL)
-    nativeOutput$oobMortality <- NULL
-    survOutput <- c(survOutput, predicted.oob = list(predicted.oob))
-    remove(predicted.oob)
-    survival = (if (!is.null(nativeOutput$fullSurvival))
-             adrop(array(nativeOutput$fullSurvival, c(if (restore.only) n else n.newdata,
-                 length(event.info$time.interest), sexp.dim), dimnames=survival.names), sexp.dim) else NULL)
-    nativeOutput$fullSurvival <- NULL
-    survOutput <- c(survOutput, survival = list(survival))
-    remove(survival)
-    survival.oob = (if (!is.null(nativeOutput$oobSurvival))
-             adrop(array(nativeOutput$oobSurvival, c(n, length(event.info$time.interest), sexp.dim),
-                 dimnames=survival.names), sexp.dim) else NULL)
-    nativeOutput$oobSurvival <- NULL
-    survOutput <- c(survOutput, survival.oob = list(survival.oob))
-    remove(survival.oob)
-    chf = (if (!is.null(nativeOutput$fullEnsemble))
-             adrop(array(nativeOutput$fullEnsemble, c(if (restore.only) n else n.newdata,
-                 length(event.info$time.interest), sexp.dim),
-                 dimnames = ens.names), sexp.dim) else NULL)
-    nativeOutput$fullEnsemble <- NULL
-    survOutput <- c(survOutput, chf = list(chf))
-    remove(chf)
-    chf.oob = (if (!is.null(nativeOutput$oobEnsemble))
-             adrop(array(nativeOutput$oobEnsemble,  c(n, length(event.info$time.interest), sexp.dim),
-                 dimnames=ens.names), sexp.dim) else NULL)
-    nativeOutput$oobEnsemble <- NULL
-    survOutput = c(survOutput, chf.oob = list(chf.oob))
-    remove(chf.oob)
-    cif = (if (!is.null(nativeOutput$fullCIF))
-             adrop(array(nativeOutput$fullCIF, c(if (restore.only) n else n.newdata,
-                 length(event.info$time.interest), sexp.dim),
-                 dimnames = cif.names), sexp.dim) else NULL)
-    nativeOutput$fullCIF <- NULL
-    survOutput <- c(survOutput, cif = list(cif))
-    remove(cif)
-    cif.oob = (if (!is.null(nativeOutput$oobCIF))
-             adrop(array(nativeOutput$oobCIF,  c(n, length(event.info$time.interest), sexp.dim),
-                 dimnames=cif.names), sexp.dim) else NULL)
-    nativeOutput$oobCIF <- NULL
-    survOutput = c(survOutput, cif.oob = list(cif.oob))
-    remove(cif.oob)
-    survOutput = c(
-      survOutput, list(
-      time.interest = event.info$time.interest,
-      ndead = (if (perf.flag) sum((if (restore.only) yvar[, 2] else yvar.newdata[, 2]) !=0 , na.rm=TRUE) else NULL))
+    n.observed = if (grow.equivalent) n else n.newdata
+    if (membership) {
+        membership.out <- matrix(nativeOutput$nodeMembership, c(n.observed, ntree))
+        nativeOutput$nodeMembership <- NULL
+        if (grow.equivalent) {
+            inbag.out <- matrix(nativeOutput$bootMembership, c(n.observed, ntree))
+            nativeOutput$bootMembership <- NULL
+        }
+        else {
+            inbag.out <- NULL
+        }
+    }
+    else {
+        membership.out <- NULL
+        inbag.out <- NULL
+    }
+    if (var.used != FALSE) {
+        if (var.used == "all.trees") {
+            var.used.out <- nativeOutput$varUsed
+            names(var.used.out) <- xvar.names
+        }
+        else {
+            var.used.out <- matrix(nativeOutput$varUsed, nrow = ntree, byrow = TRUE)
+            colnames(var.used.out) <- xvar.names
+        }
+        nativeOutput$varUsed <- NULL
+    }
+    else {
+        var.used.out <-  NULL
+    }
+    if (split.depth != FALSE) {
+        if (split.depth == "all.trees") {
+            split.depth.out <- array(nativeOutput$splitDepth, c(n, n.xvar))
+        }
+        else {
+            split.depth.out <- array(nativeOutput$splitDepth, c(n, n.xvar, ntree))
+        }
+        nativeOutput$splitDepth <- NULL
+    }
+    else {
+        split.depth.out <-  NULL
+    }
+    if (statistics == TRUE) {
+        node.stats <- as.data.frame(cbind(nativeOutput$spltST))
+        names(node.stats) <- c("spltST")
+    }
+    else {
+        node.stats <- NULL
+    }
+    rfsrcOutput <- list(
+        call = match.call(),
+        family = family,
+        n = n.observed,
+        ntree = ntree,
+        yvar = (if ((outcome == "train" & grow.equivalent) | perf.flag | partial.class) {
+            if (outcome == "train" & (grow.equivalent | partial.class))
+                amatrix.remove.names(object$yvar) else amatrix.remove.names(yvar.newdata)} else NULL),
+        yvar.names = object$yvar.names,
+        xvar = (if(outcome != "test" & grow.equivalent) object$xvar else xvar.newdata),
+        xvar.names = xvar.names,
+        leaf.count = nativeOutput$leafCount,
+        proximity = proximity.out,
+        forest = object,
+        membership = membership.out,
+        splitrule = splitrule,
+        inbag = inbag.out,
+        var.used = var.used.out,
+        imputed.indv = (if (n.miss>0) imputed.indv else NULL),
+        imputed.data = (if (n.miss>0) imputed.data else NULL),
+        split.depth  = split.depth.out,
+        node.stats = node.stats
     )
-    rfsrcOutput = c(rfsrcOutput, survOutput)
-  }
-  else {
-    if (any.outcome.factor) {
-      predicted <- adrop(array(nativeOutput$fullEnsemble, c(if (restore.only) n else n.newdata, sexp.dim - 1, 1),
-            dimnames=ens.names), 1, TRUE)
-      nativeOutput$fullEnsemble <- NULL
-      clasOutput <- list(predicted = predicted)
-      classResp <- (if (!is.null(predicted)) bayes.rule(predicted) else NULL)
-      remove(predicted)
-      predicted.oob = (if (!is.null(nativeOutput$oobEnsemble))
-             adrop(array(nativeOutput$oobEnsemble, c(n, sexp.dim - 1, 1), dimnames=ens.names), 1, TRUE) else NULL)
-      nativeOutput$oobEnsemble <- NULL
-      clasOutput <- c(clasOutput, predicted.oob = list(predicted.oob))
-      classResp.oob <- (if (!is.null(predicted.oob)) bayes.rule(predicted.oob) else NULL)
-      remove(predicted.oob)
-      clasOutput <- c(clasOutput, class = list(classResp), class.oob = list(classResp.oob))
-      remove(classResp)
-      remove(classResp.oob)
-      rfsrcOutput = c(rfsrcOutput, clasOutput)
+    nativeOutput$leafCount <- NULL
+    remove(object)
+    remove(proximity.out)
+    remove(membership.out)
+    remove(inbag.out)
+    if (n.miss > 0) remove(imputed.indv)
+    if (n.miss > 0) remove(imputed.data)
+    remove(var.used.out)
+    remove(split.depth.out)
+    remove(node.stats)
+    survOutput <- NULL
+    classOutput <- NULL
+    regrOutput <- NULL
+    if(vimp.joint) {
+        vimp.count <- 1
     }
     else {
-      predicted <- c(nativeOutput$fullEnsemble)
-      nativeOutput$fullEnsemble <- NULL
-      regrOutput <- list(predicted = predicted)
-      remove(predicted)
-      predicted.oob <-  (if (!is.null(nativeOutput$oobEnsemble)) c(nativeOutput$oobEnsemble) else NULL)
-      nativeOutput$oobEnsemble <- NULL
-      regrOutput <- c(regrOutput, predicted.oob = list(predicted.oob))
-      remove(predicted.oob)
-      rfsrcOutput = c(rfsrcOutput, regrOutput)
+        vimp.count <- length(importance.xvar)
     }
-  }
-  class(rfsrcOutput) <- c("rfsrc", "predict",   object.family)
-  return(rfsrcOutput)
+    if (grepl("surv", family)) {
+        if ((length(event.info$event.type) > 1) & (splitrule != "logrankscore")) {
+            coerced.event.count <- length(event.info$event.type)
+        }
+        else {
+            coerced.event.count <- 1
+        }
+        if (family == "surv") {
+            ens.names <- list(NULL, NULL)
+            mortality.names <- list(NULL, NULL)
+            err.names <- list(NULL, NULL)
+            vimp.names <- list(NULL, if (vimp.joint) "joint" else importance.xvar)
+        }
+        else {
+            ens.names <- list(NULL, NULL, c(paste("condCHF.", 1:length(event.info$event.type), sep = "")))
+            mortality.names <- list(NULL, paste("event.", 1:length(event.info$event.type), sep = ""))
+            cif.names <- list(NULL, NULL, c(paste("CIF.", 1:length(event.info$event.type), sep = "")))
+            err.names <- list(c(paste("event.", 1:length(event.info$event.type), sep = "")), NULL)
+            vimp.names <- list(paste("event.", 1:length(event.info$event.type), sep = ""),
+                               if(vimp.joint) "joint" else importance.xvar)
+        }
+        chf <- (if (!is.null(nativeOutput$fullEnsbSrvg))
+                    adrop3d.last(array(nativeOutput$fullEnsbSrvg,
+                                       c(n.observed, length(event.info$time.interest), length(event.info$event.type)),
+                                       dimnames=ens.names), length(event.info$event.type)) else NULL)
+        nativeOutput$fullEnsbSrvg <- NULL
+        survOutput <- list(chf = chf)
+        remove(chf)
+        chf.oob <- (if (!is.null(nativeOutput$oobEnsbSrvg))
+                        adrop3d.last(array(nativeOutput$oobEnsbSrvg,
+                                           c(n.observed, length(event.info$time.interest), length(event.info$event.type)),
+                                           dimnames=ens.names), length(event.info$event.type)) else NULL)
+        nativeOutput$oobEnsbSrvg <- NULL
+        survOutput = c(survOutput, chf.oob = list(chf.oob))
+        remove(chf.oob)
+        predicted <- (if (!is.null(nativeOutput$fullMortality))
+                          adrop2d.last(array(nativeOutput$fullMortality,
+                                             c(n, length(event.info$event.type)), dimnames=mortality.names), coerced.event.count) else NULL)
+        nativeOutput$fullMortality <- NULL
+        survOutput = c(survOutput, predicted = list(predicted))
+        remove(predicted)
+        predicted.oob <- (if (!is.null(nativeOutput$oobMortality))
+                              adrop2d.last(array(nativeOutput$oobMortality,
+                                                 c(n, length(event.info$event.type)), dimnames=mortality.names), coerced.event.count) else NULL)
+        nativeOutput$oobMortality <- NULL
+        survOutput <- c(survOutput, predicted.oob = list(predicted.oob))
+        remove(predicted.oob)
+        survival <-  (if (!is.null(nativeOutput$fullSurvival))
+                          matrix(nativeOutput$fullSurvival,
+                                 c(n.observed, length(event.info$time.interest))) else NULL)
+        nativeOutput$fullSurvival <- NULL
+        survOutput <- c(survOutput, survival = list(survival))
+        remove(survival)
+        survival.oob <-  (if (!is.null(nativeOutput$oobSurvival))
+                              matrix(nativeOutput$oobSurvival,
+                                     c(n.observed, length(event.info$time.interest))) else NULL)
+        nativeOutput$oobSurvival <- NULL
+        survOutput <- c(survOutput, survival.oob = list(survival.oob))
+        remove(survival.oob)
+        cif <- (if (!is.null(nativeOutput$fullCIF))
+                    array(nativeOutput$fullCIF,
+                          c(n.observed, length(event.info$time.interest), length(event.info$event.type)),
+                          dimnames=cif.names) else NULL)
+        nativeOutput$fullCIF <- NULL
+        survOutput <- c(survOutput, cif = list(cif))
+        remove(cif)
+        cif.oob <- (if (!is.null(nativeOutput$oobCIF))
+                        array(nativeOutput$oobCIF,
+                              c(n.observed, length(event.info$time.interest), length(event.info$event.type)),
+                              dimnames=cif.names) else NULL)
+        nativeOutput$oobCIF <- NULL
+        survOutput = c(survOutput, cif.oob = list(cif.oob))
+        remove(cif.oob)
+        if (!is.null(nativeOutput$perfSurv)) {      
+            err.rate <- adrop2d.first(array(nativeOutput$perfSurv,
+                                            c(length(event.info$event.type), ntree),
+                                            dimnames=err.names),
+                                      coerced.event.count)
+            nativeOutput$perfSurv <- NULL
+            if (family == "surv-CR") {
+                survOutput = c(survOutput, err.rate = list(t(err.rate)))
+            }
+            else {
+                survOutput = c(survOutput, err.rate = list(err.rate))
+            }
+            remove(err.rate)
+        }
+        if (!is.null(nativeOutput$vimpSurv)) {
+            importance <- adrop2d.first(array(nativeOutput$vimpSurv,
+                                              c(length(event.info$event.type), vimp.count),
+                                              dimnames = vimp.names),
+                                        coerced.event.count)
+            nativeOutput$vimpSurv <- NULL
+            if (family == "surv-CR") {
+                survOutput = c(survOutput, importance = list(t(importance)))
+            }
+            else {
+                survOutput = c(survOutput, importance = list(importance))
+            }
+            remove(importance)
+        }
+        survOutput = c(
+            survOutput, list(
+                time.interest = event.info$time.interest,
+                ndead = (if (perf.flag) sum((if (grow.equivalent) yvar[, 2] else yvar.newdata[, 2]) !=0 , na.rm=TRUE) else NULL))
+        )
+        if(univariate.nomenclature) {
+            rfsrcOutput <- c(rfsrcOutput, survOutput)
+        }
+        else {
+            rfsrcOutput <- c(rfsrcOutput, survOutput = list(survOutput))
+        }
+    }
+    else {
+        clas.index <- which(yvar.types == 'C')
+        clas.count <- length(clas.index)
+        regr.index <- which(yvar.types == 'R')
+        regr.count <- length(regr.index)
+        regr.target.idx <- intersect (regr.index, outcome.target.idx)
+        clas.target.idx <- intersect (clas.index, outcome.target.idx)
+        if (clas.count > 0) {
+            classOutput <- vector("list", clas.count)
+            names(classOutput) <- yvar.names[clas.index]
+            levels.count <- array(0, clas.count)
+            levels.names <- vector("list", clas.count)
+            for (i in 1:clas.count) {
+                if (yfactor$generic.types[clas.index[i]] == "I") {
+                    levels.count[i] <- length(yfactor$order.levels[[i]])
+                    levels.names[[i]] <- yfactor$order.levels[[i]]
+                }
+                else {
+                    levels.count[i] <- length(yfactor$levels[[i]])
+                    levels.names[[i]] <- yfactor$levels[[i]]
+                }
+            }
+            tree.offset <- array(1, ntree)
+            if (ntree > 1) {
+                tree.offset[2:ntree] <- sum(1 + levels.count[match(clas.target.idx, clas.index)])
+            }
+            tree.offset <-  cumsum(tree.offset)
+            vimp.offset <- array(1, vimp.count)
+            if (vimp.count > 1) {
+                vimp.offset[2:vimp.count] <- sum(1 + levels.count[match(clas.target.idx, clas.index)])
+            }
+            vimp.offset <-  cumsum(vimp.offset)
+            iter.ensb.start <- 0
+            iter.ensb.end   <- 0
+            for (i in 1:length(outcome.target.idx)) {
+                target.idx <- which (clas.index == outcome.target.idx[i])
+                if (length(target.idx) > 0) {
+                    iter.ensb.start <- iter.ensb.end
+                    iter.ensb.end <- iter.ensb.end + (levels.count[target.idx] * n.observed)
+                    ens.names <- list(NULL, levels.names[[target.idx]])
+                    err.names <- c("all", levels.names[[target.idx]])
+                    vimp.names <- list(c("all", levels.names[[target.idx]]), if(vimp.joint) "joint" else importance.xvar)
+                    predicted <- (if (!is.null(nativeOutput$fullEnsbClas))
+                                      array(nativeOutput$fullEnsbClas[(iter.ensb.start + 1):iter.ensb.end],
+                                            c(n.observed, levels.count[target.idx]), dimnames=ens.names) else NULL)
+                    classOutput[[target.idx]] <- list(predicted = predicted)
+                    response <- (if (!is.null(predicted)) bayes.rule(predicted) else NULL)
+                    classOutput[[target.idx]] <- c(classOutput[[target.idx]], class = list(response))
+                    remove(predicted)
+                    remove(response)
+                    predicted.oob <- (if (!is.null(nativeOutput$oobEnsbClas))
+                                          array(nativeOutput$oobEnsbClas[(iter.ensb.start + 1):iter.ensb.end],
+                                                c(n.observed, levels.count[target.idx]), dimnames=ens.names) else NULL)
+                    classOutput[[target.idx]] <- c(classOutput[[target.idx]], predicted.oob = list(predicted.oob))
+                    response.oob <- (if (!is.null(predicted.oob)) bayes.rule(predicted.oob) else NULL)
+                    classOutput[[target.idx]] <- c(classOutput[[target.idx]], class.oob = list(response.oob))
+                    remove(predicted.oob)
+                    remove(response.oob)
+                    if (!is.null(nativeOutput$perfClas)) {
+                        err.rate <- array(0, c(1 + levels.count[target.idx], ntree))
+                        for (j in 1: (1 + levels.count[target.idx])) {
+                            err.rate[j, ]  <- nativeOutput$perfClas[tree.offset]
+                            tree.offset <- tree.offset + 1
+                        }
+                        row.names(err.rate) <- err.names
+                        classOutput[[target.idx]] <- c(classOutput[[target.idx]], err.rate = list(t(err.rate)))
+                        remove(err.rate)
+                    }
+                    if (!is.null(nativeOutput$vimpClas)) {
+                        importance <- array(0, c(1 + levels.count[target.idx], vimp.count), dimnames=vimp.names)
+                        for (j in 1: (1 + levels.count[target.idx])) {
+                            importance[j, ]  <- nativeOutput$vimpClas[vimp.offset]
+                            vimp.offset <- vimp.offset + 1
+                        }
+                        classOutput[[target.idx]] <- c(classOutput[[target.idx]], importance = list(t(importance)))
+                        remove(importance)
+                    }
+                }
+            }
+            nativeOutput$fullEnsbClas <- NULL
+            nativeOutput$oobEnsbClas <- NULL
+            nativeOutput$perfClas <- NULL
+            nativeOutput$vimpClas <- NULL
+            if(univariate.nomenclature) {
+                if ((clas.count == 1) & (regr.count == 0)) {
+                    names(classOutput) <- NULL
+                    rfsrcOutput <- c(rfsrcOutput, unlist(classOutput, recursive=FALSE))
+                }
+                else {
+                    rfsrcOutput <- c(rfsrcOutput, classOutput = list(classOutput))
+                }
+            }
+            else {
+                rfsrcOutput <- c(rfsrcOutput, classOutput = list(classOutput))
+            }
+        }
+        if (regr.count > 0) {
+            regrOutput <- vector("list", regr.count)
+            names(regrOutput) <- yvar.names[regr.index]
+            tree.offset <- array(1, ntree)
+            if (ntree > 1) {
+                tree.offset[2:ntree] <- length(regr.target.idx)
+            }
+            tree.offset <-  cumsum(tree.offset)
+            vimp.offset <- array(1, vimp.count)
+            if (vimp.count > 1) {
+                vimp.offset[2:vimp.count] <- length(regr.target.idx)
+            }
+            vimp.offset <-  cumsum(vimp.offset)
+            iter.ensb.start <- 0
+            iter.ensb.end   <- 0
+            for (i in 1:length(outcome.target.idx)) {
+                target.idx <- which (regr.index == outcome.target.idx[i])
+                if (length(target.idx) > 0) {
+                    iter.ensb.start <- iter.ensb.end
+                    iter.ensb.end <- iter.ensb.end + n.observed
+                    vimp.names <- if(vimp.joint) "joint" else importance.xvar
+                    predicted <- (if (!is.null(nativeOutput$fullEnsbRegr))
+                                      array(nativeOutput$fullEnsbRegr[(iter.ensb.start + 1):iter.ensb.end], n.observed) else NULL)
+                    regrOutput[[target.idx]] <- list(predicted = predicted)
+                    remove(predicted)
+                    predicted.oob <- (if (!is.null(nativeOutput$oobEnsbRegr))
+                                      array(nativeOutput$oobEnsbRegr[(iter.ensb.start + 1):iter.ensb.end], n.observed) else NULL)
+                    regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], predicted.oob = list(predicted.oob))
+                    remove(predicted.oob)
+                    if (!is.null(nativeOutput$perfRegr)) {
+                        err.rate <- nativeOutput$perfRegr[tree.offset]
+                        tree.offset <- tree.offset + 1
+                        regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], err.rate = list(err.rate))
+                        remove(err.rate)
+                    }
+                    if (!is.null(nativeOutput$vimpRegr)) {
+                        importance <- nativeOutput$vimpRegr[vimp.offset]
+                        names(importance) <- vimp.names
+                        vimp.offset <- vimp.offset + 1
+                        regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], importance = list(importance))
+                        remove(importance)
+                    }
+                }
+            }
+            nativeOutput$fullEnsbRegr <- NULL
+            nativeOutput$oobEnsbRegr <- NULL
+            nativeOutput$perfRegr <- NULL
+            nativeOutput$vimpRegr <- NULL
+            if(univariate.nomenclature) {
+                if ((clas.count == 0) & (regr.count == 1)) {
+                    names(regrOutput) <- NULL
+                    rfsrcOutput <- c(rfsrcOutput, unlist(regrOutput, recursive=FALSE))
+                }
+                else {
+                    rfsrcOutput <- c(rfsrcOutput, regrOutput = list(regrOutput))
+                }
+            }
+            else {
+                rfsrcOutput <- c(rfsrcOutput, regrOutput = list(regrOutput))
+            }
+        }
+    }
+    class(rfsrcOutput) <- c("rfsrc", "predict",   family)
+    return(rfsrcOutput)
 }

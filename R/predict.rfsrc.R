@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -62,35 +62,33 @@
 
 predict.rfsrc <-
   function(object,
-           newdata, 
-           importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
+           newdata,
+           outcome.target=NULL,
+           importance = c("permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
            na.action = c("na.omit", "na.impute", "na.random"),
            outcome = c("train", "test"),
-           proximity = FALSE, 
+           proximity = FALSE,
            var.used = c(FALSE, "all.trees", "by.tree"),
            split.depth = c(FALSE, "all.trees", "by.tree"),
            seed = NULL,
            do.trace = FALSE,
            membership = TRUE,
-           statistics = FALSE, 
+           statistics = FALSE,
            ...)
 {
-  ptn.count <- 0
-  forest.wt <- FALSE
   result.predict <- generic.predict.rfsrc(object,
-                                          newdata, 
+                                          newdata,
+                                          outcome.target = outcome.target,
                                           importance = importance,
                                           na.action = na.action,
                                           outcome = outcome,
                                           proximity = proximity,
-                                          forest.wt = forest.wt,
                                           var.used = var.used,
                                           split.depth = split.depth,
                                           seed = seed,
                                           do.trace = do.trace,
                                           membership = membership,
                                           statistics = statistics,
-                                          ptn.count = ptn.count,
                                           ...)
   return(result.predict)
 }

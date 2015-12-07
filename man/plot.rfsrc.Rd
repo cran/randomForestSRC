@@ -5,10 +5,14 @@
   Plot out-of-bag (OOB) error rates and variable importance (VIMP)
   from a RF-SRC analysis. This is the default plot method for the package.
 }
-\usage{\method{plot}{rfsrc}(x, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,  ...)}
+\usage{\method{plot}{rfsrc}(x, outcome.target = NULL,
+  plots.one.page = TRUE, sorted = TRUE, verbose = TRUE,  ...)}
 \arguments{
   \item{x}{An object of class \code{(rfsrc, grow)}, \code{(rfsrc, synthetic)},
-      or \code{(rfsrc, predict)}.}
+    or \code{(rfsrc, predict)}.}
+  \item{outcome.target}{Character value for multivariate families
+    specifying the target outcome to be used. The default is to use the
+    first coordinate.}
   \item{plots.one.page}{Should plots be placed on one page?}
   \item{sorted}{Should variables be sorted by importance values?}
   \item{verbose}{Should VIMP be printed?}
@@ -23,7 +27,7 @@
 }
 \references{
   Breiman L. (2001). Random forests, \emph{Machine Learning}, 45:5-32.
-
+  
   Ishwaran H. and Kogalur U.B. (2007).  Random survival forests for R,
   \emph{Rnews}, 7(2):25-31.
 }
@@ -51,5 +55,9 @@ if (library("survival", logical.return = TRUE)) {
   pbc$id <- NULL
   plot(rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10))
 }
-}}
+
+ 
+
+}
+}
 \keyword{plot}

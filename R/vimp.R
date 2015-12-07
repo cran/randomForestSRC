@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -61,15 +61,14 @@
 
 
 vimp.rfsrc <- function(object,
-                 xvar.names,
-                 importance = c("permute", "random", "permute.ensemble", "random.ensemble", "none"),
-                 joint = FALSE,
-                 newdata,
-                 subset,
-                 na.action = c("na.omit", "na.impute", "na.random"),
-                 seed = NULL,
-                 do.trace = FALSE,
-                 ...)
+                       xvar.names,
+                       outcome.target = NULL,
+                       importance = c("permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
+                       joint = FALSE,
+                       subset,
+                       seed = NULL,
+                       do.trace = FALSE,
+                       ...)
 {
   if (missing(object)) {
     stop("object is missing")
@@ -89,70 +88,51 @@ vimp.rfsrc <- function(object,
     if (length(i.str) == 1) {
       importance <- paste(i.str[1], ".joint", sep = "")
     }
-    else if (length(i.str) == 2) {
-      importance <- paste(i.str[1], ".joint.", i.str[2], sep = "")
-    }
+      else if (length(i.str) == 2) {
+        importance <- paste(i.str[1], ".joint.", i.str[2], sep = "")
+      }
   }
   importance <- match.arg(importance,
-      c("permute", "random", "permute.ensemble", "random.ensemble", "none", 
-        "permute.joint", "random.joint", "permute.joint.ensemble", "random.joint.ensemble"))
-  outcome.target <- get.outcome.target(object$family, outcome.target)
-  if (missing(newdata)) {
-    if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
-      if (is.null(object$forest)) {
-        stop("The forest is empty.  Re-run rfsrc (grow) call with forest=TRUE")
-      }
+                          c("permute", "random", "anti",
+                            "permute.ensemble", "random.ensemble", "anti.ensemble",
+                            "none", 
+                            "permute.joint", "random.joint", "anti.joint",
+                            "permute.joint.ensemble", "random.joint.ensemble", "anti.joint.ensemble"))
+  if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
+    if (is.null(object$forest)) {
+      stop("The forest is empty.  Re-run rfsrc (grow) call with forest=TRUE")
+    }
       else {
         bootstrap <- object$forest$bootstrap
       }
-    }
+  }
     else {
       bootstrap <- object$bootstrap
     }
-    if (bootstrap != "by.root") {
-      stop("grow objects under non-standard bootstrapping are devoid of performance values")
-    }
-    object$yvar <- as.data.frame(object$yvar)
-    colnames(object$yvar) <- object$yvar.names
-    newdata <- cbind(object$yvar, object$xvar)
-    outcome <- "test"
+  if (bootstrap != "by.root") {
+    stop("grow objects under non-standard bootstrapping are devoid of performance values")
   }
-  else {
-    if (!is.data.frame(newdata)) {
-      stop("newdata must be a data frame")
-    }
-    outcome <- "train"
-  }
-  n <- nrow(object$xvar)
   if (missing(subset)) {
     subset <- NULL
   }
-  else {
-    if (is.logical(subset)) {
-      subset <- which(subset)
+    else {
+      if (is.logical(subset)) {
+        subset <- which(subset)
+      }
+      subset <- unique(subset[subset >= 1 & subset <= nrow(object$xvar)])
+      if (length(subset) == 0) {
+        stop("'subset' not set properly")
+      }
     }
-    subset <- unique(subset[subset >= 1 & subset <= n])
-    if (length(subset) == 0) {
-      stop("'subset' not set properly")
-    }
-  }
   result <- generic.predict.rfsrc(object,
-                                  newdata = newdata,
-                                  na.action = na.action,
                                   outcome.target = outcome.target,
                                   importance = importance,
                                   importance.xvar = xvar.names,
-                                  outcome = outcome,
-                                  proximity = FALSE,
-                                  var.used = FALSE,
-                                  split.depth = FALSE,
-                                  perf = TRUE,
                                   seed = seed,
                                   do.trace = do.trace,
                                   membership = FALSE,
-                                  restore.only = FALSE,
                                   subset = subset,
                                   ...)
- return(result)
+  return(result)
 }
 vimp <- vimp.rfsrc

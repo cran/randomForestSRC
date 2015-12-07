@@ -3,28 +3,28 @@
 \alias{plot.competing.risk.rfsrc}
 \title{Plots for Competing Risks}
 \description{
- Plot the ensemble cumulative incidence function (CIF) and
- cause-specific cumulative hazard function (CSCHF) from a competing risk
- analysis.
+  Plot the ensemble cumulative incidence function (CIF) and
+  cause-specific cumulative hazard function (CSCHF) from a competing risk
+  analysis.
 }
 \usage{\method{plot.competing.risk}{rfsrc}(x, plots.one.page = FALSE, ...)}
 \arguments{
   \item{x}{An object of class \code{(rfsrc, grow)} or
     \code{(rfsrc, predict)}.}
-    \item{plots.one.page}{Should plots be placed on one page?}
-    \item{...}{Further arguments passed to or from other methods.}
+  \item{plots.one.page}{Should plots be placed on one page?}
+  \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
   Ensemble ensemble CSCHF and CIF functions for each event type.
   Does not apply to right-censored data.
 }
 \author{
-    Hemant Ishwaran and Udaya B. Kogalur
+  Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
-    Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
-    B.M. (2014). Random survival forests for competing risks.  To appear
-    in \emph{Biostatistics}.
+  Ishwaran H., Gerds T.A., Kogalur U.B., Moore R.D., Gange S.J. and Lau
+  B.M. (2014). Random survival forests for competing risks.
+  \emph{Biostatistics}, 15(4):757-773.
 }
 \seealso{
   \command{\link{follic}},

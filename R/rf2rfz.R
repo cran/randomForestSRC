@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -92,15 +92,15 @@ rf2rfz <- function(object,
   write.table(nativeArray,
               paste(forestName, ".txt", sep=""), quote = FALSE)
   write.table(nativeFactorArray,
-                paste(forestName, ".factor.txt", sep=""), col.names=FALSE, quote = FALSE)
+              paste(forestName, ".factor.txt", sep=""), col.names=FALSE, quote = FALSE)
   xmlFile <- file(paste(forestName, ".xml", sep=""), open="w")
   XML::saveXML(pmmlRoot, xmlFile)
   close(xmlFile)
   zipCommand <- paste("zip", sep=" ",
-    paste(forestName, ".rfz", sep=""),
-    paste(forestName, ".txt", sep=""),
-    paste(forestName, ".factor.txt", sep=""),
-    paste(forestName, ".xml", sep=""))
+                      paste(forestName, ".rfz", sep=""),
+                      paste(forestName, ".txt", sep=""),
+                      paste(forestName, ".factor.txt", sep=""),
+                      paste(forestName, ".xml", sep=""))
   system(command = zipCommand)
   unlink(paste(forestName, ".txt", sep=""))
   unlink(paste(forestName, ".factor.txt", sep=""))
@@ -117,9 +117,9 @@ checkForestObject <- function(object) {
     }
     rfForest <- object$forest
   }
-  else {
-    rfForest <- object
-  }
+    else {
+      rfForest <- object
+    }
   if (is.null(rfForest$nativeArray)) {
     stop("RFsrc nativeArray content is NULL.  Please ensure the object is valid.")
   }

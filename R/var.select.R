@@ -2,9 +2,9 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 1.6.1
+####  Version 2.0.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2012, University of Miami
+####  Copyright 2015, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
@@ -52,7 +52,7 @@
 ####    5425 Nestleway Drive, Suite L1
 ####    Clemmons, NC 27012
 ####
-####    email:  commerce@kogalur.com
+####    email:  ubk@kogalur.com
 ####    URL:    http://www.kogalur.com
 ####    --------------------------------------------------------------
 ####
@@ -64,7 +64,8 @@ var.select.rfsrc <-
   function(formula,          
            data,
            object,
-           cause, 
+           cause,
+           outcome.target = NULL,
            method = c("md", "vh", "vh.vimp"),
            conservative = c("medium", "low", "high"),
            ntree = (if (method == "md") 1000 else 500),
@@ -90,27 +91,26 @@ var.select.rfsrc <-
   rfsrc.var.hunting <- function(train.id, var.pt, nstep) {
     if (verbose) cat("\t", paste("selecting variables using", mName), "...\n")
     drop.var.pt <- setdiff(var.columns, var.pt)
-    if (grepl("surv", fmly)) {
-      if (sum(data[train.id, 2]) < 2) {
+    if (grepl("surv", family)) {
+      if (sum(data[train.id, 2], na.rm = TRUE) < 2) {
         stop("training data has insufficient deaths: K is probably set too high\n")
       }
     }
     rfsrc.filter.obj  <- rfsrc(rfsrc.all.f,
-              data=(if (LENGTH(var.pt, drop.var.pt)) data[train.id, -drop.var.pt]
-                    else data[train.id, ]),
-              ntree = ntree,
-              splitrule = splitrule,
-              nsplit = nsplit,
-              mtry = Mtry(var.columns, drop.var.pt),
-              nodesize = nodesize,
-              cause = cause,
-              na.action = na.action,
-              do.trace = do.trace)
+                               data=(if (LENGTH(var.pt, drop.var.pt)) data[train.id, -drop.var.pt]
+                                       else data[train.id, ]),
+                               ntree = ntree,
+                               splitrule = splitrule,
+                               nsplit = nsplit,
+                               mtry = Mtry(var.columns, drop.var.pt),
+                               nodesize = nodesize,
+                               cause = cause,
+                               na.action = na.action,
+                               do.trace = do.trace)
     if (rfsrc.filter.obj$family == "surv-CR") {
       target.dim <- max(1, min(cause, max(get.event.info(rfsrc.filter.obj)$event.type)), na.rm = TRUE)
     }
-    rfsrc.filter.obj <- extract.imp.err(rfsrc.filter.obj, outcome.target)
-    imp <- get.imp(rfsrc.filter.obj, target.dim)
+    imp <- get.imp(coerce.multivariate(rfsrc.filter.obj, outcome.target), target.dim)
     names(imp) <- rfsrc.filter.obj$xvar.names
     if (method == "vh.vimp") {
       VarStrength <- sort(imp, decreasing = TRUE)
@@ -119,26 +119,26 @@ var.select.rfsrc <-
       forest.depth <- m.depth <- NA
       sig.vars.old <- names(VarStrength)[1]
     }
-    else {
-      max.obj <- max.subtree(rfsrc.filter.obj, conservative = (conservative == "high"))
-      if (is.null(max.obj$order)) {
-        VarStrength <- lower.VarStrength <- 0
-        forest.depth <- m.depth <- NA
-        sig.vars.old <- names(sort(imp, decreasing = TRUE))[1]
-      }
       else {
-        m.depth <- VarStrength <- max.obj$order[, 1]
-        forest.depth <- floor(mean(apply(max.obj$nodes.at.depth, 2, function(x){sum(!is.na(x))}), na.rm=TRUE))
-        exact.threshold <- ifelse(conservative == "low", max.obj$threshold.1se, max.obj$threshold)
-        n.lower <- max(min(2, length(VarStrength)),#n.lower cannot be > no. available variables
-                       sum(VarStrength <= exact.threshold))
-        VarStrength <- max(VarStrength) - VarStrength
-        names(m.depth) <- names(VarStrength) <- rfsrc.filter.obj$xvar.names
-        VarStrength <- sort(VarStrength, decreasing = TRUE)
-        lower.VarStrength <- -1 #need theoretical upper bound to first order statistic
-        sig.vars.old <- names(VarStrength)[1]
+        max.obj <- max.subtree(rfsrc.filter.obj, conservative = (conservative == "high"))
+        if (is.null(max.obj$order)) {
+          VarStrength <- lower.VarStrength <- 0
+          forest.depth <- m.depth <- NA
+          sig.vars.old <- names(sort(imp, decreasing = TRUE))[1]
+        }
+          else {
+            m.depth <- VarStrength <- max.obj$order[, 1]
+            forest.depth <- floor(mean(apply(max.obj$nodes.at.depth, 2, function(x){sum(!is.na(x))}), na.rm=TRUE))
+            exact.threshold <- ifelse(conservative == "low", max.obj$threshold.1se, max.obj$threshold)
+            n.lower <- max(min(2, length(VarStrength)),#n.lower cannot be > no. available variables
+                           sum(VarStrength <= exact.threshold))
+            VarStrength <- max(VarStrength) - VarStrength
+            names(m.depth) <- names(VarStrength) <- rfsrc.filter.obj$xvar.names
+            VarStrength <- sort(VarStrength, decreasing = TRUE)
+            lower.VarStrength <- -1 #need theoretical upper bound to first order statistic
+            sig.vars.old <- names(VarStrength)[1]
+          }
       }
-    }
     nstep <- max(round(length(rfsrc.filter.obj$xvar.names)/nstep), 1)
     imp.old <- 0
     for (b in 1:nstep) {
@@ -161,8 +161,8 @@ var.select.rfsrc <-
         sig.vars <- sig.vars.old
         break
       }
-      imp <- vimp(rfsrc.filter.obj, sig.vars, outcome.target = outcome.target,
-                  joint = TRUE)$importance[target.dim]
+      imp <- coerce.multivariate(vimp(rfsrc.filter.obj, sig.vars, outcome.target = outcome.target,
+                                      joint = TRUE), outcome.target)$importance[target.dim]
       if (verbose) cat("\t iteration: ", b,
                        "  # vars:",     length(sig.vars),
                        "  joint-vimp:",  round(imp, 3),
@@ -171,105 +171,106 @@ var.select.rfsrc <-
         sig.vars <- sig.vars.old
         break
       }
-      else {
-        var.pt <- var.columns[match(sig.vars, xvar.names)]
-        sig.vars.old <- sig.vars
-        imp.old <- imp
-      }
+        else {
+          var.pt <- var.columns[match(sig.vars, xvar.names)]
+          sig.vars.old <- sig.vars
+          imp.old <- imp
+        }
     }
     var.pt <- var.columns[match(sig.vars, xvar.names)]
     drop.var.pt <- setdiff(var.columns, var.pt)
     rfsrc.obj  <- rfsrc(rfsrc.all.f,
                         data=(if (LENGTH(var.pt, drop.var.pt)) data[train.id, -drop.var.pt]
-                        else data[train.id, ]),
+                                else data[train.id, ]),
                         ntree = ntree,
                         splitrule = splitrule,
                         nsplit = nsplit,
                         cause = cause,
                         na.action = na.action,                  
                         do.trace = do.trace)
-    rfsrc.obj <- extract.imp.err(rfsrc.obj, outcome.target)
     return(list(rfsrc.obj=rfsrc.obj, sig.vars=rfsrc.obj$xvar.names, forest.depth=forest.depth, m.depth=m.depth))
   }
   if (!missing(object)) {
     if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2) {
-       stop("This function only works for objects of class `(rfsrc, grow)'")
+      stop("This function only works for objects of class `(rfsrc, grow)'")
     }
     if (is.null(object$forest)) {
       stop("Forest is empty!  Re-run grow call with forest set to 'TRUE'")
     }
     rfsrc.all.f <- object$formula
   }
-  else {
-    if (missing(formula) || missing(data)) {
-      if (sum(inherits(formula, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
-        object <- formula
+    else {
+      if (missing(formula) || missing(data)) {
+        if (sum(inherits(formula, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
+          object <- formula
+        }
+          else {
+            stop("Need to specify 'formula' and 'data' or provide a grow forest object")
+          }
       }
-      else {
-        stop("Need to specify 'formula' and 'data' or provide a grow forest object")
-      }
+      rfsrc.all.f <- formula
     }
-    rfsrc.all.f <- formula
-  }
   if (missing(object)) {
     formulaDetail <- finalizeFormula(parseFormula(rfsrc.all.f, data), data)
-    fmly <- formulaDetail$family
+    family <- formulaDetail$family
     xvar.names <- formulaDetail$xvar.names
     yvar.names <- formulaDetail$yvar.names
-    if (fmly != "unsupv") {
+    if (family != "unsupv") {
       data <- cbind(data[, yvar.names, drop = FALSE], data[, match(xvar.names, names(data))])
       yvar <- data[, yvar.names]
-      r.dim <- ncol(cbind(yvar))
+      yvar.dim <- ncol(cbind(yvar))
     }
-    else {
-      data <- data[, match(xvar.names, names(data))]
-      r.dim <- 0
-      method <- "md"
-    }
+      else {
+        data <- data[, match(xvar.names, names(data))]
+        yvar.dim <- 0
+        method <- "md"
+      }
   }
-  else {
-    fmly <- object$family
-    xvar.names <- object$xvar.names
-    if (fmly != "unsupv") {
-      yvar.names <- object$yvar.names
-      data <- data.frame(object$yvar, object$xvar)
-      colnames(data) <- c(yvar.names, xvar.names)
-      yvar <- data[, yvar.names]
-      r.dim <- ncol(cbind(yvar))
-    }
     else {
-      data <- object$xvar
-      r.dim <- 0
-      method <- "md"
+      family <- object$family
+      xvar.names <- object$xvar.names
+      if (family != "unsupv") {
+        yvar.names <- object$yvar.names
+        data <- data.frame(object$yvar, object$xvar)
+        colnames(data) <- c(yvar.names, xvar.names)
+        yvar <- data[, yvar.names]
+        yvar.dim <- ncol(cbind(yvar))
+      }
+        else {
+          data <- object$xvar
+          yvar.dim <- 0
+          method <- "md"
+        }
     }
-  }
   if (missing(cause)) {
     cause <- 1
   }
-  outcome.target <- get.outcome.target(fmly, outcome.target)
   method <- match.arg(method, c("md", "vh", "vh.vimp"))
   conservative = match.arg(conservative, c("medium", "low", "high"))
   mName <- switch(method,
                   "md"      = "Minimal Depth",
                   "vh"      = "Variable Hunting",
                   "vh.vimp" = "Variable Hunting (VIMP)")
-  rfsrc.all.f <- switch(fmly,
-       "surv"   = as.formula(paste("Surv(",yvar.names[1],",",yvar.names[2],") ~ .")),
-       "surv-CR"= as.formula(paste("Surv(",yvar.names[1],",",yvar.names[2],") ~ .")),
-       "regr"   = as.formula(paste(yvar.names, "~ .")),
-       "class"  = as.formula(paste(yvar.names, "~ .")),
-       "unsupv" = NULL,
-  )
+  rfsrc.all.f <- switch(family,
+                        "surv"   = as.formula(paste("Surv(",yvar.names[1],",",yvar.names[2],") ~ .")),
+                        "surv-CR"= as.formula(paste("Surv(",yvar.names[1],",",yvar.names[2],") ~ .")),
+                        "regr"   = as.formula(paste(yvar.names, "~ .")),
+                        "class"  = as.formula(paste(yvar.names, "~ .")),
+                        "unsupv" = NULL,
+                        "regr+"  = as.formula(paste("Multivar(", paste(yvar.names, collapse = ","), paste(") ~ ."), sep = "")),
+                        "class+" = as.formula(paste("Multivar(", paste(yvar.names, collapse = ","), paste(") ~ ."), sep = "")),
+                        "mix+"   = as.formula(paste("Multivar(", paste(yvar.names, collapse = ","), paste(") ~ ."), sep = ""))
+                        )
   n <- nrow(data)
   P <- length(xvar.names)
   target.dim <- 1
-  var.columns <- (1 + r.dim):ncol(data)
+  var.columns <- (1 + yvar.dim):ncol(data)
   if (!is.null(always.use)) {
     always.use.pt <- var.columns[match(always.use, xvar.names)]
   }
-  else {
-    always.use.pt <- NULL
-  }
+    else {
+      always.use.pt <- NULL
+    }
   xvar.wt <- get.grow.xvar.wt(xvar.wt, P)
   if (!is.null(mtry)) {
     mtry <- round(mtry)
@@ -299,55 +300,58 @@ var.select.rfsrc <-
       if (rfsrc.prefit.obj$family == "surv-CR") {
         target.dim <- max(1, min(cause, max(get.event.info(rfsrc.prefit.obj)$event.type)), na.rm = TRUE)
       }
-      rfsrc.prefit.obj <- extract.imp.err(rfsrc.prefit.obj, outcome.target)
-      wts <- pmax(get.imp(rfsrc.prefit.obj, target.dim), 0)
+      wts <- pmax(get.imp(coerce.multivariate(rfsrc.prefit.obj, outcome.target), target.dim), 0)
       if (any(wts > 0)) {
         xvar.wt <- get.grow.xvar.wt(wts, P)
       }
+      rm(rfsrc.prefit.obj)
     }
     if (!missing(object) && !prefit.flag) {
       if (verbose) cat("minimal depth variable selection ...\n")
       md.obj <- max.subtree(object, conservative = (conservative == "high"))
-      object <- extract.imp.err(object, outcome.target)
+      object <- coerce.multivariate(object, outcome.target)
+      outcome.target <- object$outcome.target
       pe <- get.err(object)
       ntree <- object$ntree
       nsplit <- object$nsplit
       mtry <- object$mtry
       nodesize <- object$nodesize
-      if (fmly == "surv-CR") {
+      if (family == "surv-CR") {
         target.dim <- max(1, min(cause, max(get.event.info(object)$event.type)), na.rm = TRUE)
       }
       imp <- get.imp(object, target.dim)
       imp.all <- get.imp.all(object)
+      rm(object)
     }
-    else {
-      if (verbose) cat("running forests ...\n")
-      rfsrc.obj <- rfsrc(rfsrc.all.f,
-                         data,
-                         ntree = ntree,
-                         mtry = mtry,
-                         nodesize = nodesize,
-                         splitrule = splitrule,
-                         nsplit = nsplit,
-                         cause = cause,
-                         na.action = na.action,
-                         do.trace = do.trace,
-                         xvar.wt = xvar.wt)
-      if (rfsrc.obj$family == "surv-CR") {
-        target.dim <- max(1, min(cause, max(get.event.info(rfsrc.obj)$event.type)), na.rm = TRUE)
+      else {
+        if (verbose) cat("running forests ...\n")
+        rfsrc.obj <- rfsrc(rfsrc.all.f,
+                           data,
+                           ntree = ntree,
+                           mtry = mtry,
+                           nodesize = nodesize,
+                           splitrule = splitrule,
+                           nsplit = nsplit,
+                           cause = cause,
+                           na.action = na.action,
+                           do.trace = do.trace,
+                           xvar.wt = xvar.wt)
+        if (rfsrc.obj$family == "surv-CR") {
+          target.dim <- max(1, min(cause, max(get.event.info(rfsrc.obj)$event.type)), na.rm = TRUE)
+        }
+        if (verbose) cat("minimal depth variable selection ...\n")
+        md.obj <- max.subtree(rfsrc.obj, conservative = (conservative == "high"))
+        rfsrc.obj <- coerce.multivariate(rfsrc.obj, outcome.target)
+        outcome.target <- rfsrc.obj$outcome.target
+        pe <- get.err(rfsrc.obj)
+        imp <- get.imp(rfsrc.obj, target.dim)
+        imp.all <- get.imp.all(rfsrc.obj)
+        mtry <- rfsrc.obj$mtry
+        nodesize <- rfsrc.obj$nodesize
+        n <- nrow(rfsrc.obj$xvar)
+        family <- rfsrc.obj$family
+        rm(rfsrc.obj)#don't need the grow object
       }
-      if (verbose) cat("minimal depth variable selection ...\n")
-      md.obj <- max.subtree(rfsrc.obj, conservative = (conservative == "high"))
-      rfsrc.obj <- extract.imp.err(rfsrc.obj, outcome.target)
-      pe <- get.err(rfsrc.obj)
-      imp <- get.imp(rfsrc.obj, target.dim)
-      imp.all <- get.imp.all(rfsrc.obj)
-      mtry <- rfsrc.obj$mtry
-      nodesize <- rfsrc.obj$nodesize
-      n <- nrow(rfsrc.obj$xvar)
-      fmly <- rfsrc.obj$family
-      rm(rfsrc.obj)#don't need the grow object
-    }
     depth <- md.obj$order[, 1]
     threshold <- ifelse(conservative == "low", md.obj$threshold.1se, md.obj$threshold)
     top.var.pt <- (depth <= threshold)
@@ -362,21 +366,25 @@ var.select.rfsrc <-
       var.pt <- unique(c(var.pt, always.use.pt))
       drop.var.pt <- setdiff(var.columns, var.pt)
       rfsrc.refit.obj  <- rfsrc(rfsrc.all.f,
-              data=(if (LENGTH(var.pt, drop.var.pt)) data[, -drop.var.pt, drop = FALSE] else data),
-               ntree = ntree,
-               splitrule = splitrule,
-               nsplit = nsplit,
-               na.action = na.action,
-               do.trace = do.trace)
-      rfsrc.refit.obj <- extract.imp.err(rfsrc.refit.obj, outcome.target)
+                                data=(if (LENGTH(var.pt, drop.var.pt)) data[, -drop.var.pt, drop = FALSE] else data),
+                                ntree = ntree,
+                                splitrule = splitrule,
+                                nsplit = nsplit,
+                                na.action = na.action,
+                                do.trace = do.trace)
+      rfsrc.refit.obj <- coerce.multivariate(rfsrc.refit.obj, outcome.target)
     }
-    else {
-      rfsrc.refit.obj <- NULL
-    }
+      else {
+        rfsrc.refit.obj <- NULL
+      }
     if (verbose) {
       cat("\n\n")
       cat("-----------------------------------------------------------\n")
-      cat("family             :", fmly, "\n")
+      cat("family             :", family, "\n")
+      if (family == "regr+" | family == "class+" | family == "mix+") {
+        cat("no. y-variables    : ", yvar.dim,       "\n", sep="")
+        cat("response used      : ", outcome.target, "\n", sep="")
+      }    
       cat("var. selection     :", mName, "\n")
       cat("conservativeness   :", conservative, "\n")
       cat("x-weighting used?  :", !is.null(xvar.wt), "\n")
@@ -392,9 +400,9 @@ var.select.rfsrc <-
       if (!prefit.flag) {
         cat("PE (true OOB)      :", round(pe, 4), "\n")
       }
-      else {
-        cat("PE (biased)        :", round(pe, 4), "\n")
-      }
+        else {
+          cat("PE (biased)        :", round(pe, 4), "\n")
+        }
       cat("\n\n")
       cat("Top variables:\n")
       print(round(varselect[top.var.pt, ], 3))
@@ -415,14 +423,14 @@ var.select.rfsrc <-
   if (prefit.flag & is.null(xvar.wt)) {
     if (verbose) cat("Using forests to select a variables likelihood of splitting a node...\n")
     rfsrc.prefit.obj  <- rfsrc(rfsrc.all.f,
-                                data = data,
-                                ntree = prefit$ntree,
-                                mtry = prefit$mtry,
-                                nodesize = prefit$nodesize,
-                                nsplit = prefit$nsplit,
-                                cause = cause,
-                                splitrule = splitrule,
-                                na.action = na.action)
+                               data = data,
+                               ntree = prefit$ntree,
+                               mtry = prefit$mtry,
+                               nodesize = prefit$nodesize,
+                               nsplit = prefit$nsplit,
+                               cause = cause,
+                               splitrule = splitrule,
+                               na.action = na.action)
     if (rfsrc.prefit.obj$family == "surv-CR") {
       target.dim <- max(1, min(cause, max(get.event.info(rfsrc.prefit.obj)$event.type)), na.rm = TRUE)
     }
@@ -430,48 +438,51 @@ var.select.rfsrc <-
   }
   for (m in 1:nrep) {
     if (verbose & nrep>1) cat("---------------------  Iteration:", m, "  ---------------------\n")
-    all.folds <- switch(fmly,
+    all.folds <- switch(family,
                         "surv"     =  balanced.folds(yvar[, 2], K),
                         "surv-CR"  =  balanced.folds(yvar[, 2], K),
                         "class"    =  balanced.folds(yvar, K),
                         "regr"     =  cv.folds(n, K),
+                        "class+"   =  balanced.folds(yvar, K),
+                        "regr+"    =  cv.folds(n, K),
+                        "mix+"     =  cv.folds(n, K)
                         )    
     if (fast == TRUE) {
       train.id <- all.folds[[1]]
       test.id <- all.folds[[2]]
     }
-    else {
-      test.id <- all.folds[[1]]
-      train.id <- setdiff(1:n, test.id)
-    }
+      else {
+        test.id <- all.folds[[1]]
+        train.id <- setdiff(1:n, test.id)
+      }
     if (is.null(xvar.wt)) {
       if (!prefit.flag) {
         if (verbose) cat("Using forests to determine variable selection weights...\n")
         rfsrc.prefit.obj  <- rfsrc(rfsrc.all.f,
-                                    data = data[train.id,, drop = FALSE],
-                                    ntree = prefit$ntree,
-                                    mtry = prefit$mtry,
-                                    nodesize = prefit$nodesize,                                    
-                                    nsplit = prefit$nsplit,
-                                    cause = cause,
-                                    splitrule = splitrule,
-                                    na.action = na.action)
+                                   data = data[train.id,, drop = FALSE],
+                                   ntree = prefit$ntree,
+                                   mtry = prefit$mtry,
+                                   nodesize = prefit$nodesize,                                    
+                                   nsplit = prefit$nsplit,
+                                   cause = cause,
+                                   splitrule = splitrule,
+                                   na.action = na.action)
         if (rfsrc.prefit.obj$family == "surv-CR") {
           target.dim <- max(1, min(cause, max(get.event.info(rfsrc.prefit.obj)$event.type)), na.rm = TRUE)
         }
       }
-      rfsrc.prefit.obj <- extract.imp.err(rfsrc.prefit.obj, outcome.target)
+      rfsrc.prefit.obj <- coerce.multivariate(rfsrc.prefit.obj, outcome.target)
       wts <- pmax(get.imp(rfsrc.prefit.obj, target.dim), 0)
       if (any(wts > 0)) {
         var.pt <- unique(resample(var.columns, mvars, replace = TRUE, prob = wts))
       }
+        else {
+          var.pt <- var.columns[1:P]
+        }
+    }
       else {
         var.pt <- var.columns[1:P]
       }
-    }
-    else {
-      var.pt <- var.columns[1:P]
-    }
     if (!is.null(xvar.wt)) {
       var.pt <- unique(resample(var.columns, mvars, replace = TRUE, prob = xvar.wt))
     }
@@ -480,12 +491,13 @@ var.select.rfsrc <-
     }
     object <- rfsrc.var.hunting(train.id, var.pt, nstep)
     rfsrc.obj <- object$rfsrc.obj
+    outcome.target <- coerce.multivariate.target(rfsrc.obj, outcome.target)
     sig.vars <- object$sig.vars
     if (method == "vh") {
       forest.depth[m] <- object$forest.depth
       var.depth[m, match(names(object$m.depth), xvar.names)] <- object$m.depth
     }
-    pred.out <- predict(rfsrc.obj,  data[test.id, ], importance = "none")
+    pred.out <- coerce.multivariate(predict(rfsrc.obj, data[test.id, ], importance = "none"), outcome.target)
     pred.results[m] <- get.err(pred.out)[target.dim] 
     dim.results[m] <- length(sig.vars)
     var.signature <- c(var.signature, sig.vars)
@@ -503,9 +515,9 @@ var.select.rfsrc <-
     var.depth.all <- apply(var.depth, 2, mean, na.rm = T)
     varselect <- cbind(depth = var.depth.all, rel.freq = var.freq.all)
   }
-  else {
-    varselect <- cbind(rel.freq = var.freq.all)
-  }
+    else {
+      varselect <- cbind(rel.freq = var.freq.all)
+    }
   o.r.f <- order(var.freq.all, decreasing = TRUE)
   rownames(varselect) <- xvar.names
   varselect <- varselect[o.r.f,, drop = FALSE]
@@ -516,23 +528,27 @@ var.select.rfsrc <-
     var.pt <- var.columns[match(rownames(varselect)[1:modelsize], xvar.names)]
     drop.var.pt <- setdiff(var.columns, var.pt)
     rfsrc.refit.obj  <- rfsrc(rfsrc.all.f,
-                        data = (if (LENGTH(var.pt, drop.var.pt)) data[, -drop.var.pt]
-                        else data),
-                        na.action = na.action,
-                        ntree = ntree,
-                        nodesize = nodesize,
-                        nsplit = nsplit,
-                        cause = cause,
-                        splitrule = splitrule,
-                        do.trace = do.trace)
+                              data = (if (LENGTH(var.pt, drop.var.pt)) data[, -drop.var.pt]
+                                        else data),
+                              na.action = na.action,
+                              ntree = ntree,
+                              nodesize = nodesize,
+                              nsplit = nsplit,
+                              cause = cause,
+                              splitrule = splitrule,
+                              do.trace = do.trace)
   }
-  else {
-    rfsrc.refit.obj <- NULL
-  }
+    else {
+      rfsrc.refit.obj <- NULL
+    }
   if (verbose) {
     cat("\n\n")
     cat("-----------------------------------------------------------\n")
-    cat("family             :", rfsrc.obj$family, "\n")
+    cat("family             :", family, "\n")
+    if (family == "regr+" | family == "class+" | family == "mix+") {
+      cat("no. y-variables    : ", yvar.dim,              "\n", sep="")
+      cat("response used      : ", outcome.target, "\n", sep="")
+    }    
     cat("var. selection     :", mName, "\n")
     cat("conservativeness   :", conservative, "\n")
     cat("dimension          :", P, "\n")
@@ -552,9 +568,9 @@ var.select.rfsrc <-
     if (outside.loop) {
       cat("PE (K-fold, biased):", round(mean(pred.results), 4), "+/-", round(SD(pred.results), 4), "\n")
     }
-    else {
-      cat("PE (K-fold)        :", round(mean(pred.results), 4), "+/-", round(SD(pred.results), 4), "\n")
-    }
+      else {
+        cat("PE (K-fold)        :", round(mean(pred.results), 4), "+/-", round(SD(pred.results), 4), "\n")
+      }
     cat("\n\n")
     cat("Top variables:\n")
     print(round(varselect[1:modelsize,, drop = FALSE], 3))
@@ -568,77 +584,75 @@ var.select.rfsrc <-
                         md.obj=NULL
                         )))
 }
-  extract.imp.err <- function(f.o, outcome.target) {
-    f.o
+get.imp <- function(f.o, target.dim) {
+  if (!is.null(f.o$importance)) {
+    c(cbind(f.o$importance)[, target.dim])
   }
-  get.imp <- function(f.o, target.dim) {
-    if (!is.null(f.o$importance)) {
-      c(cbind(f.o$importance)[, target.dim])
-      }
     else {
       rep(NA, length(f.o$xvar.names))
     }
-  }
-  get.imp.all <- function(f.o) {
-    if (!is.null(f.o$importance)) {
-      imp.all <- cbind(f.o$importance)
-      if (ncol(imp.all) == 1) {
-        colnames(imp.all) <- "vimp"
-      }
+}
+get.imp.all <- function(f.o) {
+  if (!is.null(f.o$importance)) {
+    imp.all <- cbind(f.o$importance)
+    if (ncol(imp.all) == 1) {
+      colnames(imp.all) <- "vimp"
+    }
       else {
         colnames(imp.all) <- paste("vimp.", colnames(imp.all), sep = "")
       }
-      imp.all
-    }
+    imp.all
+  }
     else {
       rep(NA, length(f.o$xvar.names))
     }
-  }
-  get.err <- function(f.o) {
-    if (!is.null(f.o$err.rate)) {
-      if (grepl("surv", f.o$family)) {
-        100 * cbind(f.o$err.rate)[f.o$ntree, ]
-      }
+}
+get.err <- function(f.o) {
+  if (!is.null(f.o$err.rate)) {
+    if (grepl("surv", f.o$family)) {
+      err <- 100 * cbind(f.o$err.rate)[f.o$ntree, ]
+    }
       else {
-        cbind(f.o$err.rate)[f.o$ntree, ]
+        err <- cbind(f.o$err.rate)[f.o$ntree, ]
       }
-    }
-    else {
-      NA
-    }
   }
-  SD <- function(x) {
-    if (all(is.na(x))) {
-      NA
+    else {
+      err = NA
     }
+  err
+}
+SD <- function(x) {
+  if (all(is.na(x))) {
+    NA
+  }
     else {
       sd(x, na.rm = TRUE)
     }
+}
+LENGTH <- function(x, y) {
+  (length(x) > 0 & length(y) > 0)
+}
+Mtry <- function(x, y) {
+  mtry <- round((length(x) - length(y))/3)
+  if (mtry == 0) {
+    round(length(x)/3)
   }
-  LENGTH <- function(x, y) {
-    (length(x) > 0 & length(y) > 0)
-  }
-  Mtry <- function(x, y) {
-    mtry <- round((length(x) - length(y))/3)
-    if (mtry == 0) {
-      round(length(x)/3)
-    }
     else {
       mtry
     }
+}
+permute.rows <-function(x) {
+  n <- nrow(x)
+  p <- ncol(x)
+  mm <- runif(length(x)) + rep(seq(n) * 10, rep(p, n))
+  matrix(t(x)[order(mm)], n, p, byrow = TRUE)
+}
+balanced.folds <- function(y, nfolds = min(min(table(y)), 10)) {
+  y[is.na(y)] <- resample(y[!is.na(y)], size = sum(is.na(y)), replace = TRUE)
+  totals <- table(y)
+  if (length(totals) < 2) {
+    return(cv.folds(length(y), nfolds))
   }
-  permute.rows <-function(x) {
-    n <- nrow(x)
-    p <- ncol(x)
-    mm <- runif(length(x)) + rep(seq(n) * 10, rep(p, n))
-    matrix(t(x)[order(mm)], n, p, byrow = TRUE)
-  }
-  balanced.folds <- function(y, nfolds = min(min(table(y)), 10)) {
-    y[is.na(y)] <- resample(y[!is.na(y)], size = sum(is.na(y)), replace = TRUE)
-    totals <- table(y)
-    if (length(totals) < 2) {
-      return(cv.folds(length(y), nfolds))
-    }
     else {
       fmax <- max(totals)
       nfolds <- min(nfolds, fmax)     
@@ -659,5 +673,5 @@ var.select.rfsrc <-
       }
       return(res)
     }
-  }
+}
 var.select <- var.select.rfsrc

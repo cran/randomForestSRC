@@ -21,18 +21,17 @@
 }
 \arguments{
   \item{formula}{A symbolic description of the model to be fit.
-       Must be specified unless \code{object} is given.}
+    Must be specified unless \code{object} is given.}
   \item{data}{Data frame containing the y-outcome and x-variables in
-      the model. Must be specified unless \code{object} is given.}
+    the model. Must be specified unless \code{object} is given.}
   \item{object}{An object of class \code{(rfsrc, synthetic)}.
     Not required when \code{formula} and \code{data} are supplied.}
-  \item{newdata}{Test data used for prediction.  If missing, predicted
-    values for the training data are returned.}
+  \item{newdata}{Test data used for prediction (optional).}
   \item{ntree}{Number of trees.}
   \item{mtry}{mtry value for synthetic forest.}
   \item{mtrySeq}{Sequence of mtry values used for fitting the
     collection of RF machines.  If \code{NULL}, set to the default
-   value \code{p}/3.}
+    value \code{p}/3.}
   \item{nodesize}{Nodesize value for the synthetic forest.}
   \item{nodesizeSeq}{Sequence of nodesize values used for the fitting the
     collection of RF machines.}
@@ -55,40 +54,40 @@
   values.  The predicted values from these machines are then used as
   synthetic features (called RF machines) to fit a synthetic random
   forest (the original features are also used when fitting the synthetic
-  forest).  Applies only to regression and classification settings.
-
+  forest).  Currently only implemented for regression and classification
+  settings (univariate and multivariate).
+  
   Note that synthetic features are constructed using out-of-bag (OOB)
   data in order to avoid double dipping into training data.
-  Nevertheless, the internal OOB error rate for the synthetic forest may
-  be biased and thus it is recommended that cross-validation be used for
-  determining test set performance.
-
+  Nevertheless, the internal OOB error rate for the synthetic forest
+  will be biased and thus cross-validation must be used for determining
+  performance.
+  
   If \code{mtrySeq} is set, RF machines are constructed for each
   combination of nodesize and mtry values specified by
   \code{nodesizeSeq} \code{mtrySeq}.  However, a sequence of values for
-  \code{mtrySeq} generall does not work as well as using a fixed value.
+  \code{mtrySeq} generally does not work as well as using a fixed value.
   Generally, performance gains are observed when one of the two
   sequences is fixed: \code{mtrySeq} is fixed and \code{nodesizeSeq} is
   varied, or \code{nodesizeSeq} is fixed and \code{mtrySeq} is varied.
-  However, see the examples below.
+  However, see the examples below where this is not the case.
 }
 \value{
-     A list with the following components:
-     \item{rfMachines}{RF machines used to construct the synthetic
-       features.}
-     \item{rfSyn}{The synthetic RF.}
-     \item{synthetic}{List containing the synthetic features.}
-     \item{predicted}{The synthetic forest predicted value.}
-     \item{err.rate}{OOB error rate or test set error rate.  For regression,
-       MSE values are reported.  For classification, the Brier score.}
-     \item{opt.machine}{Optimal machine: RF machine with smallest
-       OOB error rate}
+  A list with the following components:
+  \item{rfMachines}{RF machines used to construct the synthetic
+    features.}
+  \item{rfSyn}{The (grow) synthetic RF built over training data.}
+  \item{rfSynPred}{The predict synthetic RF built over test data (if available).}
+  \item{synthetic}{List containing the synthetic features.}
+  \item{opt.machine}{Optimal machine: RF machine with smallest
+    OOB error rate.}
 }
 \author{
-    Hemant Ishwaran and Udaya B. Kogalur
+  Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
   Ishwaran H. and Malley J.D. (2014).  Synthetic learning machines.
+  \emph{BioData Mining}, 7:28.
 }
 \seealso{
   \command{\link{rfsrc}},
@@ -117,9 +116,14 @@ if (library("mlbench", logical.return = TRUE)) {
 
   ## test-set performance
   ring.test <- data.frame(mlbench.ringnorm(500, 20))
-  print(predict(ringRF, newdata = ring.test))
-  print(rfsrcSyn(object = ringSyn1, newdata = ring.test))
-  print(rfsrcSyn(object = ringSyn2, newdata = ring.test))
+  pred.ringRF <- predict(ringRF, newdata = ring.test)
+  pred.ringSyn1 <- rfsrcSyn(object = ringSyn1, newdata = ring.test)$rfSynPred
+  pred.ringSyn2 <- rfsrcSyn(object = ringSyn2, newdata = ring.test)$rfSynPred
+
+
+  print(pred.ringRF)
+  print(pred.ringSyn1)
+  print(pred.ringSyn2)
 
 }
 
@@ -140,7 +144,7 @@ test <- (n+1):N
 
 ## regression forests
 regF <- rfsrc(y ~ ., data = dat[-test, ], )
-pred.regF <- predict(regF, dat[test, ])$predicted
+pred.regF <- predict(regF, dat[test, ], importance = "none")
 
 ## synthetic forests
 ## we pass both the training and testing data
@@ -152,11 +156,20 @@ synF2 <- rfsrcSyn(y ~ ., data = dat[-test, ],
   newdata = dat[test, ], mtrySeq = c(1, 10, 20, 30, 40, 50))
 
 ## standardized MSE performance
-mse <- c(mean((y[test] - pred.regF)^2, na.rm = TRUE),
-         mean((y[test] - synF1$predicted)^2, na.rm = TRUE),
-         mean((y[test] - synF2$predicted)^2, na.rm = TRUE)) / var(y[-test])
+mse <- c(tail(pred.regF$err.rate, 1),
+         tail(synF1$rfSynPred$err.rate, 1),
+         tail(synF2$rfSynPred$err.rate, 1)) / var(y[-test])
 names(mse) <- c("forest", "synthetic1", "synthetic2")
 print(mse)
+
+## ------------------------------------------------------------
+## multivariate synthetic forests
+## ------------------------------------------------------------
+
+mtcars.new <- mtcars
+mtcars.new$cyl <- factor(mtcars.new$cyl)
+mtcars.new$carb <- factor(mtcars.new$carb, ordered = TRUE)
+mvSyn <- rfsrcSyn(cbind(carb, mpg, cyl) ~., data = mtcars.new)
 }
 }
 \keyword{forest}
