@@ -53,6 +53,7 @@ rfsrc(formula, data, ntree = 1000,
   membership = TRUE,
   statistics = FALSE,
   fast.restore = FALSE,
+  coerce.factor = NULL,
   ...)
 }
 \arguments{
@@ -170,6 +171,11 @@ rfsrc(formula, data, ntree = 1000,
 	  this option uses significantly more RAM and may not be
 	  suitable for all platforms depending on the size of the data
 	  set being analyzed.}
+  \item{coerce.factor}{Names of variables (can either be x-variables or
+    y-outcomes) to be analyzed as factors.
+    The variables must be coded as sequential positive integers
+    1,2,... This option is useful in
+    high-dimensional problems with a large number of factors.}
   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -267,6 +273,26 @@ rfsrc(formula, data, ntree = 1000,
 	      weighted value of each of log-rank statistics, standardized by
 	      the variance.  For more details see Ishwaran et al. (2014).
       }
+
+      \item Custom splitting: All families except unsupervised are
+      available for user defined custom splitting.  Some basic
+      C-programming skills are required.  The harness for defining these
+      rules is in \code{splitCustom.c}.  In this file we give examples
+      of how to code rules for regression, classification, survival, and
+      competing risk.  Each family can support up to sixteen custom
+      split rules.  Specifying \code{splitrule="custom"} or
+      \code{splitrule="custom1"} will trigger the first split rule for
+      the family defined by the training data set. Multivariate families
+      will need a custom split rule for both regression and
+      classification.  In the examples, we demonstrate how the user is
+      presented with the node specific membership.  The task is then to
+      define a split statistic based on that membership.  Take note of
+      the instructions in \code{splitCustom.c} on how to \emph{register} the
+      custom split rules.  It is suggested that the existing custom split
+      rules be kept in place, for reference, and that the user proceed
+      to develop \code{splitrule="custom2"} and so on. The package must
+      be recompiled and installed for the custom split rules to become
+      available.
     }
     
     
@@ -1003,6 +1029,20 @@ print(mtcars.mix, outcome.target = "mpg")
 print(mtcars.mix, outcome.target = "cyl")
 plot(mtcars.mix, outcome.target = "mpg")
 plot(mtcars.mix, outcome.target = "cyl")
+
+
+## ------------------------------------------------------------
+## Custom splitting using the pre-coded examples.
+## ------------------------------------------------------------
+## motor trend cars
+mtcars.obj <- rfsrc(mpg ~ ., data = mtcars, splitrule="custom")
+## Edgar Anderson's iris data
+iris.obj <- rfsrc(Species ~., data = iris, splitrule="custom1")
+## WIHS analysis
+wihs.obj <- rfsrc(Surv(time, status) ~ ., wihs, nsplit = 3,
+                  ntree = 100, splitrule="custom1")
+
+
 }
 }
 \keyword{forest}

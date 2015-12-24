@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.0 (_PROJECT_BUILD_ID_)
+####  Version 2.0.5 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2015, University of Miami
 ####
@@ -237,15 +237,21 @@ rfsrcSyn.rfsrc <-
       }))
     })
     xtest.s <- do.call("cbind", synthetic)
-    data.test <- data.frame(newdata[, yvar.names, drop = FALSE], x.s = xtest.s)
+    if (length(intersect(colnames(newdata), yvar.names) > 0) &&
+        setequal(intersect(colnames(newdata), yvar.names), yvar.names)) {
+      data.test <- data.frame(newdata[, yvar.names, drop = FALSE], x.s = xtest.s)
+    }
+    else {
+      data.test <- data.frame(x.s = xtest.s)
+    }
     if (use.org.features) {
       data.test <- data.frame(data.test, xtest)
     }
     rfSynPred <- predict(rfSyn, data.test, ...)
   }
-    else {
-      rfSynPred <- NULL
-    }
+  else {
+    rfSynPred <- NULL
+  }
   retObj <- list(rfMachines = rfMachines,
                  rfSyn = rfSyn,
                  rfSynPred = rfSynPred,

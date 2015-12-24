@@ -1,11 +1,18 @@
 Package: randomForestSRC
-Version: 2.0.0
-BUILD: bld20151204
+Version: 2.0.5
+BUILD: bld20151223
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.0.0
+CHANGES TO RELEASE 2.0.5
+---------------------------------------------------------------------------------
+RELEASE 2.0.5
+Fix to bug in dimensioning of predict object in survival families.
+Added documentation for custom splitting.
+  
 ---------------------------------------------------------------------------------
 RELEASE 2.0.0
+---------------------------------------------------------------------------------
+RELEASE 2.0.5
 Multivariate capabilities added. Custom splitting harness
 modifications.  Redefinition of nodesize to allow terminal nodes less
 than said size, subject to the initial test for 2 x nodesize before

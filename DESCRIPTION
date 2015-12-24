@@ -1,6 +1,6 @@
 Package: randomForestSRC
-Version: 2.0.0
-Date: 2015-12-04
+Version: 2.0.5
+Date: 2015-12-23
 Title: Random Forests for Survival, Regression and Classification
         (RF-SRC)
 Author: Hemant Ishwaran <hemant.ishwaran@gmail.com>, Udaya B. Kogalur <ubk@kogalur.com>
@@ -11,6 +11,6 @@ Description: A unified treatment of Breiman's random forests for survival, regre
 License: GPL (>= 3)
 URL: http://web.ccs.miami.edu/~hishwaran http://www.kogalur.com
 NeedsCompilation: yes
-Packaged: 2015-12-04 15:18:00 UTC; kogalur
+Packaged: 2015-12-23 22:49:59 UTC; kogalur
 Repository: CRAN
-Date/Publication: 2015-12-07 11:09:05
+Date/Publication: 2015-12-24 13:46:53

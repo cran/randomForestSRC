@@ -13,6 +13,7 @@ importFrom("utils", "installed.packages", "write.table")
 export(find.interaction.rfsrc,
        find.interaction,
        impute.rfsrc,
+       impute,
        max.subtree.rfsrc,
        max.subtree,
        plot.competing.risk.rfsrc,

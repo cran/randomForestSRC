@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.0 (_PROJECT_BUILD_ID_)
+####  Version 2.0.5 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2015, University of Miami
 ####
@@ -95,9 +95,9 @@ extract.factor <- function (dat, generic.names = NULL) {
   if (is.null(generic.names)) {
     target.names <- names(dat)
   }
-    else {
-      target.names <- generic.names
-    }
+  else {
+    target.names <- generic.names
+  }
   nlevels <- rep(0, length(target.names))
   gfactor <- names(dat)[unlist(lapply(dat, is.factor.not.ordered))]
   gfactor.order <- names(dat)[unlist(lapply(dat, is.ordered))]

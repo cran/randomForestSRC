@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.0 (_PROJECT_BUILD_ID_)
+####  Version 2.0.5 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2015, University of Miami
 ####
@@ -696,9 +696,24 @@ get.grow.mtry <- function (mtry = NULL, n.xvar, fmly) {
 }
 get.ytry <- function(f) {
 }
-get.yvar.type <- function(fmly, generic.types) {
+get.xvar.type <- function(generic.types, xvar.names, coerce.factor = NULL) {
+  xvar.type <- c("R","C")[1 + (generic.types == "C")]
+  if (!is.null(coerce.factor$xvar.names)) {
+    xvar.type[is.element(xvar.names, coerce.factor$xvar.names)] <- "C"
+  }
+  xvar.type
+}
+get.xvar.nlevels <- function(nlevels, xvar.names, xvar, coerce.factor = NULL) {
+  xvar.nlevels <- nlevels
+  if (!is.null(coerce.factor$xvar.names)) {
+    pt <- is.element(xvar.names, coerce.factor$xvar.names)
+    xvar.nlevels[pt] <- sapply(coerce.factor$xvar.names, function(nn) {length(unique(xvar[, nn]))})
+  }
+  xvar.nlevels
+}
+get.yvar.type <- function(fmly, generic.types, yvar.names, coerce.factor = NULL) {
   if (fmly == "unsupv") {
-    yvar.type = NULL
+    yvar.type <- NULL
   }
     else {
       if (grepl("surv", fmly)) {
@@ -706,10 +721,27 @@ get.yvar.type <- function(fmly, generic.types) {
       }
         else {
           yvar.type <- c("R","C")[1 + (generic.types == "C")]
+          if (!is.null(coerce.factor$yvar.names)) {
+            yvar.type[is.element(yvar.names, coerce.factor$yvar.names)] <- "C"
+          }
         }
     }
+  yvar.type
 }
-parseFormula <- function(f, data) {
+get.yvar.nlevels <- function(fmly, nlevels, yvar.names, yvar, coerce.factor = NULL) {
+  if (fmly == "unsupv") {
+    yvar.nlevels <- NULL
+  }
+  else {
+    yvar.nlevels <- nlevels
+    if (!is.null(coerce.factor$yvar.names)) {
+      pt <- is.element(yvar.names, coerce.factor$yvar.names)
+      yvar.nlevels[pt] <- sapply(coerce.factor$yvar.names, function(nn) {length(unique(yvar[, nn]))})
+    }
+  }
+    yvar.nlevels
+}
+parseFormula <- function(f, data, coerce.factor = NULL) {
   if (!inherits(f, "formula")) {
     stop("'formula' is not a formula object.")
   }
@@ -723,6 +755,16 @@ parseFormula <- function(f, data) {
   all.names <- all.vars(f, max.names = 1e7)
   yvar.names <- all.vars(formula(paste(as.character(f)[2], "~ .")), max.names = 1e7)
   yvar.names <- yvar.names[-length(yvar.names)]
+  coerce.factor.org <- coerce.factor
+  coerce.factor <- vector("list", 2)
+  names(coerce.factor) <- c("xvar.names", "yvar.names")
+  if (!is.null(coerce.factor.org)) {
+    coerce.factor$yvar.names <- intersect(yvar.names, coerce.factor.org)
+    if (length(coerce.factor$yvar.names) == 0) {
+      coerce.factor$yvar.names <- NULL
+    }
+    coerce.factor$xvar.names <- intersect(setdiff(colnames(data), yvar.names), coerce.factor.org)
+  }
   if ((fmly == "Surv")) {
     if (sum(is.element(yvar.names, names(data))) != 2) {
       stop("Survival formula incorrectly specified.")
@@ -739,18 +781,23 @@ parseFormula <- function(f, data) {
       if (sum(logical.names) > 0) {
         Y[, logical.names] <- 1 * Y[, logical.names, drop = FALSE]
       }
-      if (all(unlist(lapply(Y, is.factor.not.ordered)))) {
+      if ((sum(unlist(lapply(Y, is.factor.not.ordered))) + 
+          length(coerce.factor$yvar.names)) == length(yvar.names)) {
         family <- "class+"
       }
-        else if (all(!unlist(lapply(Y, is.factor.not.ordered)))) {
-          family <- "regr+"
-        }
-          else if (all(unlist(lapply(Y, is.factor)) | (unlist(lapply(Y, is.numeric))))) {
-            family <- "mix+"
-          }
-            else {
-              stop("y-outcomes must be either real or factors in multivariate forests.")
-            }
+      else if ((sum(unlist(lapply(Y, is.factor.not.ordered))) + 
+          length(coerce.factor$yvar.names)) == 0) {
+        family <- "regr+"
+      }
+      else if (((sum(unlist(lapply(Y, is.factor.not.ordered))) +
+                 length(coerce.factor$yvar.names)) > 0) && 
+               ((sum(unlist(lapply(Y, is.factor.not.ordered))) +
+                 length(coerce.factor$yvar.names)) < length(yvar.names))) {
+        family <- "mix+"
+      }
+      else {
+        stop("y-outcomes must be either real or factors in multivariate forests.")
+      }
       ytry <- NA
     }
       else if (fmly == "Unsupervised") {
@@ -782,7 +829,7 @@ parseFormula <- function(f, data) {
           if (!(is.factor(Y) | is.numeric(Y))) {
             stop("the y-outcome must be either real or a factor.")
           }
-          if (is.factor.not.ordered(Y)) {
+          if (is.factor.not.ordered(Y) || length(coerce.factor$yvar.names) == 1) {
             family <- "class"
           }
             else {
@@ -790,7 +837,8 @@ parseFormula <- function(f, data) {
             }
           ytry <- NA
         }
-  return (list(all.names=all.names, family=family, yvar.names=yvar.names, ytry=ytry))
+  return (list(all.names=all.names, family=family, yvar.names=yvar.names, ytry=ytry,
+               coerce.factor = coerce.factor))
 }
 is.all.na <- function(x) {all(is.na(x))}
 parseMissingData <- function(formula.obj, data) {

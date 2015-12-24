@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.0 (_PROJECT_BUILD_ID_)
+####  Version 2.0.5 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2015, University of Miami
 ####
@@ -85,6 +85,7 @@ rfsrc <- function(formula,
                   membership = TRUE,
                   statistics = FALSE,
                   fast.restore = FALSE,
+                  coerce.factor = NULL,
                   ...)
 {
   univariate.nomenclature = TRUE
@@ -103,7 +104,8 @@ rfsrc <- function(formula,
     formula <- as.formula("Unsupervised() ~ .")
   }
   if (missing(data)) stop("data is missing")
-  formulaPrelim <- parseFormula(formula, data)
+  formulaPrelim <- parseFormula(formula, data, coerce.factor)
+  coerce.factor <- formulaPrelim$coerce.factor
   if (any(is.na(data))) {
     data <- parseMissingData(formulaPrelim, data)
     miss.flag <- TRUE
@@ -138,11 +140,14 @@ rfsrc <- function(formula,
   data <- rm.na.levels(data, yvar.names)
   yfactor <- extract.factor(data, yvar.names)
   xfactor <- extract.factor(data, xvar.names)
-  yvar.types <- get.yvar.type(family, yfactor$generic.types)
+  yvar.types <- get.yvar.type(family, yfactor$generic.types, yvar.names, coerce.factor)
+  yvar.nlevels <- get.yvar.nlevels(family, yfactor$nlevels, yvar.names, data, coerce.factor)
+  xvar.types <- get.xvar.type(xfactor$generic.types, xvar.names, coerce.factor)
+  xvar.nlevels <- get.xvar.nlevels(xfactor$nlevels, xvar.names, data, coerce.factor)
   data <- finalizeData(c(yvar.names, xvar.names), data, na.action, miss.flag)
   data.row.names <- rownames(data)
   data.col.names <- colnames(data)
-  xvar <- as.matrix(data[, xvar.names])
+  xvar <- as.matrix(data[, xvar.names, drop = FALSE])
   rownames(xvar) <- colnames(xvar) <- NULL
   n <- nrow(xvar)
   n.xvar <- ncol(xvar)
@@ -267,11 +272,11 @@ rfsrc <- function(formula,
                                   as.integer(n),
                                   as.integer(length(yvar.types)),
                                   as.character(yvar.types),
-                                  as.integer(yfactor$nlevels),
+                                  as.integer(yvar.nlevels),
                                   as.double(as.vector(yvar)),
                                   as.integer(n.xvar),
-                                  as.character(xfactor$generic.types),
-                                  as.integer(xfactor$nlevels),
+                                  as.character(xvar.types),
+                                  as.integer(xvar.nlevels),
                                   as.double(xvar.wt),
                                   as.double(xvar),
                                   as.integer(length(event.info$time.interest)),
@@ -327,16 +332,16 @@ rfsrc <- function(formula,
     yvar <- as.data.frame(yvar)
     colnames(yvar) <- yvar.names
   }
-    else {
-      yvar <- NULL
-    }
+  else {
+    yvar <- NULL
+  }
   if (family != "unsupv") {
     if (family == "regr+" | family == "class+" | family == "mix+") {
       yvar <- map.factor(yvar, yfactor)
     }
-      else {
-        yvar <- amatrix.remove.names(map.factor(yvar, yfactor))
-      }
+    else {
+      yvar <- amatrix.remove.names(map.factor(yvar, yfactor))
+    }
   }
   if ((n.miss > 0) & (nimpute < 2)) {
     imputed.data <- map.factor(imputed.data, xfactor)
@@ -356,9 +361,9 @@ rfsrc <- function(formula,
       nativeArrayTNDS <- list(nativeOutput$tnSURV, nativeOutput$tnMORT, nativeOutput$tnNLSN, nativeOutput$tnCSHZ, nativeOutput$tnCIFN, nativeOutput$tnREGR, nativeOutput$tnCLAS, nativeOutput$tnMCNT, nativeOutput$nodeMembership)
       names(nativeArrayTNDS) <- c("tnSURV","tnMORT","tnNLSN","tnCSHZ","tnCIFN","tnREGR","tnCLAS","tnMCNT", "tnMEMB")
     }
-      else {
-        nativeArrayTNDS <- NULL
-      }
+    else {
+      nativeArrayTNDS <- NULL
+    }
     forest.out <- list(nativeArray = nativeArray,
                        nativeFactorArray = nativeFactorArray,
                        totalNodeCount = dim(nativeArray)[1],
@@ -376,8 +381,9 @@ rfsrc <- function(formula,
                        bootstrap = bootstrap,
                        fast.restore.bits = fast.restore.bits,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.0.0",
-                       na.action = na.action)
+                       version = "2.0.5",
+                       na.action = na.action,
+                       coerce.factor = coerce.factor)
     if (grepl("surv", family)) {
       forest.out$time.interest <- event.info$time.interest
     }
@@ -386,9 +392,9 @@ rfsrc <- function(formula,
       class(forest.out) <- c(class(forest.out), "bigdata")
     }
   }
-    else {
-      forest.out <- NULL
-    }
+  else {
+    forest.out <- NULL
+  }
   if (proximity != FALSE) {
     proximity.out <- matrix(0, n, n)
     count <- 0
@@ -399,9 +405,9 @@ rfsrc <- function(formula,
     }
     nativeOutput$proximity <- NULL
   }
-    else {
-      proximity.out <- NULL
-    }
+  else {
+    proximity.out <- NULL
+  }
   if (membership) {
     membership.out <- matrix(nativeOutput$nodeMembership, c(n, ntree))
     inbag.out <- matrix(nativeOutput$bootMembership, c(n, ntree))
@@ -430,14 +436,14 @@ rfsrc <- function(formula,
     if (split.depth == "all.trees") {
       split.depth.out <- array(nativeOutput$splitDepth, c(n, n.xvar))
     }
-      else {
-        split.depth.out <- array(nativeOutput$splitDepth, c(n, n.xvar, ntree))
-      }
+    else {
+      split.depth.out <- array(nativeOutput$splitDepth, c(n, n.xvar, ntree))
+    }
     nativeOutput$splitDepth <- NULL
   }
-    else {
-      split.depth.out <-  NULL
-    }
+  else {
+    split.depth.out <-  NULL
+  }
   if (statistics) {
     node.stats <- as.data.frame(cbind(nativeOutput$spltST))
     colnames(node.stats) <- "spltST"
@@ -486,7 +492,7 @@ rfsrc <- function(formula,
     node.mtry.index = node.mtry.index,
     node.ytry.index = node.ytry.index
   )
-  remove(yvar)
+  if (is.null(coerce.factor$yvar.names)) remove(yvar)
   remove(xvar)
   nativeOutput$leafCount <- NULL
   remove(proximity.out)
@@ -613,40 +619,43 @@ rfsrc <- function(formula,
           rfsrcOutput <- c(rfsrcOutput, survOutput = list(survOutput))
         }
     }
-      else {
-        clas.index <- which(yvar.types == 'C')
-        clas.count <- length(clas.index)
-        regr.index <- which(yvar.types == 'R')
+    else {
+        class.index <- which(yvar.types == "C")
+        class.factor.index <- which(yfactor$generic.types == "C")
+        class.count <- length(class.index)
+        regr.index <- which(yvar.types == "R")
         regr.count <- length(regr.index)
-        outcome.target.idx <- 1:length(yvar.types)
-        regr.target.idx <- intersect (regr.index, outcome.target.idx)
-        clas.target.idx <- intersect (clas.index, outcome.target.idx)
-        if (clas.count > 0) {
-          classOutput <- vector("list", clas.count)
-          names(classOutput) <- yvar.names[clas.index]
-          levels.count <- array(0, clas.count)
-          levels.names <- vector("list", clas.count)
-          for (i in 1:clas.count) {
-            if (yfactor$generic.types[clas.index[i]] == "I") {
+        if (class.count > 0) {
+          classOutput <- vector("list", class.count)
+          names(classOutput) <- yvar.names[class.index]
+          levels.count <- array(0, class.count)
+          levels.names <- vector("list", class.count)
+          counter <-  counter.factor <- 0
+          for (i in class.index) {
+            counter <- counter + 1
+            levels.count[counter] <- yvar.nlevels[i]
+            if (is.element(i, class.factor.index)) {
+              counter.factor <- counter.factor + 1
+              levels.names[[counter]] <- yfactor$levels[[counter.factor]]
             }
-              else {
-                levels.count[i] <- length(yfactor$levels[[i]])
-                levels.names[[i]] <- yfactor$levels[[i]]
-              }
+            else {
+              levels.names[[counter]] <- paste(sort(unique(yvar[, i])))
+            }
           }
+          if (!is.null(coerce.factor$yvar.names)) remove(yvar)
           tree.offset <- array(1, ntree)
           if (ntree > 1) {
-            tree.offset[2:ntree] <- sum(1 + levels.count[match(clas.target.idx, clas.index)])
+            tree.offset[2:ntree] <- sum(1 + levels.count[class.index])
           }
           tree.offset <-  cumsum(tree.offset)
           vimp.offset <- array(1, n.xvar)
           if (n.xvar > 1) {
-            vimp.offset[2:n.xvar] <- sum(1 + levels.count[match(clas.target.idx, clas.index)])
+            vimp.offset[2:n.xvar] <- sum(1 + levels.count[class.index])
           }
           vimp.offset <-  cumsum(vimp.offset)
           iter.ensb.start <- 0
           iter.ensb.end   <- 0
-          for (i in 1:clas.count) {
+          for (i in 1:class.count) {
             iter.ensb.start <- iter.ensb.end
             iter.ensb.end <- iter.ensb.end + (levels.count[i] * n)
             ens.names <- list(NULL, levels.names[[i]])
@@ -693,7 +702,7 @@ rfsrc <- function(formula,
           nativeOutput$perfClas <- NULL
           nativeOutput$vimpClas <- NULL
           if(univariate.nomenclature) {
-            if ((clas.count == 1) & (regr.count == 0)) {
+            if ((class.count == 1) & (regr.count == 0)) {
               names(classOutput) <- NULL
               rfsrcOutput <- c(rfsrcOutput, unlist(classOutput, recursive=FALSE))
             }
@@ -710,12 +719,12 @@ rfsrc <- function(formula,
           names(regrOutput) <- yvar.names[regr.index]
           tree.offset <- array(1, ntree)
           if (ntree > 1) {
-            tree.offset[2:ntree] <- length(regr.target.idx)
+            tree.offset[2:ntree] <- length(regr.index)
           }
           tree.offset <-  cumsum(tree.offset)
           vimp.offset <- array(1, n.xvar)
           if (n.xvar > 1) {
-            vimp.offset[2:n.xvar] <- length(regr.target.idx)
+            vimp.offset[2:n.xvar] <- length(regr.index)
           }
           vimp.offset <-  cumsum(vimp.offset)
           iter.ensb.start <- 0
@@ -751,7 +760,7 @@ rfsrc <- function(formula,
           nativeOutput$perfRegr <- NULL
           nativeOutput$vimpRegr <- NULL
           if(univariate.nomenclature) {
-            if ((clas.count == 0) & (regr.count == 1)) {
+            if ((class.count == 0) & (regr.count == 1)) {
               names(regrOutput) <- NULL
               rfsrcOutput <- c(rfsrcOutput, unlist(regrOutput, recursive=FALSE))
             }

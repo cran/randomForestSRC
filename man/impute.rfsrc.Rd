@@ -1,11 +1,12 @@
 \name{impute.rfsrc}
 \alias{impute.rfsrc}
+\alias{impute}
 \title{Impute Only Mode}
 \description{
   Fast imputation mode.  A random forest is grown and used to impute
   missing data.  No ensemble estimates or error rates are calculated.
 }
-\usage{\method{impute}{rfsrc}(formula, data, ntree = 250, mtry = NULL,
+\usage{\method{impute}{rfsrc}(formula, data, ntree = 500, mtry = NULL,
   xvar.wt = NULL, nodesize = 1, splitrule = NULL, nsplit = 1,
   na.action = c("na.impute", "na.random"), nimpute = 2, mf.q, blocks,
   always.use = NULL, max.iter = 10, eps = 0.01, verbose = TRUE,
