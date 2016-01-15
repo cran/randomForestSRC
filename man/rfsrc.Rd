@@ -167,10 +167,20 @@ rfsrc(formula, data, ntree = 1000,
     information be returned?}
   \item{statistics}{Should split statistics be returned?  Values can be
     parsed using \command{stat.split}.}
-  \item{fast.restore}{Should forest restoration be fast?  Be aware that
-	  this option uses significantly more RAM and may not be
-	  suitable for all platforms depending on the size of the data
-	  set being analyzed.}
+  \item{fast.restore}{Should faster forest restoration be attempted?  Be
+	  aware that this option uses significantly more RAM when the data set
+	  is large, ntree is large, and the nodesize is small.  This is
+	  especially the case when survival or competing risk forests are
+	  grown.  Alos, grow times will certainly be increased due to the cost
+	  of saving terminal node information.  Depending on your situation,
+	  no decrease in elapsed CPU time may occur during restoration.  In
+	  fact, elapsed restore time may increase when running in parallel,
+	  though CPU exection times may actually decrease.  Our benchmarks
+	  demonstrate that the option is most useful when running in serial
+	  mode.  In parallel mode, it is largely dependent on a number of
+	  complicated factors.  Finally, note that the performance calculation
+	  is omitted on all but the last tree, when this option is
+	  \code{TRUE}.}
   \item{coerce.factor}{Names of variables (can either be x-variables or
     y-outcomes) to be analyzed as factors.
     The variables must be coded as sequential positive integers
@@ -356,13 +366,16 @@ rfsrc(formula, data, ntree = 1000,
       reduce computational times.
       
       \item \emph{Large number of variables}
-      
-      For increased efficiency when the number of variables are large, set
-      \code{importance="none"} which turns off variable importance (VIMP)
-      calculations (see below for more details about variable importance)
-      and can considerably reduce computational times.  Note that variable
-      importance calculations can always be recovered later from the grow
-      forest using the function \command{vimp} and/or \command{predict}.
+
+      For increased efficiency when the number of variables are large,
+      set \code{importance="none"} which turns off variable importance
+      (VIMP) calculations and can considerably reduce computational
+      times (see below for more details about variable importance).
+      Note that variable importance calculations can always be recovered
+      later from the grow forest using the function \command{vimp}
+      and/or \command{predict}.  Alternatively if VIMP is desired in
+      grow mode, consider using \option{ensemble} VIMP which can be
+      considerably faster, especially for survival families.
       
       \item \emph{Factors}
       
@@ -373,7 +386,7 @@ rfsrc(formula, data, ntree = 1000,
       executed.  Because of this, if x-variables are all factors, then
       computational times may become very long in high dimensional
       problems.
-      
+
     }
     
     \item \emph{Prediction Error}
@@ -412,15 +425,17 @@ rfsrc(formula, data, ntree = 1000,
     \code{anti} is used, then \emph{x} is assigned to the opposite node
     whenever a split on \emph{x} is encountered in the in-bag tree.
     
-    
-    When \option{importance} is selected from one of the \option{ensemble}
-    choices, then VIMP is calculated by comparing the error rate for the
-    perturbed OOB forest ensemble to the unperturbed OOB forest ensemble,
-    where the perturbed ensemble is obtained by either permuting \emph{x},
-    or by random daughter node assignment, or by anti-splitting on
-    \emph{x}.  Thus, unlike the Breiman-Cutler measure, here VIMP does not
-    measure the tree average effect of \emph{x}, but rather its overall
-    forest effect.  See Ishwaran et al. (2008) for further details.
+    If \option{importance} is selected from one of the \option{ensemble}
+    choices, VIMP is calculated by comparing the error rate for the
+    perturbed OOB forest ensemble to the unperturbed OOB forest
+    ensemble, where the perturbed ensemble is obtained by either
+    permuting \emph{x}, or by random daughter node assignment, or by
+    anti-splitting on \emph{x}.  Thus, unlike Breiman-Cutler VIMP,
+    ensemble VIMP does not measure the tree average effect of \emph{x},
+    but rather its overall forest effect (Ishwaran et al. 2008).
+    Ensemble VIMP is faster to compute than Breiman-Cutler VIMP and
+    therefore may be preferable in large scale problems (especially
+    true for survival).
     
     Finally, the option \code{none} turns VIMP off entirely.
     

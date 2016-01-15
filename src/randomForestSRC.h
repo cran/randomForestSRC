@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.0.5 (bld20151223)
+////  Version 2.0.7 (bld20160115)
 ////
 ////  Copyright 2015, University of Miami
 ////
@@ -68,12 +68,7 @@
 #include <float.h>
 #include <math.h>
 #include <time.h>
-#ifdef HAVE_OPENMP
-#define SUPPORT_OPENMP 1
-#else
-#undef SUPPORT_OPENMP
-#endif
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #include           <omp.h>
 #endif
 #ifndef NULL
@@ -1406,6 +1401,7 @@ void getPerformance(uint      serialTreeID,
                     double  **perfCLSptr,
                     double   *perfRGRptr);
 void finalizeEnsembleEstimates(uint mode);
+char getPerformanceFlag (uint mode, uint serialTreeID);
 Node *identifyPerturbedMembership(Node    *parent,
                                   double **shadowVIMP,
                                   uint     index);

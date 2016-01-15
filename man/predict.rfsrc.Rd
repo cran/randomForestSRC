@@ -19,7 +19,7 @@
 }
 \arguments{
   \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,
-	    forest)}}. 
+	    forest)}.}
   \item{newdata}{Test data. If missing, the original grow
     (training) data is used.}
   \item{outcome.target}{Character vector for multivariate families

@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.5 (_PROJECT_BUILD_ID_)
+####  Version 2.0.7 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2015, University of Miami
 ####
@@ -147,17 +147,17 @@ generic.predict.rfsrc <-
     if (is.null(object$version)) {
       cat("\n  This function only works with objects created with this version of the package:")
       cat("\n    Installed version:  ")
-      cat("2.0.5")
+      cat("2.0.7")
       cat("\n    Object version:     ")
       cat("unknown")
       cat("\n")
       stop()
     }
     else {
-      if (substring(object$version, 1, 2) != substring("2.0.5", 1, 2)) {
+      if (substring(object$version, 1, 2) != substring("2.0.7", 1, 2)) {
         cat("\n  This function only works with objects created with this major version of the package:")
         cat("\n    Installed version:  ")
-        cat("2.0.5")
+        cat("2.0.7")
         cat("\n    Object version:     ")
         cat(object$version)
         cat("\n")
@@ -657,164 +657,164 @@ generic.predict.rfsrc <-
         }
     }
     else {
-        class.index <- which(yvar.types == 'C')
-        class.factor.index <- which(yfactor$generic.types == "C")
-        class.count <- length(class.index)
-        regr.index <- which(yvar.types == 'R')
-        regr.count <- length(regr.index)
-        if (class.count > 0) {
-            classOutput <- vector("list", class.count)
-            names(classOutput) <- yvar.names[class.index]
-            levels.count <- array(0, class.count)
-            levels.names <- vector("list", class.count)
-            counter <-  counter.factor <- 0
-            for (i in class.index) {
-              counter <- counter + 1
-              levels.count[counter] <- yvar.nlevels[i]
-              if (is.element(i, class.factor.index)) {
-                counter.factor <- counter.factor + 1
-                levels.names[[counter]] <- yfactor$levels[[counter.factor]]
-              }
-              else {
-                levels.names[[counter]] <- paste(sort(unique(object$yvar[, i])))
-              }
-            }
-            tree.offset <- array(1, ntree)
-            if (ntree > 1) {
-                tree.offset[2:ntree] <- sum(1 + levels.count[class.index])
-            }
-            tree.offset <-  cumsum(tree.offset)
-            vimp.offset <- array(1, vimp.count)
-            if (vimp.count > 1) {
-                vimp.offset[2:vimp.count] <- sum(1 + levels.count[class.index])
-            }
-            vimp.offset <-  cumsum(vimp.offset)
-            iter.ensb.start <- 0
-            iter.ensb.end   <- 0
-            for (i in 1:length(outcome.target.idx)) {
-                target.idx <- which (class.index == outcome.target.idx[i])
-                if (length(target.idx) > 0) {
-                    iter.ensb.start <- iter.ensb.end
-                    iter.ensb.end <- iter.ensb.end + (levels.count[target.idx] * n.observed)
-                    ens.names <- list(NULL, levels.names[[target.idx]])
-                    err.names <- c("all", levels.names[[target.idx]])
-                    vimp.names <- list(c("all", levels.names[[target.idx]]), if(vimp.joint) "joint" else importance.xvar)
-                    predicted <- (if (!is.null(nativeOutput$fullEnsbClas))
-                                      array(nativeOutput$fullEnsbClas[(iter.ensb.start + 1):iter.ensb.end],
-                                            c(n.observed, levels.count[target.idx]), dimnames=ens.names) else NULL)
-                    classOutput[[target.idx]] <- list(predicted = predicted)
-                    response <- (if (!is.null(predicted)) bayes.rule(predicted) else NULL)
-                    classOutput[[target.idx]] <- c(classOutput[[target.idx]], class = list(response))
-                    remove(predicted)
-                    remove(response)
-                    predicted.oob <- (if (!is.null(nativeOutput$oobEnsbClas))
-                                          array(nativeOutput$oobEnsbClas[(iter.ensb.start + 1):iter.ensb.end],
-                                                c(n.observed, levels.count[target.idx]), dimnames=ens.names) else NULL)
-                    classOutput[[target.idx]] <- c(classOutput[[target.idx]], predicted.oob = list(predicted.oob))
-                    response.oob <- (if (!is.null(predicted.oob)) bayes.rule(predicted.oob) else NULL)
-                    classOutput[[target.idx]] <- c(classOutput[[target.idx]], class.oob = list(response.oob))
-                    remove(predicted.oob)
-                    remove(response.oob)
-                    if (!is.null(nativeOutput$perfClas)) {
-                        err.rate <- array(0, c(1 + levels.count[target.idx], ntree))
-                        for (j in 1: (1 + levels.count[target.idx])) {
-                            err.rate[j, ]  <- nativeOutput$perfClas[tree.offset]
-                            tree.offset <- tree.offset + 1
-                        }
-                        row.names(err.rate) <- err.names
-                        classOutput[[target.idx]] <- c(classOutput[[target.idx]], err.rate = list(t(err.rate)))
-                        remove(err.rate)
-                    }
-                    if (!is.null(nativeOutput$vimpClas)) {
-                        importance <- array(0, c(1 + levels.count[target.idx], vimp.count), dimnames=vimp.names)
-                        for (j in 1: (1 + levels.count[target.idx])) {
-                            importance[j, ]  <- nativeOutput$vimpClas[vimp.offset]
-                            vimp.offset <- vimp.offset + 1
-                        }
-                        classOutput[[target.idx]] <- c(classOutput[[target.idx]], importance = list(t(importance)))
-                        remove(importance)
-                    }
-                }
-            }
-            nativeOutput$fullEnsbClas <- NULL
-            nativeOutput$oobEnsbClas <- NULL
-            nativeOutput$perfClas <- NULL
-            nativeOutput$vimpClas <- NULL
-            if(univariate.nomenclature) {
-                if ((class.count == 1) & (regr.count == 0)) {
-                    names(classOutput) <- NULL
-                    rfsrcOutput <- c(rfsrcOutput, unlist(classOutput, recursive=FALSE))
-                }
-                else {
-                    rfsrcOutput <- c(rfsrcOutput, classOutput = list(classOutput))
-                }
-            }
-            else {
-                rfsrcOutput <- c(rfsrcOutput, classOutput = list(classOutput))
-            }
+      class.index <- which(yvar.types == "C")
+      class.factor.index <- which(yfactor$generic.types == "C")
+      class.count <- length(class.index)
+      regr.index <- which(yvar.types != "C")
+      regr.count <- length(regr.index)
+      if (class.count > 0) {
+        classOutput <- vector("list", class.count)
+        names(classOutput) <- yvar.names[class.index]
+        levels.count <- array(0, class.count)
+        levels.names <- vector("list", class.count)
+        counter <-  counter.factor <- 0
+        for (i in class.index) {
+          counter <- counter + 1
+          levels.count[counter] <- yvar.nlevels[i]
+          if (is.element(i, class.factor.index)) {
+            counter.factor <- counter.factor + 1
+            levels.names[[counter]] <- yfactor$levels[[counter.factor]]
+          }
+          else {
+            levels.names[[counter]] <- paste(sort(unique(object$yvar[, i])))
+          }
         }
-        if (regr.count > 0) {
-            regrOutput <- vector("list", regr.count)
-            names(regrOutput) <- yvar.names[regr.index]
-            tree.offset <- array(1, ntree)
-            if (ntree > 1) {
-                tree.offset[2:ntree] <- length(regr.index)
-            }
-            tree.offset <-  cumsum(tree.offset)
-            vimp.offset <- array(1, vimp.count)
-            if (vimp.count > 1) {
-                vimp.offset[2:vimp.count] <- length(regr.index)
-            }
-            vimp.offset <-  cumsum(vimp.offset)
-            iter.ensb.start <- 0
-            iter.ensb.end   <- 0
-            for (i in 1:length(outcome.target.idx)) {
-                target.idx <- which (regr.index == outcome.target.idx[i])
-                if (length(target.idx) > 0) {
-                    iter.ensb.start <- iter.ensb.end
-                    iter.ensb.end <- iter.ensb.end + n.observed
-                    vimp.names <- if(vimp.joint) "joint" else importance.xvar
-                    predicted <- (if (!is.null(nativeOutput$fullEnsbRegr))
-                                      array(nativeOutput$fullEnsbRegr[(iter.ensb.start + 1):iter.ensb.end], n.observed) else NULL)
-                    regrOutput[[target.idx]] <- list(predicted = predicted)
-                    remove(predicted)
-                    predicted.oob <- (if (!is.null(nativeOutput$oobEnsbRegr))
-                                      array(nativeOutput$oobEnsbRegr[(iter.ensb.start + 1):iter.ensb.end], n.observed) else NULL)
-                    regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], predicted.oob = list(predicted.oob))
-                    remove(predicted.oob)
-                    if (!is.null(nativeOutput$perfRegr)) {
-                        err.rate <- nativeOutput$perfRegr[tree.offset]
-                        tree.offset <- tree.offset + 1
-                        regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], err.rate = list(err.rate))
-                        remove(err.rate)
-                    }
-                    if (!is.null(nativeOutput$vimpRegr)) {
-                        importance <- nativeOutput$vimpRegr[vimp.offset]
-                        names(importance) <- vimp.names
-                        vimp.offset <- vimp.offset + 1
-                        regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], importance = list(importance))
-                        remove(importance)
-                    }
-                }
-            }
-            nativeOutput$fullEnsbRegr <- NULL
-            nativeOutput$oobEnsbRegr <- NULL
-            nativeOutput$perfRegr <- NULL
-            nativeOutput$vimpRegr <- NULL
-            if(univariate.nomenclature) {
-                if ((class.count == 0) & (regr.count == 1)) {
-                    names(regrOutput) <- NULL
-                    rfsrcOutput <- c(rfsrcOutput, unlist(regrOutput, recursive=FALSE))
-                }
-                else {
-                    rfsrcOutput <- c(rfsrcOutput, regrOutput = list(regrOutput))
-                }
-            }
-            else {
-                rfsrcOutput <- c(rfsrcOutput, regrOutput = list(regrOutput))
-            }
+        tree.offset <- array(1, ntree)
+        if (ntree > 1) {
+          tree.offset[2:ntree] <- sum(1 + levels.count)
         }
+        tree.offset <-  cumsum(tree.offset)
+        vimp.offset <- array(1, vimp.count)
+        if (vimp.count > 1) {
+          vimp.offset[2:vimp.count] <- sum(1 + levels.count)
+        }
+        vimp.offset <-  cumsum(vimp.offset)
+        iter.ensb.start <- 0
+        iter.ensb.end   <- 0
+        for (i in 1:length(outcome.target.idx)) {
+          target.idx <- which (class.index == outcome.target.idx[i])
+          if (length(target.idx) > 0) {
+            iter.ensb.start <- iter.ensb.end
+            iter.ensb.end <- iter.ensb.end + (levels.count[target.idx] * n.observed)
+            ens.names <- list(NULL, levels.names[[target.idx]])
+            err.names <- c("all", levels.names[[target.idx]])
+            vimp.names <- list(c("all", levels.names[[target.idx]]), if(vimp.joint) "joint" else importance.xvar)
+            predicted <- (if (!is.null(nativeOutput$fullEnsbClas))
+                          array(nativeOutput$fullEnsbClas[(iter.ensb.start + 1):iter.ensb.end],
+                                c(n.observed, levels.count[target.idx]), dimnames=ens.names) else NULL)
+            classOutput[[target.idx]] <- list(predicted = predicted)
+            response <- (if (!is.null(predicted)) bayes.rule(predicted) else NULL)
+            classOutput[[target.idx]] <- c(classOutput[[target.idx]], class = list(response))
+            remove(predicted)
+            remove(response)
+            predicted.oob <- (if (!is.null(nativeOutput$oobEnsbClas))
+                              array(nativeOutput$oobEnsbClas[(iter.ensb.start + 1):iter.ensb.end],
+                                    c(n.observed, levels.count[target.idx]), dimnames=ens.names) else NULL)
+            classOutput[[target.idx]] <- c(classOutput[[target.idx]], predicted.oob = list(predicted.oob))
+            response.oob <- (if (!is.null(predicted.oob)) bayes.rule(predicted.oob) else NULL)
+            classOutput[[target.idx]] <- c(classOutput[[target.idx]], class.oob = list(response.oob))
+            remove(predicted.oob)
+            remove(response.oob)
+            if (!is.null(nativeOutput$perfClas)) {
+              err.rate <- array(0, c(1 + levels.count[target.idx], ntree))
+              for (j in 1: (1 + levels.count[target.idx])) {
+                err.rate[j, ]  <- nativeOutput$perfClas[tree.offset]
+                tree.offset <- tree.offset + 1
+              }
+              row.names(err.rate) <- err.names
+              classOutput[[target.idx]] <- c(classOutput[[target.idx]], err.rate = list(t(err.rate)))
+              remove(err.rate)
+            }
+            if (!is.null(nativeOutput$vimpClas)) {
+              importance <- array(0, c(1 + levels.count[target.idx], vimp.count), dimnames=vimp.names)
+              for (j in 1: (1 + levels.count[target.idx])) {
+                importance[j, ]  <- nativeOutput$vimpClas[vimp.offset]
+                vimp.offset <- vimp.offset + 1
+              }
+              classOutput[[target.idx]] <- c(classOutput[[target.idx]], importance = list(t(importance)))
+              remove(importance)
+            }
+          }
+        }
+        nativeOutput$fullEnsbClas <- NULL
+        nativeOutput$oobEnsbClas <- NULL
+        nativeOutput$perfClas <- NULL
+        nativeOutput$vimpClas <- NULL
+        if(univariate.nomenclature) {
+          if ((class.count == 1) & (regr.count == 0)) {
+            names(classOutput) <- NULL
+            rfsrcOutput <- c(rfsrcOutput, unlist(classOutput, recursive=FALSE))
+          }
+          else {
+            rfsrcOutput <- c(rfsrcOutput, classOutput = list(classOutput))
+          }
+        }
+        else {
+          rfsrcOutput <- c(rfsrcOutput, classOutput = list(classOutput))
+        }
+      }
+      if (regr.count > 0) {
+        regrOutput <- vector("list", regr.count)
+        names(regrOutput) <- yvar.names[regr.index]
+        tree.offset <- array(1, ntree)
+        if (ntree > 1) {
+          tree.offset[2:ntree] <- length(regr.index)
+        }
+        tree.offset <-  cumsum(tree.offset)
+        vimp.offset <- array(1, vimp.count)
+        if (vimp.count > 1) {
+          vimp.offset[2:vimp.count] <- length(regr.index)
+        }
+        vimp.offset <-  cumsum(vimp.offset)
+        iter.ensb.start <- 0
+        iter.ensb.end   <- 0
+        for (i in 1:length(outcome.target.idx)) {
+          target.idx <- which (regr.index == outcome.target.idx[i])
+          if (length(target.idx) > 0) {
+            iter.ensb.start <- iter.ensb.end
+            iter.ensb.end <- iter.ensb.end + n.observed
+            vimp.names <- if(vimp.joint) "joint" else importance.xvar
+            predicted <- (if (!is.null(nativeOutput$fullEnsbRegr))
+                          array(nativeOutput$fullEnsbRegr[(iter.ensb.start + 1):iter.ensb.end], n.observed) else NULL)
+            regrOutput[[target.idx]] <- list(predicted = predicted)
+            remove(predicted)
+            predicted.oob <- (if (!is.null(nativeOutput$oobEnsbRegr))
+                              array(nativeOutput$oobEnsbRegr[(iter.ensb.start + 1):iter.ensb.end], n.observed) else NULL)
+            regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], predicted.oob = list(predicted.oob))
+            remove(predicted.oob)
+            if (!is.null(nativeOutput$perfRegr)) {
+              err.rate <- nativeOutput$perfRegr[tree.offset]
+              tree.offset <- tree.offset + 1
+              regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], err.rate = list(err.rate))
+              remove(err.rate)
+            }
+            if (!is.null(nativeOutput$vimpRegr)) {
+              importance <- nativeOutput$vimpRegr[vimp.offset]
+              names(importance) <- vimp.names
+              vimp.offset <- vimp.offset + 1
+              regrOutput[[target.idx]] <- c(regrOutput[[target.idx]], importance = list(importance))
+              remove(importance)
+            }
+          }
+        }
+        nativeOutput$fullEnsbRegr <- NULL
+        nativeOutput$oobEnsbRegr <- NULL
+        nativeOutput$perfRegr <- NULL
+        nativeOutput$vimpRegr <- NULL
+        if(univariate.nomenclature) {
+          if ((class.count == 0) & (regr.count == 1)) {
+            names(regrOutput) <- NULL
+            rfsrcOutput <- c(rfsrcOutput, unlist(regrOutput, recursive=FALSE))
+          }
+          else {
+            rfsrcOutput <- c(rfsrcOutput, regrOutput = list(regrOutput))
+          }
+        }
+        else {
+          rfsrcOutput <- c(rfsrcOutput, regrOutput = list(regrOutput))
+        }
+      }
     }
     class(rfsrcOutput) <- c("rfsrc", "predict",   family)
     return(rfsrcOutput)
-}
+  }

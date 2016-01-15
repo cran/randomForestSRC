@@ -4,7 +4,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.0.5 (bld20151223)
+////  Version 2.0.7 (bld20160115)
 ////
 ////  Copyright 2015, University of Miami
 ////
@@ -11872,6 +11872,7 @@ void restoreMultiClassProb(uint treeID) {
 void getAtRiskAndEventCounts(uint treeID, uint leaf) {
   Terminal *parent;
   uint i, j, k;
+  uint ii;
   uint *membershipIndex;
   uint  membershipSize;
   char eventFlag;
@@ -11893,18 +11894,19 @@ void getAtRiskAndEventCounts(uint treeID, uint leaf) {
   }
   parent -> membrCount = 0;
   for (i=1; i <= membershipSize; i++) {
-    if (RF_tTermMembership[treeID][membershipIndex[i]] == parent) {
-      for (j = 1; j <= RF_masterTimeIndex[treeID][membershipIndex[i]]; j++) {
+    ii = membershipIndex[i];
+    if (RF_tTermMembership[treeID][ii] == parent) {
+      for (j = 1; j <= RF_masterTimeIndex[treeID][ii]; j++) {
         (parent -> atRiskCount)[j] ++;
       }
-      if (RF_status[treeID][membershipIndex[i]] > 0) {
+      if (RF_status[treeID][ii] > 0) {
         if (RF_eventTypeSize > 1) {
-          k = RF_eventTypeIndex[(uint) RF_status[treeID][membershipIndex[i]]];
+          k = RF_eventTypeIndex[(uint) RF_status[treeID][ii]];
         }
         else {
           k = 1;
         }
-        (parent -> eventCount)[k][RF_masterTimeIndex[treeID][membershipIndex[i]]] ++;
+        (parent -> eventCount)[k][RF_masterTimeIndex[treeID][ii]] ++;
       }
       (parent -> membrCount) ++;
     }
@@ -12064,47 +12066,47 @@ void getSurvival(uint treeID, uint leaf) {
   Terminal *parent;
   uint priorTimePointIndex, currentTimePointIndex;
   uint i, k;
-    parent = RF_tTermList[treeID][leaf];
-    stackSurvival(parent, RF_sortedTimeInterestSize);
+  parent = RF_tTermList[treeID][leaf];
+  stackSurvival(parent, RF_sortedTimeInterestSize);
+  for (k=1; k <= RF_sortedTimeInterestSize; k++) {
+    (parent -> survival)[k] = 0.0;
+  }
+  if (parent -> eTimeSize > 0) {
+    priorTimePointIndex = 0;
+    currentTimePointIndex = 1;
+    for (i = 1; i <= (parent -> eTimeSize); i++) {
+      for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+        if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
+          currentTimePointIndex = k;
+        }
+        else {
+          k = RF_sortedTimeInterestSize;
+        }
+      }
+      (parent -> survival)[currentTimePointIndex] = (parent -> localSurvival)[i];
+      if (i == 1) {
+        for(k = 1; k < currentTimePointIndex; k++) {
+          (parent -> survival)[k] = 1.0;
+        }
+      }
+      if (i > 1) {
+        for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
+          (parent -> survival)[k] = (parent -> survival)[priorTimePointIndex];
+        }
+      }
+      if (i == (parent -> eTimeSize)) {
+        for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
+          (parent -> survival)[k] = (parent -> survival)[currentTimePointIndex];
+        }
+      }
+      priorTimePointIndex = currentTimePointIndex;
+    }
+  }
+  else {
     for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-      (parent -> survival)[k] = 0.0;
+      (parent -> survival)[k] = 1.0;
     }
-    if (parent -> eTimeSize > 0) {
-      priorTimePointIndex = 0;
-      currentTimePointIndex = 1;
-      for (i = 1; i <= (parent -> eTimeSize); i++) {
-        for (k = priorTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-          if (RF_timeInterest[k] <= RF_masterTime[(parent -> eventTimeIndex)[i]] ) {
-            currentTimePointIndex = k;
-          }
-          else {
-            k = RF_sortedTimeInterestSize;
-          }
-        }
-        (parent -> survival)[currentTimePointIndex] = (parent -> localSurvival)[i];
-        if (i == 1) {
-          for(k = 1; k < currentTimePointIndex; k++) {
-            (parent -> survival)[k] = 1.0;
-          }
-        }
-        if (i > 1) {
-          for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
-            (parent -> survival)[k] = (parent -> survival)[priorTimePointIndex];
-          }
-        }
-        if (i == (parent -> eTimeSize)) {
-          for(k = currentTimePointIndex + 1; k <= RF_sortedTimeInterestSize; k++) {
-            (parent -> survival)[k] = (parent -> survival)[currentTimePointIndex];
-          }
-        }
-        priorTimePointIndex = currentTimePointIndex;
-      }
-    }
-    else {
-      for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-        (parent -> survival)[k] = 1.0;
-      }
-    }
+  }
 }
 void getNelsonAalen(uint treeID, uint leaf) {
   Terminal *parent;
@@ -12200,7 +12202,7 @@ void getCIF(uint treeID, uint leaf) {
         k = RF_sortedTimeInterestSize;
       }
     }
-    for (j=1; j <= RF_eventTypeSize; j++) {
+    for (j = 1; j <= RF_eventTypeSize; j++) {
       (parent -> CIF)[j][currentTimePointIndex] = (parent -> localCIF)[j][i];
       if (i > 1) {
         for(k = priorTimePointIndex + 1; k < currentTimePointIndex; k++) {
@@ -12221,7 +12223,7 @@ void getMortality(uint treeID, uint leaf) {
   uint j, q;
   parent = RF_tTermList[treeID][leaf];
   stackMortality(parent, RF_eventTypeSize);
-  for (j=1; j <= RF_eventTypeSize; j++) {
+  for (j = 1; j <= RF_eventTypeSize; j++) {
     (parent -> mortality)[j] = 0.0;
   }
   if (!(RF_opt & OPT_COMP_RISK)) {
@@ -12231,7 +12233,7 @@ void getMortality(uint treeID, uint leaf) {
   }
   else {
     for (j = 1; j <= RF_eventTypeSize; j ++) {
-      for (q=1; q <= RF_sortedTimeInterestSize - 1; q++) {
+      for (q = 1; q <= RF_sortedTimeInterestSize - 1; q++) {
         (parent -> mortality)[j] += (parent -> CIF)[j][q] * (RF_timeInterest[q+1] - RF_timeInterest[q]);
       }
     }
@@ -14543,7 +14545,7 @@ void acquireTree(uint mode, uint r, uint b) {
       multipleImputeFlag = TRUE;
     }
   }
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #endif
   rootPtr = makeNode(RF_xSize,
                      (RF_opt & OPT_USPV_STAT) ? RF_randomResponseCount : 0,
@@ -14867,7 +14869,7 @@ void acquireTree(uint mode, uint r, uint b) {
         }
       }
       if (RF_opt & OPT_PROX) {
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #pragma omp critical (_update_proximity)
 #endif
         { 
@@ -14893,7 +14895,7 @@ void finalizeProximity(uint mode) {
     obsSize = RF_fobservationSize;
   }
   if (RF_numThreads > 0) {
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
     for (uint i = 1; i <= obsSize; i++) {
@@ -14955,7 +14957,7 @@ void updateProximity(uint mode, uint b) {
   if (!mtnmFlag) {
     tTermMembershipIndexPtr = RF_tTermMembershipIndexPtr[b];
     if (RF_numThreads > 0) {
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
       for (uint i = 1; i <= membershipSize; i++) {
@@ -16112,7 +16114,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       }
     }
   }
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #pragma omp critical (_update_ensemble)
 #endif
   { 
@@ -16121,7 +16123,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       thisSerialTreeCount = RF_serialTreeCount;
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
         updateEnsembleSurvival(mode, b);
-        if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)){
+        if (getPerformanceFlag(mode, thisSerialTreeCount)) {
           if (!(RF_opt & OPT_COMP_RISK)) {
             getEnsembleMortality(mode, b, obsSize, ensembleMRTptr, ensembleDen, mortality[1]);
           }
@@ -16133,15 +16135,17 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       else {
         if (RF_rTargetFactorCount > 0) {
           updateEnsembleMultiClass(mode, b, outcomeCLS);
-          if (RF_opt & OPT_PERF_CALB) {
-            copyEnsembleCLS(mode, obsSize, ensembleCLSptr, outcomeCLS);
+          if (getPerformanceFlag(mode, thisSerialTreeCount)) {
+            if (RF_opt & OPT_PERF_CALB) {
+              copyEnsembleCLS(mode, obsSize, ensembleCLSptr, outcomeCLS);
+            }
           }
         }
         if (RF_rTargetNonFactorCount > 0) {
           updateEnsembleMean(mode, b, outcomeRGR);
         }
       }
-      if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
+      if (getPerformanceFlag(mode, thisSerialTreeCount)) {
         copyDenominator(mode, obsSize, ensembleDen, denominatorCopy);
         respImputeFlag = stackAndImputePerfResponse(mode,
                                                     multipleImputeFlag,
@@ -16158,7 +16162,7 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
     }
   } 
   if (RF_tLeafCount[b] > 0) {
-    if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
+    if (getPerformanceFlag(mode, thisSerialTreeCount)) {
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
         getPerformance(thisSerialTreeCount,
                        mode,
@@ -16569,6 +16573,25 @@ void finalizeEnsembleEstimates(uint mode) {
       fullFlag = FALSE;
     }
   }  
+}
+char getPerformanceFlag (uint mode, uint serialTreeID) {
+  char result;
+  if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
+    result = TRUE;
+  }
+  else {
+    result = FALSE;
+  }
+  if (result) {
+    if (mode != RF_GROW) {
+      if (RF_optHigh & OPT_TERM) {
+        if (serialTreeID < RF_forestSize) {
+          result = FALSE;
+        }
+      }
+    }
+  }
+  return result;
 }
 Node *identifyPerturbedMembership (Node    *parent,
                                    double **shadowVIMP,
@@ -17569,7 +17592,7 @@ void updateVimpCalculations (uint mode, uint b, uint intrIndex, Terminal **vimpM
     Rprintf("\nRF-SRC:  Please Contact Technical Support.");
     error("\nRF-SRC:  The application will now exit.\n");
   }
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #pragma omp critical (_update_gve)
 #endif
   {  
@@ -17666,7 +17689,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     Rprintf("\nRF-SRC:  The application will now exit.\n");
     return R_NilValue;
   }
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
   if (RF_numThreads < 0) {
     RF_numThreads = omp_get_max_threads();
   }
@@ -17714,7 +17737,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
                                         & stackCount,
                                         sexpVector
                                         );
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
   ran1A = &randomChainParallel;
   ran1B = &randomUChainParallel;
   ran1C = &randomUChainParallelCov;
@@ -17825,7 +17848,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   }
   for (r = 1; r <= RF_nImpute; r++) {
     if (r == RF_nImpute) {
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
       if (mode == RF_GROW) {
         if (RF_opt & OPT_SEED) {
           for (b = 1; b <= RF_forestSize; b++) {
@@ -17886,7 +17909,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
     }  
     if (RF_numThreads > 0) {
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
       for (b = 1; b <= RF_forestSize; b++) {
@@ -18033,7 +18056,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
       }
       else {
         if (RF_numThreads > 0) {
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
           for (p = 1; p <= vimpCount; p++) {
@@ -18217,7 +18240,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   }
   unstackPreDefinedCommonArrays();
   unstackIncomingArrays(mode);
-#ifdef SUPPORT_OPENMP
+#ifdef _OPENMP
   randomUnstack(RF_forestSize, RF_xSize);
 #else
   randomUnstack(1, 1);

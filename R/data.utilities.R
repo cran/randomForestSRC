@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.5 (_PROJECT_BUILD_ID_)
+####  Version 2.0.7 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2015, University of Miami
 ####
@@ -697,7 +697,7 @@ get.grow.mtry <- function (mtry = NULL, n.xvar, fmly) {
 get.ytry <- function(f) {
 }
 get.xvar.type <- function(generic.types, xvar.names, coerce.factor = NULL) {
-  xvar.type <- c("R","C")[1 + (generic.types == "C")]
+  xvar.type <- generic.types
   if (!is.null(coerce.factor$xvar.names)) {
     xvar.type[is.element(xvar.names, coerce.factor$xvar.names)] <- "C"
   }
@@ -720,7 +720,7 @@ get.yvar.type <- function(fmly, generic.types, yvar.names, coerce.factor = NULL)
         yvar.type <- c("T", "S")
       }
         else {
-          yvar.type <- c("R","C")[1 + (generic.types == "C")]
+          yvar.type <- generic.types
           if (!is.null(coerce.factor$yvar.names)) {
             yvar.type[is.element(yvar.names, coerce.factor$yvar.names)] <- "C"
           }

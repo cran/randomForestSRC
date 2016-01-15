@@ -1,18 +1,24 @@
 Package: randomForestSRC
-Version: 2.0.5
-BUILD: bld20151223
+Version: 2.0.7
+BUILD: bld20160115
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.0.5
+CHANGES TO RELEASE 2.0.7
 ---------------------------------------------------------------------------------
-RELEASE 2.0.5
+RELEASE 2.0.7
+Fix to factor coercion option in responses.  Fix to R-side processing
+of err.rate and importance in multivariate families with
+classification. Update of OPENMP protocols per CRAN recommendation.
+Expansion of fast.restore option to omit performance on every tree,
+and update to associated Rd file.
+
+---------------------------------------------------------------------------------
+RELEASE 2.0.5  
 Fix to bug in dimensioning of predict object in survival families.
 Added documentation for custom splitting.
-  
+
 ---------------------------------------------------------------------------------
 RELEASE 2.0.0
----------------------------------------------------------------------------------
-RELEASE 2.0.5
 Multivariate capabilities added. Custom splitting harness
 modifications.  Redefinition of nodesize to allow terminal nodes less
 than said size, subject to the initial test for 2 x nodesize before
