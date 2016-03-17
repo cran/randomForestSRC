@@ -2,13 +2,13 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.7 (_PROJECT_BUILD_ID_)
+####  Version 2.1.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2015, University of Miami
+####  Copyright 2016, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
-####  as published by the Free Software Foundation; either version 2
+####  as published by the Free Software Foundation; either version 3
 ####  of the License, or (at your option) any later version.
 ####
 ####  This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
 ####    Adjunct Staff
-####    Dept of Quantitative Health Sciences
+####    Department of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
 ####    Kogalur & Company, Inc.
@@ -64,7 +64,7 @@ predict.rfsrc <-
   function(object,
            newdata,
            outcome.target=NULL,
-           importance = c("permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
+           importance = c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble")[4],
            na.action = c("na.omit", "na.impute", "na.random"),
            outcome = c("train", "test"),
            proximity = FALSE,

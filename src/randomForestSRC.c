@@ -4,13 +4,13 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.0.7 (bld20160115)
+////  Version 2.1.0 (bld20160317)
 ////
-////  Copyright 2015, University of Miami
+////  Copyright 2016, University of Miami
 ////
 ////  This program is free software; you can redistribute it and/or
 ////  modify it under the terms of the GNU General Public License
-////  as published by the Free Software Foundation; either version 2
+////  as published by the Free Software Foundation; either version 3
 ////  of the License, or (at your option) any later version.
 ////
 ////  This program is distributed in the hope that it will be useful,
@@ -47,7 +47,7 @@
 ////    --------------------------------------------------------------
 ////    Udaya B. Kogalur, Ph.D.
 ////    Adjunct Staff
-////    Dept of Quantitative Health Sciences
+////    Department of Quantitative Health Sciences
 ////    Cleveland Clinic Foundation
 ////    
 ////    Kogalur & Company, Inc.
@@ -335,6 +335,18 @@ double ***RF_oobEnsembleCLSptr;
 double ***RF_fullEnsembleCLSptr;
 double  **RF_oobEnsembleRGRptr;
 double  **RF_fullEnsembleRGRptr;
+double ***RF_oobEnsembleSRGnum;
+double ***RF_fullEnsembleSRGnum;
+double ***RF_oobEnsembleCIFnum;
+double ***RF_fullEnsembleCIFnum;
+double  **RF_oobEnsembleSRVnum;
+double  **RF_fullEnsembleSRVnum;
+double  **RF_oobEnsembleMRTnum;
+double  **RF_fullEnsembleMRTnum;
+double ***RF_oobEnsembleCLSnum;
+double ***RF_fullEnsembleCLSnum;
+double  **RF_oobEnsembleRGRnum;
+double  **RF_fullEnsembleRGRnum;
 uint     *RF_oobEnsembleDen;
 uint     *RF_fullEnsembleDen;
 uint     **RF_vimpEnsembleDen;
@@ -409,6 +421,9 @@ char (*customGenericSplit) (uint,
                             char**,
                             char);
 customFunction customFunctionArray[4][16];
+uint   RF_userTraceFlag;
+time_t RF_userTimeStart;
+time_t RF_userTimeSplit;  
 #define IA      16807
 #define IM      2147483647
 #define AM      (1.0/IM)
@@ -895,6 +910,7 @@ void free_dmatrix4(double ****v, unsigned long n4l, unsigned long n4h, unsigned 
 }
 void *new_vvector(unsigned long nl, unsigned long nh, enum alloc_type type) {
   void *v;
+  v = NULL;  
   switch(type){
   case NRUTIL_DPTR:
     v = ((double **) gvector(nl, nh, sizeof(double*)) -nl+NR_END);
@@ -1090,6 +1106,7 @@ Node *makeNode(unsigned int xSize, unsigned int urStatSize, unsigned int mtrySiz
   parent -> imputed              = FALSE;
   parent -> lmpIndex             = NULL;
   parent -> flmpIndex            = NULL;
+  parent -> lmpValue             = NULL;
   parent -> lmpIndexAllocSize    = 0;
   parent -> flmpIndexAllocSize   = 0;
   parent -> lmpIndexActualSize   = 0;
@@ -1313,12 +1330,15 @@ void stackNodeLMPIndex(Node *tNode, unsigned int size) {
     tNode -> lmpIndexAllocSize = size;
   }
   tNode -> lmpIndex = uivector(1, tNode -> lmpIndexAllocSize);
+  tNode -> lmpValue = dvector(1, tNode -> lmpIndexAllocSize);
 }
 void unstackNodeLMPIndex(Node *tNode) {
   if(tNode -> lmpIndexAllocSize > 0) {
     if (tNode -> lmpIndex != NULL) {
       free_uivector(tNode -> lmpIndex, 1, tNode -> lmpIndexAllocSize);
+      free_dvector(tNode -> lmpValue, 1, tNode -> lmpIndexAllocSize);
       tNode -> lmpIndex = NULL;
+      tNode -> lmpValue = NULL;
       tNode -> lmpIndexAllocSize = 0;
     }
   }
@@ -1334,11 +1354,13 @@ void stackNodeFLMPIndex(Node *tNode, unsigned int size) {
     tNode -> flmpIndexAllocSize = size;
   }
   tNode -> flmpIndex = uivector(1, tNode -> flmpIndexAllocSize);
+  tNode -> flmpValue = dvector(1, tNode -> flmpIndexAllocSize);
 }
 void unstackNodeFLMPIndex(Node *tNode) {
   if(tNode -> flmpIndexAllocSize > 0) {
     if (tNode -> flmpIndex != NULL) {
       free_uivector(tNode -> flmpIndex, 1, tNode -> flmpIndexAllocSize);
+      free_dvector(tNode -> flmpValue, 1, tNode -> flmpIndexAllocSize);
       tNode -> flmpIndex = NULL;
       tNode -> flmpIndexAllocSize = 0;
     }
@@ -2605,6 +2627,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP xType,
                   SEXP xLevels,
                   SEXP xData,
+                  SEXP ptnCount,
                   SEXP sobservationSize,
                   SEXP sobservationIndv,
                   SEXP fobservationSize,
@@ -2649,7 +2672,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
   RF_sexp_xType           = xType;
   RF_xLevels              = INTEGER(xLevels); RF_xLevels--;
   RF_xData                = REAL(xData);
-  RF_ptnCount             = 0;
+  RF_ptnCount             = INTEGER(ptnCount)[0];
   RF_sobservationSize     = INTEGER(sobservationSize)[0];
   RF_sobservationIndv     = (uint *) INTEGER(sobservationIndv);  RF_sobservationIndv --;
   RF_fobservationSize     = INTEGER(fobservationSize)[0];
@@ -3058,7 +3081,8 @@ void stackFactorGeneric(uint    size,
     for (i = 1; i <= size; i++) {
       (*p_factorMap)[i]    = 0;
       (*p_nonfactorMap)[i] = 0;
-      if (strcmp(type[i], "C") == 0) {
+      if ((strcmp(type[i], "C") == 0) ||
+          (strcmp(type[i], "I") == 0)) {
         (*factorCount) ++;
         (*p_factorMap)[i] = *factorCount;
       }
@@ -3585,13 +3609,15 @@ void stackMissingSignatures(uint     obsSize,
   *pRF_mrFactorSize = *pRF_mxFactorSize = 0;
   for (p = 1; p <= *p_pIndexSize; p++) {
     if ((*p_pIndex)[p] < 0) {
-      if (strcmp(RF_rType[(uint) abs((*p_pIndex)[p])], "C") == 0) {
+      if ((strcmp(RF_rType[(uint) abs((*p_pIndex)[p])], "C") == 0) ||
+          (strcmp(RF_rType[(uint) abs((*p_pIndex)[p])], "I") == 0)) {
         (*pRF_mrFactorSize) ++;
         (*pRF_mrFactorIndex)[*pRF_mrFactorSize] = (uint) abs((*p_pIndex)[p]);
       }
     }
     else {
-      if (strcmp(RF_xType[(*p_pIndex)[p]], "C") == 0) {
+      if ((strcmp(RF_xType[(*p_pIndex)[p]], "C") == 0) ||
+          (strcmp(RF_xType[(*p_pIndex)[p]], "I") == 0)) {
         (*pRF_mxFactorSize) ++;
         (*pRF_mxFactorIndex)[*pRF_mxFactorSize] = (*p_pIndex)[p];
       }
@@ -4759,6 +4785,12 @@ uint stackDefinedOutputObjects(char      mode,
   double ****ensembleCIFptr;
   double ****ensembleCLSptr;
   double  ***ensembleRGRptr;
+  double ****ensembleSRGnum;
+  double  ***ensembleMRTnum;
+  double  ***ensembleSRVnum;
+  double ****ensembleCIFnum;
+  double ****ensembleCLSnum;
+  double  ***ensembleRGRnum;
   char oobFlag, fullFlag;
   char maxVoteFlag;
   uint i, j, k, m;
@@ -4813,7 +4845,8 @@ uint stackDefinedOutputObjects(char      mode,
             Rprintf("\nRF-SRC:  The application will now exit.\n");
             error("\nRF-SRC:  The application will now exit.\n");
           }
-          if (strcmp(RF_rType[RF_rTarget[i]], "C") == 0) {
+          if ((strcmp(RF_rType[RF_rTarget[i]], "C") == 0) || 
+              (strcmp(RF_rType[RF_rTarget[i]], "I") == 0)) {
             RF_rTargetFactor[++RF_rTargetFactorCount] = RF_rTarget[i];
           }
           else {
@@ -4918,7 +4951,8 @@ uint stackDefinedOutputObjects(char      mode,
             Rprintf("\nRF-SRC:  The application will now exit.\n");
             error("\nRF-SRC:  The application will now exit.\n");
           }
-          if (strcmp(RF_rType[RF_rTarget[i]], "C") == 0) {
+          if ((strcmp(RF_rType[RF_rTarget[i]], "C") == 0) ||
+              (strcmp(RF_rType[RF_rTarget[i]], "I") == 0)) {
             RF_rTargetFactor[++RF_rTargetFactorCount] = RF_rTarget[i];
           }
           else {
@@ -5070,45 +5104,63 @@ uint stackDefinedOutputObjects(char      mode,
       ensembleDen    = NULL;
       ensembleSRG    = NULL;
       ensembleSRGptr = NULL;
+      ensembleSRGnum = NULL;
       ensembleMRT    = NULL;
       ensembleMRTptr = NULL;
+      ensembleMRTnum = NULL;
       ensembleSRV    = NULL;
       ensembleSRVptr = NULL;
+      ensembleSRVnum = NULL;
       ensembleCIF    = NULL;
       ensembleCIFptr = NULL;
+      ensembleCIFnum = NULL;
       ensembleCLS    = NULL;
       ensembleCLSptr = NULL;
+      ensembleCLSnum = NULL;
       ensembleRGR    = NULL;
       ensembleRGRptr = NULL;
+      ensembleRGRnum = NULL;
       if (oobFlag == TRUE) {
         ensembleDen    = &RF_oobEnsembleDen;
         ensembleSRG    = &RF_oobEnsembleSRG_;
         ensembleSRGptr = &RF_oobEnsembleSRGptr;
+        ensembleSRGnum = &RF_oobEnsembleSRGnum;
         ensembleMRT    = &RF_oobEnsembleMRT_;
-        ensembleMRTptr = &RF_oobEnsembleMRTptr;        
+        ensembleMRTptr = &RF_oobEnsembleMRTptr;
+        ensembleMRTnum = &RF_oobEnsembleMRTnum;
         ensembleSRV    = &RF_oobEnsembleSRV_;
         ensembleSRVptr = &RF_oobEnsembleSRVptr;
+        ensembleSRVnum = &RF_oobEnsembleSRVnum;
         ensembleCIF    = &RF_oobEnsembleCIF_;
         ensembleCIFptr = &RF_oobEnsembleCIFptr;
+        ensembleCIFnum = &RF_oobEnsembleCIFnum;
         ensembleCLS    = &RF_oobEnsembleCLS_;
         ensembleCLSptr = &RF_oobEnsembleCLSptr;
+        ensembleCLSnum = &RF_oobEnsembleCLSnum;
         ensembleRGR    = &RF_oobEnsembleRGR_;
         ensembleRGRptr = &RF_oobEnsembleRGRptr;
+        ensembleRGRnum = &RF_oobEnsembleRGRnum;
       }
       else {
         ensembleDen    = &RF_fullEnsembleDen;
         ensembleSRG    = &RF_fullEnsembleSRG_;
         ensembleSRGptr = &RF_fullEnsembleSRGptr;
+        ensembleSRGnum = &RF_fullEnsembleSRGnum;
         ensembleMRT    = &RF_fullEnsembleMRT_;
-        ensembleMRTptr = &RF_fullEnsembleMRTptr;        
+        ensembleMRTptr = &RF_fullEnsembleMRTptr;
+        ensembleMRTnum = &RF_fullEnsembleMRTnum;        
         ensembleSRV    = &RF_fullEnsembleSRV_;
         ensembleSRVptr = &RF_fullEnsembleSRVptr;
+        ensembleSRVnum = &RF_fullEnsembleSRVnum;
         ensembleCIF    = &RF_fullEnsembleCIF_;
         ensembleCIFptr = &RF_fullEnsembleCIFptr;
+        ensembleCIFnum = &RF_fullEnsembleCIFnum;
         ensembleCLS    = &RF_fullEnsembleCLS_;
         ensembleCLSptr = &RF_fullEnsembleCLSptr;
+        ensembleCLSnum = &RF_fullEnsembleCLSnum;
         ensembleRGR    = &RF_fullEnsembleRGR_;
         ensembleRGRptr = &RF_fullEnsembleRGRptr;
+        ensembleRGRnum = &RF_fullEnsembleRGRnum;
       }
       *ensembleDen = uivector(1, obsSize);
       for (i = 1; i <= obsSize; i++) {
@@ -5120,12 +5172,16 @@ uint stackDefinedOutputObjects(char      mode,
           localSize = RF_eventTypeSize * RF_sortedTimeInterestSize * obsSize;
           *ensembleSRG = (double*) stackAndProtect(&sexpIndex, SEXP_TYPE_NUMERIC, sexpIdentity, localSize, sexpVector, sexpString);
           *ensembleSRGptr = (double ***) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR2);
+          *ensembleSRGnum = (double ***) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR2);
           for (j = 1; j <= RF_eventTypeSize; j++) {
             (*ensembleSRGptr)[j] = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
+            (*ensembleSRGnum)[j] = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
             for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
               (*ensembleSRGptr)[j][k]  = (*ensembleSRG) + ((j-1) * RF_sortedTimeInterestSize * obsSize) + ((k-1) * obsSize) - 1;
+              (*ensembleSRGnum)[j][k]  = dvector(1, obsSize);
               for (i = 1; i <= obsSize; i++) {
                 (*ensembleSRGptr)[j][k][i] = 0.0;
+                (*ensembleSRGnum)[j][k][i] = 0.0;
               }
             }
           }
@@ -5133,10 +5189,13 @@ uint stackDefinedOutputObjects(char      mode,
           localSize = RF_eventTypeSize * obsSize;
           *ensembleMRT = (double*) stackAndProtect(&sexpIndex, SEXP_TYPE_NUMERIC, sexpIdentity, localSize, sexpVector, sexpString);
           *ensembleMRTptr = (double **) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR);
+          *ensembleMRTnum = (double **) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR);
           for (j = 1; j <= RF_eventTypeSize; j++) {
             (*ensembleMRTptr)[j] = (*ensembleMRT) + ((j-1) * obsSize) - 1;
+            (*ensembleMRTnum)[j] = dvector(1, obsSize);
             for (i = 1; i <= obsSize; i++) {
               (*ensembleMRTptr)[j][i] = 0.0;
+              (*ensembleMRTnum)[j][i] = 0.0;
             }
           }
           if (!(RF_opt & OPT_COMP_RISK)) {
@@ -5144,10 +5203,13 @@ uint stackDefinedOutputObjects(char      mode,
             localSize = RF_sortedTimeInterestSize * obsSize;
             *ensembleSRV = (double*) stackAndProtect(&sexpIndex, SEXP_TYPE_NUMERIC, sexpIdentity, localSize, sexpVector, sexpString);
             *ensembleSRVptr = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
+            *ensembleSRVnum = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
             for (j = 1; j <= RF_sortedTimeInterestSize; j++) {
               (*ensembleSRVptr)[j]  = (*ensembleSRV) + ((j-1) * obsSize) - 1;
+              (*ensembleSRVnum)[j]  = dvector(1, obsSize);
               for (i = 1; i <= obsSize; i++) {
                 (*ensembleSRVptr)[j][i]  = 0.0;
+                (*ensembleSRVnum)[j][i]  = 0.0;
               }
             }
           }  
@@ -5156,12 +5218,16 @@ uint stackDefinedOutputObjects(char      mode,
             localSize = RF_eventTypeSize * RF_sortedTimeInterestSize * obsSize;
             *ensembleCIF = (double*) stackAndProtect(&sexpIndex, SEXP_TYPE_NUMERIC, sexpIdentity, localSize, sexpVector, sexpString);
             *ensembleCIFptr = (double ***) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR2);
+            *ensembleCIFnum = (double ***) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR2);
             for (j = 1; j <= RF_eventTypeSize; j++) {
               (*ensembleCIFptr)[j] = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
+              (*ensembleCIFnum)[j] = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
               for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
                 (*ensembleCIFptr)[j][k]  = (*ensembleCIF) + ((j-1) * RF_sortedTimeInterestSize * obsSize) + ((k-1) * obsSize) - 1;
+                (*ensembleCIFnum)[j][k]  = dvector(1, obsSize);
                 for (i = 1; i <= obsSize; i++) {
                   (*ensembleCIFptr)[j][k][i] = 0.0;
+                  (*ensembleCIFnum)[j][k][i] = 0.0;
                 }
               }
             }
@@ -5179,14 +5245,18 @@ uint stackDefinedOutputObjects(char      mode,
           }
           *ensembleCLS = (double*) stackAndProtect(&sexpIndex, SEXP_TYPE_NUMERIC, sexpIdentity, localSize, sexpVector, sexpString);
           *ensembleCLSptr = (double ***) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR2);
+          *ensembleCLSnum = (double ***) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR2);
           localSize = 0;
           for (j = 1; j <= RF_rTargetFactorCount; j++) {
             (*ensembleCLSptr)[j] = (double **) new_vvector(1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
+            (*ensembleCLSnum)[j] = (double **) new_vvector(1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
             for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
               (*ensembleCLSptr)[j][k]  = (*ensembleCLS) + localSize - 1;
+              (*ensembleCLSnum)[j][k]  = dvector(1, obsSize);
               localSize += obsSize;
               for (i = 1; i <= obsSize; i++) {
                 (*ensembleCLSptr)[j][k][i] = 0.0;
+                (*ensembleCLSnum)[j][k][i] = 0.0;
               }
             }
           }
@@ -5195,11 +5265,14 @@ uint stackDefinedOutputObjects(char      mode,
           (oobFlag == TRUE) ? (sexpIdentity = RF_ORGR_ID) : ((fullFlag == TRUE) ? sexpIdentity = RF_FRGR_ID: TRUE);
           localSize = RF_rTargetNonFactorCount * obsSize;
           *ensembleRGR = (double*) stackAndProtect(&sexpIndex, SEXP_TYPE_NUMERIC, sexpIdentity, localSize, sexpVector, sexpString);
-          (*ensembleRGRptr) = (double **) new_vvector(1, RF_rTargetNonFactorCount, NRUTIL_DPTR);        
+          (*ensembleRGRptr) = (double **) new_vvector(1, RF_rTargetNonFactorCount, NRUTIL_DPTR);
+          (*ensembleRGRnum) = (double **) new_vvector(1, RF_rTargetNonFactorCount, NRUTIL_DPTR);
           for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
             (*ensembleRGRptr)[j] = (*ensembleRGR) + ((j-1) * obsSize) - 1;
+            (*ensembleRGRnum)[j] = dvector(1, obsSize);
             for (i = 1; i <= obsSize; i++) {
-              (*ensembleRGRptr)[j][i] = 0.0;
+              (*ensembleRGRptr)[j][i] = NA_REAL;
+              (*ensembleRGRnum)[j][i] = 0.0;
             }
           }
         }
@@ -5638,6 +5711,12 @@ void unstackDefinedOutputObjects(char      mode,
   double ****ensembleCIFptr;
   double ****ensembleCLSptr;
   double  ***ensembleRGRptr;
+  double ****ensembleSRGnum;
+  double  ***ensembleMRTnum;
+  double  ***ensembleSRVnum;
+  double ****ensembleCIFnum;
+  double ****ensembleCLSnum;
+  double  ***ensembleRGRnum;
   char maxVoteFlag;
   uint i, j, k;
   obsSize        = 0;  
@@ -5681,49 +5760,88 @@ void unstackDefinedOutputObjects(char      mode,
       if (oobFlag == TRUE) {
         ensembleDen    = &RF_oobEnsembleDen;
         ensembleSRGptr = &RF_oobEnsembleSRGptr;
-        ensembleMRTptr = &RF_oobEnsembleMRTptr;        
+        ensembleSRGnum = &RF_oobEnsembleSRGnum;
+        ensembleMRTptr = &RF_oobEnsembleMRTptr;
+        ensembleMRTnum = &RF_oobEnsembleMRTnum;        
         ensembleSRVptr = &RF_oobEnsembleSRVptr;
+        ensembleSRVnum = &RF_oobEnsembleSRVnum;
         ensembleCIFptr = &RF_oobEnsembleCIFptr;
+        ensembleCIFnum = &RF_oobEnsembleCIFnum;
         ensembleCLSptr = &RF_oobEnsembleCLSptr;
+        ensembleCLSnum = &RF_oobEnsembleCLSnum;
         ensembleRGRptr = &RF_oobEnsembleRGRptr;
+        ensembleRGRnum = &RF_oobEnsembleRGRnum;
       }
       else {
         ensembleDen    = &RF_fullEnsembleDen;
         ensembleSRGptr = &RF_fullEnsembleSRGptr;
-        ensembleMRTptr = &RF_fullEnsembleMRTptr;        
+        ensembleSRGnum = &RF_fullEnsembleSRGnum;
+        ensembleMRTptr = &RF_fullEnsembleMRTptr;
+        ensembleMRTnum = &RF_fullEnsembleMRTnum;        
         ensembleSRVptr = &RF_fullEnsembleSRVptr;
+        ensembleSRVnum = &RF_fullEnsembleSRVnum;
         ensembleCIFptr = &RF_fullEnsembleCIFptr;
+        ensembleCIFnum = &RF_fullEnsembleCIFnum;
         ensembleCLSptr = &RF_fullEnsembleCLSptr;
+        ensembleCLSnum = &RF_fullEnsembleCLSnum;
         ensembleRGRptr = &RF_fullEnsembleRGRptr;
+        ensembleRGRnum = &RF_fullEnsembleRGRnum;
       }
       free_uivector(*ensembleDen, 1, obsSize);
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
         {
           for (j = 1; j <= RF_eventTypeSize; j++) {
+            for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
+              free_dvector((*ensembleSRGnum)[j][k], 1, obsSize);
+            }
             free_new_vvector((*ensembleSRGptr)[j], 1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
+            free_new_vvector((*ensembleSRGnum)[j], 1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
           }
           free_new_vvector(*ensembleSRGptr, 1, RF_eventTypeSize, NRUTIL_DPTR2);
+          free_new_vvector(*ensembleSRGnum, 1, RF_eventTypeSize, NRUTIL_DPTR2);
+          for (j = 1; j <= RF_eventTypeSize; j++) {
+            free_dvector((*ensembleMRTnum)[j], 1, obsSize);
+          }
           free_new_vvector(*ensembleMRTptr, 1, RF_eventTypeSize, NRUTIL_DPTR);
+          free_new_vvector(*ensembleMRTnum, 1, RF_eventTypeSize, NRUTIL_DPTR);
           if (!(RF_opt & OPT_COMP_RISK)) {
+            for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
+              free_dvector((*ensembleSRVnum)[k], 1, obsSize);
+            }
             free_new_vvector(*ensembleSRVptr, 1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
+            free_new_vvector(*ensembleSRVnum, 1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
           }
           else {
             for (j = 1; j <= RF_eventTypeSize; j++) {
+              for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
+                free_dvector((*ensembleCIFnum)[j][k], 1, obsSize);
+              }
               free_new_vvector((*ensembleCIFptr)[j], 1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
+              free_new_vvector((*ensembleCIFnum)[j], 1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
             }
-            free_new_vvector(*ensembleCIFptr, 1, RF_eventTypeSize, NRUTIL_DPTR2);            
+            free_new_vvector(*ensembleCIFptr, 1, RF_eventTypeSize, NRUTIL_DPTR2);
+            free_new_vvector(*ensembleCIFnum, 1, RF_eventTypeSize, NRUTIL_DPTR2);            
           }  
         }
       }  
       else {
         if (RF_rTargetFactorCount > 0) {
           for (j = 1; j <= RF_rTargetFactorCount; j++) {
+            for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
+              free_dvector((*ensembleCLSnum)[j][k], 1, obsSize);
+            }
             free_new_vvector((*ensembleCLSptr)[j], 1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
+            free_new_vvector((*ensembleCLSnum)[j], 1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
           }
           free_new_vvector(*ensembleCLSptr, 1, RF_rTargetFactorCount, NRUTIL_DPTR2);
+          free_new_vvector(*ensembleCLSnum, 1, RF_rTargetFactorCount, NRUTIL_DPTR2);
         }
         if (RF_rTargetNonFactorCount > 0) {
-          free_new_vvector((*ensembleRGRptr), 1, RF_rTargetNonFactorCount, NRUTIL_DPTR);        
+          for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
+            free_dvector((*ensembleRGRnum)[j], 1, obsSize);
+          }
+          free_new_vvector((*ensembleRGRptr), 1, RF_rTargetNonFactorCount, NRUTIL_DPTR);
+          free_new_vvector((*ensembleRGRnum), 1, RF_rTargetNonFactorCount, NRUTIL_DPTR);        
         }
       }
       if (oobFlag == TRUE) {
@@ -8701,7 +8819,8 @@ char unsupervisedSplit (uint    treeID,
         }
         for (r = 1; r <= RF_randomResponseCount; r++) {
           if (impurity[r]) {
-            if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+            if ((strcmp(RF_xType[pseudoResponse[r]], "C") == 0) ||
+                (strcmp(RF_xType[pseudoResponse[r]], "I") == 0)) {
               pseudoResponseClassSize[r] = RF_xFactorSize[RF_xFactorMap[pseudoResponse[r]]];
               parentClassProp[r] = uivector(1, pseudoResponseClassSize[r]);
               leftClassProp[r]   = uivector(1, pseudoResponseClassSize[r]);
@@ -8742,7 +8861,8 @@ char unsupervisedSplit (uint    treeID,
           }
           for (r = 1; r <= RF_randomResponseCount; r++) {
             if (impurity[r]) {
-              if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+              if ((strcmp(RF_xType[pseudoResponse[r]], "C") == 0) ||
+                  (strcmp(RF_xType[pseudoResponse[r]], "I") == 0)) {
                 for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
                   rghtClassProp[r][p] = parentClassProp[r][p];
                   leftClassProp[r][p] = 0;
@@ -8789,7 +8909,8 @@ char unsupervisedSplit (uint    treeID,
             }
             if (impurity[r]) {
               if (factorFlag == TRUE) {
-                if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+                if ((strcmp(RF_xType[pseudoResponse[r]], "C") == 0) ||
+                    (strcmp(RF_xType[pseudoResponse[r]], "I") == 0)) {
                   for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
                     leftClassProp[r][p] = 0;
                   }
@@ -8826,7 +8947,8 @@ char unsupervisedSplit (uint    treeID,
               else {
                 for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
                   if (secondNonMissMembrFlag[r][k] == TRUE) {
-                    if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+                    if ((strcmp(RF_xType[pseudoResponse[r]], "C") == 0) ||
+                        (strcmp(RF_xType[pseudoResponse[r]], "I") == 0)) {
                       leftClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] ++;
                       rghtClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] --;
                     }
@@ -8841,7 +8963,8 @@ char unsupervisedSplit (uint    treeID,
               }  
               if ((secondNonMissMembrLeftSize[r] > 0) && (secondNonMissMembrRghtSize[r] > 0)) {
                 deltaNorm ++;
-                if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+                if ((strcmp(RF_xType[pseudoResponse[r]], "C") == 0) ||
+                    (strcmp(RF_xType[pseudoResponse[r]], "I") == 0)) {
                   sumLeft[1] = sumRght[1] = 0;
                   for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
                     sumLeft[1] += (double) upower(leftClassProp[r][p], 2);
@@ -8894,7 +9017,8 @@ char unsupervisedSplit (uint    treeID,
                            permissibleSplitPtr);
         for (r = 1; r <= RF_randomResponseCount; r++) {
           if (impurity[r]) {
-            if (strcmp(RF_xType[pseudoResponse[r]], "C") == 0) {
+            if ((strcmp(RF_xType[pseudoResponse[r]], "C") == 0) ||
+                (strcmp(RF_xType[pseudoResponse[r]], "I") == 0)) {
               free_uivector (parentClassProp[r], 1, pseudoResponseClassSize[r]);
               free_uivector (leftClassProp[r],   1, pseudoResponseClassSize[r]);
               free_uivector (rghtClassProp[r],   1, pseudoResponseClassSize[r]);
@@ -9064,7 +9188,8 @@ char multivariateSplit (uint    treeID,
       uint  *secondNonMissMembrRghtSize =       uivector(1, RF_rSize);
       for (r = 1; r <= RF_rSize; r++) {
         parentClassProp[r] = leftClassProp[r] = rghtClassProp[r] = NULL;
-        if (strcmp(RF_rType[r], "C") == 0) {
+        if ((strcmp(RF_rType[r], "C") == 0) ||
+            (strcmp(RF_rType[r], "I") == 0)) {
           parentClassProp[r] = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
           leftClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
           rghtClassProp[r]   = uivector(1, RF_classLevelSize[RF_rFactorMap[r]]);
@@ -9156,7 +9281,8 @@ char multivariateSplit (uint    treeID,
           }
           for (r = 1; r <= RF_rSize; r++) {
             if (impurity[r]) {
-              if (strcmp(RF_rType[r], "C") == 0) {
+              if ((strcmp(RF_rType[r], "C") == 0) ||
+                  (strcmp(RF_rType[r], "I") == 0)) {
                 for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
                   parentClassProp[r][p] = 0;
                 }
@@ -9193,7 +9319,8 @@ char multivariateSplit (uint    treeID,
             }
             for (r = 1; r <= RF_rSize; r++) {
               if (impurity[r]) {
-                if (strcmp(RF_rType[r], "C") == 0) {
+                if ((strcmp(RF_rType[r], "C") == 0) ||
+                    (strcmp(RF_rType[r], "I") == 0)) {
                   for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
                     rghtClassProp[r][p] = parentClassProp[r][p];
                     leftClassProp[r][p] = 0;
@@ -9237,7 +9364,8 @@ char multivariateSplit (uint    treeID,
             for (r = 1; r <= RF_rSize; r++) {
               if (impurity[r]) {
                 if (factorFlag == TRUE) {
-                  if (strcmp(RF_rType[r], "C") == 0) {
+                  if ((strcmp(RF_rType[r], "C") == 0) ||
+                      (strcmp(RF_rType[r], "I") == 0)) {
                     for (p=1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
                       leftClassProp[r][p] = 0;
                     }
@@ -9274,7 +9402,8 @@ char multivariateSplit (uint    treeID,
                 else {
                   for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
                     if (secondNonMissMembrFlag[r][k] == TRUE) {
-                      if (strcmp(RF_rType[r], "C") == 0) {
+                      if ((strcmp(RF_rType[r], "C") == 0) ||
+                          (strcmp(RF_rType[r], "I") == 0)) {
                         leftClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
                         rghtClassProp[r][RF_classLevelIndex[RF_rFactorMap[r]][(uint) RF_response[treeID][r][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] --;
                       }
@@ -9289,7 +9418,8 @@ char multivariateSplit (uint    treeID,
                 }  
                 if ((secondNonMissMembrLeftSize[r] > 0) && (secondNonMissMembrRghtSize[r] > 0)) {
                   deltaNorm ++;
-                  if (strcmp(RF_rType[r], "C") == 0) {
+                  if ((strcmp(RF_rType[r], "C") == 0) ||
+                      (strcmp(RF_rType[r], "I") == 0)) {
                     partialLeft = partialRght = 0;
                     for (p = 1; p <= RF_classLevelSize[RF_rFactorMap[r]]; p++) {
                       partialLeft += (double) upower(leftClassProp[r][p], 2);
@@ -9358,7 +9488,8 @@ char multivariateSplit (uint    treeID,
         }
       }  
       for (r = 1; r <= RF_rSize; r++) {
-        if (strcmp(RF_rType[r], "C") == 0) {
+        if ((strcmp(RF_rType[r], "C") == 0) ||
+            (strcmp(RF_rType[r], "I") == 0)) {
           free_uivector (parentClassProp[r], 1, RF_classLevelSize[RF_rFactorMap[r]]);
           free_uivector (leftClassProp[r], 1, RF_classLevelSize[RF_rFactorMap[r]]);
           free_uivector (rghtClassProp[r], 1, RF_classLevelSize[RF_rFactorMap[r]]);
@@ -9668,7 +9799,8 @@ char customMultivariateSplit (uint    treeID,
                     }
                   }
                   deltaNorm ++;
-                  if (strcmp(RF_rType[r], "C") == 0) {
+                  if ((strcmp(RF_rType[r], "C") == 0) ||
+                      (strcmp(RF_rType[r], "I") == 0)) {
                     deltaPartial = customFunctionArray[CLAS_FAM][RF_splitCustomIdx](m,
                                                                                     userSplitIndicator,
                                                                                     NULL,
@@ -11359,27 +11491,30 @@ void getMeanResponse(uint treeID) {
 }
 void updateEnsembleMean(uint     mode,
                         uint     treeID,
-                        double **ensembleOutcome) {
-  uint obsSize;
+                        uint     serialTreeID,
+                        char     omitDenominator) {
   char oobFlag, fullFlag, selectionFlag, outcomeFlag;
   Terminal ***termMembershipPtr;
+  uint    *membershipIndex;
+  uint     membershipSize;
   double    **ensembleRGRptr;
+  double    **ensembleRGRnum;
   uint       *ensembleDen;
   Terminal *parent;
   uint i, j;
+  uint ii;
   ensembleRGRptr = NULL;  
+  ensembleRGRnum = NULL;  
   ensembleDen    = NULL;  
   oobFlag = fullFlag = FALSE;
   switch (mode) {
   case RF_PRED:
-    obsSize = RF_fobservationSize;
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
     termMembershipPtr = RF_ftTermMembership;
     break;
   default:
-    obsSize = RF_observationSize;
     if (RF_opt & OPT_OENS) {
       if (RF_oobSize[treeID] > 0) {
         oobFlag = TRUE;
@@ -11391,59 +11526,56 @@ void updateEnsembleMean(uint     mode,
     termMembershipPtr = RF_tTermMembership;
     break;
   }
-  if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
-    outcomeFlag = TRUE;
-  }
-  else {
-    outcomeFlag = FALSE;
-  }
+  outcomeFlag = getPerformanceFlag(mode, serialTreeID);
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
     if (oobFlag == TRUE) {
       ensembleRGRptr = RF_oobEnsembleRGRptr;
+      ensembleRGRnum = RF_oobEnsembleRGRnum;
       ensembleDen    = RF_oobEnsembleDen;
+      membershipSize  = RF_oobSize[treeID];
+      membershipIndex = RF_oobMembershipIndex[treeID];
     }
     else {
       ensembleRGRptr = RF_fullEnsembleRGRptr;
+      ensembleRGRnum = RF_fullEnsembleRGRnum;
       ensembleDen    = RF_fullEnsembleDen;
+      switch (mode) {
+      case RF_PRED:
+        membershipSize = RF_fobservationSize;
+        membershipIndex = RF_fidentityMembershipIndex;
+        break;
+      default:
+        membershipSize  = RF_observationSize;
+        membershipIndex = RF_identityMembershipIndex;
+        break;
+      }
     }
-    for (i = 1; i <= obsSize; i++) {
+    for (i = 1; i <= membershipSize; i++) {
+      ii = membershipIndex[i];
+      parent = termMembershipPtr[treeID][ii];
       selectionFlag = TRUE;
-      if (oobFlag == TRUE) {
-        if (RF_bootMembershipFlag[treeID][i] == FALSE) {
-          selectionFlag = TRUE;
+      if (RF_opt & OPT_OUTC_TYPE) {
+        if ((parent -> meanResponse) != NULL) {
         }
         else {
           selectionFlag = FALSE;
         }
       }
       if (selectionFlag) {
-        parent = termMembershipPtr[treeID][i];
-        if (RF_opt & OPT_OUTC_TYPE) {
-          if ((parent -> meanResponse) != NULL) {
-          }
-          else {
-            selectionFlag = FALSE;
-          }
-        }
-      }
-      if (selectionFlag) {
         for (j=1; j <= RF_rTargetNonFactorCount; j++) {
-          ensembleRGRptr[j][i] += (parent -> meanResponse)[RF_rNonFactorMap[RF_rTargetNonFactor[j]]];
+          ensembleRGRnum[j][ii] += (parent -> meanResponse)[RF_rNonFactorMap[RF_rTargetNonFactor[j]]];
         }
-        ensembleDen[i] ++;
+        if(!omitDenominator) {
+          ensembleDen[ii] ++;
+        }
       }
       if (outcomeFlag == TRUE) {
-        if (ensembleDen[i] != 0) {
+        if (ensembleDen[ii] != 0) {
           for (j=1; j <= RF_rTargetNonFactorCount; j++) {
-            ensembleOutcome[j][i] = ensembleRGRptr[j][i] / ensembleDen[i];
+            ensembleRGRptr[j][ii] = ensembleRGRnum[j][ii] / ensembleDen[ii];
           }
         }
-        else {
-          for (j=1; j <= RF_rTargetNonFactorCount; j++) {
-            ensembleOutcome[j][i] = NA_REAL;
-          }
-        }
-      }  
+      }
     }  
     if (outcomeFlag == TRUE) {
       outcomeFlag = FALSE;
@@ -11558,7 +11690,8 @@ void restoreMeanResponse(uint treeID) {
 void getMultiClassProb (uint treeID) {
   Terminal *parent;
   double maxValue, maxClass;
-  uint leaf, i, j, k;
+  uint leaf, i, j;
+  uint k, ii;
   uint *membershipIndex;
   uint  membershipSize;
   if ((RF_opt & OPT_BOOT_NODE) | (RF_opt & OPT_BOOT_NONE)) {
@@ -11579,9 +11712,10 @@ void getMultiClassProb (uint treeID) {
     }
     parent -> membrCount = 0;
     for (i = 1; i <= membershipSize; i++) {
-      if (RF_tTermMembership[treeID][membershipIndex[i]] == parent) {
+      ii = membershipIndex[i];
+      if (RF_tTermMembership[treeID][ii] == parent) {
         for (j=1; j <= RF_rFactorCount; j++) {
-          (parent -> multiClassProb)[j][(uint) RF_response[treeID][RF_rFactorIndex[j]][membershipIndex[i]]] ++;
+          (parent -> multiClassProb)[j][(uint) RF_response[treeID][RF_rFactorIndex[j]][ii]] ++;
         }
         parent -> membrCount ++;
       }
@@ -11611,29 +11745,32 @@ void getMultiClassProb (uint treeID) {
 }
 void updateEnsembleMultiClass(uint      mode,
                               uint      treeID,
-                              double ***outcomeCLS) {
-  uint obsSize;
+                              uint      serialTreeID,
+                              char     omitDenominator) {
   char oobFlag, fullFlag, selectionFlag, outcomeFlag;
   Terminal ***termMembershipPtr;
+  uint    *membershipIndex;
+  uint     membershipSize;
   double   ***ensembleCLSptr;
+  double   ***ensembleCLSnum;
   uint       *ensembleDen;
-  uint i, j, k;
   Terminal *parent;
   double maxValue;
   double maxClass;
+  uint i, j, k;
+  uint ii;
   ensembleCLSptr = NULL;  
+  ensembleCLSnum = NULL;  
   ensembleDen    = NULL;  
   oobFlag = fullFlag = FALSE;
   switch (mode) {
   case RF_PRED:
-    obsSize = RF_fobservationSize;
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
     termMembershipPtr = RF_ftTermMembership;
     break;
   default:
-    obsSize = RF_observationSize;
     if (RF_opt & OPT_OENS) {
       if (RF_oobSize[treeID] > 0) {
         oobFlag = TRUE;
@@ -11645,66 +11782,63 @@ void updateEnsembleMultiClass(uint      mode,
     termMembershipPtr = RF_tTermMembership;
     break;
   }
-  if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
-    outcomeFlag = TRUE;
-  }
-  else {
-    outcomeFlag = FALSE;
-  }
+  outcomeFlag = getPerformanceFlag(mode, serialTreeID);
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
     if (oobFlag == TRUE) {
       ensembleCLSptr = RF_oobEnsembleCLSptr;
+      ensembleCLSnum = RF_oobEnsembleCLSnum;
       ensembleDen    = RF_oobEnsembleDen;
+      membershipSize  = RF_oobSize[treeID];
+      membershipIndex = RF_oobMembershipIndex[treeID];
     }
     else {
       ensembleCLSptr = RF_fullEnsembleCLSptr;
+      ensembleCLSnum = RF_fullEnsembleCLSnum;
       ensembleDen    = RF_fullEnsembleDen;
+      switch (mode) {
+      case RF_PRED:
+        membershipSize = RF_fobservationSize;
+        membershipIndex = RF_fidentityMembershipIndex;
+        break;
+      default:
+        membershipSize  = RF_observationSize;
+        membershipIndex = RF_identityMembershipIndex;
+        break;
+      }
     }
-    for (i=1; i <= obsSize; i++) {
+    for (i = 1; i <= membershipSize; i++) {
+      ii = membershipIndex[i];
+      parent = termMembershipPtr[treeID][ii];
       selectionFlag = TRUE;
-      if (oobFlag == TRUE) {
-        if (RF_bootMembershipFlag[treeID][i] == FALSE) {
-          selectionFlag = TRUE;
+      if (RF_opt & OPT_OUTC_TYPE) {
+        if ((parent -> maxClass) != NULL) {
         }
         else {
           selectionFlag = FALSE;
         }
       }
       if (selectionFlag) {
-        parent = termMembershipPtr[treeID][i];
-        if (RF_opt & OPT_OUTC_TYPE) {
-          if ((parent -> maxClass) != NULL) {
-          }
-          else {
-            selectionFlag = FALSE;
-          }
-        }
-      }
-      if (selectionFlag) {
         for (j=1; j <= RF_rTargetFactorCount; j++) {
           for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-            ensembleCLSptr[j][k][i] += (double) (parent -> multiClassProb)[RF_rFactorMap[RF_rTargetFactor[j]]][k] / (double) (parent -> membrCount);
+            ensembleCLSnum[j][k][ii] += (double) (parent -> multiClassProb)[RF_rFactorMap[RF_rTargetFactor[j]]][k] / (double) (parent -> membrCount);
           }
         }
-        ensembleDen[i] ++;
+        if(!omitDenominator) {
+          ensembleDen[ii] ++;
+        }
       }
       if (outcomeFlag == TRUE) {
-        if (ensembleDen[i] != 0) {
+        if (ensembleDen[ii] != 0) {
           for (j=1; j <= RF_rTargetFactorCount; j++) {
             maxValue = 0;
             maxClass = 0;
             for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-              if (maxValue < ensembleCLSptr[j][k][i]) {
-                maxValue = ensembleCLSptr[j][k][i];
+              if (maxValue < ensembleCLSnum[j][k][ii]) {
+                maxValue = ensembleCLSnum[j][k][ii];
                 maxClass = (double) k;
               }
             }
-            outcomeCLS[j][1][i] = maxClass;
-          }
-        }
-        else {
-          for (j=1; j <= RF_rTargetFactorCount; j++) {
-            outcomeCLS[j][1][i] = NA_REAL;
+            ensembleCLSptr[j][1][ii] = maxClass;
           }
         }
       }
@@ -12272,33 +12406,37 @@ void restoreCIF(uint treeID, uint leaf) {
   parent = RF_tTermList[treeID][leaf];
   (parent -> CIF) = RF_TN_CIFN_ptr[treeID][leaf];
 }
-void updateEnsembleSurvival(uint mode, uint treeID) {
-  uint obsSize;
-  char oobFlag, fullFlag, selectionFlag;
-  double ***ensembleSRGptr;
-  double ***ensembleCIFptr;
-  double  **ensembleSRVptr;
-  double  **ensembleMRTptr;
-  uint     *ensembleDen;
+void updateEnsembleSurvival(uint mode,
+                            uint treeID,
+                            uint serialTreeID) {
+  char oobFlag, fullFlag, selectionFlag, outcomeFlag;
   Terminal ***termMembershipPtr;
-  uint i, j, k;
+  uint    *membershipIndex;
+  uint     membershipSize;
+  double ***ensembleSRGnum;
+  double ***ensembleCIFnum;
+  double  **ensembleSRVnum;
+  double  **ensembleMRTptr;
+  double  **ensembleMRTnum;
+  uint     *ensembleDen;
   Terminal *parent;
-  ensembleSRGptr = NULL;  
-  ensembleCIFptr = NULL;  
-  ensembleSRVptr = NULL;  
+  uint i, j, k;
+  uint ii;
+  ensembleSRGnum = NULL;  
+  ensembleCIFnum = NULL;  
+  ensembleSRVnum = NULL;  
   ensembleMRTptr = NULL;  
+  ensembleMRTnum = NULL;  
   ensembleDen    = NULL;  
   oobFlag = fullFlag = FALSE;
   switch (mode) {
   case RF_PRED:
-    obsSize = RF_fobservationSize;
     if (RF_opt & OPT_FENS) {
       fullFlag = TRUE;
     }
     termMembershipPtr = RF_ftTermMembership;
     break;
   default:
-    obsSize = RF_observationSize;
     if (RF_opt & OPT_OENS) {
       if (RF_oobSize[treeID] > 0) {
         oobFlag = TRUE;
@@ -12310,56 +12448,74 @@ void updateEnsembleSurvival(uint mode, uint treeID) {
     termMembershipPtr = RF_tTermMembership;
     break;
   }
+  outcomeFlag = getPerformanceFlag(mode, serialTreeID);
   while ((oobFlag == TRUE) || (fullFlag == TRUE)) {
     if (oobFlag == TRUE) {
-      ensembleDen    = RF_oobEnsembleDen;
-      ensembleSRGptr = RF_oobEnsembleSRGptr;
+      ensembleSRGnum = RF_oobEnsembleSRGnum;
       ensembleMRTptr = RF_oobEnsembleMRTptr;        
-      ensembleSRVptr = RF_oobEnsembleSRVptr;
-      ensembleCIFptr = RF_oobEnsembleCIFptr;
+      ensembleMRTnum = RF_oobEnsembleMRTnum;
+      ensembleSRVnum = RF_oobEnsembleSRVnum;
+      ensembleCIFnum = RF_oobEnsembleCIFnum;
+      ensembleDen    = RF_oobEnsembleDen;
+      membershipSize  = RF_oobSize[treeID];
+      membershipIndex = RF_oobMembershipIndex[treeID];
     }
     else {
+      ensembleSRGnum = RF_fullEnsembleSRGnum;
+      ensembleMRTptr = RF_fullEnsembleMRTptr;
+      ensembleMRTnum = RF_fullEnsembleMRTnum;        
+      ensembleSRVnum = RF_fullEnsembleSRVnum;
+      ensembleCIFnum = RF_fullEnsembleCIFnum;
       ensembleDen    = RF_fullEnsembleDen;
-      ensembleSRGptr = RF_fullEnsembleSRGptr;
-      ensembleMRTptr = RF_fullEnsembleMRTptr;        
-      ensembleSRVptr = RF_fullEnsembleSRVptr;
-      ensembleCIFptr = RF_fullEnsembleCIFptr;
+      switch (mode) {
+      case RF_PRED:
+        membershipSize = RF_fobservationSize;
+        membershipIndex = RF_fidentityMembershipIndex;
+        break;
+      default:
+        membershipSize  = RF_observationSize;
+        membershipIndex = RF_identityMembershipIndex;
+        break;
+      }
     }
-    for (i=1; i <= obsSize; i++) {
+    for (i = 1; i <= membershipSize; i++) {
+      ii = membershipIndex[i];
+      parent = termMembershipPtr[treeID][ii];
       selectionFlag = TRUE;
-      if (oobFlag == TRUE) {
-        if (RF_bootMembershipFlag[treeID][i] == FALSE) {
-          selectionFlag = TRUE;
+      if (RF_opt & OPT_OUTC_TYPE) {
+        if ((parent -> membrCount) > 0) {
         }
         else {
           selectionFlag = FALSE;
         }
       }
       if (selectionFlag) {
-        parent = termMembershipPtr[treeID][i];
-        if (RF_opt & OPT_OUTC_TYPE) {
-          if ((parent -> membrCount) > 0) {
-          }
-          else {
-            selectionFlag = FALSE;
-          }
-        }
-      }
-      if (selectionFlag) {
-        ensembleDen[i] ++;
+        ensembleDen[ii] ++;
         if (!(RF_opt & OPT_COMP_RISK)) {
-          ensembleMRTptr[1][i] += parent -> mortality[1];
+          ensembleMRTnum[1][ii] += parent -> mortality[1];
           for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-            ensembleSRGptr[1][k][i] += parent -> nelsonAalen[k];
-            ensembleSRVptr[k][i] += parent -> survival[k];
+            ensembleSRGnum[1][k][ii] += parent -> nelsonAalen[k];
+            ensembleSRVnum[k][ii] += parent -> survival[k];
+          }
+          if (outcomeFlag == TRUE) {
+            if (ensembleDen[ii] != 0) {
+              ensembleMRTptr[1][ii] = ensembleMRTnum[1][ii] / ensembleDen[ii];
+            }
           }
         }
         else {
           for (j = 1; j <= RF_eventTypeSize; j++) {
-            ensembleMRTptr[j][i] += parent -> mortality[j];
+            ensembleMRTnum[j][ii] += parent -> mortality[j];
             for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-              ensembleSRGptr[j][k][i] += parent -> CSH[j][k];
-              ensembleCIFptr[j][k][i] += parent -> CIF[j][k];
+              ensembleSRGnum[j][k][ii] += parent -> CSH[j][k];
+              ensembleCIFnum[j][k][ii] += parent -> CIF[j][k];
+            }
+          }
+          if (outcomeFlag == TRUE) {
+            if (ensembleDen[ii] != 0) {
+              for (j = 1; j <= RF_eventTypeSize; j ++) {
+                ensembleMRTptr[j][ii] = ensembleMRTnum[j][ii] / ensembleDen[ii];
+              }
             }
           }
         }
@@ -12592,16 +12748,13 @@ char imputeNode (uint     type,
   uint unsignedIndexSource;
   uint unsignedIndexTarget;
   char result;
-  uint  *glmpIndexPtr;
-  uint  *glmpIndexSize;
+  uint   *glmpIndexPtr;
+  double *glmpValuePtr;
+  uint   *glmpIndexSize;
   uint  *glmpIndexParentPtr;
   uint   glmpIndexParentSize;
-  uint  *glmrIndexPtr;
-  uint  *glmrIndexSize;
-  uint  *glmrIndexParentPtr;
-  uint   glmrIndexParentSize;
   char mvFlag;
-  char termOverrideFlag;
+  char randomizationFlag;
   uint i,p;
   uint localDistributionSize;
   mvNSptr = NULL;  
@@ -12612,17 +12765,14 @@ char imputeNode (uint     type,
   mRecordSize = 0;    
   predictor  = NULL;  
   response   = NULL;  
-  imputedValue = 0.0; 
+  imputedValue = 0.0;  
   glmpIndexPtr = NULL;
+  glmpValuePtr = NULL;
   glmpIndexSize = NULL;
   glmpIndexParentPtr = NULL;
   glmpIndexParentSize = 0;
-  glmrIndexPtr = NULL;
-  glmrIndexSize = NULL;
-  glmrIndexParentPtr = NULL;
-  glmrIndexParentSize = 0;
   result = FALSE;
-  termOverrideFlag = (RF_optHigh & OPT_MISS_RAND) ? TRUE : FALSE;
+  randomizationFlag = (RF_optHigh & OPT_MISS_RAND) ? TRUE : FALSE;
   switch (type) {
   case RF_PRED:
     mRecordSize = RF_fmRecordSize;
@@ -12645,17 +12795,6 @@ char imputeNode (uint     type,
           glmpIndexPtr  = nodePtr -> flmpIndex;
           glmpIndexSize = & (nodePtr -> flmpIndexActualSize);
           *glmpIndexSize = 0;
-          if (!termOverrideFlag) {
-            glmrIndexParentPtr = uivector(1, mRecordSize);
-            glmrIndexParentSize = mRecordSize;
-            for (i = 1; i <= glmrIndexParentSize; i++) {
-              glmrIndexParentPtr[i] = i;
-            }
-            stackNodeFLMRIndex(nodePtr, glmrIndexParentSize);
-            glmrIndexPtr  = nodePtr -> flmrIndex;
-            glmrIndexSize = & (nodePtr -> flmrIndexActualSize);
-            *glmrIndexSize = 0;
-          }
         }
         else {
           if((nodePtr -> parent) -> flmpIndexActualSize > 0) {
@@ -12671,21 +12810,6 @@ char imputeNode (uint     type,
             glmpIndexParentSize = 0;
             glmpIndexPtr = glmpIndexSize = NULL;
           }
-          if (!termOverrideFlag) {
-            if((nodePtr -> parent) -> flmrIndexActualSize > 0) {
-              glmrIndexParentPtr = (nodePtr -> parent) -> flmrIndex;
-              glmrIndexParentSize = (nodePtr -> parent) -> flmrIndexActualSize;
-              stackNodeFLMRIndex(nodePtr, glmrIndexParentSize);
-              glmrIndexPtr  = nodePtr -> flmrIndex;
-              glmrIndexSize = & (nodePtr -> flmrIndexActualSize);
-              *glmrIndexSize = 0;
-            }
-            else {
-              glmrIndexParentPtr = NULL;
-              glmrIndexParentSize = 0;
-              glmrIndexPtr = glmrIndexSize = NULL;
-            }
-          }
         }  
       }  
       else {
@@ -12696,19 +12820,9 @@ char imputeNode (uint     type,
         }
         stackNodeFLMPIndex(nodePtr, glmpIndexParentSize);
         glmpIndexPtr  = nodePtr -> flmpIndex;
+        glmpValuePtr  = nodePtr -> flmpValue;
         glmpIndexSize = & (nodePtr -> flmpIndexActualSize);
         *glmpIndexSize = 0;
-        if (!termOverrideFlag) {
-          glmrIndexParentPtr = uivector(1, mRecordSize);
-          glmrIndexParentSize = mRecordSize;
-          for (i = 1; i <= glmrIndexParentSize; i++) {
-            glmrIndexParentPtr[i] = i;
-          }
-          stackNodeFLMRIndex(nodePtr, glmrIndexParentSize);
-          glmrIndexPtr  = nodePtr -> flmrIndex;
-          glmrIndexSize = & (nodePtr -> flmrIndexActualSize);
-          *glmrIndexSize = 0;
-        }
       }
       result = TRUE;
     }
@@ -12734,17 +12848,6 @@ char imputeNode (uint     type,
           glmpIndexPtr  = nodePtr -> lmpIndex;
           glmpIndexSize = & (nodePtr -> lmpIndexActualSize);
           *glmpIndexSize = 0;
-          if (!termOverrideFlag) {
-            glmrIndexParentPtr = uivector(1, mRecordSize);
-            glmrIndexParentSize = mRecordSize;
-            for (i = 1; i <= glmrIndexParentSize; i++) {
-              glmrIndexParentPtr[i] = i;
-            }
-            stackNodeLMRIndex(nodePtr, glmrIndexParentSize);
-            glmrIndexPtr  = nodePtr -> lmrIndex;
-            glmrIndexSize = & (nodePtr -> lmrIndexActualSize);
-            *glmrIndexSize = 0;
-          }
         }
         else {
           if((nodePtr -> parent) -> lmpIndexActualSize > 0) {
@@ -12760,21 +12863,6 @@ char imputeNode (uint     type,
             glmpIndexParentSize = 0;
             glmpIndexPtr = glmpIndexSize = NULL;
           }
-          if (!termOverrideFlag) {
-            if((nodePtr -> parent) -> lmrIndexActualSize > 0) {
-              glmrIndexParentPtr = (nodePtr -> parent) -> lmrIndex;
-              glmrIndexParentSize = (nodePtr -> parent) -> lmrIndexActualSize;
-              stackNodeLMRIndex(nodePtr, glmrIndexParentSize);
-              glmrIndexPtr  = nodePtr -> lmrIndex;
-              glmrIndexSize = & (nodePtr -> lmrIndexActualSize);
-              *glmrIndexSize = 0;
-            }
-            else {
-              glmrIndexParentPtr = NULL;
-              glmrIndexParentSize = 0;
-              glmrIndexPtr = glmrIndexSize = NULL;
-            }
-          }
         }  
       }  
       else {
@@ -12785,19 +12873,9 @@ char imputeNode (uint     type,
         }
         stackNodeLMPIndex(nodePtr, glmpIndexParentSize);
         glmpIndexPtr  = nodePtr -> lmpIndex;
+        glmpValuePtr  = nodePtr -> lmpValue;
         glmpIndexSize = & (nodePtr -> lmpIndexActualSize);
         *glmpIndexSize = 0;
-        if (!termOverrideFlag) {
-          glmrIndexParentPtr = uivector(1, mRecordSize);
-          glmrIndexParentSize = mRecordSize;
-          for (i = 1; i <= glmrIndexParentSize; i++) {
-            glmrIndexParentPtr[i] = i;
-          }
-          stackNodeLMRIndex(nodePtr, glmrIndexParentSize);
-          glmrIndexPtr  = nodePtr -> lmrIndex;
-          glmrIndexSize = & (nodePtr -> lmrIndexActualSize);
-          *glmrIndexSize = 0;
-        }
       }
       result = TRUE;
     }
@@ -12811,7 +12889,7 @@ char imputeNode (uint     type,
   }
   nodePtr -> imputed = TRUE;
   double *localDistribution = dvector(1, repMembrSize + 1);
-  if ((termFlag) || (!termOverrideFlag)) {
+  if ((termFlag) || (!randomizationFlag)) {
   for (p = 1; p <= glmpIndexParentSize; p++) {
     if (mvNSptr[glmpIndexParentPtr[p]] != -1) {
       signedSignatureIndex = mpIndex[glmpIndexParentPtr[p]];
@@ -12879,7 +12957,10 @@ char imputeNode (uint     type,
             }
           }
         }  
-      }  
+        else {
+          imputedValue = NA_REAL;
+        }
+        }  
       mvFlag = FALSE;
       for (i = 1; i <= allMembrSize; i++) {
         if (mRecordMap[allMembrIndx[i]] > 0) {
@@ -12894,8 +12975,10 @@ char imputeNode (uint     type,
               }
             }
             else {
-              if (termFlag && termOverrideFlag) {
+              if (termFlag && randomizationFlag) {
                 imputePtr[allMembrIndx[i]] = NA_REAL;
+              }
+              else {
               }
             }
           }
@@ -12903,54 +12986,36 @@ char imputeNode (uint     type,
       }  
       if (mvFlag) {
         glmpIndexPtr[++(*glmpIndexSize)] = glmpIndexParentPtr[p];
-      }
-      if (localDistributionSize == 0) {
+        if (termFlag) {
+          glmpValuePtr[(*glmpIndexSize)] = imputedValue;
+        }
       }
     }  
   }  
   }  
-  if (!termOverrideFlag) {
-    for (i = 1; i <= allMembrSize; i++) {
-      if (mRecordMap[allMembrIndx[i]] > 0) {
-        glmrIndexPtr[++(*glmrIndexSize)] = mRecordMap[allMembrIndx[i]];
-      }
-    }
-  }
   free_dvector(localDistribution, 1, repMembrSize + 1);
   if (!termFlag) {
     if((nodePtr -> parent) == NULL) {
       free_uivector(glmpIndexParentPtr, 1, mpIndexSize);
-      if (!termOverrideFlag) {
-        free_uivector(glmrIndexParentPtr, 1, mRecordSize);
-      }
     }
   }
   else {
     free_uivector(glmpIndexParentPtr, 1, mpIndexSize);
-    if (!termOverrideFlag) {
-      free_uivector(glmrIndexParentPtr, 1, mRecordSize);
-    }
   }
   if((nodePtr -> parent) != NULL) {
     if( ((((nodePtr -> parent) -> left) -> imputed) == TRUE) && ((((nodePtr -> parent) -> right) -> imputed) == TRUE) ) {
       switch (type) {
       case RF_PRED:
         unstackNodeFLMPIndex(nodePtr -> parent);
-        if (!termOverrideFlag) {
-          unstackNodeFLMRIndex(nodePtr -> parent);
-        }
         break;
       default:
         unstackNodeLMPIndex(nodePtr -> parent);
-        if (!termOverrideFlag) {
-          unstackNodeLMRIndex(nodePtr -> parent);
-        }
         break;
       }
     }
   }
   return TRUE;
-}
+}  
 char restoreNodeMembership(uint  mode,
                            char  rootFlag,
                            uint  treeID,
@@ -12985,13 +13050,13 @@ char restoreNodeMembership(uint  mode,
   double leftProbability;
   char mPredictorFlag;
   uint offset;
-  char termOverrideFlag;
+  char randomizationFlag;
   uint i;
   factorFlag = FALSE; 
   bootResult = TRUE;
   tnUpdateFlag = TRUE;
   bsUpdateFlag = FALSE;
-  termOverrideFlag = (RF_optHigh & OPT_MISS_RAND) ? TRUE : FALSE;
+  randomizationFlag = (RF_optHigh & OPT_MISS_RAND) ? TRUE : FALSE;
  if (rootFlag | (RF_opt & OPT_BOOT_NODE)) {
     bootMembrIndx  = uivector(1, allMembrSize);
     bootMembrSize = allMembrSize;
@@ -13088,7 +13153,7 @@ char restoreNodeMembership(uint  mode,
           if (RF_mRecordSize > 0) {
             if (RF_mRecordMap[allMembrIndx[i]] > 0) {
               if (RF_mpSign[offset][RF_mRecordMap[allMembrIndx[i]]] == 1) {
-                if (termOverrideFlag) {
+                if (randomizationFlag) {
                   mPredictorFlag = TRUE;
                 }
               }
@@ -13288,102 +13353,16 @@ char restoreNodeMembership(uint  mode,
     free_uivector(bootMembrIndx, 1, allMembrSize);
   }
   return bootResult;
-}
+}  
 void imputeUpdateSummary (uint     mode,
                           uint     treeID) {
   Node     **nodeListPtr;
   Terminal **termListPtr;
-  Terminal **termMembershipPtr;
-  double **response;
-  double **predictor;
-  double  *valuePtr;
-  int    **mpSign;
-  int     *mpIndex;
-  uint    *mRecordIndex;
-  uint  mRecordSize;
-  uint *lmiIndex;
-  uint  lmiSize;
-  int   signedSignatureIndex;
-  uint  unsignedSignatureIndex;
-  uint  absoluteTargetIndex;
-  uint r, p, t;
-  if (mode != RF_PRED) {
-    mRecordIndex = RF_mRecordIndex;
-    mpSign       = RF_mpSign;
-    mpIndex      = RF_mpIndex;
-    mRecordSize  = RF_mRecordSize;
-    response  = RF_response[treeID];
-    predictor = RF_observation[treeID];
-    termMembershipPtr = RF_tTermMembership[treeID];
-  }
-  else {
-    mRecordIndex = RF_fmRecordIndex;
-    mpSign       = RF_fmpSign;
-    mpIndex      = RF_fmpIndex;
-    mRecordSize  = RF_fmRecordSize;
-    response  = RF_fresponse[treeID];
-    predictor = RF_fobservation[treeID];
-    termMembershipPtr = RF_ftTermMembership[treeID];
-  }
+  uint t;
   nodeListPtr = RF_tNodeList[treeID];
   termListPtr = RF_tTermList[treeID];
   for (t = 1; t <= RF_tLeafCount[treeID]; t++) {
     if (xferMissingness(mode, nodeListPtr[t], termListPtr[t])) {
-      lmiSize = termListPtr[t] -> lmiSize;
-      lmiIndex = termListPtr[t] -> lmiIndex;
-      for (p = 1; p <= lmiSize; p++) {
-        signedSignatureIndex = mpIndex[lmiIndex[p]];
-        if (signedSignatureIndex < 0) {
-          unsignedSignatureIndex = (uint) abs(signedSignatureIndex);
-        }
-        else {
-          if (mode != RF_PRED) {
-            unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
-          }
-          else {
-            if (RF_frSize > 0) {
-              unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
-            }
-            else {
-              unsignedSignatureIndex = (uint) signedSignatureIndex;
-            }
-          }
-        }
-      }
-      for (p = 1; p <= termListPtr[t] -> lmiSize; p++) {
-        (termListPtr[t] -> lmiValue)[p] = NA_REAL;
-      }
-      for (p = 1; p <= lmiSize; p++) {
-        signedSignatureIndex = mpIndex[lmiIndex[p]];
-        if (signedSignatureIndex < 0) {
-          unsignedSignatureIndex = (uint) abs(signedSignatureIndex);
-          absoluteTargetIndex = (uint) abs(signedSignatureIndex);
-          valuePtr = response[absoluteTargetIndex];
-        }
-        else {
-          if (mode != RF_PRED) {
-            unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
-          }
-          else {
-            if (RF_frSize > 0) {
-              unsignedSignatureIndex = RF_rSize + (uint) signedSignatureIndex;
-            }
-            else {
-              unsignedSignatureIndex = (uint) signedSignatureIndex;
-            }
-          }
-          absoluteTargetIndex = (uint) signedSignatureIndex;
-          valuePtr = predictor[absoluteTargetIndex];
-        }
-        for (r = 1; r <= mRecordSize; r++) {
-          if (termMembershipPtr[mRecordIndex[r]] == termListPtr[t]) {
-            if(mpSign[unsignedSignatureIndex][r] == 1) {
-              (termListPtr[t] -> lmiValue)[p] = valuePtr[mRecordIndex[r]];
-              r = mRecordSize;
-            }
-          }
-        }
-      }
     }  
   }  
 }
@@ -14006,7 +13985,7 @@ void updateTimeIndexArray(uint    treeID,
   if (allMembrIndx == NULL) {
     free_uivector(membrIndx, 1, allMembrSize);
   }
-}
+}  
 void updateEventTypeSubsets(double *summaryStatus,
                             uint    mRecordSize,
                             int   **mpSign,
@@ -14352,25 +14331,29 @@ void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag) {
   }
 }
 char xferMissingness(uint mode, Node *source, Terminal *destination) {
-  uint *sourcePtr;
-  uint sourceLen;
+  uint   *sourceIndexPtr;
+  double *sourceValuePtr;
+  uint    sourceLen;
   uint p;
   char result;
   char xferFlag;
-  sourcePtr = NULL;  
+  sourceIndexPtr = NULL;  
+  sourceValuePtr = NULL;  
   sourceLen = 0;     
   result = FALSE;
   if (mode != RF_PRED) {
     if (RF_mRecordSize > 0) {
       result = TRUE;
-      sourcePtr = source -> lmpIndex;
+      sourceIndexPtr = source -> lmpIndex;
+      sourceValuePtr = source -> lmpValue;
       sourceLen = source -> lmpIndexActualSize;
     }
   }
   else {
     if (RF_fmRecordSize > 0) {
       result = TRUE;
-      sourcePtr = source -> flmpIndex;
+      sourceIndexPtr = source -> flmpIndex;
+      sourceValuePtr = source -> flmpValue;
       sourceLen = source -> flmpIndexActualSize;
     }
   }
@@ -14383,7 +14366,8 @@ char xferMissingness(uint mode, Node *source, Terminal *destination) {
   if (sourceLen > 0) {
     stackTermLMIIndex(destination, sourceLen);
     for (p = 1; p <= sourceLen; p++) {
-      (destination -> lmiIndex)[p] = sourcePtr[p];
+      (destination -> lmiIndex)[p] = sourceIndexPtr[p];
+      (destination -> lmiValue)[p] = sourceValuePtr[p];
     }
     xferFlag = TRUE;
   }
@@ -14974,10 +14958,13 @@ void updateProximity(uint mode, uint b) {
     }
     else {
       for (uint i = 1; i <= membershipSize; i++) {
+        uint ii, jj;
+        ii = membershipIndex[i];
         for (uint j = 1; j <= i; j++) {
-          RF_proximityDenPtr[membershipIndex[i]][membershipIndex[j]] ++;
-          if ( RF_tTermMembershipIndexPtr[b][membershipIndex[i]] == RF_tTermMembershipIndexPtr[b][membershipIndex[j]] ) {
-            RF_proximityPtr[membershipIndex[i]][membershipIndex[j]] ++;
+          jj = membershipIndex[j];
+          RF_proximityDenPtr[ii][jj] ++;
+          if ( RF_tTermMembershipIndexPtr[b][ii] == RF_tTermMembershipIndexPtr[b][jj] ) {
+            RF_proximityPtr[ii][jj] ++;
           }
         }
       }
@@ -16040,25 +16027,16 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
                                  uint      b) {
   uint      obsSize;
-  double  **ensembleMRTptr;
-  double ***ensembleCLSptr;
-  uint     *ensembleDen;
-  double  **mortality;
-  double ***outcomeCLS;
-  double  **outcomeRGR;
   double  **responsePtr;
-  uint     *denominatorCopy;
+  char      potentiallyMixedMultivariate;
   char      respImputeFlag;
   uint      thisSerialTreeCount;
-  uint      j, k;
-  respImputeFlag       = FALSE; 
-  responsePtr          = NULL;  
-  obsSize              = 0;     
-  ensembleDen          = NULL;  
-  ensembleMRTptr       = NULL;  
-  ensembleCLSptr       = NULL;  
-  denominatorCopy      = NULL;  
-  thisSerialTreeCount  = 0;     
+  uint      j;
+  potentiallyMixedMultivariate = FALSE;  
+  respImputeFlag       = FALSE;  
+  responsePtr          = NULL;   
+  obsSize              = 0;      
+  thisSerialTreeCount  = 0;      
   if (mode == RF_GROW) {
     updateTerminalNodeOutcomes(b);
   }
@@ -16070,83 +16048,29 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       restoreTerminalNodeOutcomes(b);
     }
   }
-  mortality   = NULL;
-  outcomeCLS  = NULL;
-  outcomeRGR  = NULL;
-  if (RF_tLeafCount[b] > 0) {
-    switch (mode) {
-    case RF_PRED:
-      obsSize        = RF_fobservationSize;
-      ensembleDen    = RF_fullEnsembleDen;
-      ensembleMRTptr = RF_fullEnsembleMRTptr;
-      ensembleCLSptr = RF_fullEnsembleCLSptr;
-      break;
-    default:
-      obsSize        = RF_observationSize;
-      ensembleDen    = RF_oobEnsembleDen;
-      ensembleMRTptr = RF_oobEnsembleMRTptr;
-      ensembleCLSptr = RF_oobEnsembleCLSptr;
-      break;
-    }
-    if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
-      denominatorCopy = uivector(1, obsSize);
-      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-        mortality = dmatrix(1, RF_eventTypeSize, 1, obsSize);
-      }
-      else {
-        if (RF_rTargetFactorCount > 0) {
-          if (!(RF_opt & OPT_PERF_CALB)) {
-            outcomeCLS = dmatrix3(1, RF_rTargetFactorCount, 1, 1, 1, obsSize);
-          }
-          else {
-            outcomeCLS = (double ***) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR2);
-            for (j = 1; j <= RF_rTargetFactorCount; j++) {
-              outcomeCLS[j] = (double **) new_vvector(1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
-              for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-                outcomeCLS[j][k] = dvector(1, obsSize);
-              }
-            }
-          }
-        }
-        if (RF_rTargetNonFactorCount > 0) {
-          outcomeRGR = dmatrix(1, RF_rTargetNonFactorCount, 1, obsSize);
-        }
-      }
-    }
-  }
+  obsSize = (mode == RF_PRED) ?  RF_fobservationSize : RF_observationSize;
+  { 
 #ifdef _OPENMP
 #pragma omp critical (_update_ensemble)
 #endif
-  { 
     if (RF_tLeafCount[b] > 0) {
       RF_serialTreeIndex[++RF_serialTreeCount] = b;
       thisSerialTreeCount = RF_serialTreeCount;
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-        updateEnsembleSurvival(mode, b);
-        if (getPerformanceFlag(mode, thisSerialTreeCount)) {
-          if (!(RF_opt & OPT_COMP_RISK)) {
-            getEnsembleMortality(mode, b, obsSize, ensembleMRTptr, ensembleDen, mortality[1]);
-          }
-          else {
-            getEnsembleMortalityCR(mode, b, obsSize, ensembleMRTptr, ensembleDen, mortality);
-          }
-        }
+        updateEnsembleSurvival(mode, b, thisSerialTreeCount);
       }  
       else {
+        potentiallyMixedMultivariate = FALSE;
         if (RF_rTargetFactorCount > 0) {
-          updateEnsembleMultiClass(mode, b, outcomeCLS);
-          if (getPerformanceFlag(mode, thisSerialTreeCount)) {
-            if (RF_opt & OPT_PERF_CALB) {
-              copyEnsembleCLS(mode, obsSize, ensembleCLSptr, outcomeCLS);
-            }
-          }
+          updateEnsembleMultiClass(mode, b, thisSerialTreeCount, potentiallyMixedMultivariate);
+          potentiallyMixedMultivariate = TRUE;
         }
         if (RF_rTargetNonFactorCount > 0) {
-          updateEnsembleMean(mode, b, outcomeRGR);
+          updateEnsembleMean(mode, b, thisSerialTreeCount, potentiallyMixedMultivariate);
+          potentiallyMixedMultivariate = TRUE;
         }
       }
       if (getPerformanceFlag(mode, thisSerialTreeCount)) {
-        copyDenominator(mode, obsSize, ensembleDen, denominatorCopy);
         respImputeFlag = stackAndImputePerfResponse(mode,
                                                     multipleImputeFlag,
                                                     b,
@@ -16156,56 +16080,70 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
       else {
         respImputeFlag = FALSE;
       }
+      if (getPerformanceFlag(mode, thisSerialTreeCount)) {
+        if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
+          getPerformance(thisSerialTreeCount,
+                         mode,
+                         obsSize,
+                         responsePtr,
+                         (mode == RF_PRED) ? RF_fullEnsembleDen : RF_oobEnsembleDen,
+                         (mode == RF_PRED) ? RF_fullEnsembleMRTptr : RF_oobEnsembleMRTptr,
+                         NULL,
+                         NULL,
+                         RF_perfMRTptr[thisSerialTreeCount],
+                         NULL,
+                         NULL);
+        }
+        else {
+          if (RF_rTargetFactorCount > 0) {
+            getPerformance(thisSerialTreeCount,
+                           mode,
+                           obsSize,
+                           responsePtr,
+                           (mode == RF_PRED) ? RF_fullEnsembleDen : RF_oobEnsembleDen,
+                           NULL,
+                           (mode == RF_PRED) ? RF_fullEnsembleCLSptr : RF_oobEnsembleCLSptr,
+                           NULL,
+                           NULL,
+                           RF_perfCLSptr[thisSerialTreeCount],
+                           NULL);
+          }
+          if (RF_rTargetNonFactorCount > 0) {
+            getPerformance(thisSerialTreeCount,
+                           mode,
+                           obsSize,
+                           responsePtr,
+                           (mode == RF_PRED) ? RF_fullEnsembleDen : RF_oobEnsembleDen,
+                           NULL,
+                           NULL,
+                           (mode == RF_PRED) ? RF_fullEnsembleRGRptr : RF_oobEnsembleRGRptr,
+                           NULL,
+                           NULL,
+                           RF_perfRGRptr[thisSerialTreeCount]);
+          }
+        }
+        unstackImputeResponse(respImputeFlag, obsSize, responsePtr);
+      }  
     }  
     else {
       RF_serialTreeIndex[++RF_serialTreeCount] = b;
+    }  
+    if (RF_userTraceFlag) {
+      double userTimeElapsedFromStart;
+      double userTimeElapsedFromSplit;
+      double userTimeRemaining;
+      time_t current;
+      current = time(NULL);
+      userTimeElapsedFromSplit = (double) (current - RF_userTimeSplit);
+      if ((userTimeElapsedFromSplit) > 10) {
+        userTimeElapsedFromStart = (double) (current - RF_userTimeStart);
+        userTimeRemaining = (userTimeElapsedFromStart / thisSerialTreeCount * RF_forestSize) - userTimeElapsedFromStart;
+        Rprintf("\nTrees Grown:  %6d,    Time Remaining (sec):  %6.0f", thisSerialTreeCount, ceil(userTimeRemaining));
+        RF_userTimeSplit = current;
+      }
     }
   } 
   if (RF_tLeafCount[b] > 0) {
-    if (getPerformanceFlag(mode, thisSerialTreeCount)) {
-      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-        getPerformance(thisSerialTreeCount,
-                       mode,
-                       obsSize,
-                       responsePtr,
-                       denominatorCopy,
-                       mortality,
-                       NULL,
-                       NULL,
-                       RF_perfMRTptr[thisSerialTreeCount],
-                       NULL,
-                       NULL);
-      }
-      else {
-        if (RF_rTargetFactorCount > 0) {
-          getPerformance(thisSerialTreeCount,
-                         mode,
-                         obsSize,
-                         responsePtr,
-                         denominatorCopy,
-                         NULL,
-                         outcomeCLS,
-                         NULL,
-                         NULL,
-                         RF_perfCLSptr[thisSerialTreeCount],
-                         NULL);
-        }
-        if (RF_rTargetNonFactorCount > 0) {
-          getPerformance(thisSerialTreeCount,
-                         mode,
-                         obsSize,
-                         responsePtr,
-                         denominatorCopy,
-                         NULL,
-                         NULL,
-                         outcomeRGR,
-                         NULL,
-                         NULL,
-                         RF_perfRGRptr[thisSerialTreeCount]);
-        }
-      }
-      unstackImputeResponse(respImputeFlag, obsSize, responsePtr);
-    }
     if (mode == RF_GROW) {
       if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
         if (!(RF_optHigh & OPT_TERM)) {
@@ -16250,53 +16188,12 @@ void updateEnsembleCalculations (char      multipleImputeFlag,
         }
       }
     }
-    if ((RF_opt & OPT_PERF) | (RF_opt & OPT_PERF_CALB)) {
-      free_uivector(denominatorCopy, 1, obsSize);
-      if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-        free_dmatrix(mortality, 1, RF_eventTypeSize, 1, obsSize);
-      }
-      else {
-        if (RF_rTargetFactorCount > 0) {
-          if (!(RF_opt & OPT_PERF_CALB)) {
-            free_dmatrix3(outcomeCLS, 1, RF_rTargetFactorCount, 1, 1, 1, obsSize);
-          }
-          else {
-            for (j = 1; j <= RF_rTargetFactorCount; j++) {
-              for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-                free_dvector(outcomeCLS[j][k], 1, obsSize);
-              }
-              free_new_vvector(outcomeCLS[j], 1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
-            }
-            free_new_vvector(outcomeCLS, 1, RF_rTargetFactorCount, NRUTIL_DPTR2);
-          }
-        }
-        if (RF_rTargetNonFactorCount > 0) {
-          free_dmatrix(outcomeRGR, 1, RF_rTargetNonFactorCount, 1, obsSize);
-        }
-      }
-    }
     if (RF_opt & OPT_VIMP) {
       if (RF_opt & OPT_VIMP_LEOB) {
         summarizeTreePerformance(mode, b);
       }
     }
   }  
-}
-void copyDenominator(uint mode, uint size, uint *denomPtr, uint *denomCopy) {
-  uint i;
-  for (i = 1; i <= size; i++) {
-    denomCopy[i] = denomPtr[i];
-  }
-}
-void copyEnsembleCLS(uint mode, uint size, double ***ensembleCLSptr, double ***ensembleCopy) {
-  uint j, k, m;
-  for (j = 1; j <= RF_rTargetFactorCount; j++) {
-    for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-      for (m = 1; m <= size; m++) {
-        ensembleCopy[j][k][m] = ensembleCLSptr[j][k][m];
-      }
-    }
-  }
 }
 char stackAndImputePerfResponse(uint      mode,
                                 char      multipleImputeFlag,
@@ -16456,6 +16353,12 @@ void finalizeEnsembleEstimates(uint mode) {
   double ***ensembleCIFptr;
   double ***ensembleCLSptr;
   double  **ensembleRGRptr;
+  double ***ensembleSRGnum;
+  double  **ensembleMRTnum;
+  double  **ensembleSRVnum;
+  double ***ensembleCIFnum;
+  double ***ensembleCLSnum;
+  double  **ensembleRGRnum;
   uint     *ensembleDen;
   uint i, j, k;
   oobFlag = fullFlag = FALSE;
@@ -16486,6 +16389,12 @@ void finalizeEnsembleEstimates(uint mode) {
       ensembleCIFptr = RF_oobEnsembleCIFptr;
       ensembleCLSptr = RF_oobEnsembleCLSptr;
       ensembleRGRptr = RF_oobEnsembleRGRptr;
+      ensembleSRGnum = RF_oobEnsembleSRGnum;
+      ensembleMRTnum = RF_oobEnsembleMRTnum;        
+      ensembleSRVnum = RF_oobEnsembleSRVnum;
+      ensembleCIFnum = RF_oobEnsembleCIFnum;
+      ensembleCLSnum = RF_oobEnsembleCLSnum;
+      ensembleRGRnum = RF_oobEnsembleRGRnum;
     }
     else {
       ensembleDen    = RF_fullEnsembleDen;
@@ -16495,44 +16404,34 @@ void finalizeEnsembleEstimates(uint mode) {
       ensembleCIFptr = RF_fullEnsembleCIFptr;
       ensembleCLSptr = RF_fullEnsembleCLSptr;
       ensembleRGRptr = RF_fullEnsembleRGRptr;
+      ensembleSRGnum = RF_fullEnsembleSRGnum;
+      ensembleMRTnum = RF_fullEnsembleMRTnum;        
+      ensembleSRVnum = RF_fullEnsembleSRVnum;
+      ensembleCIFnum = RF_fullEnsembleCIFnum;
+      ensembleCLSnum = RF_fullEnsembleCLSnum;
+      ensembleRGRnum = RF_fullEnsembleRGRnum;
     }
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       for (i = 1; i <= obsSize; i++) {
         if (ensembleDen[i] != 0) {
           if (!(RF_opt & OPT_COMP_RISK)) {
-            ensembleMRTptr[1][i] = ensembleMRTptr[1][i] / ensembleDen[i];
+            ensembleMRTptr[1][i] = ensembleMRTnum[1][i] / ensembleDen[i];
             for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
-              ensembleSRGptr[1][k][i] = ensembleSRGptr[1][k][i] / ensembleDen[i];
-              ensembleSRVptr[k][i]    = ensembleSRVptr[k][i] / ensembleDen[i];
+              ensembleSRGptr[1][k][i] = ensembleSRGnum[1][k][i] / ensembleDen[i];
+              ensembleSRVptr[k][i]    = ensembleSRVnum[k][i] / ensembleDen[i];
             }
           }
           else {
             for(j = 1; j <= RF_eventTypeSize; j ++) {
-              ensembleMRTptr[j][i] = ensembleMRTptr[j][i] / ensembleDen[i];
+              ensembleMRTptr[j][i] = ensembleMRTnum[j][i] / ensembleDen[i];
               for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-                ensembleSRGptr[j][k][i] = ensembleSRGptr[j][k][i] / ensembleDen[i];
-                ensembleCIFptr[j][k][i] = ensembleCIFptr[j][k][i] / ensembleDen[i];
+                ensembleSRGptr[j][k][i] = ensembleSRGnum[j][k][i] / ensembleDen[i];
+                ensembleCIFptr[j][k][i] = ensembleCIFnum[j][k][i] / ensembleDen[i];
               }
             }
           }
         }
         else {
-          if (!(RF_opt & OPT_COMP_RISK)) {
-            ensembleMRTptr[1][i] = NA_REAL;
-            for (k = 1; k <= RF_sortedTimeInterestSize; k++) {
-              ensembleSRGptr[1][k][i] = NA_REAL;
-              ensembleSRVptr[k][i]    = NA_REAL;
-            }
-          }
-          else {
-            for(j = 1; j <= RF_eventTypeSize; j ++) {
-              ensembleMRTptr[j][i] = NA_REAL;
-              for (k=1; k <= RF_sortedTimeInterestSize; k++) {
-                ensembleSRGptr[j][k][i] = NA_REAL;
-                ensembleCIFptr[j][k][i] = NA_REAL;
-              }
-            }
-          }
         }
       }
     }  
@@ -16542,13 +16441,10 @@ void finalizeEnsembleEstimates(uint mode) {
           for (i = 1; i <= obsSize; i++) {
             if (ensembleDen[i] != 0) {
               for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-                ensembleCLSptr[j][k][i] = ensembleCLSptr[j][k][i] / ensembleDen[i];
+                ensembleCLSptr[j][k][i] = ensembleCLSnum[j][k][i] / ensembleDen[i];
               }
             }
             else {
-              for (k=1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-                ensembleCLSptr[j][k][i] = NA_REAL;
-              }
             }
           }
         }
@@ -16557,10 +16453,9 @@ void finalizeEnsembleEstimates(uint mode) {
         for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
           for (i = 1; i <= obsSize; i++) {
             if (ensembleDen[i] != 0) {
-              ensembleRGRptr[j][i] = ensembleRGRptr[j][i] / ensembleDen[i];
+              ensembleRGRptr[j][i] = ensembleRGRnum[j][i] / ensembleDen[i];
             }
             else {
-              ensembleRGRptr[j][i] = NA_REAL;
             }
           }
         }
@@ -16794,7 +16689,7 @@ void getAntiMembership (uint       mode,
       ii = membershipIndex[i];
       vimpMembership[ii] = RF_tTermList[treeID][ antiMembership(rootPtr, predictorPtr, ii, p, treeID) -> nodeID ];
     }
-  }  
+  }
 }
 void getRandomMembership (uint       mode,
                           uint       treeID,
@@ -17659,6 +17554,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
   uint i, j, r;
   int vimpCount, b, p;
   uint seedValueLC;
+  RF_userTraceFlag = traceFlag;
   totalMWCPCount = 0; 
   seedValueLC    = 0; 
   if (RF_nImpute < 1) {
@@ -17711,7 +17607,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     break;
   }
   initializeTimeArrays(mode);
-  stackFactorArrays(mode);
+  stackFactorArrays();
   stackMissingArrays(mode);
   if (RF_statusIndex > 0) {
     stackCompetingArrays(mode);
@@ -17847,6 +17743,13 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
     }
   }
   for (r = 1; r <= RF_nImpute; r++) {
+    if (RF_userTraceFlag) {
+      if (RF_nImpute == 1) {
+      }
+      else {
+        Rprintf("\nImpute Iteration:  %6d", r);
+      }
+    }
     if (r == RF_nImpute) {
 #ifdef _OPENMP
       if (mode == RF_GROW) {
@@ -17908,6 +17811,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         }
       }
     }  
+    if (RF_userTraceFlag) {
+      RF_userTimeStart = RF_userTimeSplit = time(NULL);
+    }
     if (RF_numThreads > 0) {
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(RF_numThreads)
@@ -18036,6 +17942,9 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         }
       }
     }  
+    if (RF_userTraceFlag) {
+      Rprintf("\n");
+    }
   }  
   for (b = 1; b <= RF_forestSize; b++) {
     unstackAuxiliary(mode, b);

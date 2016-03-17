@@ -1,9 +1,19 @@
 Package: randomForestSRC
-Version: 2.0.7
-BUILD: bld20160115
+Version: 2.1.0
+BUILD: bld20160317
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.0.7
+CHANGES TO RELEASE 2.1.0
+---------------------------------------------------------------------------------
+RELEASE 2.1.0
+Change to GROW mode default importance=none and to allow importance=TRUE.
+Addition of user trace with time estimates.
+CPU usage - code optimization of ensemble calculations.
+CPU usage - code optimization of imputation. 
+Fix to R-side parsing of ensembles in multivariate classification.
+Change to treat ordered factors under classification setting
+instead of regression.
+    
 ---------------------------------------------------------------------------------
 RELEASE 2.0.7
 Fix to factor coercion option in responses.  Fix to R-side processing

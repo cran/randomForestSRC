@@ -8,7 +8,7 @@
 }
 \usage{\method{vimp}{rfsrc}(object, xvar.names, outcome.target=NULL, 
   importance = c("permute", "random", "anti",
-                 "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
+                  "permute.ensemble", "random.ensemble", "anti.ensemble"),
   joint = FALSE, subset, seed = NULL, do.trace = FALSE, ...)
 }
 \arguments{

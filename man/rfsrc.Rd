@@ -34,8 +34,8 @@ rfsrc(formula, data, ntree = 1000,
   splitrule = NULL,
   nsplit = 0,
   split.null = FALSE,
-  importance = c("permute", "random", "anti", "permute.ensemble",
-                 "random.ensemble", "anti.ensemble", "none"),
+  importance = c(FALSE, TRUE, "none", "permute", "random", "anti", 
+                 "permute.ensemble", "random.ensemble",  "anti.ensemble"),
   na.action = c("na.omit", "na.impute", "na.random"),
   nimpute = 1,
   ntime,
@@ -95,8 +95,8 @@ rfsrc(formula, data, ntree = 1000,
     between y and x.}
   \item{importance}{Method for computing variable importance (VIMP).
     Calculating VIMP can be computationally expensive when the
-    number of variables is high, thus if VIMP is not needed consider
-    setting \code{importance="none"}.  See the details below for more
+    number of variables is high.  The defalut action is
+    \code{importance="none"}.  See the details below for more
     about VIMP.}
   \item{na.action}{Action taken if the data contains \code{NA}'s.
     Possible values are \code{na.omit}, \code{na.impute} or \code{na.random}.
@@ -171,7 +171,7 @@ rfsrc(formula, data, ntree = 1000,
 	  aware that this option uses significantly more RAM when the data set
 	  is large, ntree is large, and the nodesize is small.  This is
 	  especially the case when survival or competing risk forests are
-	  grown.  Alos, grow times will certainly be increased due to the cost
+	  grown.  Also, grow times will certainly be increased due to the cost
 	  of saving terminal node information.  Depending on your situation,
 	  no decrease in elapsed CPU time may occur during restoration.  In
 	  fact, elapsed restore time may increase when running in parallel,
@@ -368,14 +368,15 @@ rfsrc(formula, data, ntree = 1000,
       \item \emph{Large number of variables}
 
       For increased efficiency when the number of variables are large,
-      set \code{importance="none"} which turns off variable importance
-      (VIMP) calculations and can considerably reduce computational
-      times (see below for more details about variable importance).
-      Note that variable importance calculations can always be recovered
-      later from the grow forest using the function \command{vimp}
-      and/or \command{predict}.  Alternatively if VIMP is desired in
-      grow mode, consider using \option{ensemble} VIMP which can be
-      considerably faster, especially for survival families.
+      use the defalut setting of \code{importance="none"} which turns
+      off variable importance (VIMP) calculations and can considerably
+      reduce computational times (see below for more details about
+      variable importance).  Note that variable importance calculations
+      can always be recovered later from the grow forest using the
+      function \command{vimp} and/or \command{predict}.  Alternatively
+      if VIMP is desired in grow mode, consider using \option{ensemble}
+      VIMP which can be considerably faster, especially for survival
+      families.
       
       \item \emph{Factors}
       
@@ -960,11 +961,11 @@ if (library("survival", logical.return = TRUE)) {
 
   ## log-rank event-one specific splitting
   pbc.log1 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
-              splitrule = "logrank", cause = c(1,0))
+              splitrule = "logrank", cause = c(1,0), importance="permute")
 
   ## log-rank event-two specific splitting
   pbc.log2 <- rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10,
-              splitrule = "logrank", cause = c(0,1))
+              splitrule = "logrank", cause = c(0,1), importance="permute")
 
   ## extract VIMP from the log-rank forests: event-specific
   ## extract minimal depth from the Gray log-rank forest: non-event specific

@@ -219,7 +219,7 @@
 ## ------------------------------------------------------------
 
 data(pbc, package = "randomForestSRC")
-pbc.obj <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10)
+pbc.obj <- rfsrc(Surv(days, status) ~ ., pbc, nsplit = 10, importance = TRUE)
 
 # default call corresponds to minimal depth selection
 vs.pbc <- var.select(object = pbc.obj)
@@ -240,7 +240,8 @@ var.select(object = pbc.obj, conservative = "high")
 
 ## competing risk data set involving AIDS in women
 data(wihs, package = "randomForestSRC")
-vs.wihs <- var.select(Surv(time, status) ~ ., wihs, nsplit = 3, ntree = 100)
+vs.wihs <- var.select(Surv(time, status) ~ ., wihs, nsplit = 3, 
+                      ntree = 100, importance = TRUE)
 
 ## competing risk analysis of pbc data from survival package
 ## implement cause-specific variable selection 
@@ -293,7 +294,8 @@ md.breast.custom <- var.select(Surv(Time, Censoring) ~ ., vdv,
 ## ------------------------------------------------------------
 
 if (library("survival", logical.return = TRUE) 
-    & library("Hmisc", logical.return = TRUE))
+    & library("Hmisc", logical.return = TRUE)
+    & library("parallel", logical.return = TRUE))
 {
   cox.weights <- function(rfsrc.f, rfsrc.data) {
     event.names <- all.vars(rfsrc.f)[1:2]
@@ -309,7 +311,8 @@ if (library("survival", logical.return = TRUE)
   data(vdv, package = "randomForestSRC")
   rfsrc.f <- as.formula(Surv(Time, Censoring) ~ .)
   cox.wts <- cox.weights(rfsrc.f, vdv)
-  breast.obj <- rfsrc(rfsrc.f, vdv, nsplit = 10, xvar.wt = cox.wts)
+  breast.obj <- rfsrc(rfsrc.f, vdv, nsplit = 10, xvar.wt = cox.wts,
+                      importance = TRUE)
   md.breast.splitwt <- var.select(object = breast.obj) 
 }
 
@@ -352,7 +355,17 @@ if (library("survival", logical.return = TRUE)
     nrep = 10, xvar.wt = cox.wts)
 }
 
- 
+## ------------------------------------------------------------
+## variable selection for multivariate mixed forests
+## ------------------------------------------------------------
+
+mtcars.new <- mtcars
+mtcars.new$cyl <- factor(mtcars.new$cyl)
+mtcars.new$carb <- factor(mtcars.new$carb, ordered = TRUE)
+mv.obj <- rfsrc(cbind(carb, mpg, cyl) ~., data = mtcars.new,
+              importance = TRUE)
+var.select(mv.obj, method = "vh.vimp", nrep = 10)
+
 }
 }
 \keyword{variable selection}

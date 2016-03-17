@@ -31,7 +31,8 @@ mvrfsrc.f <- function(ynames, dat) {
 
 ## multivariate mixed forest call
 mv.obj <- rfsrc(mvrfsrc.f(colnames(nutrigenomic$lipids)),
-            data.frame(do.call(cbind, nutrigenomic)), nsplit = 10)
+            data.frame(do.call(cbind, nutrigenomic)),
+            importance=TRUE, nsplit = 10)
 
 
 ## ------------------------------------------------------------

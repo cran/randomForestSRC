@@ -2,13 +2,13 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.0.7 (bld20160115)
+////  Version 2.1.0 (bld20160317)
 ////
-////  Copyright 2015, University of Miami
+////  Copyright 2016, University of Miami
 ////
 ////  This program is free software; you can redistribute it and/or
 ////  modify it under the terms of the GNU General Public License
-////  as published by the Free Software Foundation; either version 2
+////  as published by the Free Software Foundation; either version 3
 ////  of the License, or (at your option) any later version.
 ////
 ////  This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@
 ////    --------------------------------------------------------------
 ////    Udaya B. Kogalur, Ph.D.
 ////    Adjunct Staff
-////    Dept of Quantitative Health Sciences
+////    Department of Quantitative Health Sciences
 ////    Cleveland Clinic Foundation
 ////    
 ////    Kogalur & Company, Inc.
@@ -245,8 +245,10 @@ struct node {
   char imputed;
   unsigned int *lmpIndex;
   unsigned int  lmpIndexAllocSize, lmpIndexActualSize;
+  double *lmpValue;
   unsigned int *flmpIndex;
   unsigned int  flmpIndexAllocSize, flmpIndexActualSize;
+  double *flmpValue;
   unsigned int *lmrIndex;
   unsigned int  lmrIndexAllocSize, lmrIndexActualSize;
   unsigned int *flmrIndex;
@@ -572,6 +574,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP xType,
                   SEXP xLevels,
                   SEXP xData,
+                  SEXP ptnCount,
                   SEXP sobservationSize,
                   SEXP sobservationIndv,
                   SEXP fobservationSize,
@@ -1128,7 +1131,8 @@ void updateNodeStatistics(Node *parent, double delta, uint candidateCovariateCou
 void getMeanResponse(uint treeID);
 void updateEnsembleMean(uint     mode,
                         uint     treeID,
-                        double **ensembleOutcome);
+                        uint     serialTreeID,
+                        char     omitDenominator);
 double getMeanSquareError(uint    size,
                           double *responsePtr,
                           double *predictedOutcome,
@@ -1142,9 +1146,10 @@ char getVariance(uint    repMembrSize,
                  double *variance);
 void restoreMeanResponse(uint treeID);
 void getMultiClassProb (uint treeID);
-void updateEnsembleMultiClass(uint      mode,
-                              uint      treeID,
-                              double ***outcomeCLS);
+void updateEnsembleMultiClass(uint     mode,
+                              uint     treeID,
+                              uint     serialTreeID,
+                              char     omitDenominator);
 double getBrierScore(uint     obsSize,
                      uint     rTarget,
                      double  *responsePtr,
@@ -1178,7 +1183,9 @@ void restoreMortality(uint treeID, uint leaf);
 void restoreNelsonAalen(uint treeID, uint leaf);
 void restoreCSH(uint treeID, uint leaf);
 void restoreCIF(uint treeID, uint leaf);
-void updateEnsembleSurvival(uint mode, uint treeID);
+void updateEnsembleSurvival(uint mode,
+                            uint treeID,
+                            uint serialTreeID);
 void getEnsembleMortality(uint      mode, 
                           uint      treeID,
                           uint      obsSize,
@@ -1379,8 +1386,6 @@ void restoreMembrCount(uint treeID);
 void updateEnsembleCalculations (char      multipleImputeFlag,
                                  uint      mode,
                                  uint      b);
-void copyDenominator(uint mode, uint size, uint *denomPtr, uint *denomCopy);
-void copyEnsembleCLS(uint mode, uint size, double ***ensembleCLSptr, double ***ensembleCopy);
 void getVariablesUsed(uint treeID, Node *rootPtr, uint *varUsedVector);
 char stackAndImputePerfResponse(uint      mode,
                                 char      multipleImputeFlag,

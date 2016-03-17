@@ -2,13 +2,13 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.7 (_PROJECT_BUILD_ID_)
+####  Version 2.1.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2015, University of Miami
+####  Copyright 2016, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
-####  as published by the Free Software Foundation; either version 2
+####  as published by the Free Software Foundation; either version 3
 ####  of the License, or (at your option) any later version.
 ####
 ####  This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
 ####    Adjunct Staff
-####    Dept of Quantitative Health Sciences
+####    Department of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
 ####    Kogalur & Company, Inc.
@@ -92,7 +92,8 @@ find.interaction.rfsrc <- function(
     method <- "maxsubtree"
   }
   method <- match.arg(method,  c("maxsubtree", "vimp"))
-  importance <- match.arg(importance, c("permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"))
+  importance <- match.arg(importance, c("permute", "random", "anti",
+                                        "permute.ensemble", "random.ensemble", "anti.ensemble"))
   event.info <- get.event.info(object)
   n.event <- max(1, length(event.info$event.type))
   outcome.target <- coerce.multivariate.target(object, outcome.target)
@@ -130,7 +131,6 @@ find.interaction.rfsrc <- function(
     stop("Pairwise comparisons require more than one candidate variable.")
   }
   if (method == "vimp") {
-    outcome.target <- coerce.multivariate.target(object, outcome.target)
     yvar.dim <- ncol(object$yvar)
     family.org <- object$family
     if (n.event > 1) {

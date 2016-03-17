@@ -2,13 +2,13 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.7 (_PROJECT_BUILD_ID_)
+####  Version 2.1.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2015, University of Miami
+####  Copyright 2016, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
-####  as published by the Free Software Foundation; either version 2
+####  as published by the Free Software Foundation; either version 3
 ####  of the License, or (at your option) any later version.
 ####
 ####  This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
 ####    Adjunct Staff
-####    Dept of Quantitative Health Sciences
+####    Department of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
 ####    Kogalur & Company, Inc.
@@ -70,7 +70,7 @@ rfsrc <- function(formula,
                   splitrule = NULL,
                   nsplit = 0,
                   split.null = FALSE,
-                  importance = c("permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
+                  importance = c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"),
                   na.action = c("na.omit", "na.impute", "na.random"),
                   nimpute = 1,
                   ntime,
@@ -93,7 +93,7 @@ rfsrc <- function(formula,
   impute.only <- is.hidden.impute.only(user.option)
   miss.tree <- is.hidden.impute.only(user.option)
   bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none"))
-  importance <- match.arg(importance, c("permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble", "none"))
+  importance <- match.arg(as.character(importance), c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"))
   na.action <- match.arg(na.action, c("na.omit", "na.impute", "na.random"))
   proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
   var.used <- match.arg(as.character(var.used), c("FALSE", "all.trees", "by.tree"))
@@ -127,7 +127,6 @@ rfsrc <- function(formula,
   if (length(xvar.names) == 0) {
     stop("something seems wrong: your formula did not define any x-variables")
   }
-                                        # .. are there any y-variables?  (do not test for the unsupervised case)
   if (family != "unsupv" && length(yvar.names) == 0) {
     stop("something seems wrong: your formula did not define any y-variables")
   }
@@ -381,7 +380,7 @@ rfsrc <- function(formula,
                        bootstrap = bootstrap,
                        fast.restore.bits = fast.restore.bits,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.0.7",
+                       version = "2.1.0",
                        na.action = na.action,
                        coerce.factor = coerce.factor)
     if (grepl("surv", family)) {
@@ -620,28 +619,26 @@ rfsrc <- function(formula,
         }
     }
     else {
-      class.index <- which(yvar.types == "C")
-      class.factor.index <- which(yfactor$generic.types == "C")
+      class.index <- which(yvar.types != "R")
       class.count <- length(class.index)
-      regr.index <- which(yvar.types != "C")
+      regr.index <- which(yvar.types == "R")
       regr.count <- length(regr.index)
       if (class.count > 0) {
         classOutput <- vector("list", class.count)
         names(classOutput) <- yvar.names[class.index]
         levels.count <- array(0, class.count)
         levels.names <- vector("list", class.count)
-        counter <-  counter.factor <- 0
-          for (i in class.index) {
+        counter <- 0
+        for (i in class.index) {
             counter <- counter + 1
             levels.count[counter] <- yvar.nlevels[i]
-            if (is.element(i, class.factor.index)) {
-              counter.factor <- counter.factor + 1
-              levels.names[[counter]] <- yfactor$levels[[counter.factor]]
+            if (yvar.types[i] == "C") {
+              levels.names[[counter]] <- yfactor$levels[[which(yfactor$factor == yvar.names[i])]]
             }
-            else {
-              levels.names[[counter]] <- paste(sort(unique(yvar[, i])))
-            }
-          }
+              else {
+                levels.names[[counter]] <- yfactor$order.levels[[which(yfactor$order == yvar.names[i])]]
+              }
+        }
         if (!is.null(coerce.factor$yvar.names)) remove(yvar)
         tree.offset <- array(1, ntree)
         if (ntree > 1) {

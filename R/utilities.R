@@ -2,13 +2,13 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.7 (_PROJECT_BUILD_ID_)
+####  Version 2.1.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2015, University of Miami
+####  Copyright 2016, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
-####  as published by the Free Software Foundation; either version 2
+####  as published by the Free Software Foundation; either version 3
 ####  of the License, or (at your option) any later version.
 ####
 ####  This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
 ####    Adjunct Staff
-####    Dept of Quantitative Health Sciences
+####    Department of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
 ####    Kogalur & Company, Inc.
@@ -116,6 +116,12 @@ get.forest <- function (forest) {
 }
 get.importance <-  function (importance) {
   if (!is.null(importance)) {
+    if (importance == TRUE) {
+      importance <- "permute"
+    }
+      else if (importance == FALSE) {
+        importance <- "none"
+      }
     if (importance == "none") {
       importance <- 0
     }
@@ -195,18 +201,15 @@ get.membership <- function (membership) {
   return (membership)
 }
 get.outcome <- function (outcome) {
-  if (is.null(outcome)) {
+  if (outcome == "train") {
     outcome <- 0
   }
-    else if (outcome == "train") {
-      outcome <- 0
+    else if (outcome == "test") {
+      outcome <- 2^17
     }
-      else if (outcome == "test") {
-        outcome <- 2^17
+      else {
+        stop("Invalid choice for 'outcome' option:  ", outcome)
       }
-        else {
-          stop("Invalid choice for 'outcome' option:  ", outcome)
-        }
   return (outcome)
 }
 get.perf <-  function (perf, impute.only, family) {
@@ -457,41 +460,89 @@ get.perf.bits <- function (perf) {
           }
       }
   }
+  is.hidden.ptn.count <-  function (user.option) {
+    if(is.null(user.option$ptn.count)) {
+      ptn.count <- 0
+    }
+      else {
+        ptn.count <- as.integer(user.option$ptn.count)
+      }
+    return(ptn.count)
+  }
   coerce.multivariate.target <- function(x, outcome.target = NULL) {
     if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") {
       if (is.null(outcome.target)) {
-        outcome.target <- x$yvar.names[1]
+        target <- match(c("regrOutput", "classOutput"), names(x))
+        target <- target[!is.na(target)]
+        if(length(target) > 0) {
+          do.break <- FALSE
+          for (i in target) {
+            for (j in 1:length(x[[i]])) {
+              if (length(x[[i]][[j]]) > 0) {
+                outcome.target <- names(x[[i]][j])
+                do.break <- TRUE
+                break
+              }
+            }
+            if (do.break == TRUE) {
+              break
+            }
+          }
+        }
+          else {
+            stop("No outcomes found in object.  Please contact technical support.")
+          }
       }
+        else {
+          if (sum(is.element(outcome.target, x$yvar.names)) != 1) {
+            stop("User must specify one and only one outcome.target for multivariate families.")
+          }
+          target <- match(c("regrOutput", "classOutput"), names(x))
+          target <- target[!is.na(target)]
+          found = FALSE
+          if(length(target) > 0) {
+            do.break <- FALSE
+            for (i in target) {
+              for (j in 1:length(x[[i]])) {
+                if (length(x[[i]][[j]]) > 0) {
+                  if (outcome.target == names(x[[i]][j])) {
+                    found = TRUE
+                    do.break <- TRUE
+                    break
+                  }
+                }
+              }
+              if (do.break == TRUE) {
+                break
+              }
+            }     
+          }
+          if (!found) {
+            stop("Target outcome not found in object.  Re-run analysis with target outcome specified.")
+          }
+        }
     }
     outcome.target
   }
   coerce.multivariate <- function(x, outcome.target) {
     x$univariate <- TRUE
     if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") {
-      if (is.null(outcome.target)) {
-        outcome.target <- x$yvar.names[1]
-      }
-      if (sum(is.element(outcome.target, x$yvar.names)) != 1) {
-        stop("User must specify one and only one outcome.target for multivariate families.")
+      x.coerced <- unlist(list(x$classOutput, x$regrOutput), recursive = FALSE)[[outcome.target]]
+      x$univariate <- FALSE
+      x$yvar <- x$yvar[, outcome.target]
+      if (is.factor(x$yvar) || is.ordered(x$yvar)) {
+        x$family <- "class"
       }
         else {
-          x.coerced <- unlist(list(x$classOutput, x$regrOutput), recursive = FALSE)[[outcome.target]]
-          x$univariate <- FALSE
-          x$yvar <- x$yvar[, outcome.target]
-          if (is.factor(x$yvar) && !is.ordered(x$yvar)) {
-            x$family <- "class"
-          }
-            else {
-              x$family <- "regr"
-            }
-          x$predicted <- x.coerced$predicted
-          x$predicted.oob <- x.coerced$predicted.oob
-          x$class <- x.coerced$class
-          x$class.oob <- x.coerced$class.oob
-          x$err.rate <- x.coerced$err.rate
-          x$importance <- x.coerced$importance
-          x$yvar.names <- outcome.target
+          x$family <- "regr"
         }
+      x$predicted <- x.coerced$predicted
+      x$predicted.oob <- x.coerced$predicted.oob
+      x$class <- x.coerced$class
+      x$class.oob <- x.coerced$class.oob
+      x$err.rate <- x.coerced$err.rate
+      x$importance <- x.coerced$importance
+      x$yvar.names <- outcome.target
     }
     x$outcome.target <- outcome.target
     x

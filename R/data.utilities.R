@@ -2,13 +2,13 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.0.7 (_PROJECT_BUILD_ID_)
+####  Version 2.1.0 (_PROJECT_BUILD_ID_)
 ####
-####  Copyright 2015, University of Miami
+####  Copyright 2016, University of Miami
 ####
 ####  This program is free software; you can redistribute it and/or
 ####  modify it under the terms of the GNU General Public License
-####  as published by the Free Software Foundation; either version 2
+####  as published by the Free Software Foundation; either version 3
 ####  of the License, or (at your option) any later version.
 ####
 ####  This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@
 ####    --------------------------------------------------------------
 ####    Udaya B. Kogalur, Ph.D.
 ####    Adjunct Staff
-####    Dept of Quantitative Health Sciences
+####    Department of Quantitative Health Sciences
 ####    Cleveland Clinic Foundation
 ####    
 ####    Kogalur & Company, Inc.
@@ -781,17 +781,17 @@ parseFormula <- function(f, data, coerce.factor = NULL) {
       if (sum(logical.names) > 0) {
         Y[, logical.names] <- 1 * Y[, logical.names, drop = FALSE]
       }
-      if ((sum(unlist(lapply(Y, is.factor.not.ordered))) + 
+      if ((sum(unlist(lapply(Y, is.factor))) + 
           length(coerce.factor$yvar.names)) == length(yvar.names)) {
         family <- "class+"
       }
-      else if ((sum(unlist(lapply(Y, is.factor.not.ordered))) + 
+      else if ((sum(unlist(lapply(Y, is.factor))) + 
           length(coerce.factor$yvar.names)) == 0) {
         family <- "regr+"
       }
-      else if (((sum(unlist(lapply(Y, is.factor.not.ordered))) +
+      else if (((sum(unlist(lapply(Y, is.factor))) +
                  length(coerce.factor$yvar.names)) > 0) && 
-               ((sum(unlist(lapply(Y, is.factor.not.ordered))) +
+               ((sum(unlist(lapply(Y, is.factor))) +
                  length(coerce.factor$yvar.names)) < length(yvar.names))) {
         family <- "mix+"
       }

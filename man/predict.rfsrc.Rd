@@ -6,8 +6,8 @@
   values if the test data contains y-outcomes.
 }
 \usage{\method{predict}{rfsrc}(object, newdata, outcome.target = NULL,
-  importance = c("permute", "random", "anti",
-                 "permute.ensemble", "random.ensemble", "anti.ensemble", "none"),
+  importance = c(FALSE, TRUE, "none", "permute", "random", "anti",
+                 "permute.ensemble", "random.ensemble", "anti.ensemble")[4],
   na.action = c("na.omit", "na.impute", "na.random"), outcome = c("train", "test"),
   proximity = FALSE,
 
