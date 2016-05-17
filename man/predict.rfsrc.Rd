@@ -8,7 +8,7 @@
 \usage{\method{predict}{rfsrc}(object, newdata, outcome.target = NULL,
   importance = c(FALSE, TRUE, "none", "permute", "random", "anti",
                  "permute.ensemble", "random.ensemble", "anti.ensemble")[4],
-  na.action = c("na.omit", "na.impute", "na.random"), outcome = c("train", "test"),
+  na.action = c("na.omit", "na.impute"), outcome = c("train", "test"),
   proximity = FALSE,
 
   
@@ -30,8 +30,8 @@
     contains y-outcome values.}
   \item{na.action}{Missing value action. The default
     \code{na.omit} removes the entire record if
-    even one of its entries is \code{NA}.  Selecting \option{na.impute} or
-    \option{na.random} imputes the test data.}
+    even one of its entries is \code{NA}.  Selecting \option{na.impute} 
+    imputes the test data.}
   \item{outcome}{Determines whether the y-outcomes from the training
     data or the test data are used to calculate the predicted value.
     The default and natural choice is \code{train} which uses the
@@ -52,7 +52,8 @@
   \item{split.depth}{Return minimal depth for each variable for each case?}
   \item{seed}{Negative integer specifying seed for the random number
     generator.} 
-  \item{do.trace}{Parameter ignored.}
+  \item{do.trace}{Number of seconds between updates to the user on
+    approximate time to completion.}
   \item{membership}{Should terminal node membership and inbag
     information be returned?}
   \item{statistics}{Should split statistics be returned?  Values can be
@@ -72,9 +73,8 @@
   Setting \option{na.action="na.impute"} imputes missing test data
   (x-variables and/or y-outcomes).  Imputation uses the grow-forest and
   only training data is used to impute test data to avoid biasing error
-  rates and VIMP (Ishwaran et al. 2008).  The
-  \option{na.action="na.random"} implements a cruder, but faster missing
-  data algorithm.  See the \command{rfsrc} help file for details.
+  rates and VIMP (Ishwaran et al. 2008).  See the \command{rfsrc}
+  help file for details.
   
   If no test data is provided, then the original training data is used
   and the code reverts to restore mode allowing the user to restore the

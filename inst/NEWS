@@ -1,11 +1,24 @@
 Package: randomForestSRC
-Version: 2.1.0
-BUILD: bld20160317
+Version: 2.2.0
+BUILD: bld20160516
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.1.0
+CHANGES TO RELEASE 2.2.0
 ---------------------------------------------------------------------------------
+Bug fix to coerce.factor option via get.xvar.nlevels() and
+get.yvar.nlevels() resolved by sending in max instead of number of
+levels.  Bug fix to VIMP that potentially occurs in OpenMP mode
+causing non-zero LB-VIMP. Methodological fix to in-node imputation.
+and removal of na.random.  Consequent incompatibility with objects
+created with previous versions of the package. Fix to rfsrcSyn() bug
+pertaining to colnames of test set synthetic features. Introduction of
+sampsize, samptype, and case.wt to address imbalanced data sets.
+Continued improvements to CPU and memory performance in big-n, big-p,
+and big-ntree scenarios.
+
+  
 RELEASE 2.1.0
+---------------------------------------------------------------------------------
 Change to GROW mode default importance=none and to allow importance=TRUE.
 Addition of user trace with time estimates.
 CPU usage - code optimization of ensemble calculations.

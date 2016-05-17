@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -75,6 +75,18 @@ get.bootstrap <- function (bootstrap) {
         }
   return (bootstrap)
 }
+get.samptype <- function (samptype) {
+  if (samptype == "swr") {
+    bits <- 0
+  }
+    else if (samptype == "swor") {
+      bits <- 2^12
+    }
+      else {
+        stop("Invalid choice for 'samptype' option:  ", samptype)
+      }
+  return (bits)
+}
 get.cr.bits <- function (fmly) {
   if (fmly == "surv-CR") {
     return(2^21)
@@ -89,12 +101,9 @@ get.na.action <- function (na.action) {
     else if (na.action == "na.impute") {
       na.action <- 2^4
     }
-      else if (na.action == "na.random") {
-        na.action <- 2^4 + 2^5
+      else {
+        stop("Invalid choice for 'na.action' option:  ", na.action)
       }
-        else {
-          stop("Invalid choice for 'na.action' option:  ", na.action)
-        }
   return (na.action)
 }
 get.forest <- function (forest) {
@@ -416,22 +425,39 @@ get.perf.bits <- function (perf) {
         stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
       }
   }
-  get.fast.restore <- function (fast.restore) {
-    if (!is.null(fast.restore)) {
-      if (fast.restore == TRUE) {
-        fast.restore <- 2^6
+  get.terminal.stats <- function (terminal.stats) {
+    if (!is.null(terminal.stats)) {
+      if (terminal.stats == TRUE) {
+        terminal.stats <- 2^6
       }
-        else if (fast.restore == FALSE) {
-          fast.restore <- 0
+        else if (terminal.stats == FALSE) {
+          terminal.stats <- 0
         }
           else {
-            stop("Invalid choice for 'fast.restore' option:  ", fast.restore)
+            stop("Invalid choice for 'terminal.stats' option:  ", terminal.stats)
           }
     }
       else {
-        stop("Invalid choice for 'fast.restore' option:  ", fast.restore)
+        stop("Invalid choice for 'terminal.stats' option:  ", terminal.stats)
       }
-    return (fast.restore)
+    return (terminal.stats)
+  }
+  get.tree.err <- function (tree.err) {
+    if (!is.null(tree.err)) {
+      if (tree.err == FALSE) {
+        tree.err <- 2^13
+      }
+        else if (tree.err == TRUE) {
+          tree.err <- 0
+        }
+          else {
+            stop("Invalid choice for 'tree.err' option:  ", tree.err)
+          }
+    }
+      else {
+        stop("Invalid choice for 'tree.err' option:  ", tree.err)
+      }
+    return (tree.err)
   }
   is.hidden.impute.only <-  function (user.option) {
     if (is.null(user.option$impute.only)) {
@@ -469,6 +495,14 @@ get.perf.bits <- function (perf) {
       }
     return(ptn.count)
   }
+  is.hidden.terminal.stats <-  function (user.option) {
+    if (is.null(user.option$terminal.stats)) {
+      FALSE
+    }
+      else {
+        as.logical(as.character(user.option$terminal.stats))
+      }
+  }
   coerce.multivariate.target <- function(x, outcome.target = NULL) {
     if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") {
       if (is.null(outcome.target)) {
@@ -493,34 +527,34 @@ get.perf.bits <- function (perf) {
             stop("No outcomes found in object.  Please contact technical support.")
           }
       }
-        else {
-          if (sum(is.element(outcome.target, x$yvar.names)) != 1) {
-            stop("User must specify one and only one outcome.target for multivariate families.")
-          }
-          target <- match(c("regrOutput", "classOutput"), names(x))
-          target <- target[!is.na(target)]
-          found = FALSE
-          if(length(target) > 0) {
-            do.break <- FALSE
-            for (i in target) {
-              for (j in 1:length(x[[i]])) {
-                if (length(x[[i]][[j]]) > 0) {
-                  if (outcome.target == names(x[[i]][j])) {
-                    found = TRUE
-                    do.break <- TRUE
-                    break
-                  }
+      else {
+        if (sum(is.element(outcome.target, x$yvar.names)) != 1) {
+          stop("User must specify one and only one outcome.target for multivariate families.")
+        }
+        target <- match(c("regrOutput", "classOutput"), names(x))
+        target <- target[!is.na(target)]
+        found = FALSE
+        if(length(target) > 0) {
+          do.break <- FALSE
+          for (i in target) {
+            for (j in 1:length(x[[i]])) {
+              if (length(x[[i]][[j]]) > 0) {
+                if (outcome.target == names(x[[i]][j])) {
+                  found = TRUE
+                  do.break <- TRUE
+                  break
                 }
               }
-              if (do.break == TRUE) {
-                break
-              }
-            }     
-          }
-          if (!found) {
-            stop("Target outcome not found in object.  Re-run analysis with target outcome specified.")
-          }
+            }
+            if (do.break == TRUE) {
+              break
+            }
+          }     
         }
+        if (!found) {
+          stop("Target outcome not found in object.  Re-run analysis with target outcome specified.")
+        }
+      }
     }
     outcome.target
   }
@@ -533,9 +567,9 @@ get.perf.bits <- function (perf) {
       if (is.factor(x$yvar) || is.ordered(x$yvar)) {
         x$family <- "class"
       }
-        else {
-          x$family <- "regr"
-        }
+      else {
+        x$family <- "regr"
+      }
       x$predicted <- x.coerced$predicted
       x$predicted.oob <- x.coerced$predicted.oob
       x$class <- x.coerced$class

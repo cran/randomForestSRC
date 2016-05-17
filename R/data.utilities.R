@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -660,6 +660,23 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
   splitinfo <- list(name = splitrule, index = splitrule.idx, cust = cust.idx, nsplit = nsplit)
   return (splitinfo)
 }
+get.user.case.wt <- function(weight, n) {
+  if (!is.null(weight)) {
+    if (any(weight < 0)      ||
+        all(weight == 0)     ||
+        length(weight) != n  ||
+        any(is.na(weight))) {
+      stop("Invalid weight vector specified.")
+    }
+  }
+  weight
+}
+get.native.case.wt <- function(weight, n) {
+  if (is.null(weight)) {
+    weight <- rep(1, n)
+  }
+  weight
+}
 get.grow.xvar.wt <- function(weight, n.xvar) {
   if (is.null(weight)          ||
       any(weight < 0)          ||
@@ -707,7 +724,7 @@ get.xvar.nlevels <- function(nlevels, xvar.names, xvar, coerce.factor = NULL) {
   xvar.nlevels <- nlevels
   if (!is.null(coerce.factor$xvar.names)) {
     pt <- is.element(xvar.names, coerce.factor$xvar.names)
-    xvar.nlevels[pt] <- sapply(coerce.factor$xvar.names, function(nn) {length(unique(xvar[, nn]))})
+    xvar.nlevels[pt] <- sapply(coerce.factor$xvar.names, function(nn) {max(xvar[, nn])})
   }
   xvar.nlevels
 }
@@ -736,7 +753,7 @@ get.yvar.nlevels <- function(fmly, nlevels, yvar.names, yvar, coerce.factor = NU
     yvar.nlevels <- nlevels
     if (!is.null(coerce.factor$yvar.names)) {
       pt <- is.element(yvar.names, coerce.factor$yvar.names)
-      yvar.nlevels[pt] <- sapply(coerce.factor$yvar.names, function(nn) {length(unique(yvar[, nn]))})
+      yvar.nlevels[pt] <- sapply(coerce.factor$yvar.names, function(nn) {max(yvar[, nn])})
     }
   }
     yvar.nlevels

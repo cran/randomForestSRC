@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -71,11 +71,14 @@ rfsrc <- function(formula,
                   nsplit = 0,
                   split.null = FALSE,
                   importance = c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"),
-                  na.action = c("na.omit", "na.impute", "na.random"),
+                  na.action = c("na.omit", "na.impute"),
                   nimpute = 1,
                   ntime,
                   cause,
                   proximity = FALSE,
+                  sampsize = NULL,
+                  samptype = c("swr", "swor"),
+                  case.wt = NULL,
                   xvar.wt = NULL,
                   forest = TRUE,
                   var.used = c(FALSE, "all.trees", "by.tree"),
@@ -84,7 +87,7 @@ rfsrc <- function(formula,
                   do.trace = FALSE,
                   membership = TRUE,
                   statistics = FALSE,
-                  fast.restore = FALSE,
+                  tree.err = FALSE,
                   coerce.factor = NULL,
                   ...)
 {
@@ -92,9 +95,10 @@ rfsrc <- function(formula,
   user.option <- list(...)
   impute.only <- is.hidden.impute.only(user.option)
   miss.tree <- is.hidden.impute.only(user.option)
+  terminal.stats <- is.hidden.terminal.stats(user.option)
   bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none"))
   importance <- match.arg(as.character(importance), c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"))
-  na.action <- match.arg(na.action, c("na.omit", "na.impute", "na.random"))
+  na.action <- match.arg(na.action, c("na.omit", "na.impute"))
   proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
   var.used <- match.arg(as.character(var.used), c("FALSE", "all.trees", "by.tree"))
   split.depth <- match.arg(as.character(split.depth),  c("FALSE", "all.trees", "by.tree"))
@@ -151,6 +155,33 @@ rfsrc <- function(formula,
   n <- nrow(xvar)
   n.xvar <- ncol(xvar)
   mtry <- get.grow.mtry(mtry, n.xvar, family)
+  samptype <- match.arg(samptype, c("swr", "swor"))
+  if (bootstrap == "by.root") {
+    if(missing(sampsize) | is.null(sampsize)) {
+      if (samptype == "swr") {
+        sampsize <- nrow(xvar)
+      }
+      if (samptype == "swor") {
+        sampsize <- round(nrow(xvar) * (1 - exp(-1)))
+      }
+    }
+    else {
+      sampsize <- round(sampsize)
+      if (sampsize < 1) {
+        stop("sampsize must be greater than zero")
+      }
+      if (samptype == "swr") {
+      }
+      if (samptype == "swor") {
+        sampsize <- min(sampsize, nrow(xvar))
+      }
+    }
+  }
+  else {
+    sampsize = nrow(xvar)
+    samptype <- "swr"
+  }
+  case.wt  <- get.user.case.wt(case.wt, n)
   xvar.wt  <- get.grow.xvar.wt(xvar.wt, n.xvar)
   yvar <- as.matrix(data[, yvar.names, drop = FALSE])
   if(dim(yvar)[2] == 0) {
@@ -213,7 +244,6 @@ rfsrc <- function(formula,
     perf <- FALSE
   }
   if (impute.only) {
-    na.action    <- "na.impute"
     forest       <- FALSE
     proximity    <- FALSE
     var.used     <- FALSE
@@ -222,7 +252,7 @@ rfsrc <- function(formula,
     perf         <- FALSE
     importance   <- "none"
   }
-  if (fast.restore) {
+  if (terminal.stats) {
     forest <- TRUE
     membership <- TRUE
   }
@@ -239,8 +269,10 @@ rfsrc <- function(formula,
   split.cust.bits <- get.split.cust(splitinfo$cust)
   perf.flag <- get.perf(perf, impute.only, family)
   perf.bits <-  get.perf.bits(perf.flag)
+  samptype.bits <- get.samptype(samptype)
   na.action.bits <- get.na.action(na.action)
-  fast.restore.bits <- get.fast.restore(fast.restore)
+  terminal.stats.bits <- get.terminal.stats(terminal.stats)
+  tree.err.bits <- get.tree.err(tree.err)
   do.trace <- get.trace(do.trace)
   nativeOutput <- tryCatch({.Call("rfsrcGrow",
                                   as.integer(do.trace),
@@ -257,9 +289,11 @@ rfsrc <- function(formula,
                                                                membership.bits +
                                                                  statistics.bits),
                                   as.integer(0 +
+                                               samptype.bits +
                                                    na.action.bits +
-                                                     fast.restore.bits +
-                                                       split.cust.bits),
+                                                     terminal.stats.bits +
+                                                       split.cust.bits +
+                                                         tree.err.bits),
                                   as.integer(splitinfo$index),
                                   as.integer(splitinfo$nsplit),
                                   as.integer(mtry),
@@ -276,6 +310,8 @@ rfsrc <- function(formula,
                                   as.integer(n.xvar),
                                   as.character(xvar.types),
                                   as.integer(xvar.nlevels),
+                                  as.integer(sampsize),
+                                  as.double(get.native.case.wt(case.wt, n)),
                                   as.double(xvar.wt),
                                   as.double(xvar),
                                   as.integer(length(event.info$time.interest)),
@@ -349,15 +385,101 @@ rfsrc <- function(formula,
     }
   }
   if (forest) {
-    nativeArray <- as.data.frame(cbind(nativeOutput$treeID,
-                                       nativeOutput$nodeID,
-                                       nativeOutput$parmID,
-                                       nativeOutput$contPT,
-                                       nativeOutput$mwcpSZ))
+    nativeArraySize = 0
+    mwcpPTSize = 0
+    for (b in 1:ntree) {
+      if (nativeOutput$leafCount[b] > 0) {
+        nativeArraySize = nativeArraySize + (2 * nativeOutput$leafCount[b]) - 1
+        mwcpPTSize = mwcpPTSize + nativeOutput$mwcpCount[b]
+      }
+        else {
+          nativeArraySize = nativeArraySize + 1
+        }
+    }
+    nativeArray <- as.data.frame(cbind(nativeOutput$treeID[1:nativeArraySize],
+                                       nativeOutput$nodeID[1:nativeArraySize],
+                                       nativeOutput$parmID[1:nativeArraySize],
+                                       nativeOutput$contPT[1:nativeArraySize],
+                                       nativeOutput$mwcpSZ[1:nativeArraySize]))
     names(nativeArray) <- c("treeID", "nodeID", "parmID", "contPT", "mwcpSZ")
-    nativeFactorArray <- nativeOutput$mwcpPT
-    if (fast.restore) {
-      nativeArrayTNDS <- list(nativeOutput$tnSURV, nativeOutput$tnMORT, nativeOutput$tnNLSN, nativeOutput$tnCSHZ, nativeOutput$tnCIFN, nativeOutput$tnREGR, nativeOutput$tnCLAS, nativeOutput$tnMCNT, nativeOutput$nodeMembership)
+    if (mwcpPTSize > 0) {
+      nativeFactorArray <- nativeOutput$mwcpPT[1:mwcpPTSize]
+    }
+      else {
+        nativeFactorArray <- NULL
+      }
+    if (terminal.stats) {
+      temp <- 2 * (nodesize - 1)
+      if (n  > temp) { 
+        treeTheoreticalMaximum <- n - temp;
+      }
+        else {
+          treeTheoreticalMaximum <- 1;
+        }
+      forestTheoreticalMaximum <- treeTheoreticalMaximum * ntree
+      offset <- 0
+      valid.mcnt.indices <- NULL
+      for (b in 1:ntree) {
+        valid.mcnt.indices = c(valid.mcnt.indices, (offset + 1):(offset + nativeOutput$leafCount[b]))
+        offset <- offset + treeTheoreticalMaximum
+      }
+      if (grepl("surv", family)) {
+        offset <- 0
+        valid.2D.surv.indices <- NULL
+        for (b in 1:ntree) {
+          valid.2D.surv.indices = c(valid.2D.surv.indices, (offset + 1):(offset + nativeOutput$leafCount[b] * length(event.info$event.type) * length(event.info$time.interest)))
+          offset <- offset + (treeTheoreticalMaximum * length(event.info$event.type) * length(event.info$time.interest))
+        }
+        offset <- 0
+        valid.1D.surv.indices <- NULL
+        for (b in 1:ntree) {
+          valid.1D.surv.indices = c(valid.1D.surv.indices, (offset + 1):(offset + nativeOutput$leafCount[b] * length(event.info$time.interest)))
+          offset <- offset + (treeTheoreticalMaximum * length(event.info$time.interest))
+        }
+        offset <- 0
+        valid.mort.indices <- NULL
+        for (b in 1:ntree) {
+          valid.mort.indices = c(valid.mort.indices, (offset + 1):(offset + nativeOutput$leafCount[b] * length(event.info$event.type)))
+          offset <- offset + (treeTheoreticalMaximum * length(event.info$event.type))
+        }
+      }
+        else {
+          class.index <- which(yvar.types != "R")
+          class.count <- length(class.index)
+          regr.index <- which(yvar.types == "R")
+          regr.count <- length(regr.index)
+          if (class.count > 0) {
+            levels.count <- array(0, class.count)
+            counter <- 0
+            for (i in class.index) {
+              counter <- counter + 1
+              levels.count[counter] <- yvar.nlevels[i]
+            }
+            offset <- 0
+            valid.clas.indices <- NULL
+            for (b in 1:ntree) {
+              valid.clas.indices = c(valid.clas.indices, (offset + 1):(offset + nativeOutput$leafCount[b] * sum(levels.count)))
+              offset <- offset + (treeTheoreticalMaximum * sum(levels.count))
+            }
+          }
+          if (regr.count > 0) {
+            offset <- 0
+            valid.regr.indices <- NULL
+            for (b in 1:ntree) {
+              valid.regr.indices = c(valid.regr.indices, (offset + 1):(offset + nativeOutput$leafCount[b] * regr.count))
+              offset <- offset + (treeTheoreticalMaximum * regr.count)
+            }
+          }
+        }
+      nativeArrayTNDS <- list(if(!is.null(nativeOutput$tnSURV)) nativeOutput$tnSURV[valid.1D.surv.indices] else NULL,
+                              if(!is.null(nativeOutput$tnMORT)) nativeOutput$tnMORT[valid.mort.indices] else NULL,
+                              if(!is.null(nativeOutput$tnNLSN)) nativeOutput$tnNLSN[valid.1D.surv.indices] else NULL,
+                              if(!is.null(nativeOutput$tnCSHZ)) nativeOutput$tnCSHZ[valid.2D.surv.indices] else NULL,
+                              if(!is.null(nativeOutput$tnCIFN)) nativeOutput$tnCIFN[valid.2D.surv.indices] else NULL,
+                              if(!is.null(nativeOutput$tnREGR)) nativeOutput$tnREGR[valid.regr.indices] else NULL,
+                              if(!is.null(nativeOutput$tnCLAS)) nativeOutput$tnCLAS[valid.clas.indices] else NULL,
+                              nativeOutput$tnMCNT[valid.mcnt.indices],
+                              nativeOutput$nodeMembership)
       names(nativeArrayTNDS) <- c("tnSURV","tnMORT","tnNLSN","tnCSHZ","tnCIFN","tnREGR","tnCLAS","tnMCNT", "tnMEMB")
     }
     else {
@@ -378,9 +500,12 @@ rfsrc <- function(formula,
                        xvar.names = xvar.names,
                        seed = nativeOutput$seed,
                        bootstrap = bootstrap,
-                       fast.restore.bits = fast.restore.bits,
+                       sampsize = sampsize,
+                       samptype = samptype,
+                       case.wt  = case.wt,
+                       terminal.stats = terminal.stats,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.1.0",
+                       version = "2.2.0",
                        na.action = na.action,
                        coerce.factor = coerce.factor)
     if (grepl("surv", family)) {
@@ -444,12 +569,12 @@ rfsrc <- function(formula,
     split.depth.out <-  NULL
   }
   if (statistics) {
-    node.stats <- as.data.frame(cbind(nativeOutput$spltST))
+    node.stats <- as.data.frame(cbind(nativeOutput$spltST[1:nativeArraySize]))
     colnames(node.stats) <- "spltST"
-    node.mtry.stats <- t(array(nativeOutput$mtryST, c(mtry, forest.out$totalNodeCount)))
-    node.mtry.index <- t(array(nativeOutput$mtryID, c(mtry, forest.out$totalNodeCount)))
+    node.mtry.stats <- t(array(nativeOutput$mtryST[1:nativeArraySize], c(mtry, forest.out$totalNodeCount)))
+    node.mtry.index <- t(array(nativeOutput$mtryID[1:nativeArraySize], c(mtry, forest.out$totalNodeCount)))
     if (!is.na(formulaDetail$ytry)) {
-      node.ytry.index <- t(array(nativeOutput$uspvST, c(formulaDetail$ytry, forest.out$totalNodeCount)))
+      node.ytry.index <- t(array(nativeOutput$uspvST[1:nativeArraySize], c(formulaDetail$ytry, forest.out$totalNodeCount)))
     }
       else {
         node.ytry.index <- NULL
@@ -489,7 +614,8 @@ rfsrc <- function(formula,
     node.stats      = node.stats,
     node.mtry.stats = node.mtry.stats,
     node.mtry.index = node.mtry.index,
-    node.ytry.index = node.ytry.index
+    node.ytry.index = node.ytry.index,
+    tree.err = tree.err
   )
   if (is.null(coerce.factor$yvar.names)) remove(yvar)
   remove(xvar)

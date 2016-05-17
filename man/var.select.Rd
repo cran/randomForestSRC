@@ -13,7 +13,7 @@
   mtry = (if (method == "md") ceiling(ncol(data)/3) else NULL),
   nodesize = 2, splitrule = NULL, nsplit = 10, xvar.wt = NULL,
   refit = (method != "md"), fast = FALSE,
-  na.action = c("na.omit", "na.impute", "na.random"), 
+  na.action = c("na.omit", "na.impute"), 
   always.use = NULL, nrep = 50, K = 5, nstep = 1,
   prefit =  list(action = (method != "md"), ntree = 100,
   mtry = 500, nodesize = 3, nsplit = 1),
@@ -31,11 +31,9 @@
 	  the number of event types (this option applies only to
 	  competing risk families).  The default is to use the first
 	  event type.}
-  \item{outcome.target}{Integer value for multivariate families
-    specifying the target outcome to be used when VIMP is utilized (see
-    the option \option{method} below for more details).  A vector of
-    coordinate values is allowed which induces a composite average.
-    The default is to use a composite average of all coordinates.}
+  \item{outcome.target}{Character vector for multivariate families
+    specifying the target outcomes to be used when VIMP is utilized.
+    The default is to use the first coordinate.} 
   \item{method}{Variable selection method:
     \describe{  
       \item{\code{md}:}{minimal depth (default).}
@@ -91,7 +89,8 @@
       \item{\code{nsplit}:}{nsplit value used in the preliminary analysis.}
     }
   }  
-  \item{do.trace}{Parameter ignored.} 
+  \item{do.trace}{Number of seconds between updates to the user on
+    approximate time to completion.}
   \item{verbose}{Set to \code{TRUE} for verbose output.}
   \item{...}{Further arguments passed to or from other methods.}
 }

@@ -8,7 +8,7 @@
 }
 \usage{\method{impute}{rfsrc}(formula, data, ntree = 500, mtry = NULL,
   xvar.wt = NULL, nodesize = 1, splitrule = NULL, nsplit = 1,
-  na.action = c("na.impute", "na.random"), nimpute = 2, mf.q, blocks,
+  na.action = "na.impute", nimpute = 2, mf.q, blocks,
   always.use = NULL, max.iter = 10, eps = 0.01, verbose = TRUE,
   do.trace = FALSE, ...)
 }
@@ -47,7 +47,8 @@
     multivariate missForest imputation.}
   \item{verbose}{Send verbose output to terminal (only applies to
     multivariate missForest imputation).}
-  \item{do.trace}{Parameter ignored.}
+  \item{do.trace}{Number of seconds between updates to the user on
+    approximate time to completion.}
   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
@@ -58,18 +59,13 @@
     turned off.  Use this function if your only interest is imputing the
     data.
     
-    \item Regardless of what algorithm is selected, prior to splitting a
-    node, if there is missing data for a variable, the missing data is
-    imputed by randomly drawing values from non-missing in-bag data.
-    The purpose of this is to make it possible to assign cases to
-    daughter nodes in the event the node is split on a variable with
-    missing data.  Imputed data is however not used to calculate the
-    split-statistic, which uses non-missing data only.  Users can select
-    \option{na.action="na.random"} for a cruder, but faster imputation.
-    Unlike the default action, data is not imputed as the tree is grown,
-    instead following the split to a node, data points with missing
-    values on the variable used to split the node are randomly assigned
-    to daughter nodes.
+    \item By default, prior to splitting a node, if there is missing
+    data for a variable, the missing data is imputed by randomly drawing
+    values from non-missing in-bag data.  The purpose of this is to make
+    it possible to assign cases to daughter nodes in the event the node
+    is split on a variable with missing data.  Imputed data is however
+    not used to calculate the split-statistic, which uses non-missing
+    data only.
     
     \item If no formula is specified, unsupervised splitting is
     implemented using a \code{ytry} value of sqrt(\code{p}) where

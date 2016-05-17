@@ -597,40 +597,40 @@ double getCustomSplitStatisticCompetingRisk (unsigned int n,
   array allocations.
 */
 
-unsigned int *alloc_uivector(unsigned long nh)
+unsigned int *alloc_uivector(unsigned int nh)
 {
   return (unsigned int *) malloc((size_t) ((nh+1) * (sizeof(unsigned int))));
 }
 
-void dealloc_uivector(unsigned int *v, unsigned long nh)
+void dealloc_uivector(unsigned int *v, unsigned int nh)
 {
   free((char *) v);
 }
 
 
-double *alloc_dvector(double *v, unsigned long nh)
+double *alloc_dvector(double *v, unsigned int nh)
 {
   return (double *) malloc((size_t) ((nh+1) * (sizeof(double))));
 }
 
-void dealloc_dvector(double *v, unsigned long nh)
+void dealloc_dvector(double *v, unsigned int nh)
 {
   free((char *) v);
 }
 
-unsigned int **alloc_uimatrix(unsigned long n2h, unsigned long nh)
+unsigned int **alloc_uimatrix(unsigned int n2h, unsigned int nh)
 {
   unsigned int **v = (unsigned int **) malloc((size_t) ((n2h+1) * (sizeof(unsigned int *))));
 
-  for (unsigned long i = 1; i <= n2h; i++) {
+  for (unsigned int i = 1; i <= n2h; i++) {
     v[i] = alloc_uivector(nh);
   }
   return v;
 }
 
-void dealloc_uimatrix(unsigned int **v, unsigned long n2h, unsigned long nh)
+void dealloc_uimatrix(unsigned int **v, unsigned int n2h, unsigned int nh)
 {
-  for (unsigned long i = 1; i <= n2h; i++) {
+  for (unsigned int i = 1; i <= n2h; i++) {
     dealloc_uivector(v[i], nh);
   }
   free((char *) v);

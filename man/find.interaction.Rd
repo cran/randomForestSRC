@@ -9,7 +9,7 @@
   importance = c("permute", "random", "anti",
                  "permute.ensemble", "random.ensemble", "anti.ensemble"),
   method = c("maxsubtree", "vimp"), sorted = TRUE, nvar, nrep = 1, subset, 
-  na.action = c("na.omit", "na.impute", "na.random"),
+  na.action = c("na.omit", "na.impute"),
   seed = NULL, do.trace = FALSE, verbose = TRUE, ...)
 }
 \arguments{
@@ -38,7 +38,8 @@
     values.  Applies only when \option{method="vimp"}.}
   \item{seed}{Seed for random number generator.  Must be a negative
     integer.}
-  \item{do.trace}{Parameter ignored.}
+  \item{do.trace}{Number of seconds between updates to the user on
+    approximate time to completion.}
   \item{verbose}{Set to \code{TRUE} for verbose output.}
   \item{...}{Further arguments passed to or from other methods.}
 }

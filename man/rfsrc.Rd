@@ -36,12 +36,15 @@ rfsrc(formula, data, ntree = 1000,
   split.null = FALSE,
   importance = c(FALSE, TRUE, "none", "permute", "random", "anti", 
                  "permute.ensemble", "random.ensemble",  "anti.ensemble"),
-  na.action = c("na.omit", "na.impute", "na.random"),
+  na.action = c("na.omit", "na.impute"),
   nimpute = 1,
   ntime,
   cause,
   proximity = FALSE,
 
+  sampsize = NULL,
+  samptype = c("swr", "swor"),
+  case.wt  = NULL,
    
 
   xvar.wt = NULL,  
@@ -52,7 +55,7 @@ rfsrc(formula, data, ntree = 1000,
   do.trace = FALSE,
   membership = TRUE,
   statistics = FALSE,
-  fast.restore = FALSE,
+  tree.err = FALSE,
   coerce.factor = NULL,
   ...)
 }
@@ -99,11 +102,11 @@ rfsrc(formula, data, ntree = 1000,
     \code{importance="none"}.  See the details below for more
     about VIMP.}
   \item{na.action}{Action taken if the data contains \code{NA}'s.
-    Possible values are \code{na.omit}, \code{na.impute} or \code{na.random}.
+    Possible values are \code{na.omit} or \code{na.impute}.
     The default \code{na.omit} removes the entire record if
     even one of its entries is \code{NA} (for x-variables this applies only
     to those specifically listed in 'formula').  Selecting
-	  \code{na.impute} or \code{na.random} imputes the data.
+	  \code{na.impute} imputes the data.
 	  See below for more details regarding missing data imputation.}
   \item{nimpute}{Number of iterations of the missing data algorithm.
 	  Performance measures such as out-of-bag (OOB) error rates tend
@@ -142,6 +145,18 @@ rfsrc(formula, data, ntree = 1000,
     Setting \code{proximity = TRUE} is equivalent to 
     \code{proximity = "inbag"}.}
   
+  \item{sampsize}{Requested size of bootstrap when \code{"by.root"} is in
+    effect (if missing the default action is the usual bootstrap).}
+  \item{samptype}{Type of bootstrap when \code{"by.root"} is in
+    effect.  Choices are \code{swr} (sampling with replacement,
+    the default action) and \code{swor} (sampling without replacement).}
+  \item{case.wt}{Vector of non-negative weights where entry
+    \code{k}, after normalizing, is the probability of selecting
+    case \code{k} as a candidate for the bootstrap.  Default is to
+    use uniform weights.  Vector must be of dimension \code{n},
+    where \code{n} equals the number of cases in the processed data
+    set (missing values may be removed, thus altering the original
+    sample size).}
    
   
   \item{xvar.wt}{Vector of non-negative weights where entry
@@ -162,25 +177,17 @@ rfsrc(formula, data, ntree = 1000,
     \code{by.tree}. Used for variable selection.}
   \item{seed}{Negative integer specifying seed for the random number
     generator.}
-  \item{do.trace}{Parameter ignored.}
+  \item{do.trace}{Number of seconds between updates to the user on
+    approximate time to completion.}
   \item{membership}{Should terminal node membership and inbag
     information be returned?}
   \item{statistics}{Should split statistics be returned?  Values can be
     parsed using \command{stat.split}.}
-  \item{fast.restore}{Should faster forest restoration be attempted?  Be
-	  aware that this option uses significantly more RAM when the data set
-	  is large, ntree is large, and the nodesize is small.  This is
-	  especially the case when survival or competing risk forests are
-	  grown.  Also, grow times will certainly be increased due to the cost
-	  of saving terminal node information.  Depending on your situation,
-	  no decrease in elapsed CPU time may occur during restoration.  In
-	  fact, elapsed restore time may increase when running in parallel,
-	  though CPU exection times may actually decrease.  Our benchmarks
-	  demonstrate that the option is most useful when running in serial
-	  mode.  In parallel mode, it is largely dependent on a number of
-	  complicated factors.  Finally, note that the performance calculation
-	  is omitted on all but the last tree, when this option is
-	  \code{TRUE}.}
+  \item{tree.err}{Should the error rate be calculated on every tree?
+	  When \code{FALSE}, it will only be calculated on the last tree.  In
+    such situations, plot of the error rate will result in a flat line.
+    To view the error rate over all trees, restore the model with
+    option set to \code{TRUE}.}
   \item{coerce.factor}{Names of variables (can either be x-variables or
     y-outcomes) to be analyzed as factors.
     The variables must be coded as sequential positive integers
@@ -545,21 +552,12 @@ rfsrc(formula, data, ntree = 1000,
     calculate the split-statistic which uses non-missing data only.
     Following a node split, imputed data are reset to missing and the
     process is repeated until terminal nodes are reached.  Missing data in
-    terminal nodes are imputed using OOB non-missing terminal node data.
+    terminal nodes are imputed using in-bag non-missing terminal node data.
     For integer valued variables and censoring indicators, imputation uses
     a maximal class rule, whereas continuous variables and survival time
-    use a mean rule.
+    use a mean rule. 
     
-    Choosing the option \option{na.action="na.random"} implements a cruder
-    version of the missing data algorithm, but which should be
-    computationally faster.  Unlike the default method, data is not
-    imputed as the tree is grown, instead following the split to a node,
-    data points with missing values on the variable used to split the node
-    are randomly assigned to daughter nodes.  When terminal nodes are
-    reached, missing data are imputed as before by using out-of-bag (OOB)
-    non-missing terminal node data.
-    
-    Both missing data algorithms can be iterated by setting \code{nimpute}
+    The missing data algorithm can be iterated by setting \code{nimpute}
     to a positive integer greater than 1.  Using only a few iterations are
     needed to improve accuracy.  When the algorithm is iterated, at the
     completion of each iteration, missing data is imputed using OOB
@@ -571,9 +569,9 @@ rfsrc(formula, data, ntree = 1000,
     mind that if the algorithm is iterated, performance measures such as
     error rates and VIMP become optimistically biased.
     
-    Regardless of what method is used, records in which all outcome and
-    x-variable information are missing are removed from the forest
-    analysis.  Variables having all missing values are also removed.
+    Finally, records in which all outcome and x-variable information are
+    missing are removed from the forest analysis.  Variables having all
+    missing values are also removed.
     
     See the function \command{impute.rfsrc} for a fast impute interface.
     
@@ -812,7 +810,7 @@ rfsrc(formula, data, ntree = 1000,
 ## veteran data
 ## randomized trial of two treatment regimens for lung cancer
 data(veteran, package = "randomForestSRC")
-v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran, ntree = 100)
+v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran, ntree = 100, tree.err=TRUE)
 
 # print and plot the grow object
 print(v.obj)
@@ -1010,7 +1008,7 @@ iris.obj <- rfsrc(Species ~., data = iris)
 
 ## Wisconsin prognostic breast cancer data
 data(breast, package = "randomForestSRC")
-breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
+breast.obj <- rfsrc(status ~ ., data = breast, nsplit = 10, tree.err=TRUE)
 plot(breast.obj)
 
 ## ------------------------------------------------------------
@@ -1027,7 +1025,7 @@ var.select(mtcars2.unspv)
 ## ------------------------------------------------------------
 ## Multivariate regression analysis
 ## ------------------------------------------------------------
-mtcars.mreg <- rfsrc(Multivar(mpg, cyl) ~., data = mtcars)
+mtcars.mreg <- rfsrc(Multivar(mpg, cyl) ~., data = mtcars, tree.err=TRUE)
 print(mtcars.mreg, outcome.target = "mpg")
 print(mtcars.mreg, outcome.target = "cyl")
 plot(mtcars.mreg, outcome.target = "mpg")
@@ -1040,7 +1038,7 @@ plot(mtcars.mreg, outcome.target = "cyl")
 mtcars.new <- mtcars
 mtcars.new$cyl <- factor(mtcars.new$cyl)
 mtcars.new$carb <- factor(mtcars.new$carb, ordered = TRUE)
-mtcars.mix <- rfsrc(cbind(carb, mpg, cyl) ~., data = mtcars.new)
+mtcars.mix <- rfsrc(cbind(carb, mpg, cyl) ~., data = mtcars.new, tree.err=TRUE)
 print(mtcars.mix, outcome.target = "mpg")
 print(mtcars.mix, outcome.target = "cyl")
 plot(mtcars.mix, outcome.target = "mpg")

@@ -18,9 +18,16 @@
   \item{verbose}{Should VIMP be printed?}
   \item{...}{Further arguments passed to or from other methods.}
 }
-\details{
-  Plot cumulative OOB error rates as a function of number of trees.
-  Plot variable importance (VIMP) if available.
+\details{  
+  Plot cumulative OOB error rates as a function of number of trees and
+  variable importance (VIMP) if available.  Note that the default
+  settings are now such that the error rate is no longer calculated on
+  every tree and VIMP is only calculated if requested.  To get OOB error
+  rates for ever tree, use the option \code{tree.err = TRUE} when
+  growing the forest or restore the model using the option
+  \code{tree.err = TRUE}.  Likewise, to view VIMP, use the option
+  \code{importance} when growing the forest or restore the forest using
+  the option \code{importance}.
 }
 \author{
   Hemant Ishwaran and Udaya B. Kogalur
@@ -41,7 +48,8 @@
 ## classification example
 ## ------------------------------------------------------------
 
-iris.obj <- rfsrc(Species ~ ., data = iris)
+iris.obj <- rfsrc(Species ~ ., data = iris,
+     tree.err = TRUE, importance = TRUE)
 plot(iris.obj)
 
 ## ------------------------------------------------------------
@@ -53,10 +61,20 @@ plot(iris.obj)
 if (library("survival", logical.return = TRUE)) {
   data(pbc, package = "survival")
   pbc$id <- NULL
-  plot(rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10))
+  plot(rfsrc(Surv(time, status) ~ ., pbc, nsplit = 10, tree.err = TRUE))
 }
 
- 
+## ------------------------------------------------------------
+## multivariate mixed forests
+## ------------------------------------------------------------
+
+mtcars.new <- mtcars
+mtcars.new$cyl <- factor(mtcars.new$cyl)
+mtcars.new$carb <- factor(mtcars.new$carb, ordered = TRUE)
+mv.obj <- rfsrc(cbind(carb, mpg, cyl) ~., data = mtcars.new, tree.err = TRUE)
+plot(mv.obj, outcome.target = "carb")
+plot(mv.obj, outcome.target = "mpg")
+plot(mv.obj, outcome.target = "cyl")
 
 }
 }

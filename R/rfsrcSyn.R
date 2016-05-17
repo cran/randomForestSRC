@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -91,42 +91,42 @@ rfsrcSyn.rfsrc <-
     rfSyn <- object$rfSyn
     synthetic <- object$synthetic
     opt.machine <- object$opt.machine
-    list.names <- unlist(lapply(synthetic, function(ss) {colnames(ss)}))
+    list.names <- lapply(synthetic, function(ss) {colnames(ss)})
   }
-    else {
-      if (missing(formula) || missing(data)) {
-        stop("need to specify 'formula' and 'data' or provide a grow forest object")
-      }
-      f <- as.formula(formula)
-      if (na.action == "na.impute" && any(is.na(data))) {
-        if (verbose) {
-          cat("\t imputing the data\n")
-        }
-        data <- impute.rfsrc(data = data, ntree = ntree, nodesize = nodesize, nsplit = nsplit)
-      }
-      preObj <- rfsrc(f, data, ntree = 1, importance = "none",
-                      nodesize = nrow(data), splitrule = "random")
-      fmly <- preObj$family
-      if (!(fmly == "regr" | fmly == "regr+" | fmly == "class" | fmly == "class+" | fmly == "mix+")) {
-        stop("this function only applies to regression/classification based families")
-      }
-      xvar.names <- preObj$xvar.names
-      yvar.names <- preObj$yvar.names
-      preObj$yvar <- data.frame(preObj$yvar)
-      colnames(preObj$yvar) <- yvar.names
-      p <- length(xvar.names)
-      if (is.null(mtrySeq)) {
-        mtrySeq <- ceiling(p/3)
-      }
-        else {
-          mtrySeq <- unique(ceiling(mtrySeq))
-          mtrySeq <- mtrySeq[mtrySeq>=1 & mtrySeq <= p]
-          if (length(mtrySeq) == 0) {
-            stop("invalid choice for mtrySeq:", mtrySeq)
-          }
-        }
-      nodesizeSeq <- sort(nodesizeSeq)
+  else {
+    if (missing(formula) || missing(data)) {
+      stop("need to specify 'formula' and 'data' or provide a grow forest object")
     }
+    f <- as.formula(formula)
+    if (na.action == "na.impute" && any(is.na(data))) {
+      if (verbose) {
+        cat("\t imputing the data\n")
+      }
+      data <- impute.rfsrc(data = data, ntree = ntree, nodesize = nodesize, nsplit = nsplit)
+    }
+    preObj <- rfsrc(f, data, ntree = 1, importance = "none",
+                    nodesize = nrow(data), splitrule = "random")
+    fmly <- preObj$family
+    if (!(fmly == "regr" | fmly == "regr+" | fmly == "class" | fmly == "class+" | fmly == "mix+")) {
+      stop("this function only applies to regression/classification based families")
+    }
+    xvar.names <- preObj$xvar.names
+    yvar.names <- preObj$yvar.names
+    preObj$yvar <- data.frame(preObj$yvar)
+    colnames(preObj$yvar) <- yvar.names
+    p <- length(xvar.names)
+    if (is.null(mtrySeq)) {
+      mtrySeq <- ceiling(p/3)
+    }
+    else {
+      mtrySeq <- unique(ceiling(mtrySeq))
+      mtrySeq <- mtrySeq[mtrySeq>=1 & mtrySeq <= p]
+      if (length(mtrySeq) == 0) {
+        stop("invalid choice for mtrySeq:", mtrySeq)
+      }
+    }
+    nodesizeSeq <- sort(nodesizeSeq)
+  }
   na.action <- match.arg(na.action, c("na.omit", "na.impute"))
   if (missing(object)) {
     rfMachines <- lapply(nodesizeSeq, function(nn) {
@@ -136,7 +136,8 @@ rfsrcSyn.rfsrc <-
         }
         rfsrc(f, data, ntree = ntree, mtry = mm, nodesize = nn, 
               nsplit = nsplit, importance = "none")
-      })})
+      })
+    })
     rfMachines <- unlist(rfMachines, recursive = FALSE)
     list.names <- paste(rep(nodesizeSeq, each = length(mtrySeq)), mtrySeq, sep = ".")
     M <- length(rfMachines)                         
@@ -183,6 +184,7 @@ rfsrcSyn.rfsrc <-
       }))
     })
     x.s <- do.call("cbind", synthetic)
+    list.names <- lapply(synthetic, function(ss) {colnames(ss)})
     names(synthetic) <- names(rfMachines)
     if (verbose) {
       cat("\t making the synthetic forest\n")
@@ -210,31 +212,17 @@ rfsrcSyn.rfsrc <-
     xtest <- newdata[, xvar.names, drop = FALSE]
     synthetic <- lapply(1:M, function(m) {
       predO <- predict(rfMachines[[m]], xtest, importance = "none")
-      do.call(cbind, lapply(rfMachines[[m]]$yvar.names, function(nn) {
+      syn.o <- do.call(cbind, lapply(rfMachines[[m]]$yvar.names, function(nn) {
         o.coerced <- coerce.multivariate(predO, nn)
         yhat <- cbind(o.coerced$predicted)
         J <- ncol(yhat)
         if (J > 1) {
           yhat <- yhat[ ,1:(J-1), drop = FALSE]
         }
-        if (J > 2) {
-          if (o.coerced$univariate) {
-            colnames(yhat) <- paste(1:(J-1), list.names[m], sep = ".")
-          }
-            else {
-              colnames(yhat) <- paste(nn, 1:(J-1), list.names[m], sep = ".")
-            }
-        }
-          else {
-            if (o.coerced$univariate) {
-              colnames(yhat) <- paste(list.names[m], sep = ".")
-            }
-              else {
-                colnames(yhat) <- paste(nn, list.names[m], sep = ".")
-              }
-          }
         yhat
       }))
+      colnames(syn.o) <- list.names[[m]]
+      syn.o
     })
     xtest.s <- do.call("cbind", synthetic)
     if (length(intersect(colnames(newdata), yvar.names) > 0) &&

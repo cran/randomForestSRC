@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -69,14 +69,14 @@ generic.impute.rfsrc <- function(formula,
                                  nodesize = NULL,
                                  splitrule = NULL,
                                  nsplit = 1,
-                                 na.action = c("na.impute", "na.random"),
+                                 na.action = "na.impute",
                                  xvar.wt = NULL,
                                  seed = NULL,
                                  do.trace = FALSE)
 {
   bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none"))
   importance <- "none"
-  na.action <- match.arg(na.action, c("na.impute", "na.random"))
+  na.action <- match.arg(na.action, "na.impute")
   forest <- FALSE
   proximity <- FALSE
   var.used <- FALSE

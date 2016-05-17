@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -83,8 +83,12 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
   if (all(is.na(x$err.rate)) & all(is.na(x$importance))) {
     stop("performance values are all NA")
   }
-  if (x$family == "surv-CR") {
-    x$yvar.names <- "Competing Risks"
+  if (x$tree.err == FALSE) {
+    x$err.rate <- cbind(x$err.rate)[x$ntree, ]
+    x$err.rate <- matrix(x$err.rate, x$ntree, length(x$err.rate), byrow = TRUE)
+  }
+  if (x$family == "surv-CR" | x$family == "surv-CR") {
+    x$yvar.names <- ""
   }
   old.par <- par(no.readonly = TRUE)
   cex <- par("cex")

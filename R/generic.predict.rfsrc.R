@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -67,7 +67,7 @@ generic.predict.rfsrc <-
              importance = c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"),
              importance.xvar,
              subset = NULL,
-             na.action = c("na.omit", "na.impute", "na.random"),
+             na.action = c("na.omit", "na.impute"),
              outcome = c("train", "test"),
              proximity = FALSE,
              var.used = c(FALSE, "all.trees", "by.tree"),
@@ -75,6 +75,7 @@ generic.predict.rfsrc <-
              seed = NULL,
              do.trace = FALSE,
              membership = TRUE,
+             tree.err = FALSE,
              statistics = FALSE,
              ...)
 {
@@ -110,7 +111,7 @@ generic.predict.rfsrc <-
     yvar.names <- object$yvar.names
     importance.xvar <- get.importance.xvar(importance.xvar, importance, object)
     importance.xvar.idx <- match(importance.xvar, xvar.names)
-    na.action <- match.arg(na.action, c("na.omit", "na.impute", "na.random"))
+    na.action <- match.arg(na.action, c("na.omit", "na.impute"))
     outcome <- match.arg(outcome, c("train", "test"))
     proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
     var.used <- match.arg(as.character(var.used), c("FALSE", "all.trees", "by.tree"))
@@ -146,25 +147,33 @@ generic.predict.rfsrc <-
         }
     }
     if (is.null(object$version)) {
-      cat("\n  This function only works with objects created with this version of the package:")
-      cat("\n    Installed version:  ")
-      cat("2.1.0")
-      cat("\n    Object version:     ")
+      cat("\n  This function only works with objects created with the following minimum version of the package:")
+      cat("\n    Minimum version:  ")
+      cat("2.2.0")
+      cat("\n    Your version:     ")
       cat("unknown")
       cat("\n")
       stop()
     }
-    else {
-      if (substring(object$version, 1, 2) != substring("2.1.0", 1, 2)) {
-        cat("\n  This function only works with objects created with this major version of the package:")
-        cat("\n    Installed version:  ")
-        cat("2.1.0")
-        cat("\n    Object version:     ")
-        cat(object$version)
-        cat("\n")
-        stop()
+      else {
+        object.version <- as.integer(unlist(strsplit(object$version, "[.]")))
+        installed.version <- as.integer(unlist(strsplit("2.2.0", "[.]")))
+        minimum.version <- as.integer(unlist(strsplit("2.2.0", "[.]")))
+        object.version.adj <- object.version[1] + (object.version[2]/10) + (object.version[3]/100)
+        installed.version.adj <- installed.version[1] + (installed.version[2]/10) + (installed.version[3]/100)
+        minimum.version.adj <- minimum.version[1] + (minimum.version[2]/10) + (minimum.version[3]/100) 
+        if (object.version.adj >= minimum.version.adj) {
+        }
+          else {
+            cat("\n  This function only works with objects created with the following minimum version of the package:")
+            cat("\n    Minimum version:  ")
+            cat("2.2.0")
+            cat("\n    Your version:     ")
+            cat(object$version)
+            cat("\n")
+            stop()
+          }
       }
-    }
     splitrule <- object$splitrule
     object$yvar <- as.data.frame(object$yvar)
     colnames(object$yvar) <- yvar.names
@@ -321,6 +330,8 @@ generic.predict.rfsrc <-
     membership.bits <-  get.membership(membership)
     statistics.bits <- get.statistics(statistics)
     bootstrap.bits <- get.bootstrap(object$bootstrap)
+    terminal.stats.bits <- get.terminal.stats(object$terminal.stats)
+    tree.err.bits <- get.tree.err(tree.err)
     if (outcome == "test") {
     }
     else {
@@ -356,7 +367,8 @@ generic.predict.rfsrc <-
                                                                                        statistics.bits),
                                     as.integer(
                                                 na.action.bits +
-                                                    object$fast.restore.bits),
+                                                  terminal.stats.bits +
+                                                   tree.err.bits),
                                     as.integer(ntree),
                                     as.integer(n),
                                     as.integer(r.dim),
@@ -369,6 +381,8 @@ generic.predict.rfsrc <-
                                     as.character(xvar.types),
                                     as.integer(xvar.nlevels),
                                     as.double(xvar),
+                                    as.integer(object$sampsize),
+                                    as.double(get.native.case.wt(object$case.wt, n)),
                                     as.integer(ptn.count),
                                     as.integer(length(subset)),
                                     as.integer(subset),
@@ -515,28 +529,29 @@ generic.predict.rfsrc <-
         node.stats <- NULL
     }
     rfsrcOutput <- list(
-        call = match.call(),
-        family = family,
-        n = n.observed,
-        ntree = ntree,
-        yvar = (if ((outcome == "train" & grow.equivalent) | perf.flag | partial.class) {
-                if (outcome == "train" & (grow.equivalent | partial.class))
-                amatrix.remove.names(object$yvar) else amatrix.remove.names(yvar.newdata)} else NULL),
-        yvar.names = yvar.names,
-        xvar = (if(outcome != "test" & grow.equivalent) object$xvar else xvar.newdata),
-        xvar.names = xvar.names,
-        leaf.count = nativeOutput$leafCount,
-        proximity = proximity.out,
-        forest = object,
-        ptn.membership = ptn.membership.out,
-        membership = membership.out,
-        splitrule = splitrule,
-        inbag = inbag.out,
-        var.used = var.used.out,
-        imputed.indv = (if (n.miss>0) imputed.indv else NULL),
-        imputed.data = (if (n.miss>0) imputed.data else NULL),
-        split.depth  = split.depth.out,
-        node.stats = node.stats
+      call = match.call(),
+      family = family,
+      n = n.observed,
+      ntree = ntree,
+      yvar = (if ((outcome == "train" & grow.equivalent) | perf.flag | partial.class) {
+        if (outcome == "train" & (grow.equivalent | partial.class))
+          amatrix.remove.names(object$yvar) else amatrix.remove.names(yvar.newdata)} else NULL),
+      yvar.names = yvar.names,
+      xvar = (if(outcome != "test" & grow.equivalent) object$xvar else xvar.newdata),
+      xvar.names = xvar.names,
+      leaf.count = nativeOutput$leafCount,
+      proximity = proximity.out,
+      forest = object,
+      ptn.membership = ptn.membership.out,
+      membership = membership.out,
+      splitrule = splitrule,
+      inbag = inbag.out,
+      var.used = var.used.out,
+      imputed.indv = (if (n.miss>0) imputed.indv else NULL),
+      imputed.data = (if (n.miss>0) imputed.data else NULL),
+      split.depth  = split.depth.out,
+      node.stats = node.stats,
+      tree.err = tree.err
     )
     nativeOutput$leafCount <- NULL
     remove(object)

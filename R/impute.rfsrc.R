@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.1.0 (_PROJECT_BUILD_ID_)
+####  Version 2.2.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -68,7 +68,7 @@ impute.rfsrc <- function(formula,
                          nodesize = 1,
                          splitrule = NULL,
                          nsplit = 1,
-                         na.action = c("na.impute", "na.random"),
+                         na.action = "na.impute",
                          nimpute = 2,
                          mf.q, blocks,
                          always.use = NULL, 
@@ -169,9 +169,6 @@ impute.rfsrc <- function(formula,
       mf.q <- min(p0 - 1, mf.q) / p0
     }
     K <- max(1 / mf.q, 2)
-    if (length(na.action) != 1) {
-      na.action <- "na.random"
-    }
     data <- generic.impute.rfsrc(data = data,
                                  nimpute = 3,
                                  ntree = 250,

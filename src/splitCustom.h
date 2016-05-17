@@ -94,14 +94,14 @@ double getCustomSplitStatisticCompetingRisk (unsigned int  n,
                                              unsigned int  maxLevel);
 
 
-unsigned int *alloc_uivector(unsigned long nh);
-void          dealloc_uivector(unsigned int *v, unsigned long nh);
+unsigned int *alloc_uivector(unsigned int nh);
+void          dealloc_uivector(unsigned int *v, unsigned int nh);
 
-double       *alloc_dvector(double *v, unsigned long nh);
-void          dealloc_dvector(double *v, unsigned long nh);
+double       *alloc_dvector(double *v, unsigned int nh);
+void          dealloc_dvector(double *v, unsigned int nh);
 
-unsigned int **alloc_uimatrix(unsigned long n2h, unsigned long nh);
-void          dealloc_uimatrix(unsigned int **v, unsigned long n2h, unsigned long nh);
+unsigned int **alloc_uimatrix(unsigned int n2h, unsigned int nh);
+void          dealloc_uimatrix(unsigned int **v, unsigned int n2h, unsigned int nh);
 
 /* RF_CRAN_BEG */
 #endif

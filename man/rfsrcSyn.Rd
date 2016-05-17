@@ -169,7 +169,9 @@ print(mse)
 mtcars.new <- mtcars
 mtcars.new$cyl <- factor(mtcars.new$cyl)
 mtcars.new$carb <- factor(mtcars.new$carb, ordered = TRUE)
-mvSyn <- rfsrcSyn(cbind(carb, mpg, cyl) ~., data = mtcars.new)
+trn <- sample(1:nrow(mtcars.new), nrow(mtcars.new)/2)
+mvSyn <- rfsrcSyn(cbind(carb, mpg, cyl) ~., data = mtcars.new[trn,])
+mvSyn.pred <- rfsrcSyn(object = mvSyn, newdata = mtcars.new[-trn,])
 }
 }
 \keyword{forest}

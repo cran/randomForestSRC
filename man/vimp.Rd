@@ -30,7 +30,8 @@
     specified.}
   \item{seed}{Negative integer specifying seed for the random number
     generator.} 
-  \item{do.trace}{Parameter ignored.} 
+  \item{do.trace}{Number of seconds between updates to the user on
+    approximate time to completion.}
   \item{...}{Further arguments passed to or from other methods.}
 }
 \details{
