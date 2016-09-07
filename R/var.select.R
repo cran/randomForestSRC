@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.2.0 (_PROJECT_BUILD_ID_)
+####  Version 2.3.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -212,7 +212,7 @@ var.select.rfsrc <-
       rfsrc.all.f <- formula
     }
   if (!missing(object)) {
-    outcome.target <- coerce.multivariate.target(object, outcome.target)
+    outcome.target <- get.univariate.target(object, outcome.target)
   }
   if (missing(object)) {
     formulaDetail <- finalizeFormula(parseFormula(rfsrc.all.f, data), data)
@@ -500,7 +500,7 @@ var.select.rfsrc <-
     }
     object <- rfsrc.var.hunting(train.id, var.pt, nstep)
     rfsrc.obj <- object$rfsrc.obj
-    outcome.target <- coerce.multivariate.target(rfsrc.obj, outcome.target)
+    outcome.target <- get.univariate.target(rfsrc.obj, outcome.target)
     sig.vars <- object$sig.vars
     if (method == "vh") {
       forest.depth[m] <- object$forest.depth

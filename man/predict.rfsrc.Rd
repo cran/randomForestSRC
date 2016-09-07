@@ -7,7 +7,7 @@
 }
 \usage{\method{predict}{rfsrc}(object, newdata, outcome.target = NULL,
   importance = c(FALSE, TRUE, "none", "permute", "random", "anti",
-                 "permute.ensemble", "random.ensemble", "anti.ensemble")[4],
+                 "permute.ensemble", "random.ensemble", "anti.ensemble")[1],
   na.action = c("na.omit", "na.impute"), outcome = c("train", "test"),
   proximity = FALSE,
 
@@ -15,7 +15,7 @@
 
   var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
-  do.trace = FALSE, membership = TRUE, statistics = FALSE, ...)
+  do.trace = FALSE, membership = FALSE, statistics = FALSE, ...)
 }
 \arguments{
   \item{object}{An object of class \code{(rfsrc, grow)} or \code{(rfsrc,

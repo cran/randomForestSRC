@@ -9,10 +9,12 @@
   can select between marginal (unadjusted, but fast) and partial plots
   (adjusted, but slow).
 }
-\usage{\method{plot.variable}{rfsrc}(x, xvar.names, which.class, outcome.target,
-  time, surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
-  partial = FALSE, show.plots = TRUE, plots.per.page = 4, granule = 5,
-  sorted = TRUE, nvar, npts = 25, smooth.lines = FALSE, subset, ...)
+\usage{\method{plot.variable}{rfsrc}(x, xvar.names, which.class,
+  outcome.target = NULL, time, surv.type = c("mort", "rel.freq",
+  "nlsn.aalen", "surv", "years.lost", "cif", "chf"), class.type =
+  c("prob", "bayes"), partial = FALSE, oob = TRUE, show.plots = TRUE,
+  plots.per.page = 4, granule = 5, sorted = TRUE, nvar, npts = 25,
+  smooth.lines = FALSE, subset, ...)
 }
 \arguments{
   \item{x}{An object of class \code{(rfsrc, grow)}, \code{(rfsrc, synthetic)},
@@ -32,7 +34,10 @@
     survival value is evaluated at (depends on \code{surv.type}).}
   \item{surv.type}{For survival families, specifies the predicted value.
     See details below.}
+  \item{class.type}{For classification families, specifies the predicted value.
+    See details below.}
   \item{partial}{Should partial plots be used?}
+  \item{oob}{OOB (TRUE)  or in-bag (FALSE) predicted values.}
   \item{show.plots}{Should plots be displayed?}
   \item{plots.per.page}{Integer value controlling page layout.}
   \item{granule}{Integer value controlling whether a plot for a
@@ -55,7 +60,8 @@
     \item For regression, the predicted response is used.
     
     \item For classification, it is the predicted class probability
-    specified by \option{which.class}.
+    specified by \option{which.class}, or the class of maximum
+    probability depending on \option{class.type}.
     
     \item For multivariate families, it is the predicted value of the
     outcome specified by \option{outcome.target} and if that is a
@@ -197,7 +203,7 @@ mtcars2 <- mtcars
 mtcars2$carb <- factor(mtcars2$carb)
 mtcars2$cyl <- factor(mtcars2$cyl)
 mtcars.mix <- rfsrc(Multivar(carb, mpg, cyl) ~ ., data = mtcars2)
-plot.variable(mtcars.mix, outcome.target = "cyl", which.class = 1, partial = TRUE, nvar = 1)
+plot.variable(mtcars.mix, outcome.target = "cyl", which.class = "4", partial = TRUE, nvar = 1)
 plot.variable(mtcars.mix, outcome.target = "cyl", which.class = 2, partial = TRUE, nvar = 1)
 
 

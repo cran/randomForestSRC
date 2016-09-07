@@ -1,9 +1,17 @@
 Package: randomForestSRC
-Version: 2.2.0
-BUILD: bld20160516
+Version: 2.3.0
+BUILD: bld20160906
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.2.0
+CHANGES TO RELEASE 2.3.0
+---------------------------------------------------------------------------------
+Fix to levels.count when ntree=1.  Some n-based loop optimizations.
+Significant improvements in CPU times for restore-predict modes, and
+plot.variable().  Consequent changes to forest object, and
+incompatibility with objects created with previous versions of the
+package.  Default is now importance=FALSE in predict.rfsrc().
+
+RELEASE 2.2.0
 ---------------------------------------------------------------------------------
 Bug fix to coerce.factor option via get.xvar.nlevels() and
 get.yvar.nlevels() resolved by sending in max instead of number of

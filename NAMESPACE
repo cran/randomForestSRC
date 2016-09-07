@@ -10,32 +10,34 @@ importFrom("stats", "as.formula", "dlnorm", "formula", "lowess",
            "quantile", "runif", "sd", "supsmu", "var")
 importFrom("utils", "installed.packages", "write.table")
 
-export(find.interaction.rfsrc,
-       find.interaction,
+export(find.interaction,
+       find.interaction.rfsrc,
+       impute,       
        impute.rfsrc,
-       impute,
-       max.subtree.rfsrc,
        max.subtree,
-       plot.competing.risk.rfsrc,
+       max.subtree.rfsrc,
+       
        plot.competing.risk,
-       plot.rfsrc,
-       plot.survival.rfsrc,
+       plot.competing.risk.rfsrc,
        plot.survival,
-       plot.variable.rfsrc,
+       plot.survival.rfsrc,
+       plot.rfsrc,
        plot.variable,
+       plot.variable.rfsrc,
        predict.rfsrc,
        print.rfsrc,
-       rfsrc.news,
        rfsrc,
+       rfsrc.news,
        rf2rfz,
-       rfsrcSyn.rfsrc,
        rfsrcSyn,
-       stat.split.rfsrc,
+       rfsrcSyn.rfsrc,
        stat.split,
-       var.select.rfsrc,
+       stat.split.rfsrc,
        var.select,
-       vimp.rfsrc,
-       vimp)
+       var.select.rfsrc,
+       vimp,
+       vimp.rfsrc)
+
 
 S3method(print, rfsrc)
 S3method(plot, rfsrc)

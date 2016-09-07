@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.2.0 (_PROJECT_BUILD_ID_)
+####  Version 2.3.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -72,7 +72,7 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
       sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
     stop("this function only works for objects of class `(rfsrc, grow)' or '(rfsrc, predict)'")
   }
-  outcome.target <- coerce.multivariate.target(x, outcome.target)
+  outcome.target <- get.univariate.target(x, outcome.target)
   x <- coerce.multivariate(x, outcome.target)
   if (is.null(x$err.rate)) {
     stop("object is devoid of performance values")
@@ -84,8 +84,10 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
     stop("performance values are all NA")
   }
   if (x$tree.err == FALSE) {
+    colnames.err.rate <- colnames(x$err.rate)
     x$err.rate <- cbind(x$err.rate)[x$ntree, ]
     x$err.rate <- matrix(x$err.rate, x$ntree, length(x$err.rate), byrow = TRUE)
+    colnames(x$err.rate) <- colnames.err.rate
   }
   if (x$family == "surv-CR" | x$family == "surv-CR") {
     x$yvar.names <- ""
@@ -95,7 +97,7 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
   on.exit(par(old.par))
   if (all(is.na(x$importance))) {
     if (x$ntree > 1 && !all(is.na(x$err.rate))) {
-      err <- cbind(x$err.rate)
+      err <- cbind(x$err.rate)      
       par(cex = cex, mfrow = c(1,1))
       plot.err(err, x$yvar.names)    
     }

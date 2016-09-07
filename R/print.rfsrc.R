@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.2.0 (_PROJECT_BUILD_ID_)
+####  Version 2.3.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -69,6 +69,10 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
     print.default(x)
     return()
   }
+  if (sum(inherits(x, c("rfsrc", "partial"), TRUE) == c(1, 2)) == 2) {
+    print.default(x)
+    return()
+  }
   sf.flag <- FALSE
   if (sum(inherits(x, c("rfsrc", "synthetic"), TRUE) == c(1, 2)) == 2) {
     sf.flag <- TRUE
@@ -87,7 +91,7 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
     }
   family.org <- x$family
   yvar.dim <- ncol(x$yvar)
-  outcome.target <- coerce.multivariate.target(x, outcome.target)
+  outcome.target <- get.univariate.target(x, outcome.target)
   x <- coerce.multivariate(x, outcome.target)
   if (grepl("surv", x$family)) {
     event <- get.event.info(x)$event

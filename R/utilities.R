@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.2.0 (_PROJECT_BUILD_ID_)
+####  Version 2.3.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -191,23 +191,6 @@ get.impute.only <-  function (impute.only, nMiss) {
     else {
       return (0)
     }
-}
-get.membership <- function (membership) {
-  if (!is.null(membership)) {
-    if (membership == TRUE) {
-      membership <- 2^11
-    }
-      else if (membership == FALSE) {
-        membership <- 0
-      }
-        else {
-          stop("Invalid choice for 'membership' option:  ", membership)
-        }
-  }
-    else {
-      stop("Invalid choice for 'membership' option:  ", membership)
-    }
-  return (membership)
 }
 get.outcome <- function (outcome) {
   if (outcome == "train") {
@@ -425,22 +408,60 @@ get.perf.bits <- function (perf) {
         stop("Invalid choice for 'vimp.only' option:  ", vimp.only)
       }
   }
-  get.terminal.stats <- function (terminal.stats) {
-    if (!is.null(terminal.stats)) {
-      if (terminal.stats == TRUE) {
-        terminal.stats <- 2^6
+  get.membership <- function (membership) {
+    bits <- 0
+    if (!is.null(membership)) {
+      if (membership == TRUE) {
+        bits <- 2^6
       }
-        else if (terminal.stats == FALSE) {
-          terminal.stats <- 0
+        else if (membership != FALSE) {
+          stop("Invalid choice for 'membership' option:  ", membership)
         }
-          else {
-            stop("Invalid choice for 'terminal.stats' option:  ", terminal.stats)
-          }
     }
       else {
-        stop("Invalid choice for 'terminal.stats' option:  ", terminal.stats)
+        stop("Invalid choice for 'membership' option:  ", membership)
       }
-    return (terminal.stats)
+    return (bits)
+  }
+  get.terminal.qualts <- function (terminal.qualts, incoming.flag) {
+    bits <- 0
+    if (is.null(incoming.flag)) {
+    }
+      else if (incoming.flag) {
+        bits <- bits + 2^17
+      }
+    if (!is.null(terminal.qualts)) {
+      if (terminal.qualts == TRUE) {
+        bits <- bits + 2^16
+      }
+        else if (terminal.qualts != FALSE) {
+          stop("Invalid choice for 'terminal.qualts' option:  ", terminal.qualts)
+        }
+    }
+      else {
+        stop("Invalid choice for 'terminal.qualts' option:  ", terminal.qualts)
+      }
+    return (bits)
+  }
+  get.terminal.quants <- function (terminal.quants, incoming.flag) {
+    bits <- 0
+    if (is.null(incoming.flag)) {
+    }
+      else if (incoming.flag) {
+        bits <- bits + 2^19
+      }
+    if (!is.null(terminal.quants)) {
+      if (terminal.quants == TRUE) {
+        bits <- bits + 2^18
+      }
+        else if (terminal.quants != FALSE) {
+          stop("Invalid choice for 'terminal.quants' option:  ", terminal.quants)
+        }
+    }
+      else {
+        stop("Invalid choice for 'terminal.quants' option:  ", terminal.quants)
+      }
+    return (bits)
   }
   get.tree.err <- function (tree.err) {
     if (!is.null(tree.err)) {
@@ -495,15 +516,23 @@ get.perf.bits <- function (perf) {
       }
     return(ptn.count)
   }
-  is.hidden.terminal.stats <-  function (user.option) {
-    if (is.null(user.option$terminal.stats)) {
+  is.hidden.terminal.qualts <-  function (user.option) {
+    if (is.null(user.option$terminal.qualts)) {
+      !FALSE
+    }
+      else {
+        as.logical(as.character(user.option$terminal.qualts))
+      }
+  }
+  is.hidden.terminal.quants <-  function (user.option) {
+    if (is.null(user.option$terminal.quants)) {
       FALSE
     }
       else {
-        as.logical(as.character(user.option$terminal.stats))
+        as.logical(as.character(user.option$terminal.quants))
       }
   }
-  coerce.multivariate.target <- function(x, outcome.target = NULL) {
+  get.univariate.target <- function(x, outcome.target = NULL) {
     if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") {
       if (is.null(outcome.target)) {
         target <- match(c("regrOutput", "classOutput"), names(x))

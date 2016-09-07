@@ -73,7 +73,7 @@
 \examples{
 \dontrun{
 ## run a forest, then make a call to stat.split
-grow.obj <- rfsrc(mpg ~., data = mtcars, statistics=TRUE)
+grow.obj <- rfsrc(mpg ~., data = mtcars, membership=TRUE, statistics=TRUE)
 stat.obj <- stat.split(grow.obj)
 
 ## nice wrapper to extract split-statistic for desired variable

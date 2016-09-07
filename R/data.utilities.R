@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.2.0 (_PROJECT_BUILD_ID_)
+####  Version 2.3.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -219,57 +219,6 @@ data.matrix <- function(x) {
         }
   }))
 }
-extract.pred <- function(obj, type, subset, time, outcome.target, which.class, oob = FALSE) {
-  obj <- coerce.multivariate(obj, outcome.target)
-  if (oob == FALSE) {
-    pred <- obj$predicted
-    surv <- obj$survival
-    chf <- obj$chf
-    cif <- obj$cif
-  }
-    else {
-      pred <- obj$predicted.oob
-      surv <- obj$survival.oob
-      chf <- obj$chf.oob
-      cif <- obj$cif.oob
-    }
-  if (obj$family == "surv") {
-    n <- length(pred)
-    if (missing(subset)) subset <- 1:n
-    surv.type <- match.arg(type, c("mort", "rel.freq", "surv"))
-    time.idx <-  max(which(obj$time.interest <= time))
-    return(switch(surv.type,
-                  "mort" = pred[subset],
-                  "rel.freq" = pred[subset]/max(n, na.omit(pred)),
-                  "surv" =  100 * surv[subset, time.idx]
-                  ))
-  }
-    else if (obj$family == "surv-CR") {
-      n <- length(pred)
-      if (missing(subset)) subset <- 1:n
-      if (missing(which.class)) which.class <- 1
-      cr.type <- match.arg(type, c("years.lost", "cif", "chf"))
-      time.idx <-  max(which(obj$time.interest <= time))
-      return(switch(cr.type,
-                    "years.lost" = pred[subset, which.class],
-                    "cif" = cif[subset, time.idx, which.class],
-                    "chf" = chf[subset, time.idx, which.class]
-                    ))
-    }
-      else if (obj$family == "class" || obj$family == "class+" || (obj$family ==  "mix+" && ncol(pred) > 1)) {
-        class.type <- match.arg(type, c("response", "prob"))
-        if (missing(subset)) subset <- 1:nrow(pred)
-        if (missing(which.class)) which.class <- 1
-        prob <- pred[subset,, drop = FALSE]
-        return(switch(class.type,
-                      "prob" = prob[, which.class],
-                      "response" =  bayes.rule(prob)))
-      }
-        else {
-          if (missing(subset)) subset <- 1:length(pred)
-          return(pred[subset])
-        }
-}
 family.pretty <- function(fmly) {
   switch(fmly,
          "surv"     = "RSF",
@@ -351,7 +300,7 @@ get.importance.xvar <- function(importance.xvar, importance, object) {
     }
   }
     else {
-      importance.xvar <- 0
+      importance.xvar <- NULL
     }
   return (importance.xvar)
 }
@@ -415,7 +364,7 @@ get.grow.nodesize <- function(fmly, nodesize) {
               }
   nodesize <- round(nodesize)
 }
-get.coerced.fmly <- function(fmly, event.type, splitrule = NULL) {
+get.coerced.survival.fmly <- function(fmly, event.type, splitrule = NULL) {
   if (grepl("surv", fmly)) {
     coerced.fmly <- "surv"
     if (!is.null(splitrule)) {

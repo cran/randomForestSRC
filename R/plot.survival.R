@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.2.0 (_PROJECT_BUILD_ID_)
+####  Version 2.3.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -139,11 +139,11 @@ plot.survival.rfsrc <- function (x,
       title.4 <- "OOB Mortality vs Time"
     }
   if (!subset.provided) {
-    surv.mean.ensb <- apply(surv.ensb, 1, mean, na.rm = TRUE)
+    surv.mean.ensb <- rowMeans(surv.ensb, na.rm = TRUE)
   }
   if (subset.provided && collapse) {
-    surv.ensb <- apply(surv.ensb, 1, mean, na.rm = TRUE)
-    chf.ensb <- rbind(apply(chf.ensb, 2, mean, na.rm = TRUE))
+    surv.ensb <- rowMeans(surv.ensb, na.rm = TRUE)
+    chf.ensb <- rbind(colMeans(chf.ensb, na.rm = TRUE))
   }
   if (!pred.flag && !subset.provided) {
     km.obj <- matrix(unlist(mclapply(1:length(event.info$time.interest),
@@ -302,10 +302,11 @@ plot.survival.rfsrc <- function (x,
           list(x = tm, y = haz)
         }
           else if (haz.model == "nonpar") {
-            x <- event.info$time.interest
-            y <- chf.ensb[i, ]
-            ll <- supsmu(x, y, span = "cv")
-            supsmu(x = ll$x[-length(x)], y = diff(ll$y) / diff(ll$x), span = span)
+            x <- event.info$time.interest[-1]
+            y <- pmax(diff(chf.ensb[i, ]), 0)
+            haz <- supsmu(x, y, span = span)
+            haz$y[haz$y < 0] <- 0
+            haz
           }
             else if (haz.model == "none") {
               NULL

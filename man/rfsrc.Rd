@@ -53,7 +53,7 @@ rfsrc(formula, data, ntree = 1000,
   split.depth = c(FALSE, "all.trees", "by.tree"),
   seed = NULL,
   do.trace = FALSE,
-  membership = TRUE,
+  membership = FALSE,
   statistics = FALSE,
   tree.err = FALSE,
   coerce.factor = NULL,
@@ -156,7 +156,10 @@ rfsrc(formula, data, ntree = 1000,
     use uniform weights.  Vector must be of dimension \code{n},
     where \code{n} equals the number of cases in the processed data
     set (missing values may be removed, thus altering the original
-    sample size).}
+    sample size).  It is generally better to use real weights rather than
+    integers.  With larger sizes of \code{n}, the slightly different
+    sampling algorithms used in the two scenarios can result in
+    dramatically different execution times.}
    
   
   \item{xvar.wt}{Vector of non-negative weights where entry
@@ -790,6 +793,7 @@ rfsrc(formula, data, ntree = 1000,
   \command{\link{find.interaction}},
   \command{\link{impute.rfsrc}},
   \command{\link{max.subtree}},
+  
   \command{\link{plot.competing.risk}},
   \command{\link{plot.rfsrc}},
   \command{\link{plot.survival}},
