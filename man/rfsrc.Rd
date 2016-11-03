@@ -27,8 +27,9 @@
 }
 \usage{
 rfsrc(formula, data, ntree = 1000,
-  bootstrap = c("by.root", "by.node", "none"),
+  bootstrap = c("by.root", "by.node", "none", "by.user"),
   mtry = NULL,
+  
   nodesize = NULL,
   nodedepth = NULL,
   splitrule = NULL,
@@ -44,6 +45,7 @@ rfsrc(formula, data, ntree = 1000,
 
   sampsize = NULL,
   samptype = c("swr", "swor"),
+  samp = NULL,
   case.wt  = NULL,
    
 
@@ -68,13 +70,15 @@ rfsrc(formula, data, ntree = 1000,
     which bootstraps the data by sampling with replacement at the root
     node before growing the tree.  If \code{by.node} is choosen, the
     data is bootstrapped at each node during the grow process.  If
-    \code{none} is chosen, the data is not bootstrapped at all.  See
-    the details below on prediction error when the default choice
+    \code{none} is chosen, the data is not bootstrapped at all.  if
+    \code{by.user} is choosen, the bootstrap specified by \code{samp} is
+    used. Note the details below on prediction error when the default choice
     is not in effect.}
   \item{mtry}{Number of variables randomly selected as candidates for
     each node split. The default is sqrt(\code{p}), except for
     regression families where \code{p}/3 is used, where \code{p}
     equals the number of variables.  Values are rounded up.}
+  
   \item{nodesize}{Minimum number of unique cases (data points) in a
     terminal node.  The defaults are: survival (3), competing
     risk (6), regression (5), classification (1), mixed outcomes (3).
@@ -111,16 +115,17 @@ rfsrc(formula, data, ntree = 1000,
   \item{nimpute}{Number of iterations of the missing data algorithm.
 	  Performance measures such as out-of-bag (OOB) error rates tend
 	  to become optimistic if \code{nimpute} is greater than 1.}
-  \item{ntime}{Integer value used for survival families to constrain
-    ensemble calculations to a grid of time values of no more than
-    \code{ntime} time points.  Alternatively if a vector of values of
-    length greater than one is supplied, it is assumed these are the
+  \item{ntime}{(It is recommended that the use of this option be
+    avoided.  The effect of discretizing the time values compromises the
+    ensembles. For best results, all event times must be used.  This is
+    the default behaviour.)  Integer value used for survival families to
+    constrain ensemble calculations to a grid of time values of no more
+    than \code{ntime} time points.  Alternatively if a vector of values
+    of length greater than one is supplied, it is assumed these are the
     time points to be used to constrain the calculations (note that the
     constrained time points used will be the observed event times
     closest to the user supplied time points).  If no value is
-    specified, the default action is to use all observed event times.
-    Use this option when the sample size is large to improve
-    computational efficiency.}
+    specified, the default action is to use all observed event times.}
   \item{cause}{Integer value between 1 and
     \code{J} indicating the event of interest for competing risks, where
     \code{J} is
@@ -150,6 +155,9 @@ rfsrc(formula, data, ntree = 1000,
   \item{samptype}{Type of bootstrap when \code{"by.root"} is in
     effect.  Choices are \code{swr} (sampling with replacement,
     the default action) and \code{swor} (sampling without replacement).}
+  \item{samp}{Bootstrap specification when \code{"by.user"} is in
+    effect.  This is a array of dim \code{n x ntree} specifying how many
+    times each record appears inbag in the bootstrap for each tree.}
   \item{case.wt}{Vector of non-negative weights where entry
     \code{k}, after normalizing, is the probability of selecting
     case \code{k} as a candidate for the bootstrap.  Default is to
@@ -167,7 +175,10 @@ rfsrc(formula, data, ntree = 1000,
     variable \code{k} as a candidate for splitting a node.  Default is to
     use uniform weights.  Vector must be of dimension \code{p},
     where \code{p} equals the number of variables, otherwise the
-	  default is invoked.}
+	  default is invoked. It is generally better to use real weights rather than
+    integers.  With larger sizes of \code{p}, the slightly different
+    sampling algorithms used in the two scenarios can result in
+    dramatically different execution times.}
   \item{forest}{Should the forest object be returned?  Used for
     prediction on new data and required by many of the functions
 	  used to parse the RF-SRC object.  It is recommended not to
@@ -874,8 +885,8 @@ pbc.fast.imp.data <- impute.rfsrc(data = pbc, nsplit = 10, nimpute = 5)
 
 if (library("survival", logical.return = TRUE)
     & library("pec", logical.return = TRUE)
-    & library("prodlim", logical.return = TRUE)
-    & library("Hmisc", logical.return = TRUE))  
+    & library("prodlim", logical.return = TRUE))
+
 {
   ##prediction function required for pec
   predictSurvProb.rfsrc <- function(object, newdata, times, ...){
@@ -914,9 +925,9 @@ if (library("survival", logical.return = TRUE)
     train <- sample(1:nrow(pbc.na), nrow(pbc.na), replace = TRUE)
     cox.obj <- tryCatch({coxph(surv.f, pbc.na[train, ])}, error=function(ex){NULL})
     if (is.list(cox.obj)) {
-      rcorr.cens(predict(cox.obj, pbc.na[-train, ]),
-                 Surv(pbc.na$days[-train],
-                 pbc.na$status[-train]))[1]
+      randomForestSRC:::cindex(pbc.na$days[-train],
+                                      pbc.na$status[-train],
+                                      predict(cox.obj, pbc.na[-train, ]))
     } else NA
   })
   cat("\n\tOOB error rates\n\n")

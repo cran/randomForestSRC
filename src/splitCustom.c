@@ -43,10 +43,10 @@ void registerCustomFunctions() {
   // split rule in the second slot, along with the regression split
   // rule in the second slot if the respones contain factors and reals.
 
-  //  registerThis (getCustomSplitStatisticMultivariateClassificationTwo, 2);
-  //  registerThis (getCustomSplitStatisticMultivariateRegressionTwo, 2);
-  //  registerThis (getCustomSplitStatisticSurvivalTwo, 2);
-  //  registerThis (getCustomSplitStatisticCompetingRiskTwo, 2);
+  //  registerThis (&getCustomSplitStatisticMultivariateClassificationTwo, CLAS_FAM, 2);
+  //  registerThis (&getCustomSplitStatisticMultivariateRegressionTwo, REGR_FAM, 2);
+  //  registerThis (&getCustomSplitStatisticSurvivalTwo, SURV_FAM, 2);
+  //  registerThis (&getCustomSplitStatisticCompetingRiskTwo, CRSK_FAM, 2);
 
 }
 

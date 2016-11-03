@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -149,9 +149,10 @@ partial.rfsrc <- function(
                                   as.integer(xvar.nlevels),
                                   as.double(xvar),
                                   as.integer(object$sampsize),
-                                  as.double(get.native.case.wt(object$case.wt, n)),
-                                  as.integer(length(partial.time)),
-                                  as.double(partial.time),
+                                  as.integer(object$samp),
+                                  as.double(object$case.wt),
+                                  as.integer(length(event.info$time.interest)),
+                                  as.double(event.info$time.interest),
                                   as.integer((object$nativeArray)$treeID),
                                   as.integer((object$nativeArray)$nodeID),
                                   as.integer((object$nativeArray)$parmID),
@@ -193,6 +194,12 @@ partial.rfsrc <- function(
   rfsrcOutput <- list(call = match.call(),
                       family = family,
                       partial.time = partial.time)
+  if (grepl("surv", family)) {
+    partial.time.idx <- match(partial.time, event.info$time.interest)
+    if (sum(is.na(partial.time.idx)) > 0) {
+      stop("partial.time must be a subset of the time interest vector contained in the model")
+    }
+  }
   if (family == "surv") {
     if ((partial.type == "rel.freq") || (partial.type == "mort")) {
       mort.names <- list(NULL, NULL)
@@ -201,19 +208,25 @@ partial.rfsrc <- function(
                              c(n, length(partial.values)),
                              dimnames=mort.names) else NULL)
     }
-    else if (partial.type == "nlsn.aalen") {
+    else if (partial.type == "chf") {
       nlsn.names <- list(NULL, NULL, NULL)
       survOutput <- (if (!is.null(nativeOutput$partialSurv))
                        array(nativeOutput$partialSurv,
-                             c(n, length(partial.time), length(partial.values)),
+                             c(n, length(event.info$time.interest), length(partial.values)),
                              dimnames=nlsn.names) else NULL)
+      if (!is.null(survOutput)) {
+        survOutput <- survOutput[, partial.time.idx, , drop=FALSE]
+      }
     }
       else if (partial.type == "surv") {
         surv.names <- list(NULL, NULL, NULL)
         survOutput <- (if (!is.null(nativeOutput$partialSurv))
                          array(nativeOutput$partialSurv,
-                               c(n, length(partial.time), length(partial.values)),
+                               c(n, length(event.info$time.interest), length(partial.values)),
                                dimnames=surv.names) else NULL)
+        if (!is.null(survOutput)) {
+          survOutput <- survOutput[, partial.time.idx, , drop=FALSE]
+        }
       }
         else {
           stop("Invalid choice for 'partial.type' option:  ", partial.type)
@@ -232,15 +245,21 @@ partial.rfsrc <- function(
         cifn.names <- list(NULL, NULL, NULL, NULL)
         survOutput <- (if (!is.null(nativeOutput$partialSurv))
                          array(nativeOutput$partialSurv,
-                               c(n, length(partial.time), length(event.info$event.type), length(partial.values)),
+                               c(n, length(event.info$time.interest), length(event.info$event.type), length(partial.values)),
                                dimnames=cifn.names) else NULL)
+        if (!is.null(survOutput)) {
+          survOutput <- survOutput[, partial.time.idx, , , drop=FALSE]
+        }
       }
         else if (partial.type == "chf") {
           chfn.names <- list(NULL, NULL, NULL, NULL)
           survOutput <- (if (!is.null(nativeOutput$partialSurv))
                            array(nativeOutput$partialSurv,
-                                 c(n, length(partial.time), length(event.info$event.type), length(partial.values)),
+                                 c(n, length(event.info$time.interest), length(event.info$event.type), length(partial.values)),
                                  dimnames=chfn.names) else NULL)
+          if (!is.null(survOutput)) {
+            survOutput <- survOutput[, partial.time.idx, , , drop=FALSE]
+          }
         }
           else {
             stop("Invalid choice for 'partial.type' option:  ", partial.type)
@@ -351,7 +370,7 @@ get.type <- function (family, partial.type) {
     if (partial.type == "rel.freq") {
       partial.type <- "mort"
     }
-    type <- match(partial.type, c("mort", "nlsn.aalen", "surv"))
+    type <- match(partial.type, c("mort", "chf", "surv"))
   }
     else if (family == "surv-CR") {
       type <- match(partial.type, c("years.lost", "cif", "chf"))

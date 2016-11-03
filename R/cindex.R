@@ -60,28 +60,32 @@
 ####**********************************************************************
 
 
-plot.competing.risk.rfsrc <- function (x, plots.one.page = FALSE, ...) {
-  if (is.null(x)) {
-    stop("object x is empty!")
+cindex <- function (time,
+                    censoring,
+                    predicted,
+                    do.trace = FALSE)
+{
+  size <- length(time)
+  if (size != length(time) |
+      size != length(censoring) |
+      size != length(predicted)) {
+    stop("time, censoring, and predicted must have the same length")
   }
-  if (sum(inherits(x, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &
-      sum(inherits(x, c("rfsrc", "predict"), TRUE) == c(1, 2)) != 2) {
-    stop("This function only works for objects of class `(rfsrc, grow)' or '(rfsrc, predict)'.")
+  miss <- is.na(time) | is.na(censoring) | is.na(predicted)
+  nmiss <- sum(miss)
+  if (nmiss == size) {
+    stop("no valid pairs found, too much missing data")
   }
-  if (x$family != "surv-CR") {
-    stop("this function only supports competing risk settings")
+  denom <- sapply(miss, function(x) if (x) 0 else 1)
+  nativeOutput <- .Call("rfsrcCIndex",
+                        as.integer(do.trace),
+                        as.integer(size),
+                        as.double(time),
+                        as.double(censoring),
+                        as.double(predicted),
+                        as.integer(denom))
+  if (is.null(nativeOutput)) {
+    stop("An error has occurred in rfsrcCIndex.  Please turn trace on for further analysis.")
   }
-  matPlot <- function(matx, ylab = "", legend = "", pos = 1) {
-    m <- dim(cbind(matx))[2]
-    if (m > 1) legend <- paste(legend, 1:m, "  ")
-    matplot(x$time.interest, matx, xlab = "Time", ylab = ylab, type = "l",
-            col = (1:m), lty = 1, lwd = 3)
-    legend(c("topright", "bottomright")[pos], legend = legend, col = (1:m), lty = 1, lwd = 3)
-  }
-  opar <- par(no.readonly = TRUE)
-  on.exit(par(opar))
-  if (plots.one.page) par(mfrow = c(1,1)) else par(mfrow = c(1,2))
-  matPlot(apply(x$chf, c(2, 3), mean, na.rm = TRUE), "CHF", "CSCHF", pos = 2)
-  matPlot(100 * apply(x$cif, c(2, 3), mean, na.rm = TRUE), "Probability (%)", "CIF", 2)
+  return (nativeOutput$err)
 }
-plot.competing.risk <- plot.competing.risk.rfsrc

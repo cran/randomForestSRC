@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -609,7 +609,7 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
   splitinfo <- list(name = splitrule, index = splitrule.idx, cust = cust.idx, nsplit = nsplit)
   return (splitinfo)
 }
-get.user.case.wt <- function(weight, n) {
+get.weight <- function(weight, n) {
   if (!is.null(weight)) {
     if (any(weight < 0)      ||
         all(weight == 0)     ||
@@ -618,32 +618,10 @@ get.user.case.wt <- function(weight, n) {
       stop("Invalid weight vector specified.")
     }
   }
-  weight
-}
-get.native.case.wt <- function(weight, n) {
-  if (is.null(weight)) {
-    weight <- rep(1, n)
-  }
-  weight
-}
-get.grow.xvar.wt <- function(weight, n.xvar) {
-  if (is.null(weight)          ||
-      any(weight < 0)          ||
-      all(weight == 0)         ||
-      length(weight) != n.xvar ||
-      any(is.na(weight))) {
-    weight <- rep(1, n.xvar)
-  }
-  weight
-}
-get.grow.split.wt <- function(weight, n.xvar) {
-  if (is.null(weight)          ||
-      any(weight <= 0)         ||
-      length(weight) != n.xvar ||
-      any(is.na(weight))) {
-    weight <- rep(1, n.xvar)
-  }
-  weight
+    else {
+      weight <- rep(1, n)
+    }
+  return (weight)
 }
 get.grow.mtry <- function (mtry = NULL, n.xvar, fmly) {
   if (!is.null(mtry)) {
@@ -707,7 +685,7 @@ get.yvar.nlevels <- function(fmly, nlevels, yvar.names, yvar, coerce.factor = NU
   }
     yvar.nlevels
 }
-parseFormula <- function(f, data, coerce.factor = NULL) {
+parseFormula <- function(f, data, ytry = NULL, coerce.factor = NULL) {
   if (!inherits(f, "formula")) {
     stop("'formula' is not a formula object.")
   }
@@ -736,7 +714,7 @@ parseFormula <- function(f, data, coerce.factor = NULL) {
       stop("Survival formula incorrectly specified.")
     }
     family <- "surv"
-    ytry <- NA
+    ytry <- 2
   }
     else if ((fmly == "Multivar" || fmly == "cbind")  && length(yvar.names) > 1) {
       if (sum(is.element(yvar.names, names(data))) < length(yvar.names)) {
@@ -761,10 +739,17 @@ parseFormula <- function(f, data, coerce.factor = NULL) {
                  length(coerce.factor$yvar.names)) < length(yvar.names))) {
         family <- "mix+"
       }
-      else {
-        stop("y-outcomes must be either real or factors in multivariate forests.")
+        else {
+          stop("y-outcomes must be either real or factors in multivariate forests.")
+        }
+      if (!is.null(ytry)) {
+        if ((ytry < 1) || (ytry > length(yvar.names))) {
+          stop("invalid value for ytry:  ", ytry)
+        }
       }
-      ytry <- NA
+        else {
+          ytry <- length(yvar.names)
+        }
     }
       else if (fmly == "Unsupervised") {
         if (length(yvar.names) != 0) {
@@ -801,7 +786,7 @@ parseFormula <- function(f, data, coerce.factor = NULL) {
             else {
               family <- "regr"
             }
-          ytry <- NA
+          ytry <- 1
         }
   return (list(all.names=all.names, family=family, yvar.names=yvar.names, ytry=ytry,
                coerce.factor = coerce.factor))
@@ -827,6 +812,22 @@ parseMissingData <- function(formula.obj, data) {
   }
   data <- data[!rowPt,, drop = FALSE]
   return(data)
+}
+make.sample <- function(ntree, samp.size, boot.size = NULL) {
+  if (samp.size < 0) {
+    stop("samp.size cannot be negative:", samp.size)
+  }
+  if (is.null(boot.size)) {
+    boot.size <- samp.size
+  }
+  rbind(sapply(1:ntree, function(bb){
+    inb <- rep(0, samp.size)
+    smp <- sample(1:samp.size, size = boot.size, replace = TRUE)
+    frq <- tapply(smp, smp, length)
+    idx <- as.numeric(names(frq))
+    inb[idx] <- frq
+    inb
+  }))
 }
 resample <- function(x, size, ...) {
   if (length(x) <= 1) {

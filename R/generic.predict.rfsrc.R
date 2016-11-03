@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -151,7 +151,7 @@ generic.predict.rfsrc <-
   }
     else {
       object.version <- as.integer(unlist(strsplit(object$version, "[.]")))
-      installed.version <- as.integer(unlist(strsplit("2.3.0", "[.]")))
+      installed.version <- as.integer(unlist(strsplit("2.4.0", "[.]")))
       minimum.version <- as.integer(unlist(strsplit("2.3.0", "[.]")))
       object.version.adj <- object.version[1] + (object.version[2]/10) + (object.version[3]/100)
       installed.version.adj <- installed.version[1] + (installed.version[2]/10) + (installed.version[3]/100)
@@ -289,6 +289,9 @@ generic.predict.rfsrc <-
   if (outcome == "train") {
     xvar <- as.matrix(data.matrix(object$xvar))
     yvar <- as.matrix(data.matrix(object$yvar))
+    sampsize <- object$sampsize
+    case.wt <- object$case.wt
+    samp <- object$samp
   }
     else {
       xvar <- xvar.newdata
@@ -296,6 +299,9 @@ generic.predict.rfsrc <-
       grow.equivalent <- TRUE
       n.newdata <- 0
       r.dim.newdata <- 0
+      sampsize <- nrow(xvar)
+      case.wt <- get.weight(NULL, nrow(xvar))
+      samp <- NULL
     }
   r.dim <- ncol(cbind(yvar))
   rownames(xvar) <- colnames(xvar) <- NULL
@@ -369,8 +375,9 @@ generic.predict.rfsrc <-
                                   as.character(xvar.types),
                                   as.integer(xvar.nlevels),
                                   as.double(xvar),
-                                  as.integer(object$sampsize),
-                                  as.double(get.native.case.wt(object$case.wt, n)),
+                                  as.integer(sampsize),
+                                  as.integer(samp),
+                                  as.double(case.wt),
                                   as.integer(length(event.info$time.interest)),
                                   as.double(event.info$time.interest),
                                   as.integer((object$nativeArray)$treeID),

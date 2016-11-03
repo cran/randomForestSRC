@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -66,7 +66,7 @@ plot.variable.rfsrc <- function(
   which.class,
   outcome.target=NULL,
   time,
-  surv.type = c("mort", "rel.freq", "nlsn.aalen", "surv", "years.lost", "cif", "chf"),
+  surv.type = c("mort", "rel.freq", "surv", "years.lost", "cif", "chf"),
   class.type = c("prob", "bayes"),
   partial = FALSE,
   oob = TRUE,
@@ -136,22 +136,22 @@ plot.variable.rfsrc <- function(
             }
           }
         VIMP <- object$importance[, which.class]
-        pred.type <- setdiff(surv.type, c("rel.freq", "mort", "nlsn.aalen", "surv"))[1]
+        pred.type <- setdiff(surv.type, c("rel.freq", "mort", "chf", "surv"))[1]
         pred.type <- match.arg(pred.type, c("years.lost", "cif", "chf"))
         ylabel <- switch(pred.type,
                          "years.lost" = paste("Years lost for event ", which.class),
-                         "cif" = paste("CIF for event ", which.class, " (time=", time, ")", sep = ""),
-                         "chf" = paste("CHF for event ", which.class, " (time=", time, ")", sep = ""))
+                         "cif"        = paste("CIF for event ", which.class, " (time=", time, ")", sep = ""),
+                         "chf"        = paste("CHF for event ", which.class, " (time=", time, ")", sep = ""))
       }
         else {
           which.class <- 1
           VIMP <- object$importance
           pred.type <- setdiff(surv.type, c("years.lost", "cif", "chf"))[1]
-          pred.type <- match.arg(pred.type, c("rel.freq", "mort", "nlsn.aalen", "surv"))
+          pred.type <- match.arg(pred.type, c("rel.freq", "mort", "chf", "surv"))
           ylabel <- switch(pred.type,
                            "rel.freq"   = "standardized mortality",
                            "mort"       = "mortality",
-                           "nlsn.aalen" = paste("Nelson Aalen (time=", time, ")", sep = ""),
+                           "chf"        = paste("CHF (time=", time, ")", sep = ""),
                            "surv"       = paste("predicted survival (time=", time, ")", sep = ""))
         }
     }
@@ -445,20 +445,20 @@ extract.pred <- function(obj, type, subset, time, outcome.target, which.class, o
         time.idx <-  max(which(obj$time.interest <= time))
         return(switch(type,
                       "years.lost" = pred[subset, which.class],
-                      "cif" = cif[subset, time.idx, which.class],
-                      "chf" = chf[subset, time.idx, which.class]
+                      "cif"        = cif[subset, time.idx, which.class],
+                      "chf"        = chf[subset, time.idx, which.class]
                       ))
       }
       else {
         n <- length(pred)
         if (missing(subset)) subset <- 1:n
-        type <- match.arg(type, c("rel.freq", "mort", "nlsn.aalen", "surv"))
+        type <- match.arg(type, c("rel.freq", "mort", "chf", "surv"))
         time.idx <-  max(which(obj$time.interest <= time))
         return(switch(type,
                       "rel.freq" = pred[subset]/max(n, na.omit(pred)),
-                      "mort" = pred[subset],
-                      "nlsn.aalen" =  100 * chf[subset, time.idx],
-                      "surv" =  100 * surv[subset, time.idx]
+                      "mort"     = pred[subset],
+                      "chf"      = 100 * chf[subset, time.idx],
+                      "surv"     = 100 * surv[subset, time.idx]
                       ))
       }
     }
@@ -501,9 +501,9 @@ extract.partial.pred <- function(obj, type, subset, time, outcome.target, which.
         }
         return(switch(type,
                       "rel.freq" = rs,
-                      "mort" = obj$survOutput[subset, ],
-                      "nlsn.aalen" =  obj$survOutput[subset, time.idx, ],
-                      "surv" =  obj$survOutput[subset, time.idx, ]
+                      "mort"     = obj$survOutput[subset, ],
+                      "chf"      =  obj$survOutput[subset, time.idx, ],
+                      "surv"     =  obj$survOutput[subset, time.idx, ]
                       ))
       }
   }

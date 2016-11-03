@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -63,7 +63,7 @@
 rfsrc <- function(formula,
                   data,
                   ntree = 1000,
-                  bootstrap = c("by.root", "by.node", "none"),
+                  bootstrap = c("by.root", "by.node", "none", "by.user"),
                   mtry = NULL,
                   nodesize = NULL,
                   nodedepth = NULL,
@@ -78,6 +78,7 @@ rfsrc <- function(formula,
                   proximity = FALSE,
                   sampsize = NULL,
                   samptype = c("swr", "swor"),
+                  samp = NULL,
                   case.wt = NULL,
                   xvar.wt = NULL,
                   forest = TRUE,
@@ -97,7 +98,7 @@ rfsrc <- function(formula,
   miss.tree <- is.hidden.impute.only(user.option)
   terminal.qualts <- is.hidden.terminal.qualts(user.option)
   terminal.quants <- is.hidden.terminal.quants(user.option)
-  bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none"))
+  bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none", "by.user"))
   importance <- match.arg(as.character(importance), c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"))
   na.action <- match.arg(na.action, c("na.omit", "na.impute"))
   proximity <- match.arg(as.character(proximity), c(FALSE, TRUE, "inbag", "oob", "all"))
@@ -109,7 +110,7 @@ rfsrc <- function(formula,
     formula <- as.formula("Unsupervised() ~ .")
   }
   if (missing(data)) stop("data is missing")
-  formulaPrelim <- parseFormula(formula, data, coerce.factor)
+  formulaPrelim <- parseFormula(formula, data, NULL, coerce.factor)
   coerce.factor <- formulaPrelim$coerce.factor
   if (any(is.na(data))) {
     data <- parseMissingData(formulaPrelim, data)
@@ -177,13 +178,25 @@ rfsrc <- function(formula,
         sampsize <- min(sampsize, nrow(xvar))
       }
     }
+    samp = NULL
   }
-  else {
-    sampsize = nrow(xvar)
-    samptype <- "swr"
-  }
-  case.wt  <- get.user.case.wt(case.wt, n)
-  xvar.wt  <- get.grow.xvar.wt(xvar.wt, n.xvar)
+    else if (bootstrap == "by.user") {
+      samptype <- "swr"
+      if (is.null(samp)) {
+        stop("samp must not be NULL when bootstrapping by user")
+      }
+      sampsize <- apply(samp, 2, sum)
+      if (sum(sampsize == sampsize[1]) != ntree) {
+        stop("sampsize must identical for each tree")
+      }
+      sampsize <- sampsize[1]
+    }
+      else {
+        sampsize = nrow(xvar)
+        samptype <- "swr"
+      }
+  case.wt  <- get.weight(case.wt, n)
+  xvar.wt  <- get.weight(xvar.wt, n.xvar)
   yvar <- as.matrix(data[, yvar.names, drop = FALSE])
   if(dim(yvar)[2] == 0) {
     yvar <- NULL
@@ -236,7 +249,7 @@ rfsrc <- function(formula,
     }
   nodesize <- get.grow.nodesize(family, nodesize)
   perf <- NULL
-  if (bootstrap != "by.root") {
+  if ((bootstrap != "by.root") && (bootstrap != "by.user")) {
     importance <- "none"
     perf <- FALSE
   }
@@ -300,7 +313,7 @@ rfsrc <- function(formula,
                                   as.integer(splitinfo$index),
                                   as.integer(splitinfo$nsplit),
                                   as.integer(mtry),
-                                  as.integer(if(is.na(formulaDetail$ytry)) 0 else formulaDetail$ytry),
+                                  as.integer(formulaDetail$ytry),
                                   as.integer(nodesize),
                                   as.integer(nodedepth),
                                   as.double(cause.wt),
@@ -314,7 +327,8 @@ rfsrc <- function(formula,
                                   as.character(xvar.types),
                                   as.integer(xvar.nlevels),
                                   as.integer(sampsize),
-                                  as.double(get.native.case.wt(case.wt, n)),
+                                  as.integer(samp),
+                                  as.double(case.wt),
                                   as.double(xvar.wt),
                                   as.double(xvar),
                                   as.integer(length(event.info$time.interest)),
@@ -413,8 +427,8 @@ rfsrc <- function(formula,
       }
     if (terminal.qualts | terminal.quants) {
       temp <- 2 * (nodesize - 1)
-      if (n  > temp) { 
-        treeTheoreticalMaximum <- n - temp;
+      if (sampsize  > temp) { 
+        treeTheoreticalMaximum <- sampsize - temp;
       }
         else {
           treeTheoreticalMaximum <- 1;
@@ -509,11 +523,12 @@ rfsrc <- function(formula,
                        bootstrap = bootstrap,
                        sampsize = sampsize,
                        samptype = samptype,
+                       samp     = samp,
                        case.wt  = case.wt,
                        terminal.qualts = terminal.qualts,
                        terminal.quants = terminal.quants,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.3.0",
+                       version = "2.4.0",
                        na.action = na.action,
                        coerce.factor = coerce.factor)
     if (grepl("surv", family)) {
@@ -581,7 +596,7 @@ rfsrc <- function(formula,
     colnames(node.stats) <- "spltST"
     node.mtry.stats <- t(array(nativeOutput$mtryST[1:nativeArraySize], c(mtry, forest.out$totalNodeCount)))
     node.mtry.index <- t(array(nativeOutput$mtryID[1:nativeArraySize], c(mtry, forest.out$totalNodeCount)))
-    if (!is.na(formulaDetail$ytry)) {
+    if (family == "unsupv") {
       node.ytry.index <- t(array(nativeOutput$uspvST[1:nativeArraySize], c(formulaDetail$ytry, forest.out$totalNodeCount)))
     }
       else {

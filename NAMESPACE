@@ -16,7 +16,7 @@ export(find.interaction,
        impute.rfsrc,
        max.subtree,
        max.subtree.rfsrc,
-       
+       partial.rfsrc,
        plot.competing.risk,
        plot.competing.risk.rfsrc,
        plot.survival,

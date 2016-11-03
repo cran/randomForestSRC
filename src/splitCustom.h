@@ -24,7 +24,23 @@
 
 void registerCustomFunctions();
 
-extern void registerThis (void *func, unsigned int family, unsigned int slot);
+extern void registerThis (double (*func) (unsigned int    n,
+                                          char           *membership,
+                                          double         *time,
+                                          double         *event,
+
+                                          unsigned int    eventTypeSize,
+                                          unsigned int    eventTimeSize,
+                                          double         *eventTime,
+
+                                          double         *response,
+                                          double          mean,
+                                          double          variance,
+                                          unsigned int    maxLevel),
+
+                          unsigned int family,
+                          unsigned int slot);
+
 
 /* 
    ^^^^^^^^ Do Not Touch These Delarations Above ^^^^^^^^

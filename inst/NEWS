@@ -1,11 +1,25 @@
 Package: randomForestSRC
-Version: 2.3.0
-BUILD: bld20160906
+Version: 2.4.0
+BUILD: bld20161102b
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.3.0
+CHANGES TO RELEASE 2.4.0
 ---------------------------------------------------------------------------------
-Fix to levels.count when ntree=1.  Some n-based loop optimizations.
+Fix to custom splitting family verification and registration harness.
+Introduction of bootstrap="by.user".  Fix to incorrect mapping of user
+specified time points to event times when ntime option is used.  It is
+recommended that the use of this option be avoided.  The effect of
+discretizing the time values compromises the ensembles. For best
+results, all event times must be used.  This was and is the default
+behaviour.  Fix to incorrect passing of time option parameter in
+plot.variable().  Introduction of partial.rfsrc() to allow direct
+access to partial ensembles.  Added support for long vectors on native
+code side.
+
+  
+RELEASE 2.3.0
+---------------------------------------------------------------------------------  
+Fix to levels.count when ntree=1.  Some n-based loop optimization.
 Significant improvements in CPU times for restore-predict modes, and
 plot.variable().  Consequent changes to forest object, and
 incompatibility with objects created with previous versions of the
@@ -23,7 +37,6 @@ pertaining to colnames of test set synthetic features. Introduction of
 sampsize, samptype, and case.wt to address imbalanced data sets.
 Continued improvements to CPU and memory performance in big-n, big-p,
 and big-ntree scenarios.
-
   
 RELEASE 2.1.0
 ---------------------------------------------------------------------------------
@@ -99,7 +112,7 @@ Fix to UBSAN warnings.  Implementation of new RG protocols.
 RELEASE 1.5.0
 Significant improvements to CPU and RAM usage profiles in serial and
 OpenMP modes of execution.  Proximity options allow inbag, OOB and all.
-VIMP implements subsetting and conditional variable importance. NA
+VIMP implements sub-setting and conditional variable importance. NA
 options allow the split statistic to be based on non-missing values
 only.  In addition it allows random assignment of missing values.
 

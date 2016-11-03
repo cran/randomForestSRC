@@ -350,13 +350,11 @@ mix.pred <- mix.obj$regrOutput$days$predicted.oob
 plot(rsf.pred, mix.pred)
 
 # compare C-index error rate
-if (library("Hmisc", logical.return = TRUE))
-{
-  rsf.err <- rcorr.cens(rsf.pred, Surv(yvar[, 1], yvar[, 2]))[1]
-  mix.err <- 1 - rcorr.cens(mix.pred, Surv(yvar[, 1], yvar[, 2]))[1]
-  cat("RSF                :", rsf.err, "\n")
-  cat("multivariate forest:", mix.err, "\n")
-}
+rsf.err <- randomForestSRC:::cindex(yvar$days, yvar$status, rsf.pred)
+mix.err <- 1 - randomForestSRC:::cindex(yvar$days, yvar$status, mix.pred)
+cat("RSF                :", rsf.err, "\n")
+cat("multivariate forest:", mix.err, "\n")
+
 }
 }
 \keyword{predict}

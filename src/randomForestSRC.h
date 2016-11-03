@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.3.0 (bld20160906)
+////  Version 2.4.0 (bld20161102b)
 ////
 ////  Copyright 2016, University of Miami
 ////
@@ -138,8 +138,9 @@
 #define RF_PART_CL  55  
 #define RF_PART_RG  56  
 #define RF_SEXP_CNT 57  
-#define SEXP_TYPE_NUMERIC 0
-#define SEXP_TYPE_INTEGER 1
+#define SEXP_TYPE_NUMERIC   0
+#define SEXP_TYPE_INTEGER   1
+#define SEXP_TYPE_CHARACTER 2
 #define OPT_FENS        0x000001 
 #define OPT_OENS        0x000002 
 #define OPT_PERF        0x000004 
@@ -157,8 +158,8 @@
 #define OPT_IMPU_ONLY   0x010000 
 #define OPT_OUTC_TYPE   0x020000 
 #define OPT_SPLT_NULL   0x040000 
-#define OPT_BOOT_NODE   0x080000 
-#define OPT_BOOT_NONE   0x100000 
+#define OPT_BOOT_TYP1   0x080000 
+#define OPT_BOOT_TYP2   0x100000 
 #define OPT_COMP_RISK   0x200000 
 #define OPT_SPLDPTH_F   0x400000 
 #define OPT_SPLDPTH_T   0x800000 
@@ -221,14 +222,14 @@
 #define CRSK_FAM     3
 #define APROX 0
 #define EXACT 1
-#define SIZE_OF_INTEGER sizeof(uint)
-#define MAX_EXACT_LEVEL SIZE_OF_INTEGER * 8
+#define MAX_EXACT_LEVEL sizeof(uint) * 8
 #define SAFE_FACTOR_SIZE 16
 #define MARGINAL_SIZE 4
 #define RF_WGHT_UNIFORM 1
 #define RF_WGHT_INTEGER 2
 #define RF_WGHT_GENERIC 3
-typedef unsigned int   uint;
+typedef unsigned int  uint;
+typedef unsigned long long  ulong;
 #define RFprintf Rprintf
 typedef struct node Node;
 struct node {
@@ -342,6 +343,7 @@ enum alloc_type{
   NRUTIL_NPTR,   
   NRUTIL_TPTR,   
   NRUTIL_FPTR,   
+  NRUTIL_LPTR,   
   NRUTIL_DPTR2,  
   NRUTIL_UPTR2,  
   NRUTIL_IPTR2,  
@@ -353,7 +355,7 @@ enum alloc_type{
   NRUTIL_UPTR3,  
   NRUTIL_NPTR3,  
   NRUTIL_DPTR4,  
-  NRUTIL_UPTR4   
+  NRUTIL_UPTR4,  
 };
 unsigned int upower (unsigned int x, unsigned int n);
 unsigned int upower2 (unsigned int n);
@@ -365,30 +367,32 @@ void indexx(unsigned int n, double *arr, unsigned int *indx);
 void nrerror(char error_text[]);
 void *gblock(size_t size);
 void free_gblock(void *v, size_t size);
-void *gvector(unsigned int nl, unsigned int nh, size_t size);
-void free_gvector(void *v, unsigned int nl, unsigned int nh, size_t size);
-char *cvector(unsigned int nl, unsigned int nh);
-void free_cvector(char *v, unsigned int nl, unsigned int nh);
-char **cmatrix(unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-void free_cmatrix(char **v, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-int *ivector(unsigned int nl, unsigned int nh);
-void free_ivector(int *v, unsigned int nl, unsigned int nh);
-int **imatrix(unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-void free_imatrix(int **v, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-unsigned int *uivector(unsigned int nl, unsigned int nh);
-void free_uivector(unsigned int *v, unsigned int nl, unsigned int nh);
-unsigned int **uimatrix(unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-void free_uimatrix(unsigned int **v, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-double *dvector(unsigned int nl, unsigned int nh);
-void free_dvector(double *v, unsigned int nl, unsigned int nh);
-double **dmatrix(unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-void free_dmatrix(double **v, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-double ***dmatrix3(unsigned int n3l, unsigned int n3h, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-void free_dmatrix3(double ***v, unsigned int n3l, unsigned int n3h, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-double ****dmatrix4(unsigned int n4l, unsigned int n4h, unsigned int n3l, unsigned int n3h, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-void free_dmatrix4(double ****v, unsigned int n4l, unsigned int n4h, unsigned int n3l, unsigned int n3h, unsigned int nrl, unsigned int nrh, unsigned int ncl, unsigned int nch);
-void *new_vvector(unsigned int nl, unsigned int nh, enum alloc_type type);
-void free_new_vvector(void *v, unsigned int nl, unsigned int nh, enum alloc_type type);
+void *gvector(unsigned long long nl, unsigned long long nh, size_t size);
+void free_gvector(void *v, unsigned long long nl, unsigned long long nh, size_t size);
+char *cvector(unsigned long long nl, unsigned long long nh);
+void free_cvector(char *v, unsigned long long nl, unsigned long long nh);
+char **cmatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+void free_cmatrix(char **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+int *ivector(unsigned long long nl, unsigned long long nh);
+void free_ivector(int *v, unsigned long long nl, unsigned long long nh);
+int **imatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+void free_imatrix(int **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+unsigned int *uivector(unsigned long long nl, unsigned long long nh);
+void free_uivector(unsigned int *v, unsigned long long nl, unsigned long long nh);
+unsigned int **uimatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+void free_uimatrix(unsigned int **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+unsigned long long *ulvector(unsigned long long nl, unsigned long long nh);
+void free_ulvector(unsigned long long *v, unsigned long long nl, unsigned long long nh);
+double *dvector(unsigned long long nl, unsigned long long nh);
+void free_dvector(double *v, unsigned long long nl, unsigned long long nh);
+double **dmatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+void free_dmatrix(double **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+double ***dmatrix3(unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+void free_dmatrix3(double ***v, unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+double ****dmatrix4(unsigned long long n4l, unsigned long long n4h, unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+void free_dmatrix4(double ****v, unsigned long long n4l, unsigned long long n4h, unsigned long long n3l, unsigned long long n3h, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
+void *new_vvector(unsigned long long nl, unsigned long long nh, enum alloc_type type);
+void free_new_vvector(void *v, unsigned long long nl, unsigned long long nh, enum alloc_type type);
 void nrCopyMatrix(
   unsigned int **new,
   unsigned int **old,
@@ -400,6 +404,7 @@ void nrCopyVector(
   char *old,
   unsigned int ncol
 );
+void testEndianness();
 Node *makeNode(unsigned int xSize, unsigned int permissibleSizeAlloc, unsigned int urStatSize, unsigned int mtrySize);
 void freeNode(Node *parent);
 void getNodeInfo(Node *leaf);
@@ -535,6 +540,13 @@ uint sampleUniformlyFromVector (uint    treeID,
                                 uint   *index,
                                 uint    size,
                                 uint   *sampleSlot);
+SEXP rfsrcCIndex(SEXP sexp_traceFlag,
+                 SEXP sexp_size,
+                 SEXP sexp_time,
+                 SEXP sexp_censoring,
+                 SEXP sexp_predicted,
+                 SEXP sexp_denom);
+SEXP rfsrcTestSEXP(SEXP sexp_size);
 SEXP rfsrcGrow(SEXP traceFlag,
                SEXP seedPtr,
                SEXP opt,
@@ -556,6 +568,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP xType,
                SEXP xLevels,
                SEXP bootstrapSize,
+               SEXP bootstrap,
                SEXP caseWeight,
                SEXP xWeight,
                SEXP xData,
@@ -581,6 +594,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP xLevels,
                   SEXP xData,
                   SEXP bootstrapSize,
+                  SEXP bootstrap,
                   SEXP caseWeight,
                   SEXP timeInterestSize,
                   SEXP timeInterest,
@@ -721,6 +735,7 @@ uint stackDefinedOutputObjects(char      mode,
                                uint    **pRF_varUsed_,
                                uint   ***pRF_varUsedPtr,
                                double  **p_splitDepth_,
+                               uint     *sexpIndex,
                                uint     *stackCount,
                                SEXP     *sexpVector);
 void unstackDefinedOutputObjects(char      mode,
@@ -733,7 +748,7 @@ uint stackForestOutputObjects(char     mode,
                               uint   **pRF_mwcpSZ_,
                               uint   **pRF_mwcpPT_,
                               uint   **pRF_mwcpCT_,
-                              uint     sexpLength,
+                              uint    *sexpIndex,
                               char   **sexpString,
                               SEXP    *sexpVector);
 uint stackStatisticalOutputObjects(char     mode,
@@ -742,7 +757,7 @@ uint stackStatisticalOutputObjects(char     mode,
                                    uint   **pRF_uspvST_,
                                    uint   **pRF_mtryID_,
                                    double **pRF_mtryST_,
-                                   uint     sexpLength,
+                                   uint    *sexpLength,
                                    char   **sexpString,
                                    SEXP    *sexpVector);
 void unstackAuxStatisticalStructures(char mode);
@@ -780,12 +795,15 @@ void stackAuxTNQuantitativeStructures(char    mode,
                                       double *pRF_TN_REGR_,
                                       uint   *pRF_TN_CLAS_);
 void unstackAuxTNQuantitativeStructures(char    mode);
+void initProtect(SEXP *sexpVector,
+                 uint  stackCount);
 void *stackAndProtect(uint  *sexpIndex,
                       char   sexpType,
                       uint   sexpIdentity,
-                      uint   size,
+                      ulong  size,
                       SEXP  *sexpVector,
                       char **sexpString);
+void verifyAndRegisterCustomSplitRules();
 char getBestSplit(uint    treeID,
                   Node   *parent,
                   uint   *repMembrIndx,
@@ -823,10 +841,10 @@ typedef double (*customFunction) (uint    n,
                                   double  mean,
                                   double  variance,
                                   uint    maxLevel);
-void regCustomFunctionClassification (void *func, uint i);
-void regCustomFunctionRegression (void *func, uint i);
-void regCustomFunctionSurvival (void *func, uint i);
-void regCustomFunctionCompetingRisk (void *func, uint i);
+void regCustomFunctionClassification (customFunction func, uint i);
+void regCustomFunctionRegression (customFunction func, uint i);
+void regCustomFunctionSurvival (customFunction func, uint i);
+void regCustomFunctionCompetingRisk (customFunction func, uint i);
 char classificationXwghtSplit(uint    treeID,
                               Node   *parent,
                               uint   *repMembrIndx,
@@ -1215,6 +1233,10 @@ void getAtRiskAndEventCountsNew (uint       treeID,
 void getLocalRatios (uint treeID, Terminal *parent);
 void getLocalCSH (uint treeID, Terminal *parent);
 void getLocalCIF (uint treeID, Terminal *parent);
+void mapLocalToTimeInterest(uint      treeID,
+                            Terminal *parent,
+                            void     *genericLocal,
+                            void     *genericGlobal);
 void getLocalSurvival (uint treeID, Terminal *parent);
 void getLocalNelsonAalen (uint treeID, Terminal *parent);
 void getSurvival (uint treeID, Terminal *parent);
@@ -1403,7 +1425,7 @@ char growTree(uint     r,
 char restoreTree(uint    mode,
                  uint    b,
                  Node   *parent,
-                 uint   *offset,
+                 ulong  *offset,
                  uint   *treeID,
                  uint   *nodeID,
                  uint   *parmID,
@@ -1414,7 +1436,7 @@ char restoreTree(uint    mode,
                  uint   *maximumDepth);
 void saveTree(uint    b,
               Node   *parent,
-              uint   *offset,
+              ulong  *offset,
               uint   *treeID,
               uint   *nodeID,
               uint   *parmID,
@@ -1428,7 +1450,7 @@ void freeSplitDepth(uint treeID);
 void saveStatistics(char     mode,
                     uint     b,
                     Node    *parent,
-                    uint    *offset,
+                    ulong   *offset,
                     double  *spltST,
                     double  *spltVR,
                     uint   **uspvST,
@@ -1477,6 +1499,8 @@ void getPerformance(uint      serialTreeID,
 void finalizeEnsembleEstimates(uint mode);
 char getPerformanceFlag (uint mode, uint serialTreeID);
 void getVariablesUsed(uint treeID, Node *rootPtr, uint *varUsedVector);
+void setUserTraceFlag (uint traceFlag);
+uint getUserTraceFlag ();
 Node *identifyPerturbedMembership(Node    *parent,
                                   double **shadowVIMP,
                                   uint     index);

@@ -293,7 +293,6 @@ md.breast.custom <- var.select(Surv(Time, Censoring) ~ ., vdv,
 ## ------------------------------------------------------------
 
 if (library("survival", logical.return = TRUE) 
-    & library("Hmisc", logical.return = TRUE)
     & library("parallel", logical.return = TRUE))
 {
   cox.weights <- function(rfsrc.f, rfsrc.data) {
@@ -333,8 +332,7 @@ plot.variable(vh.breast$rfsrc.refit.obj,
   xvar.names = vh.breast$topvars[1:10], partial = TRUE)
 
 ## similar analysis, but using weights from univarate cox p-values
-if (library("survival", logical.return = TRUE) 
-  & library("Hmisc", logical.return = TRUE))
+if (library("survival", logical.return = TRUE))
 {
   cox.weights <- function(rfsrc.f, rfsrc.data) {
     event.names <- all.vars(rfsrc.f)[1:2]

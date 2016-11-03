@@ -11,7 +11,7 @@
 }
 \usage{\method{plot.variable}{rfsrc}(x, xvar.names, which.class,
   outcome.target = NULL, time, surv.type = c("mort", "rel.freq",
-  "nlsn.aalen", "surv", "years.lost", "cif", "chf"), class.type =
+  "surv", "years.lost", "cif", "chf"), class.type =
   c("prob", "bayes"), partial = FALSE, oob = TRUE, show.plots = TRUE,
   plots.per.page = 4, granule = 5, sorted = TRUE, nvar, npts = 25,
   smooth.lines = FALSE, subset, ...)

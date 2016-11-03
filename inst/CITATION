@@ -27,8 +27,8 @@ citEntry(entry="Article",
          number       = "2",
          pages        = "25--31",
          month        = "October",
-         url          = "http://CRAN.R-project.org/doc/Rnews/",
-         pdf          = "http://CRAN.R-project.org/doc/Rnews/Rnews_2007-2.pdf",
+         url          = "https://CRAN.R-project.org/doc/Rnews/",
+         pdf          = "https://CRAN.R-project.org/doc/Rnews/Rnews_2007-2.pdf",
 
          textVersion =
          paste("Ishwaran H. and Kogalur U.B. (2007). ",

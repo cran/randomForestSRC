@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -70,6 +70,9 @@ get.bootstrap <- function (bootstrap) {
       else if (bootstrap == "none") {
         bootstrap <- 2^20
       }
+        else if (bootstrap == "by.user") {
+          bootstrap <- 2^19 + 2^20
+        }
         else {
           stop("Invalid choice for 'bootstrap' option:  ", bootstrap)
         }

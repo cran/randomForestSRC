@@ -16,6 +16,7 @@
   min.node = 3,
   use.org.features = TRUE,
   na.action = c("na.omit", "na.impute"),
+  oob = TRUE,
   verbose = TRUE,
   ...)
 }
@@ -45,6 +46,8 @@
     removes the entire record if even one of its entries is \code{NA}.
     The action \code{na.impute} pre-imputes the data using fast
     imputation via \command{impute.rfsrc}.}
+  \item{oob}{Preserve "out-of-bagness" so that error rates and
+    VIMP are honest?  Default is yes (\option{oob=TRUE}).}
   \item{verbose}{Set to \code{TRUE} for verbose output.}
   \item{...}{Further arguments to be passed to the \code{rfsrc}
     function used for fitting the synthetic forest.}
@@ -53,24 +56,20 @@
   A collection of random forests are fit using different nodesize
   values.  The predicted values from these machines are then used as
   synthetic features (called RF machines) to fit a synthetic random
-  forest (the original features are also used when fitting the synthetic
-  forest).  Currently only implemented for regression and classification
-  settings (univariate and multivariate).
+  forest (the original features are also used in constructing the
+  synthetic forest).  Currently only implemented for regression and
+  classification settings (univariate and multivariate).
+
+  Synthetic features are calculated using out-of-bag (OOB) data to avoid
+  over-using training data.  However, to guarantee that performance
+  values such as error rates and VIMP are honest, bootstrap draws are
+  fixed across all trees used in the construction of the synthetic
+  forest and its synthetic features.  The option \option{oob=TRUE}
+  ensures that this happens.  Change this option at your own peril.
   
-  Note that synthetic features are constructed using out-of-bag (OOB)
-  data in order to avoid double dipping into training data.
-  Nevertheless, the internal OOB error rate for the synthetic forest
-  will be biased and thus cross-validation must be used for determining
-  performance.
-  
-  If \code{mtrySeq} is set, RF machines are constructed for each
-  combination of nodesize and mtry values specified by
-  \code{nodesizeSeq} \code{mtrySeq}.  However, a sequence of values for
-  \code{mtrySeq} generally does not work as well as using a fixed value.
-  Generally, performance gains are observed when one of the two
-  sequences is fixed: \code{mtrySeq} is fixed and \code{nodesizeSeq} is
-  varied, or \code{nodesizeSeq} is fixed and \code{mtrySeq} is varied.
-  However, see the examples below where this is not the case.
+  If values for \code{mtrySeq} are given, RF machines are constructed
+  for each combination of nodesize and mtry values specified by
+  \code{nodesizeSeq} \code{mtrySeq}.
 }
 \value{
   A list with the following components:

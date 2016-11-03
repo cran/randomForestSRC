@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -64,8 +64,10 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
 {
   sf.flag <- FALSE
   if (sum(inherits(x, c("rfsrc", "synthetic"), TRUE) == c(1, 2)) == 2) {
-    sf.flag <- TRUE
-    sf.message <- "OOB performance values are unreliable for synthetic forests, consider using cross-validation"
+    if (sum(inherits(x, c("rfsrc", "synthetic", "oob"), TRUE) == c(1, 2, 3)) != 3) {
+      sf.flag <- TRUE
+      sf.message <- "OOB was not used for synthetic forests, error rates/VIMP will be unreliable"
+    }
     x <- x$rfSyn
   }
   if (sum(inherits(x, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2 &

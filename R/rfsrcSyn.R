@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.3.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.0 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -74,6 +74,7 @@ rfsrcSyn.rfsrc <-
            min.node = 3,
            use.org.features = TRUE,
            na.action = c("na.omit", "na.impute"),
+           oob = TRUE,
            verbose = TRUE,
            ...
            )
@@ -129,13 +130,24 @@ rfsrcSyn.rfsrc <-
   }
   na.action <- match.arg(na.action, c("na.omit", "na.impute"))
   if (missing(object)) {
+    if (oob) {
+      samp.size <- nrow(rfsrc(f, data, ntree = 1, nodesize = nrow(data), splitrule = "random")$xvar)
+      samp <- make.sample(ntree, samp.size)
+    }
     rfMachines <- lapply(nodesizeSeq, function(nn) {
       lapply(mtrySeq, function(mm) {
         if (verbose) {
           cat("\t RF nodesize:", nn, "mtry:", mm, "\r")
         }
-        rfsrc(f, data, ntree = ntree, mtry = mm, nodesize = nn, 
-              nsplit = nsplit, importance = "none")
+        if (oob) {
+          rfsrc(f, data, ntree = ntree, mtry = mm, nodesize = nn,
+                bootstrap = "by.user", samp = samp, 
+                nsplit = nsplit, importance = "none")
+        }
+        else {
+          rfsrc(f, data, ntree = ntree, mtry = mm, nodesize = nn, 
+                nsplit = nsplit, importance = "none")
+        }
       })
     })
     rfMachines <- unlist(rfMachines, recursive = FALSE)
@@ -196,8 +208,15 @@ rfsrcSyn.rfsrc <-
         data <- data.frame(preObj$yvar, x.s = x.s)
       }
     rfSyn.f <- as.formula(paste("Multivar(", paste(yvar.names, collapse = ","), paste(") ~ ."), sep = ""))
-    rfSyn <- rfsrc(rfSyn.f, data, ntree = ntree, mtry = mtry, nodesize = nodesize,
-                   nsplit = nsplit, ... )
+    if (oob) {
+      rfSyn <- rfsrc(rfSyn.f, data, ntree = ntree, mtry = mtry, nodesize = nodesize,
+                     bootstrap = "by.user", samp = samp,                      
+                     nsplit = nsplit, ... )
+    }
+    else {
+      rfSyn <- rfsrc(rfSyn.f, data, ntree = ntree, mtry = mtry, nodesize = nodesize,
+                     nsplit = nsplit, ... )
+    }
   }
   if (!missing(newdata)) {
     if (na.action == "na.impute" && any(is.na(newdata))) {
@@ -245,7 +264,12 @@ rfsrcSyn.rfsrc <-
                  rfSynPred = rfSynPred,
                  synthetic = synthetic,
                  opt.machine = opt.machine)
-  class(retObj) <- c("rfsrc", "synthetic")
+  if (oob) {
+    class(retObj) <- c("rfsrc", "synthetic", "oob")
+  }
+  else {
+    class(retObj) <- c("rfsrc", "synthetic", "inb")
+  }
   retObj
 }
 rf.opt <- function(obj)
