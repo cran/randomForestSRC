@@ -4,7 +4,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.4.0 (bld20161102b)
+////  Version 2.4.1 (bld20161105)
 ////
 ////  Copyright 2016, University of Miami
 ////
@@ -976,11 +976,11 @@ void free_uimatrix(unsigned int **v, unsigned long long nrl, unsigned long long 
   }
   free_new_vvector(v, nrl, nrh, NRUTIL_UPTR);
 }
-unsigned long long *ulvector(unsigned long long nl, unsigned long long nh) {
-  return ((unsigned long long *) gvector(nl, nh, sizeof(unsigned long long)) -nl+NR_END);
+unsigned long *ulvector(unsigned long long nl, unsigned long long nh) {
+  return ((unsigned long *) gvector(nl, nh, sizeof(unsigned long)) -nl+NR_END);
 }
-void free_ulvector(unsigned long long *v, unsigned long long nl, unsigned long long nh) {
-  free_gvector(v+nl-NR_END, nl, nh, sizeof(unsigned long long));
+void free_ulvector(unsigned long *v, unsigned long long nl, unsigned long long nh) {
+  free_gvector(v+nl-NR_END, nl, nh, sizeof(unsigned long));
 }
 double *dvector(unsigned long long nl, unsigned long long nh) {
   return ((double *) gvector(nl, nh, sizeof(double)) -nl+NR_END);
@@ -7006,10 +7006,10 @@ void *stackAndProtect(uint  *sexpIndex,
           error("\nRF-SRC:  The application will now exit.\n");
   }
   if (sizeof(ulong) > sizeof(uint)) {
-    if ((size >> (sizeof(uint) * 8)) > 0 ) {
+    if (size > UINT_MAX) {
       if (TRUE) {
         RFprintf("\nRF-SRC:  *** WARNING *** ");
-        RFprintf("\nRF-SRC:  SEXP vector element length exceeds 32-bits:  %20llu", size);
+        RFprintf("\nRF-SRC:  SEXP vector element length exceeds 32-bits:  %20lu", size);
         RFprintf("\nRF-SRC:  SEXP ALLOC:  %s ", sexpString[sexpIdentity]);
         RFprintf("\nRF-SRC:  Please Reduce Dimensionality if Possible.");
       }
@@ -18634,7 +18634,7 @@ SEXP rfsrc(char mode, int seedValue, uint traceFlag) {
         RFprintf("\nRF-SRC:      treeID     nodeID     parmID       spltPT     mwcpSZ ");
         RFprintf("\nRF-SRC:  %10d %10d %10d %12.4f %10d \n", RF_treeID_[ui], RF_nodeID_[ui], RF_parmID_[ui], RF_contPT_[ui], RF_mwcpSZ_[ui]);
         RFprintf("\nRF-SRC:  *** ERROR *** ");
-        RFprintf("\nRF-SRC:  Invalid forest input record at line:  %20llu", ui);
+        RFprintf("\nRF-SRC:  Invalid forest input record at line:  %20lu", ui);
         RFprintf("\nRF-SRC:  Please Contact Technical Support.");
         RFprintf("\nRF-SRC:  The application will now exit.\n");
         return R_NilValue;

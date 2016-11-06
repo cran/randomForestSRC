@@ -2,7 +2,7 @@
 ####**********************************************************************
 ####
 ####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.4.0 (_PROJECT_BUILD_ID_)
+####  Version 2.4.1 (_PROJECT_BUILD_ID_)
 ####
 ####  Copyright 2016, University of Miami
 ####
@@ -528,7 +528,7 @@ rfsrc <- function(formula,
                        terminal.qualts = terminal.qualts,
                        terminal.quants = terminal.quants,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.4.0",
+                       version = "2.4.1",
                        na.action = na.action,
                        coerce.factor = coerce.factor)
     if (grepl("surv", family)) {

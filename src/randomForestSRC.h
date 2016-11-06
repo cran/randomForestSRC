@@ -2,7 +2,7 @@
 ////**********************************************************************
 ////
 ////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.4.0 (bld20161102b)
+////  Version 2.4.1 (bld20161105)
 ////
 ////  Copyright 2016, University of Miami
 ////
@@ -80,6 +80,8 @@
 #ifndef FALSE
 #define FALSE     0x00
 #endif
+typedef unsigned int  uint;
+typedef unsigned long ulong;
 #define RF_OUTP_ID   0  
 #define RF_STRG_ID   1  
 #define RF_FSRG_ID   2  
@@ -228,8 +230,6 @@
 #define RF_WGHT_UNIFORM 1
 #define RF_WGHT_INTEGER 2
 #define RF_WGHT_GENERIC 3
-typedef unsigned int  uint;
-typedef unsigned long long  ulong;
 #define RFprintf Rprintf
 typedef struct node Node;
 struct node {
@@ -381,8 +381,8 @@ unsigned int *uivector(unsigned long long nl, unsigned long long nh);
 void free_uivector(unsigned int *v, unsigned long long nl, unsigned long long nh);
 unsigned int **uimatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
 void free_uimatrix(unsigned int **v, unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);
-unsigned long long *ulvector(unsigned long long nl, unsigned long long nh);
-void free_ulvector(unsigned long long *v, unsigned long long nl, unsigned long long nh);
+unsigned long *ulvector(unsigned long long nl, unsigned long long nh);
+void free_ulvector(unsigned long *v, unsigned long long nl, unsigned long long nh);
 double *dvector(unsigned long long nl, unsigned long long nh);
 void free_dvector(double *v, unsigned long long nl, unsigned long long nh);
 double **dmatrix(unsigned long long nrl, unsigned long long nrh, unsigned long long ncl, unsigned long long nch);

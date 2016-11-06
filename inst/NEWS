@@ -1,9 +1,14 @@
 Package: randomForestSRC
-Version: 2.4.0
-BUILD: bld20161102b
+Version: 2.4.1
+BUILD: bld20161105
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.4.0
+CHANGES TO RELEASE 2.4.1
+---------------------------------------------------------------------------------
+Fix to typedef that breaks Linux.  Sorry about that.
+  
+---------------------------------------------------------------------------------
+RELEASE 2.4.0
 ---------------------------------------------------------------------------------
 Fix to custom splitting family verification and registration harness.
 Introduction of bootstrap="by.user".  Fix to incorrect mapping of user
