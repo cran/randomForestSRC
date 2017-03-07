@@ -46,6 +46,7 @@
     not be valid and will depend on the context of the predict call.
     The safest choice is \code{TRUE} if proximity is desired.}
   
+
   
   
   \item{var.used}{Record the number of times a variable is split?}

@@ -1,63 +1,60 @@
-////**********************************************************************
-////**********************************************************************
-////
-////  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-////  Version 2.4.1 (bld20161105)
-////
-////  Copyright 2016, University of Miami
-////
-////  This program is free software; you can redistribute it and/or
-////  modify it under the terms of the GNU General Public License
-////  as published by the Free Software Foundation; either version 3
-////  of the License, or (at your option) any later version.
-////
-////  This program is distributed in the hope that it will be useful,
-////  but WITHOUT ANY WARRANTY; without even the implied warranty of
-////  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-////  GNU General Public License for more details.
-////
-////  You should have received a copy of the GNU General Public
-////  License along with this program; if not, write to the Free
-////  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-////  Boston, MA  02110-1301, USA.
-////
-////  ----------------------------------------------------------------
-////  Project Partially Funded By: 
-////  ----------------------------------------------------------------
-////  Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-////  National Science Foundation and grant R01 CA163739 from the National
-////  Cancer Institute.
-////
-////  Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-////  National Cancer Institute.
-////  ----------------------------------------------------------------
-////  Written by:
-////  ----------------------------------------------------------------
-////    Hemant Ishwaran, Ph.D.
-////    Director of Statistical Methodology
-////    Professor, Division of Biostatistics
-////    Clinical Research Building, Room 1058
-////    1120 NW 14th Street
-////    University of Miami, Miami FL 33136
-////
-////    email:  hemant.ishwaran@gmail.com
-////    URL:    http://web.ccs.miami.edu/~hishwaran
-////    --------------------------------------------------------------
-////    Udaya B. Kogalur, Ph.D.
-////    Adjunct Staff
-////    Department of Quantitative Health Sciences
-////    Cleveland Clinic Foundation
-////    
-////    Kogalur & Company, Inc.
-////    5425 Nestleway Drive, Suite L1
-////    Clemmons, NC 27012
-////
-////    email:  ubk@kogalur.com
-////    URL:    http://www.kogalur.com
-////    --------------------------------------------------------------
-////
-////**********************************************************************
-////**********************************************************************
+//  **********************************************************************
+//  **********************************************************************
+//  
+//    RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
+//  
+//    This program is free software; you can redistribute it and/or
+//    modify it under the terms of the GNU General Public License
+//    as published by the Free Software Foundation; either version 3
+//    of the License, or (at your option) any later version.
+//  
+//    This program is distributed in the hope that it will be useful,
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//    GNU General Public License for more details.
+//  
+//    You should have received a copy of the GNU General Public
+//    License along with this program; if not, write to the Free
+//    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+//    Boston, MA  02110-1301, USA.
+//  
+//    ----------------------------------------------------------------
+//    Project Partially Funded By: 
+//    ----------------------------------------------------------------
+//    Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
+//    National Science Foundation and grant R01 CA163739 from the National
+//    Cancer Institute.
+//  
+//    Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
+//    National Cancer Institute.
+//    ----------------------------------------------------------------
+//    Written by:
+//    ----------------------------------------------------------------
+//      Hemant Ishwaran, Ph.D.
+//      Director of Statistical Methodology
+//      Professor, Division of Biostatistics
+//      Clinical Research Building, Room 1058
+//      1120 NW 14th Street
+//      University of Miami, Miami FL 33136
+//  
+//      email:  hemant.ishwaran@gmail.com
+//      URL:    http://web.ccs.miami.edu/~hishwaran
+//      --------------------------------------------------------------
+//      Udaya B. Kogalur, Ph.D.
+//      Adjunct Staff
+//      Department of Quantitative Health Sciences
+//      Cleveland Clinic Foundation
+//      
+//      Kogalur & Company, Inc.
+//      5425 Nestleway Drive, Suite L1
+//      Clemmons, NC 27012
+//  
+//      email:  ubk@kogalur.com
+//      URL:    https://github.com/kogalur/randomForestSRC
+//      --------------------------------------------------------------
+//  
+//  **********************************************************************
+//  **********************************************************************
 
 
 #include <R_ext/Print.h>
@@ -84,17 +81,17 @@ typedef unsigned int  uint;
 typedef unsigned long ulong;
 #define RF_OUTP_ID   0  
 #define RF_STRG_ID   1  
-#define RF_FSRG_ID   2  
+#define RF_ASRG_ID   2  
 #define RF_OSRG_ID   3  
-#define RF_FCIF_ID   4  
+#define RF_ACIF_ID   4  
 #define RF_OCIF_ID   5  
-#define RF_FSRV_ID   6  
+#define RF_ASRV_ID   6  
 #define RF_OSRV_ID   7  
-#define RF_FMRT_ID   8  
+#define RF_AMRT_ID   8  
 #define RF_OMRT_ID   9  
-#define RF_FCLS_ID  10  
+#define RF_ACLS_ID  10  
 #define RF_OCLS_ID  11  
-#define RF_FRGR_ID  12  
+#define RF_ARGR_ID  12  
 #define RF_ORGR_ID  13  
 #define RF_ER_SURV  14  
 #define RF_ER_CLAS  15  
@@ -139,36 +136,36 @@ typedef unsigned long ulong;
 #define RF_PART_SR  54  
 #define RF_PART_CL  55  
 #define RF_PART_RG  56  
-#define RF_SEXP_CNT 57  
+#define RF_DIST_ID  57  
+#define RF_SEXP_CNT 58  
 #define SEXP_TYPE_NUMERIC   0
 #define SEXP_TYPE_INTEGER   1
 #define SEXP_TYPE_CHARACTER 2
-#define OPT_FENS        0x000001 
-#define OPT_OENS        0x000002 
-#define OPT_PERF        0x000004 
-#define OPT_PERF_CALB   0x000008 
-#define OPT_LEAF        0x000010 
-#define OPT_TREE        0x000020 
-#define OPT_SEED        0x000040 
-#define OPT_MISS        0x000080 
-#define OPT_VIMP_TYP1   0x000100 
-#define OPT_VIMP_TYP2   0x000200 
-#define OPT_VIMP_JOIN   0x000400 
-#define OPT_USPV_STAT   0x000800 
-#define OPT_VUSE_TYPE   0x001000 
-#define OPT_VUSE        0x002000 
-#define OPT_IMPU_ONLY   0x010000 
-#define OPT_OUTC_TYPE   0x020000 
-#define OPT_SPLT_NULL   0x040000 
-#define OPT_BOOT_TYP1   0x080000 
-#define OPT_BOOT_TYP2   0x100000 
-#define OPT_COMP_RISK   0x200000 
-#define OPT_SPLDPTH_F   0x400000 
-#define OPT_SPLDPTH_T   0x800000 
-#define OPT_VIMP_LEOB  0x1000000 
-#define OPT_VIMP       0x2000000 
-#define OPT_PROX_MARG  0x4000000 
-#define OPT_NODE_STAT  0x8000000 
+#define OPT_FENS      0x00000001 
+#define OPT_OENS      0x00000002 
+#define OPT_PERF      0x00000004 
+#define OPT_PERF_CALB 0x00000008 
+#define OPT_LEAF      0x00000010 
+#define OPT_TREE      0x00000020 
+#define OPT_SEED      0x00000040 
+#define OPT_MISS      0x00000080 
+#define OPT_VIMP_TYP1 0x00000100 
+#define OPT_VIMP_TYP2 0x00000200 
+#define OPT_VIMP_JOIN 0x00000400 
+#define OPT_USPV_STAT 0x00000800 
+#define OPT_VARUSED_F 0x00001000 
+#define OPT_VARUSED_T 0x00002000 
+#define OPT_IMPU_ONLY 0x00010000 
+#define OPT_OUTC_TYPE 0x00020000 
+#define OPT_SPLT_NULL 0x00040000 
+#define OPT_BOOT_TYP1 0x00080000 
+#define OPT_BOOT_TYP2 0x00100000 
+#define OPT_COMP_RISK 0x00200000 
+#define OPT_SPLDPTH_F 0x00400000 
+#define OPT_SPLDPTH_T 0x00800000 
+#define OPT_VIMP_LEOB 0x01000000 
+#define OPT_VIMP      0x02000000 
+#define OPT_NODE_STAT 0x08000000 
 #define OPT_PROX      0x10000000 
 #define OPT_PROX_IBG  0x20000000 
 #define OPT_PROX_OOB  0x40000000 
@@ -176,9 +173,11 @@ typedef unsigned long ulong;
 #define OPT_WGHT      0x00000001 
 #define OPT_WGHT_TYP1 0x00000002 
 #define OPT_WGHT_TYP2 0x00000004 
+#define OPT_MISS_MIA  0x00000008 
 #define OPT_MISS_SKIP 0x00000010 
 #define OPT_MEMB_PRUN 0x00000020 
 #define OPT_MEMB_USER 0x00000040 
+#define OPT_MISS_MIAH 0x00000080 
 #define OPT_SPLT_CUST 0x00000F00 
 #define OPT_BOOT_SWOR 0x00001000 
 #define OPT_TREE_ERR  0x00002000 
@@ -187,6 +186,10 @@ typedef unsigned long ulong;
 #define OPT_MEMB_INCG 0x00020000 
 #define OPT_TERM_OUTG 0x00040000 
 #define OPT_TERM_INCG 0x00080000 
+#define OPT_DIST      0x00100000 
+#define OPT_DIST_IBG  0x00200000 
+#define OPT_DIST_OOB  0x00400000 
+#define OPT_DIST_FUL  0x00600000 
 #define RF_PART_MORT 1
 #define RF_PART_NLSN 2
 #define RF_PART_SURV 3
@@ -217,7 +220,12 @@ typedef unsigned long ulong;
 #define MVRG_SPLIT  13 
 #define MVCL_SPLIT  14 
 #define CUST_SPLIT  15
-#define MAXM_SPLIT  15 
+#define SURV_L2IMP  16
+#define MAXM_SPLIT  16 
+#define SPLIT_MIA_NONE  0  
+#define SPLIT_MIA_LEFT  1  
+#define SPLIT_MIA_RGHT  2  
+#define SPLIT_MIA_UNIT  3  
 #define CLAS_FAM     0
 #define REGR_FAM     1
 #define SURV_FAM     2
@@ -620,6 +628,9 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP partialXvar,
                   SEXP partialLength,
                   SEXP partialValue,
+                  SEXP partialLength2,
+                  SEXP partialXvar2,
+                  SEXP partialValue2,
                   SEXP fobservationSize,
                   SEXP frSize,
                   SEXP frData,
@@ -631,14 +642,14 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP tnCIFN,
                   SEXP tnREGR,
                   SEXP tnCLAS);
-char bootstrap (uint     mode,
+char bootstrap (char     mode,
                 uint     treeID,
                 Node    *nodePtr,
                 uint    *subIndex,
                 uint     subsetSize,
                 uint    *index,
                 uint     indexSize);
-char getNodeSign (uint mode, uint treeID, Node *nodePtr, uint *bmIndex, uint repMembrSize);
+char getNodeSign (char mode, uint treeID, Node *nodePtr, uint *bmIndex, uint repMembrSize);
 void initializeTimeArrays(char mode);
 void stackFactorArrays();
 void stackFactorGeneric(uint    size,
@@ -699,12 +710,12 @@ void getClassLevelSize(uint      obsSize,
                        int     **mpSign,
                        uint     *classLevelSize,
                        uint    **classLevel);
-void stackIncomingResponseArrays(uint mode);
-void unstackIncomingResponseArrays(uint mode);
-void unstackIncomingCovariateArrays(uint mode);
-void unstackIncomingCovariateArrays(uint mode);
-void stackIncomingArrays(uint mode);
-void unstackIncomingArrays(uint mode);
+void stackIncomingResponseArrays(char mode);
+void unstackIncomingResponseArrays(char mode);
+void unstackIncomingCovariateArrays(char mode);
+void unstackIncomingCovariateArrays(char mode);
+void stackIncomingArrays(char mode);
+void unstackIncomingArrays(char mode);
 void checkInteraction();
 void stackPreDefinedCommonArrays();
 void unstackPreDefinedCommonArrays();
@@ -816,6 +827,7 @@ char getBestSplit(uint    treeID,
                   uint  **splitValueMaxFactPtr,
                   double *splitStatistic,
                   char  **splitIndicator,
+                  char   *splitMIA,
                   char    multImpFlag);
 char randomSplit(uint    treeID,
                  Node   *parent,
@@ -829,6 +841,7 @@ char randomSplit(uint    treeID,
                  uint  **splitValueMaxFactPtr,
                  double *splitStatistic,
                  char  **splitIndicator,
+                 char   *splitMIA,
                  char    multImpFlag);
 typedef double (*customFunction) (uint    n,
                                   char   *membership,
@@ -857,6 +870,7 @@ char classificationXwghtSplit(uint    treeID,
                               uint  **splitValueMaxFactPtr,
                               double *splitStatistic,
                               char  **splitIndicator,
+                              char   *splitMIA,
                               char    multImpFlag);
 char regressionXwghtSplit(uint    treeID,
                           Node   *parent,
@@ -870,6 +884,7 @@ char regressionXwghtSplit(uint    treeID,
                           uint  **splitValueMaxFactPtr,
                           double *splitStatistic,
                           char  **splitIndicator,
+                          char   *splitMIA,
                           char    multImpFlag);
 char logRankNCR(uint    treeID,
                 Node   *parent,
@@ -883,20 +898,36 @@ char logRankNCR(uint    treeID,
                 uint  **splitValueMaxFactPtr,
                 double *splitStatistic,
                 char  **splitIndicator,
+                char   *splitMIA,
                 char    multImpFlag);
-char logRankCR (uint    treeID,
-                Node   *parent,
-                uint   *repMembrIndx,
-                uint    repMembrSize,
-                uint   *allMembrIndx,
-                uint    allMembrSize,
-                uint   *splitParameterMax,
-                double *splitValueMaxCont,
-                uint   *splitValueMaxFactSize,
-                uint  **splitValueMaxFactPtr,
-                double *splitStatistic,
-                char  **splitIndicator,
-                char    multImpFlag);
+char logRankCR(uint    treeID,
+               Node   *parent,
+               uint   *repMembrIndx,
+               uint    repMembrSize,
+               uint   *allMembrIndx,
+               uint    allMembrSize,
+               uint   *splitParameterMax,
+               double *splitValueMaxCont,
+               uint   *splitValueMaxFactSize,
+               uint  **splitValueMaxFactPtr,
+               double *splitStatistic,
+               char  **splitIndicator,
+               char   *splitMIA,
+               char    multImpFlag);
+char l2Impute(uint    treeID,
+              Node   *parent,
+              uint   *repMembrIndx,
+              uint    repMembrSize,
+              uint   *allMembrIndx,
+              uint    allMembrSize,
+              uint   *splitParameterMax,
+              double *splitValueMaxCont,
+              uint   *splitValueMaxFactSize,
+              uint  **splitValueMaxFactPtr,
+              double *splitStatistic,
+              char  **splitIndicator,
+              char   *splitMIA,
+              char    multImpFlag);
 void getMembrCountOnly (uint       treeID,
                         Terminal  *parent,
                         uint      *repMembrIndx,
@@ -916,6 +947,7 @@ char unsupervisedSplit(uint    treeID,
                        uint  **splitValueMaxFactPtr,
                        double *splitStatistic,
                        char  **splitIndicator,
+                       char   *splitMIA,
                        char    multImpFlag);
 char multivariateSplit (uint    treeID,
                         Node   *parent,
@@ -929,6 +961,7 @@ char multivariateSplit (uint    treeID,
                         uint  **splitValueMaxFactPtr,
                         double *splitStatistic,
                         char  **splitIndicator,
+                        char   *splitMIA,
                         char    multImpFlag);
 char customMultivariateSplit (uint    treeID,
                               Node   *parent,
@@ -942,6 +975,7 @@ char customMultivariateSplit (uint    treeID,
                               uint  **splitValueMaxFactPtr,
                               double *splitStatistic,
                               char  **splitIndicator,
+                              char   *splitMIA,
                               char    multImpFlag);
 char customSurvivalSplit (uint    treeID,
                          Node   *parent,
@@ -955,6 +989,7 @@ char customSurvivalSplit (uint    treeID,
                          uint  **splitValueMaxFactPtr,
                          double *splitStatistic,
                          char  **splitIndicator,
+                          char   *splitMIA,
                          char    multImpFlag);
 char customCompetingRiskSplit (uint    treeID,
                                Node   *parent,
@@ -968,6 +1003,7 @@ char customCompetingRiskSplit (uint    treeID,
                                uint  **splitValueMaxFactPtr,
                                double *splitStatistic,
                                char  **splitIndicator,
+                               char   *splitMIA,
                                char    multImpFlag);
 void stackSplitIndicator(uint   nodeSize,
                          char **localSplitIndicator);
@@ -1031,6 +1067,26 @@ void unstackSplitSurv(uint *localEventTimeCount,
                       uint *nodeLeftAtRisk,
                       uint *nodeRightEvent,
                       uint *nodeRightAtRisk);
+void stackAndGetSplitSurvL2(uint     treeID,
+                            Node    *parent,
+                            uint     localEventTimeSize,
+                            uint    *localEventTimeIndex,
+                            uint    *nodeParentEvent,
+                            uint    *nodeParentAtRisk,
+                            double **localRatio,
+                            double **localSurvival);
+void unstackAndGetSplitSurvL2(uint     localEventTimeSize,
+                              double  *localRatio,
+                              double  *localSurvival);
+void stackAndGetL2Impute(uint     treeID,
+                         Node    *parent,
+                         uint    *repMembrIndx,
+                         uint     repMembrSize,
+                         uint    *nonMissMembrIndx,
+                         uint     nonMissMembrSize,
+                         uint     localEventTimeSize,
+                         double  *localSurvival,
+                         double **l2Impute);
 uint stackAndConstructSplitVector(uint     treeID,
                                   uint     localMembershipSize,
                                   uint     randomCovariateIndex,
@@ -1101,6 +1157,40 @@ void unselectRandomCovariates(uint      treeID,
                               uint      nonMissMembrSizeStatic,
                               uint     *nonMissMembrIndx,
                               char      multImpFlag);
+char selectRandomCovariatesNew(uint     treeID,
+                            Node     *parent,
+                            uint     *repMembrIndx,
+                            uint      repMembrSize,
+                            uint     *covariateIndex,
+                            uint     *uniformCovariateSize,
+                            uint     *uniformCovariateIndex,
+                            double   *cdf,
+                            uint     *cdfSize,
+                            uint     *cdfSort,
+                            uint     *density,
+                            uint     *densitySize,
+                            uint    **densitySwap,
+                            uint     *covariate,
+                            uint     *actualCovariateCount,
+                            uint     *candidateCovariateCount,
+                            double   *splitVector,
+                            uint     *splitVectorSize,
+                            uint    **indxx,
+                            uint      nonMissMembrSizeStatic,
+                            uint     *nonMissMembrIndxStatic,
+                            uint     *nonMissMembrSize,
+                            uint    **nonMissMembrIndx,
+                            uint     *missMembrSize,
+                            uint    **missMembrIndx,
+                            char      multImpFlag);
+void unselectRandomCovariatesNew(uint      treeID,
+                              Node     *parent,
+                              uint      repMembrSize,
+                              uint     *indxx,
+                              uint      nonMissMembrSizeStatic,
+                              uint     *nonMissMembrIndx,
+                                 uint     *missMembrIndx,
+                              char      multImpFlag);
 uint virtuallySplitNode(uint  treeID,
                            char  factorFlag,
                            uint  mwcpSizeAbsolute,
@@ -1150,12 +1240,31 @@ char getPreSplitResult (uint      treeID,
                         double   *preSplitMean,
                         char      multImpFlag,
                         char      multVarFlag);
+char getPreSplitResultNew (uint      treeID,
+                           Node     *parent,
+                           uint      repMembrSize,
+                           uint     *repMembrIndx,
+                           uint     *nonMissMembrSize,
+                           uint    **nonMissMembrIndx,
+                           uint     *miaVectorLength,
+                           char    **miaVectorType,
+                           double  **splitVector,
+                           double   *preSplitMean,
+                           char      multImpFlag,
+                           char      multVarFlag);
 void unstackPreSplit (char      preliminaryResult,
                       char      multImpFlag,
                       char      multVarFlag,
                       uint      repMembrSize,
                       double   *splitVector,
                       uint     *nonMissMembrIndx);
+void unstackPreSplitNew (char      preliminaryResult,
+                         char      multImpFlag,
+                         char      multVarFlag,
+                         uint      repMembrSize,
+                         double   *splitVector,
+                         uint     *nonMissMembrIndx,
+                         char     *miaVectorType);
 char updateMaximumSplit(uint    treeID,
                         Node   *parent,
                         double  delta,
@@ -1173,6 +1282,25 @@ char updateMaximumSplit(uint    treeID,
                         uint  **splitValueMaxFactPtr,
                         void   *splitVectorPtr,
                         char  **splitIndicator);
+char updateMaximumSplitNew(uint    treeID,
+                           Node   *parent,
+                           double  delta,
+                           uint    candidateCovariateCount,
+                           uint    covariate,
+                           uint    index,
+                           char    factorFlag,
+                           uint    mwcpSizeAbsolute,
+                           uint    repMembrSize,
+                           char   *localSplitIndicator,
+                           char    miaType,
+                           double *deltaMax,
+                           uint   *splitParameterMax,
+                           double *splitValueMaxCont,
+                           uint   *splitValueMaxFactSize,
+                           uint  **splitValueMaxFactPtr,
+                           void   *splitVectorPtr,
+                           char  **splitIndicator,
+                           char  *splitMIA);
 void updateNodeStatistics(Node *parent, double delta, uint candidateCovariateCount, uint covariate);
 void getMeanResponseNew(uint       treeID,
                         Terminal  *parent,
@@ -1181,7 +1309,7 @@ void getMeanResponseNew(uint       treeID,
                         uint      *allMembrIndx,
                         uint       allMembrSize,
                         uint      *rmbrIterator);
-void updateEnsembleMean(uint     mode,
+void updateEnsembleMean(char     mode,
                         uint     treeID,
                         uint     serialTreeID,
                         char     omitDenominator);
@@ -1203,7 +1331,7 @@ void getMultiClassProbNew (uint       treeID,
                            uint      *allMembrIndx,
                            uint       allMembrSize,
                            uint      *rmbrIterator);
-void updateEnsembleMultiClass(uint     mode,
+void updateEnsembleMultiClass(char     mode,
                               uint     treeID,
                               uint     serialTreeID,
                               char     omitDenominator);
@@ -1223,13 +1351,13 @@ double getClassificationIndex(uint    size,
                               double *responsePtr,
                               double *predictedOutcome,
                               uint   *oobCount);
-void getAtRiskAndEventCountsNew (uint       treeID,
-                                 Terminal  *parent,
-                                 uint      *repMembrIndx,
-                                 uint       repMembrSize,
-                                 uint      *allMembrIndx,
-                                 uint       allMembrSize,
-                                 uint      *rmbrIterator);
+void getAtRiskAndEventCounts (uint       treeID,
+                              Terminal  *parent,
+                              uint      *repMembrIndx,
+                              uint       repMembrSize,
+                              uint      *allMembrIndx,
+                              uint       allMembrSize,
+                              uint      *rmbrIterator);
 void getLocalRatios (uint treeID, Terminal *parent);
 void getLocalCSH (uint treeID, Terminal *parent);
 void getLocalCIF (uint treeID, Terminal *parent);
@@ -1244,16 +1372,16 @@ void getMortality (uint treeID, Terminal *parent);
 void getNelsonAalen (uint treeID, Terminal *parent);
 void getCSH (uint treeID, Terminal *parent);
 void getCIF (uint treeID, Terminal *parent);
-void updateEnsembleSurvival(uint mode,
+void updateEnsembleSurvival(char mode,
                             uint treeID,
                             uint serialTreeID);
-void getEnsembleMortality(uint      mode, 
+void getEnsembleMortality(char      mode, 
                           uint      treeID,
                           uint      obsSize,
                           double  **ensembleMRTptr,
                           uint     *ensembleDen,
                           double   *mortality);
-void getEnsembleMortalityCR(uint      mode, 
+void getEnsembleMortalityCR(char      mode, 
                             uint      treeID,
                             uint      obsSize,
                             double  **ensembleMRTptr,
@@ -1276,13 +1404,13 @@ double getConcordanceIndex(int     polarity,
                            double *statusPtr, 
                            double *predictedOutcome,
                            uint   *oobCount);
-void getCRPerformance (uint     mode,
+void getCRPerformance (char     mode,
                        uint     obsSize,
                        double **responsePtr,
                        double **yearsLost,
                        uint    *denom,
                        double  *performanceVector);
-char imputeNode (uint     type,
+char imputeNode (char     type,
                  char     termFlag,
                  char     chainFlag,
                  uint     treeID, 
@@ -1292,7 +1420,7 @@ char imputeNode (uint     type,
                  uint    *iAbsIdx,
                  uint     iNodeSize);
 char restoreNodeMembership(uint  r,
-                           uint  mode, 
+                           char  mode, 
                            char  rootFlag,
                            uint  treeID, 
                            Node *parent, 
@@ -1305,13 +1433,13 @@ char restoreNodeMembership(uint  r,
                            uint *bootMembrIndxIter,
                            uint *rmbrIterator,
                            uint *ambrIterator);
-void imputeUpdateShadow (uint      mode, 
+void imputeUpdateShadow (char      mode, 
                          double  **shadowResponse, 
                          double  **shadowPredictor);
-void imputeUpdateSummary (uint     mode, 
+void imputeUpdateSummary (char     mode, 
                           uint     treeID);
 void imputeNodeAndSummarize(uint     r,
-                            uint     type,
+                            char     mode,
                             uint     treeID,
                             Node    *parent,
                             uint    *repMembrIndx,
@@ -1320,12 +1448,12 @@ void imputeNodeAndSummarize(uint     r,
                             uint     allMembrSize,
                             uint    *ngAllMembrIndx,
                             uint     ngAllMembrSize);
-void imputeSummary(uint      mode,
+void imputeSummary(char      mode,
                    char      selectionFlag);
-void imputeResponse(uint      mode,
-                       uint      treeID,
-                       double  **tempResponse);
-void imputeCommon(uint      mode,
+void imputeResponse(char      mode,
+                    uint      treeID,
+                    double  **tempResponse);
+void imputeCommon(char      mode,
                   uint      treeID,
                   char      selectionFlag,
                   char      predictorFlag);
@@ -1354,10 +1482,10 @@ void updateEventTypeSubsets(double *summaryStatus,
                             uint   *mRecordIndex,
                             uint   *meIndividualSize,
                             uint  **eIndividual);
-void stackShadow (uint mode, uint treeID);
-void unstackShadow (uint mode, uint treeID, char respFlag, char covrFlag);
-char xferMissingness(uint type, Node *source, Terminal *destination);
-char getMarginalNodeMembership(uint     mode,
+void stackShadow (char mode, uint treeID);
+void unstackShadow (char mode, uint treeID, char respFlag, char covrFlag);
+char xferMissingness(char type, Node *source, Terminal *destination);
+char getMarginalNodeMembership(char     mode,
                                char     rootFlag,
                                uint     treeID,
                                Node    *parent,
@@ -1372,18 +1500,18 @@ char getPartialNodeMembership(char       rootFlag,
                               uint       allMembrSize,
                               double   **observationPtr,
                               Terminal **membership);
-void acquireTree(uint mode, uint r, uint b);
-void finalizeProximity(uint mode);
-void updateProximity(uint mode, uint b);
+void acquireTree(char mode, uint r, uint b);
+void updateProximity(char mode, uint b);
+void finalizeProximity(char mode);
 void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth);
 char pruneBranch(uint obsSize, uint treeID, Node **nodesAtDepth, uint nadCount, uint ptnTarget, uint ptnCurrent);
 uint pruneTree(uint obsSize, uint treeID, uint ptnCount);
-void unstackAuxiliary2(uint mode, uint b);
-void unstackAuxiliary(uint mode, uint b);
+void unstackAuxiliary2(char mode, uint b);
+void unstackAuxiliary(char mode, uint b);
 void stackNodeAndTermList(uint treeID, uint length);
 void unstackNodeList(uint treeID);
 void unstackTermList(uint treeID);
-void printPseudoTNInfo(uint mode, uint b);
+void printPseudoTNInfo(char mode, uint b);
 Node *getTerminalNode(uint treeID, uint leaf);
 void getRawNodeSize(uint  type,
                     uint  treeID,
@@ -1404,6 +1532,7 @@ char forkAndUpdate(uint    treeID,
                    uint   *splitValueMaxFactPtr,
                    double  splitStatistic,
                    char   *localSplitIndicator,
+                   char    splitMIA,
                    char    multImpFlag,
                    char   *membershipIndicator,
                    uint   *leftDaughterSize,
@@ -1422,7 +1551,7 @@ char growTree(uint     r,
               uint    *bootMembrIndxIter,
               uint    *rmbrIterator,
               uint    *ambrIterator);
-char restoreTree(uint    mode,
+char restoreTree(char    mode,
                  uint    b,
                  Node   *parent,
                  ulong  *offset,
@@ -1466,7 +1595,7 @@ void initTerminalNodeMembership(uint       treeID,
                                 Terminal  *parent,
                                 uint      *allMembrIndx,
                                 uint       allMembrSize);
-void updateTerminalNodeOutcomesNew (uint       mode,
+void updateTerminalNodeOutcomesNew (char       mode,
                                     uint       treeID,
                                     Terminal  *parent,
                                     uint      *repMembrIndx,
@@ -1476,17 +1605,17 @@ void updateTerminalNodeOutcomesNew (uint       mode,
                                     uint      *rbmrIterator,
                                     uint      *ambrIterator);
 void updateEnsembleCalculations (char      multipleImputeFlag,
-                                 uint      mode,
+                                 char      mode,
                                  uint      b);
-char stackAndImputePerfResponse(uint      mode,
+char stackAndImputePerfResponse(char      mode,
                                 char      multipleImputeFlag,
                                 uint      treeID,
                                 uint      serialID,
                                 double ***responsePtr);
-double **stackAndImputeGenericResponse(char flag, uint mode, uint obsSize, uint treeID, uint serialID, double **responsePtr);
+double **stackAndImputeGenericResponse(char flag, char mode, uint obsSize, uint treeID, uint serialID, double **responsePtr);
 void unstackImputeResponse(char flag, uint obsSize, double **mResponsePtr);
 void getPerformance(uint      serialTreeID,
-                    uint      mode,
+                    char      mode,
                     uint      obsSize,
                     double  **responsePtr,
                     uint      *denomPtr,
@@ -1496,8 +1625,8 @@ void getPerformance(uint      serialTreeID,
                     double   *perfMRTptr,
                     double  **perfCLSptr,
                     double   *perfRGRptr);
-void finalizeEnsembleEstimates(uint mode);
-char getPerformanceFlag (uint mode, uint serialTreeID);
+void finalizeEnsembleEstimates(char mode);
+char getPerformanceFlag (char mode, uint serialTreeID);
 void getVariablesUsed(uint treeID, Node *rootPtr, uint *varUsedVector);
 void setUserTraceFlag (uint traceFlag);
 uint getUserTraceFlag ();
@@ -1515,59 +1644,61 @@ Node *antiMembership(Node    *parent,
                      uint     splitParameter,
                      uint     treeID);
 void permute(uint ranGenID, uint p, uint n, uint *indx);
-void getAntiMembership(uint       mode,
+void getAntiMembership(char       mode,
                        uint       treeID,
                        Terminal **vimpMembership,
                        uint       p);
-void getRandomMembership(uint       mode,
+void getRandomMembership(char       mode,
                          uint       treeID,
                          Terminal **vimpMembership,
                          uint       p);
-void getPermuteMembership(uint       mode,
+void getPermuteMembership(char       mode,
                           uint       treeID,
                           Terminal **vimpMembership,
                           uint       p);
-void getVimpMembership(uint      mode,
+void getVimpMembership(char      mode,
                        uint      treeID,
                        Terminal    **vimpMembership,
                        uint      p);
-void updateGenericVimpEnsemble (uint       mode,
+void updateGenericVimpEnsemble (char       mode,
                                 uint       treeID,
                                 uint       xVarIdx,
+                                uint      *treeDenom,
                                 Terminal **noiseMembership,
                                 char       ensembleFlag,
                                 double  ***genEnsembleMRT,
                                 double ****genEnsembleCLS,
                                 double  ***genEnsembleRGR);
-void updateTreeEnsemble (uint       mode,
+void updateTreeEnsemble (char       mode,
                          uint       treeID,
+                         uint      *treeDenom,
                          double  ***treeEnsembleMRT,
                          double ****treeEnsembleCLS,
                          double  ***treeEnsembleRGR);
-void updateVimpEnsemble (uint       mode,
+void updateVimpEnsemble (char       mode,
                          uint       treeID,
                          Terminal **vimpMembership,
                          uint       p);
-void summarizeVimpPerformance(uint       mode,
+void summarizeVimpPerformance(char       mode,
                               uint       treeID,
                               uint       p);
-void finalizeVimpPerformance(uint mode, uint rejectedTreeCount);
-void  stackVimpMembership(uint mode, Terminal ***membership);
-void  unstackVimpMembership(uint mode, Terminal **membership);
-void stackTreeEnsemble(uint         mode,
+void finalizeVimpPerformance(char mode, uint rejectedTreeCount);
+void  stackVimpMembership(char mode, Terminal ***membership);
+void  unstackVimpMembership(char mode, Terminal **membership);
+void stackTreeEnsemble(char         mode,
                        uint         treeID,
                        uint       **denomTree,
                        double   ****treeOutcome,
                        double  *****sTreeOutcome,
                        double   ****mcTreeOutcome);
-void unstackTreeEnsemble(uint       mode,
+void unstackTreeEnsemble(char       mode,
                          uint       treeID,
                          uint      *denomTree,
                          double  ***treeOutcome,
                          double ****sTreeOutcome,
                          double  ***mcTreeOutcome);
-void updateVimpCalculations (uint mode, uint b, uint intrIndex, Terminal **vimpMembership);
-void summarizeTreePerformance(uint mode, uint treeID);
+void updateVimpCalculations (char mode, uint b, uint intrIndex, Terminal **vimpMembership);
+void summarizeTreePerformance(char mode, uint treeID);
 void updatePartialCalculations (uint       treeID,
                                 uint       pVarIdx,
                                 Terminal **partialMembership);

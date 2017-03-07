@@ -1,63 +1,60 @@
-####**********************************************************************
-####**********************************************************************
-####
-####  RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-####  Version 2.4.1 (_PROJECT_BUILD_ID_)
-####
-####  Copyright 2016, University of Miami
-####
-####  This program is free software; you can redistribute it and/or
-####  modify it under the terms of the GNU General Public License
-####  as published by the Free Software Foundation; either version 3
-####  of the License, or (at your option) any later version.
-####
-####  This program is distributed in the hope that it will be useful,
-####  but WITHOUT ANY WARRANTY; without even the implied warranty of
-####  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-####  GNU General Public License for more details.
-####
-####  You should have received a copy of the GNU General Public
-####  License along with this program; if not, write to the Free
-####  Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-####  Boston, MA  02110-1301, USA.
-####
-####  ----------------------------------------------------------------
-####  Project Partially Funded By: 
-####  ----------------------------------------------------------------
-####  Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-####  National Science Foundation and grant R01 CA163739 from the National
-####  Cancer Institute.
-####
-####  Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-####  National Cancer Institute.
-####  ----------------------------------------------------------------
-####  Written by:
-####  ----------------------------------------------------------------
-####    Hemant Ishwaran, Ph.D.
-####    Director of Statistical Methodology
-####    Professor, Division of Biostatistics
-####    Clinical Research Building, Room 1058
-####    1120 NW 14th Street
-####    University of Miami, Miami FL 33136
-####
-####    email:  hemant.ishwaran@gmail.com
-####    URL:    http://web.ccs.miami.edu/~hishwaran
-####    --------------------------------------------------------------
-####    Udaya B. Kogalur, Ph.D.
-####    Adjunct Staff
-####    Department of Quantitative Health Sciences
-####    Cleveland Clinic Foundation
-####    
-####    Kogalur & Company, Inc.
-####    5425 Nestleway Drive, Suite L1
-####    Clemmons, NC 27012
-####
-####    email:  ubk@kogalur.com
-####    URL:    http://www.kogalur.com
-####    --------------------------------------------------------------
-####
-####**********************************************************************
-####**********************************************************************
+##  **********************************************************************
+##  **********************************************************************
+##  
+##    RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
+##  
+##    This program is free software; you can redistribute it and/or
+##    modify it under the terms of the GNU General Public License
+##    as published by the Free Software Foundation; either version 3
+##    of the License, or (at your option) any later version.
+##  
+##    This program is distributed in the hope that it will be useful,
+##    but WITHOUT ANY WARRANTY; without even the implied warranty of
+##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##    GNU General Public License for more details.
+##  
+##    You should have received a copy of the GNU General Public
+##    License along with this program; if not, write to the Free
+##    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+##    Boston, MA  02110-1301, USA.
+##  
+##    ----------------------------------------------------------------
+##    Project Partially Funded By: 
+##    ----------------------------------------------------------------
+##    Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
+##    National Science Foundation and grant R01 CA163739 from the National
+##    Cancer Institute.
+##  
+##    Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
+##    National Cancer Institute.
+##    ----------------------------------------------------------------
+##    Written by:
+##    ----------------------------------------------------------------
+##      Hemant Ishwaran, Ph.D.
+##      Director of Statistical Methodology
+##      Professor, Division of Biostatistics
+##      Clinical Research Building, Room 1058
+##      1120 NW 14th Street
+##      University of Miami, Miami FL 33136
+##  
+##      email:  hemant.ishwaran@gmail.com
+##      URL:    http://web.ccs.miami.edu/~hishwaran
+##      --------------------------------------------------------------
+##      Udaya B. Kogalur, Ph.D.
+##      Adjunct Staff
+##      Department of Quantitative Health Sciences
+##      Cleveland Clinic Foundation
+##      
+##      Kogalur & Company, Inc.
+##      5425 Nestleway Drive, Suite L1
+##      Clemmons, NC 27012
+##  
+##      email:  ubk@kogalur.com
+##      URL:    https://github.com/kogalur/randomForestSRC
+##      --------------------------------------------------------------
+##  
+##  **********************************************************************
+##  **********************************************************************
 
 
 partial.rfsrc <- function(
@@ -66,6 +63,8 @@ partial.rfsrc <- function(
   partial.type = NULL,
   partial.xvar = NULL,
   partial.values = NULL,
+  partial.xvar2 = NULL,
+  partial.values2 = NULL,
   partial.time = NULL,
   oob = TRUE,
   seed = NULL,
@@ -96,6 +95,16 @@ partial.rfsrc <- function(
   yvar.names <- object$yvar.names
   if (length(which(xvar.names == partial.xvar)) != 1) {
     stop("x-variable specified incorrectly:  ", partial.xvar)
+  }
+  if (!is.null(partial.xvar2)) {   
+      if (length(partial.xvar2) != length(partial.values2)) {
+          stop("second order x-variable and value vectors not of same length:  ", length(partial.xvar2), "vs", length(partial.values2))
+      }
+      for (i in 1:length(partial.xvar2)) {
+          if (length(which(xvar.names == partial.xvar2[i])) != 1) {
+              stop("second order x-variable element", i, "specified incorrectly:  ", partial.xvar2[i])
+          }
+      }
   }
   object$yvar <- as.data.frame(object$yvar)
   colnames(object$yvar) <- yvar.names
@@ -175,6 +184,9 @@ partial.rfsrc <- function(
                                   as.integer(which(xvar.names == partial.xvar)),
                                   as.integer(length(partial.values)),
                                   as.double(partial.values),
+                                  as.integer(length(partial.xvar2)),
+                                  as.integer(match(partial.xvar2, xvar.names)),
+                                  as.double(partial.values2),
                                   as.integer(0),
                                   as.integer(0),
                                   as.double(NULL),
@@ -195,10 +207,10 @@ partial.rfsrc <- function(
                       family = family,
                       partial.time = partial.time)
   if (grepl("surv", family)) {
-    partial.time.idx <- match(partial.time, event.info$time.interest)
-    if (sum(is.na(partial.time.idx)) > 0) {
-      stop("partial.time must be a subset of the time interest vector contained in the model")
-    }
+      partial.time.idx <- sapply(partial.time, function(x) {max(which(event.info$time.interest <= x))})
+      if (sum(is.na(partial.time.idx)) > 0) {
+          stop("partial.time must be a subset of the time interest vector contained in the model")
+      }
   }
   if (family == "surv") {
     if ((partial.type == "rel.freq") || (partial.type == "mort")) {
