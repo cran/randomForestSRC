@@ -1,62 +1,3 @@
-##  **********************************************************************
-##  **********************************************************************
-##  
-##    RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-##  
-##    This program is free software; you can redistribute it and/or
-##    modify it under the terms of the GNU General Public License
-##    as published by the Free Software Foundation; either version 3
-##    of the License, or (at your option) any later version.
-##  
-##    This program is distributed in the hope that it will be useful,
-##    but WITHOUT ANY WARRANTY; without even the implied warranty of
-##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##    GNU General Public License for more details.
-##  
-##    You should have received a copy of the GNU General Public
-##    License along with this program; if not, write to the Free
-##    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##    Boston, MA  02110-1301, USA.
-##  
-##    ----------------------------------------------------------------
-##    Project Partially Funded By: 
-##    ----------------------------------------------------------------
-##    Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-##    National Science Foundation and grant R01 CA163739 from the National
-##    Cancer Institute.
-##  
-##    Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-##    National Cancer Institute.
-##    ----------------------------------------------------------------
-##    Written by:
-##    ----------------------------------------------------------------
-##      Hemant Ishwaran, Ph.D.
-##      Director of Statistical Methodology
-##      Professor, Division of Biostatistics
-##      Clinical Research Building, Room 1058
-##      1120 NW 14th Street
-##      University of Miami, Miami FL 33136
-##  
-##      email:  hemant.ishwaran@gmail.com
-##      URL:    http://web.ccs.miami.edu/~hishwaran
-##      --------------------------------------------------------------
-##      Udaya B. Kogalur, Ph.D.
-##      Adjunct Staff
-##      Department of Quantitative Health Sciences
-##      Cleveland Clinic Foundation
-##      
-##      Kogalur & Company, Inc.
-##      5425 Nestleway Drive, Suite L1
-##      Clemmons, NC 27012
-##  
-##      email:  ubk@kogalur.com
-##      URL:    https://github.com/kogalur/randomForestSRC
-##      --------------------------------------------------------------
-##  
-##  **********************************************************************
-##  **********************************************************************
-
-
 plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted = TRUE, verbose = TRUE, ...)
 {
   sf.flag <- FALSE
@@ -88,8 +29,14 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
     x$err.rate <- matrix(x$err.rate, x$ntree, length(x$err.rate), byrow = TRUE)
     colnames(x$err.rate) <- colnames.err.rate
   }
-  if (x$family == "surv-CR" | x$family == "surv-CR") {
-    x$yvar.names <- ""
+  if (!is.null(x$perf.type) && (x$perf.type == "g.mean" || x$perf.type == "g.mean.drc")) {
+    x$err.rate <- x$err.rate[, 1, drop = FALSE]
+  }
+  if (x$family == "surv-CR" | x$family == "surv") {
+    plot.yvar.names <- ""
+  }
+  else {
+    plot.yvar.names <- paste("(", x$yvar.names, ")", sep = "")
   }
   old.par <- par(no.readonly = TRUE)
   cex <- par("cex")
@@ -98,12 +45,15 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
     if (x$ntree > 1 && !all(is.na(x$err.rate))) {
       err <- cbind(x$err.rate)      
       par(cex = cex, mfrow = c(1,1))
-      plot.err(err, x$yvar.names)    
+      plot.err(err, plot.yvar.names)
     }
   }
     else {
       err <- cbind(x$err.rate)
       imp <- cbind(x$importance)
+      if (!is.null(x$perf.type) && (x$perf.type == "g.mean" || x$perf.type == "g.mean.drc")) {
+        imp <- imp[, 1, drop = FALSE]
+      }
       x.var.names <- rownames(imp)
       n.pred <- nrow(imp)
       if (sorted) pred.order <- order(imp[, 1]) else pred.order <- n.pred:1
@@ -123,14 +73,14 @@ plot.rfsrc <- function (x, outcome.target = NULL, plots.one.page = TRUE, sorted 
           par(cex = cex, mfrow = c(1,1))
         }
       if (x$ntree > 1 & !all(is.na(x$err.rate))) {
-        plot.err(err, x$yvar.names)
+        plot.err(err, plot.yvar.names)
       }
       if (ncol(imp) > 1) {
         imp.out <- imp[rev(pred.order),, drop = FALSE]
-        dotChart(imp[pred.order,, drop = FALSE], x$yvar.names, dotchart.labels, cex = cex)
+        dotChart(imp[pred.order,, drop = FALSE], plot.yvar.names, dotchart.labels, cex = cex)
       }
       if (ncol(imp) == 1) {
-        dotChart(imp[pred.order, ], x$yvar.names, dotchart.labels, cex = cex)
+        dotChart(imp[pred.order, ], plot.yvar.names, dotchart.labels, cex = cex)
         if (!is.null(x$xvar.wt) & length(unique(x$xvar.wt)) > 1 ) {
           if (length(unique(x$xvar.wt)) == 1) x$xvar.wt <- 1
           imp.out <- as.data.frame(cbind(imp, imp/max(abs(imp), na.rm = TRUE), x$xvar.wt),
@@ -159,7 +109,7 @@ plot.err <- function(err, yname = NULL, ...) {
   on.exit(par(opar))
   matplot(1:nrow(err), err,
           xlab = "Number of Trees",
-          ylab = paste("Error Rate:", yname),
+          ylab = paste("Error rate", yname),
           type = c("p", "l")[1 + 1 * (nrow(err) > 1)], pch = 16, lty = 1, lwd = 3)
   if (ncol(err) > 1) {
     legend("topright",
@@ -177,7 +127,7 @@ dotChart <- function(x, yname = NULL, labels = NULL, cex = cex) {
       x.dot <- x
       gcolor <- par("fg")
     }
-  y.dot <- dot.chart.main(x, labels = labels, xlab = paste("Variable Importance:", yname),
+  y.dot <- dot.chart.main(x, labels = labels, xlab = paste("Variable Importance", yname),
                           cex = cex, pch="", lwd = 2, lcolor = "white", gcolor = gcolor)
   segments(rep(max(0, min(x.dot, na.rm = TRUE)) - 1e-6, length(y.dot)),
            y.dot, x.dot, y.dot, col=c(2,4)[1 + 1 * (x.dot > 0)], lwd = 4)

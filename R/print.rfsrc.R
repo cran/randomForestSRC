@@ -1,62 +1,3 @@
-##  **********************************************************************
-##  **********************************************************************
-##  
-##    RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-##  
-##    This program is free software; you can redistribute it and/or
-##    modify it under the terms of the GNU General Public License
-##    as published by the Free Software Foundation; either version 3
-##    of the License, or (at your option) any later version.
-##  
-##    This program is distributed in the hope that it will be useful,
-##    but WITHOUT ANY WARRANTY; without even the implied warranty of
-##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##    GNU General Public License for more details.
-##  
-##    You should have received a copy of the GNU General Public
-##    License along with this program; if not, write to the Free
-##    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##    Boston, MA  02110-1301, USA.
-##  
-##    ----------------------------------------------------------------
-##    Project Partially Funded By: 
-##    ----------------------------------------------------------------
-##    Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-##    National Science Foundation and grant R01 CA163739 from the National
-##    Cancer Institute.
-##  
-##    Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-##    National Cancer Institute.
-##    ----------------------------------------------------------------
-##    Written by:
-##    ----------------------------------------------------------------
-##      Hemant Ishwaran, Ph.D.
-##      Director of Statistical Methodology
-##      Professor, Division of Biostatistics
-##      Clinical Research Building, Room 1058
-##      1120 NW 14th Street
-##      University of Miami, Miami FL 33136
-##  
-##      email:  hemant.ishwaran@gmail.com
-##      URL:    http://web.ccs.miami.edu/~hishwaran
-##      --------------------------------------------------------------
-##      Udaya B. Kogalur, Ph.D.
-##      Adjunct Staff
-##      Department of Quantitative Health Sciences
-##      Cleveland Clinic Foundation
-##      
-##      Kogalur & Company, Inc.
-##      5425 Nestleway Drive, Suite L1
-##      Clemmons, NC 27012
-##  
-##      email:  ubk@kogalur.com
-##      URL:    https://github.com/kogalur/randomForestSRC
-##      --------------------------------------------------------------
-##  
-##  **********************************************************************
-##  **********************************************************************
-
-
 print.rfsrc <- function(x, outcome.target = NULL, ...) {
   if (sum(inherits(x, c("rfsrc", "forest"), TRUE) == c(1, 2)) == 2) {
     print.default(x)
@@ -117,20 +58,32 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
       conf.matx <- cbind(conf.matx,  class.error = round(1 - diag(conf.matx)/rowSums(conf.matx, na.rm = TRUE), 4))
       names(dimnames(conf.matx)) <- c("  observed", "predicted")
       brierS <- brier(x$yvar, if(!is.null(x$predicted.oob) && !all(is.na(x$predicted.oob))) x$predicted.oob else x$predicted)
-    }
-      else {
-        conf.matx <- brierS <- NULL
+      if (!is.null(x$perf.type) && (x$perf.type == "g.mean" || x$perf.type == "g.mean.rfq")) {
+        gmeanS <- round(gmean(x$yvar, if(!is.null(x$predicted.oob) && !all(is.na(x$predicted.oob))) x$predicted.oob else x$predicted, x$perf.type), 2)
+        iratio <- round(max(x$pi.hat, na.rm  = TRUE) / min(x$pi.hat, na.rm  = TRUE), 2)
       }
+      else {
+        gmeanS <- NULL
+      }
+    }
+    else {
+      conf.matx <- brierS <- gmeanS <- NULL
+    }
   }
   if (!is.null(x$err.rate)) {
-    err.rate <- cbind(x$err.rate)
+    err.rate <- cbind(x$err.rate)    
     if (grepl("surv", x$family)) {
       err.rate <- paste(round(100 * err.rate[nrow(err.rate), ], 2), "%", collapse=", ", sep = "")
     }
       else if (x$family == "class") {
         overall.err.rate <- paste(round(100 * err.rate[nrow(err.rate), 1], 2), "%", sep = "")
-        err.rate <- paste(round(err.rate[nrow(err.rate), ], 2), collapse=", ", sep = "")
         brierS <- round(100 * brierS, 2)
+        if (!is.null(gmeanS)) {
+          err.rate <- round(err.rate[nrow(err.rate), 1], 2)          
+        }
+        else {
+          err.rate <- paste(round(err.rate[nrow(err.rate), ], 2), collapse=", ", sep = "")
+        }
       }
         else if (x$family == "regr") {
           per.var <- round(100 * (1 - err.rate[nrow(err.rate), ] / var(x$yvar, na.rm = TRUE)), 2)
@@ -165,7 +118,7 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
                                         #    round(100*length(x$imputed.indv)/x$n,2), "%\n", sep="")      
     }
     cat("                     Number of trees: ", x$ntree,                "\n",sep="")
-    cat("          Minimum terminal node size: ", x$nodesize,             "\n", sep="")
+    cat("           Forest terminal node size: ", x$nodesize,             "\n", sep="")
     cat("       Average no. of terminal nodes: ", mean(x$leaf.count),     "\n", sep="")
     cat("No. of variables tried at each split: ", x$mtry,                 "\n", sep="")
     cat("              Total no. of variables: ", length(x$xvar.names),   "\n", sep="")
@@ -188,7 +141,11 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
       }
       if (x$family == "class" && !is.null(brierS)) {
         cat("              Normalized Brier score:", brierS, "\n")
-      } 
+      }
+      if (x$family == "class" && !is.null(gmeanS)) {
+        cat("                              G-mean: ", gmeanS,            "\n", sep="")
+        cat("                    Imbalanced ratio: ", iratio, "\n", sep="")
+      }
       cat("                          Error rate: ", err.rate,            "\n\n", sep="")
     }
     if (x$family == "class" && !is.null(conf.matx)) {
@@ -199,7 +156,12 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
           cat("Confusion matrix:\n\n")
         }
       print(conf.matx)
-      cat("\n\tOverall error rate:", overall.err.rate, "\n")
+      if (is.null(gmeanS)) {
+        cat("\n\tOverall error rate:", overall.err.rate, "\n")
+      }
+      else {
+        cat("\n")
+      }
     }
   }
     else {
@@ -233,6 +195,10 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
         if (x$family == "class" && !is.null(brierS)) {
           cat("       Test set Normalized Brier score:", brierS, "\n")
         }
+        if (x$family == "class" && !is.null(gmeanS)) {
+          cat("                     Test set G-mean: ", gmeanS, "\n", sep="")
+          cat("                    Imbalanced ratio: ", iratio, "\n", sep="")
+        }
         cat("                 Test set error rate: ", err.rate, "\n\n", sep="")
       }
       if (x$family == "class" && !is.null(conf.matx)) {
@@ -243,7 +209,12 @@ print.rfsrc <- function(x, outcome.target = NULL, ...) {
             cat("Confusion matrix:\n\n")
           }
         print(conf.matx)
-        cat("\n\tOverall error rate:", overall.err.rate, "\n")
+        if (is.null(gmeanS)) {
+          cat("\n\tOverall error rate:", overall.err.rate, "\n")
+        }
+        else {
+          cat("\n")
+        }
       }
     }
   if (sf.flag) {

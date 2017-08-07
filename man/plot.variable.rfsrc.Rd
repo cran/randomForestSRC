@@ -131,7 +131,9 @@
   in \emph{Biostatistics}.
 }
 \seealso{
-  \command{\link{rfsrc}}, \command{\link{rfsrcSyn}},
+  \command{\link{rfsrc}},
+  \command{\link{rfsrcSyn}},
+  
   \command{\link{predict.rfsrc}}
 }
 \examples{

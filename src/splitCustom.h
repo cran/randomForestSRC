@@ -1,6 +1,3 @@
-#ifndef RFSRCSPLITCUST_H
-#define RFSRCSPLITCUST_H
-
 /* 
    vvvvvvvv External Constants Below -- Do Not Change vvvvvvvv
 */
@@ -118,7 +115,3 @@ void          dealloc_dvector(double *v, unsigned int nh);
 
 unsigned int **alloc_uimatrix(unsigned int n2h, unsigned int nh);
 void          dealloc_uimatrix(unsigned int **v, unsigned int n2h, unsigned int nh);
-
-/* RF_CRAN_BEG */
-#endif
-/* RF_CRAN_END */

@@ -4,33 +4,47 @@ importFrom("parallel", mclapply)
 importFrom("graphics", "abline", "axis", "box", "boxplot", "legend",
            "lines", "matlines", "matplot", "mtext", "par", "plot",
            "plot.new", "plot.window", "points", "rug", "segments",
-           "strwidth", "text", "title")
+           "strwidth", "text", "title", "bxp")
 importFrom("stats", "as.formula", "dlnorm", "formula", "lowess",
            "median", "na.omit", "optim", "pgamma", "plnorm", "predict",
-           "quantile", "runif", "sd", "supsmu", "var")
-importFrom("utils", "installed.packages", "write.table")
+           "quantile", "runif", "sd", "supsmu", "var",
+           "hclust", "as.dist", "cutree", "model.matrix", "qnorm")
+importFrom("utils", "installed.packages", "write.table",
+           "txtProgressBar", "setTxtProgressBar")
+importFrom("grDevices", "gray")
 
-export(find.interaction,
+export(cindex,
+       
+       find.interaction,
        find.interaction.rfsrc,
+       get.mv.error,
+       get.mv.predicted,
+       get.mv.vimp,
+       
        impute,       
        impute.rfsrc,
        max.subtree,
        max.subtree.rfsrc,
+       partial,
        partial.rfsrc,
+       
        plot.competing.risk,
        plot.competing.risk.rfsrc,
        plot.survival,
        plot.survival.rfsrc,
        plot.rfsrc,
+       
        plot.variable,
-       plot.variable.rfsrc,
+       plot.variable.rfsrc,       
        predict.rfsrc,
        print.rfsrc,
+       quantileReg,
+       quantileReg.rfsrc,
        rfsrc,
        rfsrc.news,
-       rf2rfz,
        rfsrcSyn,
        rfsrcSyn.rfsrc,
+       
        stat.split,
        stat.split.rfsrc,
        var.select,
@@ -40,6 +54,7 @@ export(find.interaction,
 
 
 S3method(print, rfsrc)
+
 S3method(plot, rfsrc)
 S3method(predict, rfsrc)
 S3method(max, subtree)

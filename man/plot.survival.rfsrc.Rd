@@ -39,8 +39,7 @@
   }
   \item{...}{Further arguments passed to or from other methods.}
 }
-\details{
-  
+\details{  
   If \option{subset} is not specified, generates the following three
   plots (going from top to bottom, left to right):
   

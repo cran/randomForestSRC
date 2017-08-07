@@ -24,6 +24,5 @@ breast <- na.omit(breast)
 obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
 print(obj)
 
- 
 }}
 \keyword{datasets}

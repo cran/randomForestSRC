@@ -1,67 +1,10 @@
-##  **********************************************************************
-##  **********************************************************************
-##  
-##    RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-##  
-##    This program is free software; you can redistribute it and/or
-##    modify it under the terms of the GNU General Public License
-##    as published by the Free Software Foundation; either version 3
-##    of the License, or (at your option) any later version.
-##  
-##    This program is distributed in the hope that it will be useful,
-##    but WITHOUT ANY WARRANTY; without even the implied warranty of
-##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##    GNU General Public License for more details.
-##  
-##    You should have received a copy of the GNU General Public
-##    License along with this program; if not, write to the Free
-##    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##    Boston, MA  02110-1301, USA.
-##  
-##    ----------------------------------------------------------------
-##    Project Partially Funded By: 
-##    ----------------------------------------------------------------
-##    Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-##    National Science Foundation and grant R01 CA163739 from the National
-##    Cancer Institute.
-##  
-##    Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-##    National Cancer Institute.
-##    ----------------------------------------------------------------
-##    Written by:
-##    ----------------------------------------------------------------
-##      Hemant Ishwaran, Ph.D.
-##      Director of Statistical Methodology
-##      Professor, Division of Biostatistics
-##      Clinical Research Building, Room 1058
-##      1120 NW 14th Street
-##      University of Miami, Miami FL 33136
-##  
-##      email:  hemant.ishwaran@gmail.com
-##      URL:    http://web.ccs.miami.edu/~hishwaran
-##      --------------------------------------------------------------
-##      Udaya B. Kogalur, Ph.D.
-##      Adjunct Staff
-##      Department of Quantitative Health Sciences
-##      Cleveland Clinic Foundation
-##      
-##      Kogalur & Company, Inc.
-##      5425 Nestleway Drive, Suite L1
-##      Clemmons, NC 27012
-##  
-##      email:  ubk@kogalur.com
-##      URL:    https://github.com/kogalur/randomForestSRC
-##      --------------------------------------------------------------
-##  
-##  **********************************************************************
-##  **********************************************************************
-
-
 rfsrc <- function(formula,
                   data,
                   ntree = 1000,
                   bootstrap = c("by.root", "by.node", "none", "by.user"),
                   mtry = NULL,
+                  ytry = NULL,
+                  yvar.wt = NULL,
                   nodesize = NULL,
                   nodedepth = NULL,
                   splitrule = NULL,
@@ -77,6 +20,8 @@ rfsrc <- function(formula,
                   samptype = c("swr", "swor"),
                   samp = NULL,
                   case.wt = NULL,
+                  split.wt = NULL,
+                  forest.wt = FALSE,
                   xvar.wt = NULL,
                   forest = TRUE,
                   var.used = c(FALSE, "all.trees", "by.tree"),
@@ -86,15 +31,14 @@ rfsrc <- function(formula,
                   membership = FALSE,
                   statistics = FALSE,
                   tree.err = FALSE,
-                  coerce.factor = NULL,
-                  ...)
+                   ...)
 {
   univariate.nomenclature = TRUE
   user.option <- list(...)
   impute.only <- is.hidden.impute.only(user.option)
-  miss.tree <- is.hidden.impute.only(user.option)
   terminal.qualts <- is.hidden.terminal.qualts(user.option)
   terminal.quants <- is.hidden.terminal.quants(user.option)
+  perf.type <- is.hidden.perf.type(user.option)
   bootstrap <- match.arg(bootstrap, c("by.root", "by.node", "none", "by.user"))
   importance <- match.arg(as.character(importance), c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"))
   na.action <- match.arg(na.action, c("na.omit", "na.impute"))
@@ -103,12 +47,16 @@ rfsrc <- function(formula,
   split.depth <- match.arg(as.character(split.depth),  c("FALSE", "all.trees", "by.tree"))
   if (var.used == "FALSE") var.used <- FALSE
   if (split.depth == "FALSE") split.depth <- FALSE
-  if (missing(formula) | (!missing(formula) && is.null(formula))) {
-    formula <- as.formula("Unsupervised() ~ .")
-  }
   if (missing(data)) stop("data is missing")
-  formulaPrelim <- parseFormula(formula, data, NULL, coerce.factor)
-  coerce.factor <- formulaPrelim$coerce.factor
+  if (missing(formula) | (!missing(formula) && is.null(formula))) {
+    if (is.null(ytry)) {
+      formula <- as.formula("Unsupervised() ~ .")
+    }
+    else {
+      formula <- as.formula(paste("Unsupervised(", ytry, ")~."))
+    }
+  } 
+  formulaPrelim <- parseFormula(formula, data, ytry)
   if (any(is.na(data))) {
     data <- parseMissingData(formulaPrelim, data)
     miss.flag <- TRUE
@@ -142,10 +90,10 @@ rfsrc <- function(formula,
   data <- rm.na.levels(data, yvar.names)
   yfactor <- extract.factor(data, yvar.names)
   xfactor <- extract.factor(data, xvar.names)
-  yvar.types <- get.yvar.type(family, yfactor$generic.types, yvar.names, coerce.factor)
-  yvar.nlevels <- get.yvar.nlevels(family, yfactor$nlevels, yvar.names, data, coerce.factor)
-  xvar.types <- get.xvar.type(xfactor$generic.types, xvar.names, coerce.factor)
-  xvar.nlevels <- get.xvar.nlevels(xfactor$nlevels, xvar.names, data, coerce.factor)
+  yvar.types <- get.yvar.type(family, yfactor$generic.types, yvar.names)
+  yvar.nlevels <- get.yvar.nlevels(family, yfactor$nlevels, yvar.names, data)
+  xvar.types <- get.xvar.type(xfactor$generic.types, xvar.names)
+  xvar.nlevels <- get.xvar.nlevels(xfactor$nlevels, xvar.names, data)
   data <- finalizeData(c(yvar.names, xvar.names), data, na.action, miss.flag)
   data.row.names <- rownames(data)
   data.col.names <- colnames(data)
@@ -193,6 +141,17 @@ rfsrc <- function(formula,
         samptype <- "swr"
       }
   case.wt  <- get.weight(case.wt, n)
+  forest.wt <- match.arg(as.character(forest.wt), c(FALSE, TRUE, "inbag", "oob", "all"))
+  split.wt <- get.weight(split.wt, n.xvar)
+  if (family == "surv") {
+    yvar.wt <- NULL
+  }
+  else if (family == "unspv") {
+    yvar.wt <- NULL
+  }
+  else {
+    yvar.wt <- get.weight(yvar.wt, length(yvar.types))
+  }
   xvar.wt  <- get.weight(xvar.wt, n.xvar)
   yvar <- as.matrix(data[, yvar.names, drop = FALSE])
   if(dim(yvar)[2] == 0) {
@@ -211,48 +170,50 @@ rfsrc <- function(formula,
   big.data <- FALSE
   event.info <- get.grow.event.info(yvar, family, ntime = ntime)
   splitinfo <- get.grow.splitinfo(formulaDetail, splitrule, nsplit, event.info$event.type)
-  if (family == "surv") {
+  if (family == "surv" || family == "surv-CR") {
     if (length(event.info$event.type) > 1) {
-      if (missing(cause)) {
+      if (missing(cause) || is.null(cause)) {
+        cause <- NULL
         cause.wt <- rep(1, length(event.info$event.type))
       }
-        else {
-          if (length(cause) == 1) {
-            if (cause >= 1 && cause <= length(event.info$event.type)) {
-              cause.wt <- rep(0, length(event.info$event.type))
-              cause.wt[cause] <- 1
-            }
-              else {
-                cause.wt <- rep(1, length(event.info$event.type))
-              }
-          }
-            else {
-              if (length(cause) == length(event.info$event.type) && all(cause >= 0) && !all(cause == 0)) {
-                cause.wt <- cause / sum(cause)
-              }
-                else {
-                  cause.wt <- rep(1, length(event.info$event.type))
-                }
-            }
-        }
-    }
       else {
-        cause.wt = 1
+        if (length(cause) == 1) {
+          if (cause >= 1 && cause <= length(event.info$event.type)) {
+            cause.wt <- rep(0, length(event.info$event.type))
+            cause.wt[cause] <- 1
+          }
+          else {
+            cause.wt <- rep(1, length(event.info$event.type))
+          }
+        }
+        else {
+          if (length(cause) == length(event.info$event.type) && all(cause >= 0) && !all(cause == 0)) {
+            cause.wt <- cause / sum(cause)
+          }
+          else {
+            cause.wt <- rep(1, length(event.info$event.type))
+          }
+        }
       }
+    }
+    else {
+      cause <- NULL
+      cause.wt = 1
+    }
     family <- get.coerced.survival.fmly(family, event.info$event.type, splitinfo$name)
   }
-    else {
-      cause.wt <- NULL
-    }
+  else {
+    cause <- cause.wt <- NULL
+  }
   nodesize <- get.grow.nodesize(family, nodesize)
   perf <- NULL
   if ((bootstrap != "by.root") && (bootstrap != "by.user")) {
     importance <- "none"
-    perf <- FALSE
+    perf <- "none"
   }
   if (family == "unsupv") {
     importance <- "none"
-    perf <- FALSE
+    perf <- "none"
   }
   if (impute.only) {
     forest       <- FALSE
@@ -260,7 +221,7 @@ rfsrc <- function(formula,
     var.used     <- FALSE
     split.depth  <- FALSE
     membership   <- FALSE
-    perf         <- FALSE
+    perf         <- "none"
     importance   <- "none"
     terminal.qualts <- FALSE
     terminal.quants <- FALSE
@@ -279,9 +240,10 @@ rfsrc <- function(formula,
   membership.bits <-  get.membership(membership)
   statistics.bits <- get.statistics(statistics)
   split.cust.bits <- get.split.cust(splitinfo$cust)
-  perf.flag <- get.perf(perf, impute.only, family)
-  perf.bits <-  get.perf.bits(perf.flag)
+  perf <- get.perf(perf, impute.only, family, perf.type)
+  perf.bits <-  get.perf.bits(perf)
   samptype.bits <- get.samptype(samptype)
+  forest.wt.bits <- get.forest.wt(TRUE, bootstrap, forest.wt)
   na.action.bits <- get.na.action(na.action)
   tree.err.bits <- get.tree.err(tree.err)
   terminal.qualts.bits <- get.terminal.qualts(terminal.qualts, FALSE)
@@ -301,6 +263,7 @@ rfsrc <- function(formula,
                                                              perf.bits +
                                                                statistics.bits),
                                   as.integer(samptype.bits +
+                                               forest.wt.bits +
                                                    na.action.bits +
                                                      split.cust.bits +
                                                        tree.err.bits +
@@ -313,6 +276,7 @@ rfsrc <- function(formula,
                                   as.integer(formulaDetail$ytry),
                                   as.integer(nodesize),
                                   as.integer(nodedepth),
+                                  as.integer(length(cause.wt)),
                                   as.double(cause.wt),
                                   as.integer(ntree),
                                   as.integer(n),
@@ -326,11 +290,12 @@ rfsrc <- function(formula,
                                   as.integer(sampsize),
                                   as.integer(samp),
                                   as.double(case.wt),
+                                  as.double(split.wt),
+                                  as.double(yvar.wt),
                                   as.double(xvar.wt),
                                   as.double(xvar),
                                   as.integer(length(event.info$time.interest)),
                                   as.double(event.info$time.interest),
-                                  as.double(miss.tree),
                                   as.integer(nimpute),
                                   as.integer(get.rf.cores()))}, error = function(e) {
                                     print(e)
@@ -525,9 +490,9 @@ rfsrc <- function(formula,
                        terminal.qualts = terminal.qualts,
                        terminal.quants = terminal.quants,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.4.2",
+                       version = "2.5.0",
                        na.action = na.action,
-                       coerce.factor = coerce.factor)
+                       perf.type = perf.type)
     if (grepl("surv", family)) {
       forest.out$time.interest <- event.info$time.interest
     }
@@ -551,6 +516,13 @@ rfsrc <- function(formula,
   }
   else {
     proximity.out <- NULL
+  }
+  if (forest.wt != FALSE) {
+    forest.wt.out <- matrix(nativeOutput$weight, c(n, n), byrow = TRUE)
+    nativeOutput$weight <- NULL
+  }
+  else {
+    forest.wt.out <- NULL
   }
   if (membership) {
     membership.out <- matrix(nativeOutput$nodeMembership, c(n, ntree))
@@ -621,9 +593,12 @@ rfsrc <- function(formula,
     xvar = xvar,
     xvar.names = xvar.names,
     xvar.wt = xvar.wt,
+    split.wt = split.wt,
+    cause.wt = cause.wt,
     leaf.count = nativeOutput$leafCount,
     proximity = proximity.out,
     forest = forest.out,
+    forest.wt = forest.wt.out,    
     membership = membership.out,
     splitrule = splitinfo$name,
     inbag = inbag.out,
@@ -637,11 +612,12 @@ rfsrc <- function(formula,
     node.ytry.index = node.ytry.index,
     tree.err = tree.err
   )
-  if (is.null(coerce.factor$yvar.names)) remove(yvar)
+  remove(yvar)
   remove(xvar)
   nativeOutput$leafCount <- NULL
   remove(proximity.out)
   remove(forest.out)
+  remove(forest.wt.out)
   remove(membership.out)
   remove(inbag.out)
   remove(var.used.out)
@@ -787,7 +763,6 @@ rfsrc <- function(formula,
                 levels.names[[counter]] <- yfactor$order.levels[[which(yfactor$order == yvar.names[i])]]
               }
         }
-        if (!is.null(coerce.factor$yvar.names)) remove(yvar)
         tree.offset <- array(1, ntree)
         if (ntree > 1) {
           tree.offset[2:ntree] <- sum(1 + levels.count)

@@ -1,62 +1,3 @@
-##  **********************************************************************
-##  **********************************************************************
-##  
-##    RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-##  
-##    This program is free software; you can redistribute it and/or
-##    modify it under the terms of the GNU General Public License
-##    as published by the Free Software Foundation; either version 3
-##    of the License, or (at your option) any later version.
-##  
-##    This program is distributed in the hope that it will be useful,
-##    but WITHOUT ANY WARRANTY; without even the implied warranty of
-##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##    GNU General Public License for more details.
-##  
-##    You should have received a copy of the GNU General Public
-##    License along with this program; if not, write to the Free
-##    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##    Boston, MA  02110-1301, USA.
-##  
-##    ----------------------------------------------------------------
-##    Project Partially Funded By: 
-##    ----------------------------------------------------------------
-##    Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-##    National Science Foundation and grant R01 CA163739 from the National
-##    Cancer Institute.
-##  
-##    Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-##    National Cancer Institute.
-##    ----------------------------------------------------------------
-##    Written by:
-##    ----------------------------------------------------------------
-##      Hemant Ishwaran, Ph.D.
-##      Director of Statistical Methodology
-##      Professor, Division of Biostatistics
-##      Clinical Research Building, Room 1058
-##      1120 NW 14th Street
-##      University of Miami, Miami FL 33136
-##  
-##      email:  hemant.ishwaran@gmail.com
-##      URL:    http://web.ccs.miami.edu/~hishwaran
-##      --------------------------------------------------------------
-##      Udaya B. Kogalur, Ph.D.
-##      Adjunct Staff
-##      Department of Quantitative Health Sciences
-##      Cleveland Clinic Foundation
-##      
-##      Kogalur & Company, Inc.
-##      5425 Nestleway Drive, Suite L1
-##      Clemmons, NC 27012
-##  
-##      email:  ubk@kogalur.com
-##      URL:    https://github.com/kogalur/randomForestSRC
-##      --------------------------------------------------------------
-##  
-##  **********************************************************************
-##  **********************************************************************
-
-
 adrop3d.last <- function(x, d, keepColNames = FALSE) {
   if (!is.array(x)) {
     x
@@ -178,16 +119,25 @@ available <- function (package, lib.loc = NULL, quietly = TRUE)
       return(invisible(FALSE))
     }
 }
-bayes.rule <- function(prob) {
-  levels.class <- colnames(prob)
-  factor(levels.class[apply(prob, 1, function(x) {
-    if (!all(is.na(x))) {
-      resample(which(x == max(x, na.rm = TRUE)), 1)
-    }
+bayes.rule <- function(prob, pi.hat = NULL) {
+  class.labels <- colnames(prob)
+  if (is.null(pi.hat)) {
+    factor(class.labels[apply(prob, 1, function(x) {
+      if (!all(is.na(x))) {
+        resample(which(x == max(x, na.rm = TRUE)), 1)
+      }
       else {
         NA
       }
-  })], levels = levels.class)
+    })], levels = class.labels)
+  }
+  else {
+    minority <- which.min(pi.hat)
+    majority <- setdiff(1:2, minority)      
+    drc.rule <- rep(majority, nrow(prob))
+    drc.rule[prob[, minority] >= min(pi.hat, na.rm = TRUE)] <- minority
+    class.labels[drc.rule]
+  }
 }
 brier <- function(ytest, prob) {
   cl <- colnames(prob)
@@ -199,6 +149,17 @@ brier <- function(ytest, prob) {
   })
   norm.const <- (J / (J - 1))
   sum(bs * norm.const, na.rm = TRUE)
+}
+class.error <- function(y, yhat) {
+  cl <- sort(unique(y))
+  err <- rep(NA, length(cl))
+  for (k in 1:length(cl)) {
+    cl.pt  <- (y == cl[k])
+    if (sum(cl.pt) > 0) {
+        err[k] <- mean(y[cl.pt] != yhat[cl.pt])
+    }
+  }
+  err
 }
 cv.folds <- function (n, folds = 10) {
   split(resample(1:n), rep(1:folds, length = n))
@@ -483,6 +444,7 @@ get.grow.splitinfo <- function (formula.detail, splitrule, nsplit, event.type) {
                        "unsupv",               
                        "mv.mse",               
                        "mv.gini",              
+                       "mv.mix",               
                        "custom",               
                        "l2.impute")            
   fmly <- formula.detail$family
@@ -647,6 +609,65 @@ get.xvar.type <- function(generic.types, xvar.names, coerce.factor = NULL) {
   }
   xvar.type
 }
+get.mv.error <- function(obj, std = FALSE) {
+  c(sapply(obj$yvar.names, function(nn) {
+    o.coerce <- coerce.multivariate(obj, nn)
+    if (o.coerce$family == "class") {
+      utils::tail(o.coerce$err.rate[, 1], 1)
+    }
+    else {
+      if (std) {
+        utils::tail(o.coerce$err.rate, 1) / var(o.coerce$yvar, na.rm = TRUE)
+      }
+      else {
+        utils::tail(o.coerce$err.rate, 1)
+      }
+    }
+  }))
+}
+get.mv.predicted <- function(obj, oob = FALSE) {
+  nms <- NULL
+  pred <- do.call(cbind, lapply(obj$yvar.names, function(nn) {
+    o.coerce <- coerce.multivariate(obj, nn)
+    if (o.coerce$family == "class") {
+      nms <<- c(nms, paste(nn, ".", colnames(o.coerce$predicted), sep = ""))
+    }
+    else {
+      nms <<- c(nms, paste(nn))
+    }
+    if (oob) {
+      o.coerce$predicted.oob
+    }
+    else {
+      o.coerce$predicted
+    }
+  }))
+  colnames(pred) <- nms
+  pred
+}
+get.mv.vimp <- function(obj, std = FALSE) {
+  vimp <- do.call(cbind, lapply(obj$yvar.names, function(nn) {
+    o.coerce <- coerce.multivariate(obj, nn)
+    if (o.coerce$family == "class") {
+      o.coerce$importance[, 1]
+    }
+    else {
+      if (std) {
+        o.coerce$importance / var(o.coerce$yvar, na.rm = TRUE)
+      }
+      else {
+        o.coerce$importance
+      }
+    }
+  }))
+  if (!is.null(vimp)) {
+    colnames(vimp) <- obj$yvar.names
+    return(vimp)
+  }
+  else {
+    NULL
+  }
+}
 get.xvar.nlevels <- function(nlevels, xvar.names, xvar, coerce.factor = NULL) {
   xvar.nlevels <- nlevels
   if (!is.null(coerce.factor$xvar.names)) {
@@ -684,6 +705,40 @@ get.yvar.nlevels <- function(fmly, nlevels, yvar.names, yvar, coerce.factor = NU
     }
   }
     yvar.nlevels
+}
+gmean <- function(y, prob, perf.type = NULL, robust = FALSE) {
+  frq <- table(y)  
+  if (length(frq) > 2) {
+    return(NULL)
+  }
+  if (!is.null(perf.type) && perf.type == "g.mean.drc") {
+    threshold <- min(frq, na.rm = TRUE) / sum(frq, na.rm = TRUE)
+  }
+  else {
+    threshold <- 0.5
+  }
+  minority <- which.min(frq)
+  majority <- setdiff(1:2, minority)
+  yhat <- factor(1 * (prob[, minority] >= threshold), levels = c(0,1))
+  confusion.matrix <- table(y, yhat)
+  if (nrow(confusion.matrix) > 1) {
+    TN <- confusion.matrix[minority, 2]
+    FP <- confusion.matrix[minority, 1]
+    FN <- confusion.matrix[majority, 2]
+    TP <- confusion.matrix[majority, 1]
+    if (robust) {
+      sensitivity <- (1 + TP) / (1 + TP + FN)
+      specificity <- (1 + TN) / (1 + TN + FP)
+    }
+    else {
+      sensitivity <- TP / (TP + FN)
+      specificity <- TN / (TN + FP)
+    }
+    sqrt(sensitivity * specificity)
+  }
+  else {
+    NA
+  }
 }
 parseFormula <- function(f, data, ytry = NULL, coerce.factor = NULL) {
   if (!inherits(f, "formula")) {
@@ -780,7 +835,7 @@ parseFormula <- function(f, data, ytry = NULL, coerce.factor = NULL) {
           if (!(is.factor(Y) | is.numeric(Y))) {
             stop("the y-outcome must be either real or a factor.")
           }
-          if (is.factor.not.ordered(Y) || length(coerce.factor$yvar.names) == 1) {
+          if (is.factor(Y) || length(coerce.factor$yvar.names) == 1) {
             family <- "class"
           }
             else {
@@ -828,6 +883,42 @@ make.sample <- function(ntree, samp.size, boot.size = NULL) {
     inb[idx] <- frq
     inb
   }))
+}
+make.imbalanced.sample <- function(ntree, ratio = 0.5, y) {
+  if (ratio < 0 | ratio > 1) {
+    stop("undersampling ratio must be between 0 and 1:", ratio)
+  }
+  frq <- table(y)
+  class.labels <- names(frq)
+  minority <- which.min(frq)
+  majority <- setdiff(1:2, minority)
+  n.minority <- min(frq, na.rm = TRUE)
+  n.majority <- max(frq, na.rm = TRUE)
+  samp.size <- length(y)
+  rbind(sapply(1:ntree, function(bb){
+    inb <- rep(0, samp.size)
+    smp.min <- sample(which(y == class.labels[minority]), size = n.minority, replace = TRUE)
+    smp.maj <- sample(which(y == class.labels[majority]), size = ratio * n.majority, replace = TRUE)
+    smp <- c(smp.min, smp.maj)
+    inb.frq <- tapply(smp, smp, length)
+    idx <- as.numeric(names(inb.frq))
+    inb[idx] <- inb.frq
+    inb
+  }))
+}
+make.size <- function(y) {
+  frq <- table(y)
+  min(length(y), min(frq, na.rm = TRUE) * length(frq))
+}
+make.wt <- function(y) {
+  frq <- table(y)
+  class.labels <- names(frq)
+  wt <- rep(1, length(y))
+  nullO <- sapply(1:length(frq), function(j) {
+    wt[y == class.labels[j]] <<- prod(frq[-j], na.rm = TRUE)
+    NULL
+  })
+  wt / max(wt, na.rm = TRUE)
 }
 resample <- function(x, size, ...) {
   if (length(x) <= 1) {

@@ -1,4 +1,4 @@
-\name{impute.rfsrc}
+\name{impute}
 \alias{impute.rfsrc}
 \alias{impute}
 \title{Impute Only Mode}
@@ -23,7 +23,7 @@
   \item{data}{Data frame containing the data to be imputed.}
   \item{ntree}{Number of trees to grow.}
   \item{mtry}{Number of variables randomly sampled at each split.}
-  \item{nodesize}{Minimum terminal node size.}
+  \item{nodesize}{Forest average terminal node size.}
   \item{splitrule}{Splitting rule used to grow trees.}
   \item{nsplit}{Non-negative integer value used to specify random splitting.}
   \item{na.action}{Missing value action. See details below.}
@@ -79,20 +79,21 @@
     the multivariate pseudo-responses.  A multivariate composite
     splitting rule of dimension \code{ytry} is then applied to each of
     the \code{mtry} multivariate regression problems and the node split
-    on the variable leading to the best split.
+    on the variable leading to the best split (Tang and Ishwaran, 2017).
     
     \item If \code{mf.q} is specified, then a multivariate version of
     missForest imputation (Stekhoven and Buhlmann, 2012) is applied.  A
     fraction \code{mf.q} of the variables are used as multivariate
     responses and split on the remaining variables using a multivariate
-    composite splitting rule.  Missing data for responses are imputed by
-    prediction.  This is repeated with a new set of variables used as
-    responses (mutually exclusive to the previous), until all variables
-    have been imputed.  The entire process is repeated, and the
-    algorithm is iterated until a convergence criteria is met (specified
-    using options \code{max.iter} and \code{eps}).  Using an integer
-    value for \code{mf.q} is allowed, in which case a total of
-    \code{mf.q} variables are used as multivariate responses.
+    composite splitting rule (Tang and Ishwaran, 2017).  Missing data for
+    responses are imputed by prediction.  This is repeated with a new
+    set of variables used as responses (mutually exclusive to the
+    previous), until all variables have been imputed.  The entire
+    process is repeated, and the algorithm is iterated until a
+    convergence criteria is met (specified using options \code{max.iter}
+    and \code{eps}).  Using an integer value for \code{mf.q} is allowed,
+    in which case a total of \code{mf.q} variables are used as
+    multivariate responses.
     
     \item Prior to imputation, the data is processed and records with
     all values missing are removed, as are variables having all missing
@@ -130,8 +131,8 @@
   missing value imputation for mixed-type data.
   \emph{Bioinformatics}, 28(1):112-118.
   
-  Tang F. and Ishwaran H. (2015).  Random forest missing data
-  algorithms.  
+  Tang F. and Ishwaran H. (2017).  Random forest missing data
+  algorithms.  To appear in \emph{Statistical Analysis and Data Mining}.
 }
 \seealso{
   \command{\link{rfsrc}}
@@ -142,39 +143,39 @@
 ## example of survival imputation
 ## ------------------------------------------------------------
 
-#imputation using outcome splitting
+## unsupervised splitting
 data(pbc, package = "randomForestSRC")
-pbc.d <- impute.rfsrc(Surv(days, status) ~ ., data = pbc, nsplit = 3)
+pbc1.d <- impute(data = pbc, nodesize = 1, nsplit = 10, nimpute = 5)
 
-#when no formula is given we default to unsupervised splitting
-pbc2.d <- impute.rfsrc(data = pbc, nodesize = 1, nsplit = 10, nimpute = 5)
+#imputation using outcome splitting
+pbc2.d <- impute(Surv(days, status) ~ ., data = pbc, nsplit = 3)
 
 #random splitting can be reasonably good
-pbc3.d <- impute.rfsrc(Surv(days, status) ~ ., data = pbc,
+pbc4.d <- impute(Surv(days, status) ~ ., data = pbc,
           splitrule = "random", nodesize = 1, nimpute = 5)
 
 ## ------------------------------------------------------------
 ## example of regression imputation
 ## ------------------------------------------------------------
 
-air.d <- impute.rfsrc(Ozone ~ ., data = airquality, nimpute = 5)
-air2.d <- impute.rfsrc(data = airquality, nimpute = 5, nodesize = 1)
-air3.d <- impute.rfsrc(Ozone ~ ., data = airquality, nimpute = 5,
+air1.d <- impute(data = airquality, nimpute = 5, nodesize = 1)
+air2.d <- impute(Ozone ~ ., data = airquality, nimpute = 5)
+air3.d <- impute(Ozone ~ ., data = airquality, nimpute = 5,
            splitrule = "random", nodesize = 1)
 
 ## ------------------------------------------------------------
-## multivariate missForest imputation
+## multivariate missForest imputation -- slow!!
 ## ------------------------------------------------------------
 
 data(pbc, package = "randomForestSRC")
 
 ## use 10 percent of variables as responses
 ## i.e. multivariate missForest
-pbc.d <- impute.rfsrc(data = pbc, mf.q = .01, nodesize = 1)
+pbc.d <- impute(data = pbc, mf.q = .01, nodesize = 1)
 
 ## use 1 variable as the response
 ## i.e. original missForest algorithm
-pbc.d <- impute.rfsrc(data = pbc, mf.q = 1, nodesize = 1)
+pbc.d <- impute(data = pbc, mf.q = 1, nodesize = 1)
 }
 }
 \keyword{missing data}

@@ -10,9 +10,9 @@
                  "permute.ensemble", "random.ensemble", "anti.ensemble")[1],
   na.action = c("na.omit", "na.impute"), outcome = c("train", "test"),
   proximity = FALSE,
-
+  forest.wt = FALSE,
+  ptn.count = 0,
   
-
   var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
   do.trace = FALSE, membership = FALSE, statistics = FALSE, ...)
@@ -46,8 +46,12 @@
     not be valid and will depend on the context of the predict call.
     The safest choice is \code{TRUE} if proximity is desired.}
   
-
-  
+  \item{forest.wt}{Should the forest weight matrix for test observations
+    be calculated?  Choices are the same as proximity.}
+  \item{ptn.count}{The number of terminal nodes that each tree in the
+    grow forest should be pruned back to.  The terminal node membership
+    for the pruned forest is returned but no other action is taken.  The
+    default is \code{ptn.count=0} which does no pruning.}
   
   \item{var.used}{Record the number of times a variable is split?}
   \item{split.depth}{Return minimal depth for each variable for each case?}
@@ -143,9 +147,11 @@
   \item{++++++++}{for multivariate settings, additionally ++++++++} \cr
   
   \item{regrOutput}{List containing performance values for
-	  test regression responses (if such values are present).}
+	  test multivariate regression responses (applies only in
+	  multivariate settings).}
 	\item{clasOutput}{List containing performance values for
-	  test categorical (factor) responses (if such values are present).}
+	  test multivariate categorical (factor) responses (applies only in
+	  multivariate settings).}
   
   \item{++++++++}{for survival settings, additionally ++++++++} \cr
   

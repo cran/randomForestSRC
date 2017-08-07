@@ -1,62 +1,3 @@
-##  **********************************************************************
-##  **********************************************************************
-##  
-##    RANDOM FORESTS FOR SURVIVAL, REGRESSION, AND CLASSIFICATION (RF-SRC)
-##  
-##    This program is free software; you can redistribute it and/or
-##    modify it under the terms of the GNU General Public License
-##    as published by the Free Software Foundation; either version 3
-##    of the License, or (at your option) any later version.
-##  
-##    This program is distributed in the hope that it will be useful,
-##    but WITHOUT ANY WARRANTY; without even the implied warranty of
-##    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-##    GNU General Public License for more details.
-##  
-##    You should have received a copy of the GNU General Public
-##    License along with this program; if not, write to the Free
-##    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-##    Boston, MA  02110-1301, USA.
-##  
-##    ----------------------------------------------------------------
-##    Project Partially Funded By: 
-##    ----------------------------------------------------------------
-##    Dr. Ishwaran's work was funded in part by DMS grant 1148991 from the
-##    National Science Foundation and grant R01 CA163739 from the National
-##    Cancer Institute.
-##  
-##    Dr. Kogalur's work was funded in part by grant R01 CA163739 from the 
-##    National Cancer Institute.
-##    ----------------------------------------------------------------
-##    Written by:
-##    ----------------------------------------------------------------
-##      Hemant Ishwaran, Ph.D.
-##      Director of Statistical Methodology
-##      Professor, Division of Biostatistics
-##      Clinical Research Building, Room 1058
-##      1120 NW 14th Street
-##      University of Miami, Miami FL 33136
-##  
-##      email:  hemant.ishwaran@gmail.com
-##      URL:    http://web.ccs.miami.edu/~hishwaran
-##      --------------------------------------------------------------
-##      Udaya B. Kogalur, Ph.D.
-##      Adjunct Staff
-##      Department of Quantitative Health Sciences
-##      Cleveland Clinic Foundation
-##      
-##      Kogalur & Company, Inc.
-##      5425 Nestleway Drive, Suite L1
-##      Clemmons, NC 27012
-##  
-##      email:  ubk@kogalur.com
-##      URL:    https://github.com/kogalur/randomForestSRC
-##      --------------------------------------------------------------
-##  
-##  **********************************************************************
-##  **********************************************************************
-
-
 get.bootstrap <- function (bootstrap) {
   if (bootstrap == "by.root") {
     bootstrap <- 0
@@ -122,6 +63,53 @@ get.forest <- function (forest) {
       stop("Invalid choice for 'forest' option:  ", forest)
     }
   return (forest)
+}
+get.forest.wt <- function (grow.equivalent, bootstrap, weight) {
+  if (!is.null(weight)) {
+    if (weight == FALSE) {
+      weight <- 0
+    }
+      else if (grow.equivalent == TRUE) {
+        if ((bootstrap != "by.root") && (bootstrap != "by.user")) {
+          weight <- 2^0 + 2^2
+        }
+          else {
+            if (weight == TRUE) {
+              weight <- 2^0
+            }
+              else if (weight == "inbag") {
+                weight <- 2^0
+              }
+                else if (weight == "oob") {
+                  weight <- 2^0 + 2^1
+                }
+                  else if (weight == "all") {
+                    weight <- 2^0 + 2^2
+                  }
+                    else {
+                      stop("Invalid choice for 'weight' option:  ", weight)
+                    }
+          }
+      }
+        else if (grow.equivalent == FALSE) {
+            if (weight == TRUE) {
+                weight <- 2^0 + 2^2
+            }
+            else if (weight == "all") {
+                weight <- 2^0 + 2^2
+            }
+            else {
+                stop("Invalid choice for 'weight' option:  ", weight)
+            }
+        }
+        else {
+            stop("Invalid choice for 'weight' option:  ", weight)
+        }
+    }
+  else {
+      stop("Invalid choice for 'weight' option:  ", weight)
+  }
+  return (weight)
 }
 get.importance <-  function (importance) {
   if (!is.null(importance)) {
@@ -204,33 +192,53 @@ get.outcome <- function (outcome) {
       }
   return (outcome)
 }
-get.perf <-  function (perf, impute.only, family) {
-  if (impute.only != TRUE) {
-    if (!is.null(perf)) {
-      if (perf == TRUE) {
-        return (TRUE)
-      }
-        else if (perf == FALSE) {
-          return (FALSE)
-        }
-          else {
-            stop("Invalid choice for 'perf' option:  ", perf)
-          }
+get.perf <-  function (perf, impute.only, family, perf.type) {
+    if (impute.only == TRUE) {
+        result = "none"
     }
-      else {
-        return (TRUE)
-      }
-  }
     else {
-      return (FALSE)
+        if (is.null(perf)) {
+            result = "default"
+        }
+        else {
+            result = perf
+        }
     }
+    if (result == "default") {
+        if (family == "class") {
+            if (!is.null(perf.type)) {
+                if (perf.type == "g.mean") {
+                    result = "g.mean"
+                }
+                if (perf.type == "g.mean.rfq") {
+                    result = "g.mean.rfq"
+                }
+                if (perf.type == "brier") {
+                    result = "brier"
+                }
+            }
+        }
+    }
+    else {
+        result = "none"
+    }
+    return (result)
 }
 get.perf.bits <- function (perf) {
-  if (perf) {
-    return (2^2)
-  }
+    if (perf == "default") {
+        return (2^2)
+    }
+    else if (perf == "g.mean") {
+        return (2^2 + 2^14)
+    }
+    else if (perf == "g.mean.rfq") {
+        return (2^2 + 2^15)
+    }
+    else if (perf == "brier") {
+        return (2^2 + 2^3)
+    }
     else {
-      return (0)
+        return (0)
     }
 }
 get.proximity <- function (grow.equivalent, proximity) {
@@ -329,7 +337,7 @@ get.proximity <- function (grow.equivalent, proximity) {
   }
   get.split.cust <- function (split.cust) {
     if (!is.null(split.cust)) {
-      if ((split.cust >= 1) & (split.cust <= 16)) {
+      if ((split.cust >= 1) && (split.cust <= 16)) {
         split.cust <- 256 * (split.cust - 1)
       }
         else {
@@ -488,34 +496,6 @@ get.proximity <- function (grow.equivalent, proximity) {
         as.logical(as.character(user.option$impute.only))
       }
   }
-  is.hidden.miss.tree.only <- function (user.option) {
-    if (is.null(user.option$miss.tree)) {
-      return(0)
-    }
-      else {
-        miss.value <- as.character(user.option$miss.tree)
-        if (is.na(as.logical(miss.value))) {
-          return(as.numeric(miss.value))
-        }
-          else {
-            if (as.logical(miss.value)) {
-              return(1.0/3.0)
-            }
-              else {
-                return(0)
-              }
-          }
-      }
-  }
-  is.hidden.ptn.count <-  function (user.option) {
-    if(is.null(user.option$ptn.count)) {
-      ptn.count <- 0
-    }
-      else {
-        ptn.count <- as.integer(user.option$ptn.count)
-      }
-    return(ptn.count)
-  }
   is.hidden.terminal.qualts <-  function (user.option) {
     if (is.null(user.option$terminal.qualts)) {
       !FALSE
@@ -531,6 +511,22 @@ get.proximity <- function (grow.equivalent, proximity) {
       else {
         as.logical(as.character(user.option$terminal.quants))
       }
+  }
+  is.hidden.perf.type <-  function (user.option) {
+    if (is.null(user.option$perf.type)) {
+      NULL
+    }
+      else {
+        as.character(user.option$perf.type)
+      }
+  }
+  is.hidden.ytry <-  function (user.option) {
+    if (is.null(user.option$ytry)) {
+      NULL
+    }
+    else {
+      as.integer(user.option$ytry)
+    }
   }
   get.univariate.target <- function(x, outcome.target = NULL) {
     if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") {

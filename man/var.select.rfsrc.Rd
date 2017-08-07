@@ -62,7 +62,7 @@
   \item{mvars}{Number of randomly selected variables used in the
     variable hunting algorithm (ignored when \option{method="md"}).}
   \item{mtry}{The mtry value used.}
-  \item{nodesize}{Minimum number of unique cases in a terminal node.}
+  \item{nodesize}{Forest average terminal node size.}
   \item{splitrule}{Splitting rule used.}
   \item{nsplit}{If non-zero, the specified tree splitting rule is
     randomized which significantly increases speed.}
