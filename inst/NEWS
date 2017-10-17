@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 2.5.0 (bld20170806)
+Version: 2.5.1 (bld20171017)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -8,7 +8,13 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 ---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.5.0
+CHANGES TO RELEASE 2.5.1
+---------------------------------------------------------------------------------
+Addition of configure file to source package allowing more accessible OpenMP
+parallel execution on systems that support it.
+  
+---------------------------------------------------------------------------------
+RELEASE 2.5.0
 ---------------------------------------------------------------------------------
 Introduction of conditional quantiles for a regression forest.
 Applies to both univariate and multivariate forests.  Can be used for
@@ -18,7 +24,7 @@ be used to calculate conditional moments, such as the mean and
 standard deviation.
 
 ---------------------------------------------------------------------------------
-CHANGES TO 2.4.2
+RELEASE 2.4.2
 ---------------------------------------------------------------------------------
 Bug fixes to partial.rfsrc() on R and C side.  Allowance of second
 order variable specification in this analysis.  Conditional importance

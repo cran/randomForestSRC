@@ -125,6 +125,9 @@
   Ishwaran H. and Kogalur U.B. (2007).  Random survival forests for R,
   \emph{Rnews}, 7(2):25-31.
   
+  Ishwaran H. (2007).  Variable importance in binary regression
+  trees and forests,  \emph{Electronic J. Statist.}, 1:519-537.
+
   Ishwaran H., Kogalur U.B., Blackstone E.H. and Lauer M.S.
   (2008).  Random survival forests, \emph{Ann. App.
     Statist.}, 2:841-860.

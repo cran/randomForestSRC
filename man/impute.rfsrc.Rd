@@ -11,7 +11,7 @@
   
   na.action = c("na.impute"),
   
-  
+   
   nimpute = 2, mf.q, blocks,
   always.use = NULL, max.iter = 10, eps = 0.01, verbose = TRUE,
   do.trace = FALSE, ...)

@@ -12,7 +12,7 @@
   proximity = FALSE,
   forest.wt = FALSE,
   ptn.count = 0,
-  
+   
   var.used = c(FALSE, "all.trees", "by.tree"),
   split.depth = c(FALSE, "all.trees", "by.tree"), seed = NULL,
   do.trace = FALSE, membership = FALSE, statistics = FALSE, ...)
@@ -45,14 +45,14 @@
     \code{"all"}, \code{TRUE}, or \code{FALSE} --- but some options may
     not be valid and will depend on the context of the predict call.
     The safest choice is \code{TRUE} if proximity is desired.}
-  
+   
   \item{forest.wt}{Should the forest weight matrix for test observations
     be calculated?  Choices are the same as proximity.}
   \item{ptn.count}{The number of terminal nodes that each tree in the
     grow forest should be pruned back to.  The terminal node membership
     for the pruned forest is returned but no other action is taken.  The
     default is \code{ptn.count=0} which does no pruning.}
-  
+   
   \item{var.used}{Record the number of times a variable is split?}
   \item{split.depth}{Return minimal depth for each variable for each case?}
   \item{seed}{Negative integer specifying seed for the random number
@@ -113,7 +113,7 @@
   \item{proximity}{Symmetric proximity matrix of the test data.}
   \item{forest}{The grow forest.}
   
-                   
+                    
   
   \item{membership}{Matrix recording terminal node membership for the
     test data where each column contains the node number that a

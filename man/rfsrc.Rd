@@ -35,13 +35,12 @@ rfsrc(formula, data, ntree = 1000,
   nodedepth = NULL,
   splitrule = NULL,
   nsplit = 0,
-  split.null = FALSE,
   importance = c(FALSE, TRUE, "none", "permute", "random", "anti", 
                  "permute.ensemble", "random.ensemble",  "anti.ensemble"),
   
   na.action = c("na.omit", "na.impute"),
   
-  
+   
   nimpute = 1,
   ntime,
   cause,
@@ -52,7 +51,7 @@ rfsrc(formula, data, ntree = 1000,
   case.wt  = NULL,
   split.wt = NULL,
   forest.wt = FALSE,
-   
+    
   xvar.wt = NULL,  
   forest = TRUE,
   var.used = c(FALSE, "all.trees", "by.tree"),
@@ -109,9 +108,6 @@ rfsrc(formula, data, ntree = 1000,
     default, since deterministic splitting is not a compatible
     concept in that scenario.  However, values greater than one are
     accepted, as with the other split rules.}
-  \item{split.null}{Set this value to TRUE when testing the null
-    hypothesis.  In particular, this assumes there is no relationship
-    between y and x.}
   \item{importance}{Method for computing variable importance (VIMP).
     Calculating VIMP can be computationally expensive when the number of
     variables is high, thus the default action is
@@ -158,7 +154,7 @@ rfsrc(formula, data, ntree = 1000,
     \code{"oob"}, \code{"all"}, \code{TRUE}, or \code{FALSE}.  
     Setting \code{proximity = TRUE} is equivalent to 
     \code{proximity = "inbag"}.}
-  
+   
   \item{sampsize}{Requested size of bootstrap when \code{"by.root"} is in
     effect (if missing the default action is the usual bootstrap).}
   \item{samptype}{Type of bootstrap when \code{"by.root"} is in
@@ -342,6 +338,10 @@ rfsrc(formula, data, ntree = 1000,
       to develop \code{splitrule="custom2"} and so on. The package must
       be recompiled and installed for the custom split rules to become
       available.
+
+      \item Random splitting.  For all families, pure random splitting
+      can be invoked by setting \option{splitrule="random"}.  See
+      below for more details regarding randomized splitting rules.      
     }
     
     
@@ -633,7 +633,6 @@ rfsrc(formula, data, ntree = 1000,
   components:
   
   \item{call}{The original call to \command{rfsrc}.}
-  \item{formula}{The formula used in the call.}
   \item{family}{The family used in the analysis.}
   \item{n}{Sample size of the data (depends upon \code{NA}'s, see \option{na.action}).}
   \item{ntree}{Number of trees grown.}
@@ -847,10 +846,10 @@ rfsrc(formula, data, ntree = 1000,
 }
 \seealso{
   \command{\link{find.interaction}},
-  
+   
   \command{\link{impute}},
   \command{\link{max.subtree}},
-  
+   
   \command{\link{plot.competing.risk}},
   \command{\link{plot.rfsrc}},
   \command{\link{plot.survival}},
@@ -859,7 +858,7 @@ rfsrc(formula, data, ntree = 1000,
   \command{\link{print.rfsrc}},
   \command{\link{quantileReg}},
   \command{\link{rfsrcSyn}},
-  
+   
   \command{\link{stat.split}},
   \command{\link{var.select}},
   \command{\link{vimp}}

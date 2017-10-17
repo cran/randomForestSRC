@@ -9,8 +9,8 @@
   can select between marginal (unadjusted, but fast) and partial plots
   (adjusted, but slow).
 }
-\usage{\method{plot.variable}{rfsrc}(x, xvar.names, which.class,
-  outcome.target = NULL, time, surv.type = c("mort", "rel.freq",
+\usage{\method{plot.variable}{rfsrc}(x, xvar.names, target,
+  m.target = NULL, time, surv.type = c("mort", "rel.freq",
   "surv", "years.lost", "cif", "chf"), class.type =
   c("prob", "bayes"), partial = FALSE, oob = TRUE, show.plots = TRUE,
   plots.per.page = 4, granule = 5, sorted = TRUE, nvar, npts = 25,
@@ -21,13 +21,13 @@
     \code{(rfsrc, predict)}, or \code{(rfsrc, plot.variable)}.  See the
     examples below for illustration of the latter.}
   \item{xvar.names}{Names of the x-variables to be used.}
-  \item{which.class}{For classification families, an integer or
+  \item{target}{For classification families, an integer or
     character value specifying the class to focus on (defaults to the
     first class).  For competing risk families, an integer value between
     1 and \code{J} indicating the event of interest, where \code{J} is
     the number of event types.  The default is to use the first event
     type.}
-  \item{outcome.target}{Character value for multivariate families
+  \item{m.target}{Character value for multivariate families
     specifying the target outcome to be used. The default is to use the
     first coordinate.}
   \item{time}{For survival families, the time at which the predicted
@@ -60,12 +60,12 @@
     \item For regression, the predicted response is used.
     
     \item For classification, it is the predicted class probability
-    specified by \option{which.class}, or the class of maximum
+    specified by \option{target}, or the class of maximum
     probability depending on \option{class.type}.
     
     \item For multivariate families, it is the predicted value of the
-    outcome specified by \option{outcome.target} and if that is a
-    classification outcome, by \option{which.class}.
+    outcome specified by \option{m.target} and if that is a
+    classification outcome, by \option{target}.
     
     \item For survival, the choices are:
     \itemize{
@@ -82,7 +82,7 @@
 	    \item  The cumulative hazard function (\code{chf}).
     }
     In all three cases, the predicted value is for the event type
-    specified by \option{which.class}.  For \code{cif} and
+    specified by \option{target}.  For \code{cif} and
     \code{chf} the quantity is evaluated at the time point specified
     by \code{time}.
   }
@@ -133,7 +133,7 @@
 \seealso{
   \command{\link{rfsrc}},
   \command{\link{rfsrcSyn}},
-  
+   
   \command{\link{predict.rfsrc}}
 }
 \examples{
@@ -161,7 +161,7 @@ plot.variable(p.v)
 ## competing risks
 data(follic, package = "randomForestSRC")
 follic.obj <- rfsrc(Surv(time, status) ~ ., follic, nsplit = 3, ntree = 100)
-plot.variable(follic.obj, which.class = 2)
+plot.variable(follic.obj, target = 2)
 
 ## ------------------------------------------------------------
 ## regression
@@ -194,8 +194,8 @@ plot.variable(mtcars2.obj, partial = TRUE)
 ## multivariate regression
 ## ------------------------------------------------------------
 mtcars.mreg <- rfsrc(Multivar(mpg, cyl) ~., data = mtcars)
-plot.variable(mtcars.mreg, outcome.target = "mpg", partial = TRUE, nvar = 1)
-plot.variable(mtcars.mreg, outcome.target = "cyl", partial = TRUE, nvar = 1)
+plot.variable(mtcars.mreg, m.target = "mpg", partial = TRUE, nvar = 1)
+plot.variable(mtcars.mreg, m.target = "cyl", partial = TRUE, nvar = 1)
 
 
 ## ------------------------------------------------------------
@@ -205,8 +205,8 @@ mtcars2 <- mtcars
 mtcars2$carb <- factor(mtcars2$carb)
 mtcars2$cyl <- factor(mtcars2$cyl)
 mtcars.mix <- rfsrc(Multivar(carb, mpg, cyl) ~ ., data = mtcars2)
-plot.variable(mtcars.mix, outcome.target = "cyl", which.class = "4", partial = TRUE, nvar = 1)
-plot.variable(mtcars.mix, outcome.target = "cyl", which.class = 2, partial = TRUE, nvar = 1)
+plot.variable(mtcars.mix, m.target = "cyl", target = "4", partial = TRUE, nvar = 1)
+plot.variable(mtcars.mix, m.target = "cyl", target = 2, partial = TRUE, nvar = 1)
 
 
 }

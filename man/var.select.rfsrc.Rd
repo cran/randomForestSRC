@@ -20,7 +20,7 @@
   
   na.action = c("na.omit", "na.impute"),
   
-  
+   
   always.use = NULL, nrep = 50, K = 5, nstep = 1,
   prefit =  list(action = (method != "md"), ntree = 100,
   mtry = 500, nodesize = 3, nsplit = 1),

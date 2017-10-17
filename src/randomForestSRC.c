@@ -1,5 +1,5 @@
 #include "randomForestSRC.h"
-
+ 
 
 SEXP RF_sexpVector[2];
 
@@ -129,6 +129,7 @@ double   *RF_fullEnsembleCLS_;
 double   *RF_oobEnsembleRGR_;
 double   *RF_fullEnsembleRGR_;
 double     *RF_proximity_;
+ 
 double     *RF_weight_;
 uint      RF_opt;
 uint      RF_optHigh;
@@ -142,11 +143,13 @@ int       RF_nodeDepth;
 uint      RF_crWeightSize;
 double   *RF_crWeight;
 uint      RF_mtry;
+uint      RF_htry;
 uint      RF_bootstrapSize;
 uint    **RF_bootstrapIn;
 double   *RF_caseWeight;
-double   *RF_xSplitStatWt;
+double   *RF_xSplitStatWeight;
 double   *RF_yWeight;
+ 
 double   *RF_xWeight;
 uint      RF_ptnCount;
 int       RF_numThreads;
@@ -162,9 +165,9 @@ uint      RF_xSize;
 double  **RF_responseIn;
 double  **RF_observationIn;
 char     *RF_xType;
-int      *RF_xLevels;
+uint     *RF_xLevels;
 char     *RF_rType;
-int      *RF_rLevels;
+uint     *RF_rLevels;
 uint      RF_ytry;
 uint      RF_fobservationSize;
 uint      RF_frSize;
@@ -266,6 +269,7 @@ int      *RF_fmpIndex;
 double   **RF_importancePtr;
 double **RF_sImputeResponsePtr;
 double **RF_sImputePredictorPtr;
+double **RF_sImputeDataPtr;
 double **RF_sOOBImputeResponsePtr;
 double **RF_sOOBImputePredictorPtr;
 uint  **RF_MEMB_ID_ptr;
@@ -278,6 +282,7 @@ uint  **RF_TN_ACNT_ptr;
 double **RF_proximityPtr;
 double **RF_proximityDenPtr;
 double  *RF_proximityDen;
+ 
 uint    RF_rejectedTreeCount;
 uint    RF_validTreeCount;
 uint    RF_stumpedTreeCount;
@@ -512,7 +517,7 @@ char bootstrap (char     mode,
                         &caseIndexSize,
                         caseIndexSlot,
                         cdf,
-                        &cdfSize,
+                        cdfSize,
                         density,
                         &densitySize,
                         densitySwap,
@@ -1051,7 +1056,7 @@ double getGMeanIndex(uint    size,
   free_dvector(falseRate, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
   return result;
 }
-double getGMeanDRC(uint     size,
+double getGMeanQC(uint     size,
                    uint     rTarget,
                    double  *responsePtr,
                    double **outcomeCLS,
@@ -1078,7 +1083,7 @@ double getGMeanDRC(uint     size,
   for (i = 1; i <= size; i++) {
     if (denomCount[i] > 0) {
       cumDenomCount += 1;
-      if (outcomeCLS[minorityClass][i] >= threshold) {
+      if (outcomeCLS[minorityClass][i] < threshold) {
         predictedOutcome[i] = (double) minorityClass;
       }
       else {
@@ -1180,18 +1185,17 @@ void processDefaultGrow() {
   RF_optHigh = RF_optHigh & (~OPT_TERM_INCG);
   RF_optHigh = RF_optHigh & (~OPT_MEMB_INCG);
   RF_frSize = RF_fobservationSize = 0;
+   
   if (RF_opt & OPT_IMPU_ONLY) {
     RF_opt                  = RF_opt & (OPT_IMPU_ONLY | OPT_BOOT_TYP1 | OPT_BOOT_TYP2);
     RF_optHigh              = RF_optHigh & (OPT_MISS_SKIP | OPT_MISS_MIA | OPT_MISS_MIAH | OPT_BOOT_SWOR);
-    RF_opt                  = RF_opt | OPT_MISS;
-    RF_opt = RF_opt | OPT_LEAF;
   }
   else {
-    RF_opt                  = RF_opt | OPT_MISS;
-    RF_opt = RF_opt | OPT_LEAF;
     RF_opt                  = RF_opt | OPT_FENS;
     RF_opt                  = RF_opt | OPT_OENS;
   }
+  RF_opt = RF_opt | OPT_MISS;
+  RF_opt = RF_opt | OPT_LEAF;
   if ( (!(RF_opt & OPT_BOOT_TYP1) &&  (RF_opt & OPT_BOOT_TYP2)) ||
        ( (RF_opt & OPT_BOOT_TYP1) && !(RF_opt & OPT_BOOT_TYP2))) {
     RF_bootstrapSize = RF_observationSize;
@@ -1203,6 +1207,7 @@ void processDefaultGrow() {
       RF_opt = RF_opt | OPT_PROX_IBG;
       RF_opt = RF_opt | OPT_PROX_OOB;
     }
+     
     if (RF_optHigh & OPT_WGHT) {
       RF_optHigh = RF_optHigh & (~OPT_WGHT_TYP1);
       RF_optHigh = RF_optHigh |   OPT_WGHT_TYP2;
@@ -1280,6 +1285,7 @@ void processDefaultPredict() {
       RF_opt = RF_opt | OPT_PROX_IBG;
       RF_opt = RF_opt | OPT_PROX_OOB;
     }
+     
     if (RF_optHigh & OPT_WGHT) {
       if ( (!(RF_opt & OPT_BOOT_TYP1) &&  (RF_opt & OPT_BOOT_TYP2)) ||
            ( (RF_opt & OPT_BOOT_TYP1) && !(RF_opt & OPT_BOOT_TYP2))) { 
@@ -1334,6 +1340,7 @@ void processDefaultPredict() {
         RF_opt = RF_opt | OPT_PROX_IBG;
         RF_opt = RF_opt | OPT_PROX_OOB;
       }
+       
       if (RF_optHigh & OPT_WGHT) {
         RF_optHigh = RF_optHigh & (~OPT_WGHT_TYP1);
         RF_optHigh = RF_optHigh |   OPT_WGHT_TYP2;
@@ -1356,11 +1363,13 @@ void processDefaultPredict() {
       RF_opt     = RF_opt & (~OPT_PROX);
       RF_opt     = RF_opt & (~OPT_OENS);
       RF_opt     = RF_opt & (~OPT_FENS);
+       
       RF_optHigh = RF_optHigh & (~OPT_WGHT);
   }
   else {
     RF_optHigh = RF_optHigh & (~OPT_MEMB_PRUN);
   }
+   
   if (RF_opt & OPT_PERF) {
   }
   else {
@@ -1431,17 +1440,17 @@ char bookFactor(Factor *f) {
     RF_nativeExit();
   }
   if (f -> cardinalGroupBinary == NULL) {
-    uint *leftLevel = uivector(1, f -> r);
+    uint *leftLevel = uivector(1, f -> cardinalGroupCount);
     f -> cardinalGroupBinary = (uint **) new_vvector(1, f -> cardinalGroupCount, NRUTIL_UPTR);
     for (i=1; i <= f -> cardinalGroupCount; i++) {
       (f -> cardinalGroupBinary)[i] = uivector(1, ((uint*) f -> cardinalGroupSize)[i]);
       row = 0;
-      for (j = 1; j <= i; j++) {
+      for (j = 1; j <= f -> cardinalGroupCount; j++) {
         leftLevel[j] = 0;
       }
       bookPair(f -> r , i, 1, &row, leftLevel, f);
     }
-    free_uivector(leftLevel, 1, f -> r);
+    free_uivector(leftLevel, 1, f -> cardinalGroupCount);
     result = TRUE;
   }
   else {
@@ -1465,37 +1474,37 @@ char unbookFactor(Factor *f) {
   }
   return result;
 }
-void bookPair (uint   levelCount,
+void bookPair (uint    levelCount,
                uint    groupIndex,
-               uint    setColumn,
-               uint   *setRow,
-               uint   *daughter,
+               uint    levelIndex,
+               uint   *row,
+               uint   *level,
                Factor *f) {
   uint i;
-  daughter[setColumn] ++;
-  if (setColumn < groupIndex) {
-    setColumn ++;
-    daughter[setColumn] ++;
-    while (daughter[setColumn] < daughter[setColumn-1]) {
-      daughter[setColumn] ++;
+  level[levelIndex] ++;
+  if (levelIndex < groupIndex) {
+    levelIndex ++;
+    level[levelIndex] ++;
+    while (level[levelIndex] < level[levelIndex-1]) {
+      level[levelIndex] ++;
     }
-    bookPair(levelCount, groupIndex, setColumn, setRow, daughter, f);
-    daughter[setColumn] = 0;
-    setColumn --;
-    if ((*setRow) < ((uint*) (f -> cardinalGroupSize))[groupIndex]) {
-      if (daughter[setColumn] < levelCount - (groupIndex - setColumn)) {
-        bookPair(levelCount, groupIndex, setColumn, setRow, daughter, f);
+    bookPair(levelCount, groupIndex, levelIndex, row, level, f);
+    level[levelIndex] = 0;
+    levelIndex --;
+    if ((*row) < ((uint*) (f -> cardinalGroupSize))[groupIndex]) {
+      if (level[levelIndex] < levelCount - (groupIndex - levelIndex)) {
+        bookPair(levelCount, groupIndex, levelIndex, row, level, f);
       }
     }
   }
   else {
-    (*setRow)++;
-    (f -> cardinalGroupBinary)[groupIndex][*setRow] = 0;
+    (*row)++;
+    (f -> cardinalGroupBinary)[groupIndex][*row] = 0;
     for (i=1; i <=groupIndex; i++) {
-      (f -> cardinalGroupBinary)[groupIndex][*setRow] += upower(2, daughter[i] - 1);
+      (f -> cardinalGroupBinary)[groupIndex][*row] += upower(2, level[i] - 1);
     }
-    if ( (levelCount > 2) && (daughter[setColumn] < levelCount)) {
-      bookPair(levelCount, groupIndex, setColumn, setRow, daughter, f);
+    if ( (levelCount > 2) && (level[levelIndex] < levelCount)) {
+      bookPair(levelCount, groupIndex, levelIndex, row, level, f);
     }
   }
 }
@@ -4209,119 +4218,39 @@ void updateEventTypeSubsets(double *summaryStatus,
   }
 }
 void stackShadow (char mode, uint treeID) {
-  uint *nonMissIndex;
-  uint *permuteIndex;
-  uint * permuteSize;
-  char *nullSplitShadowFlag;
   char  vimpShadowFlag;
-  uint  unsignedIndexSource;
-  uint  mpIndexIter;
   uint i, j, p;
-  nonMissIndex        = NULL;  
-  permuteIndex        = NULL;  
-  permuteSize         = NULL;  
-  nullSplitShadowFlag = NULL;  
-  if (RF_opt & OPT_SPLT_NULL) {
-    nullSplitShadowFlag = cvector(1, RF_ySize);
-    for (p = 1; p <= RF_ySize; p++) {
-      nullSplitShadowFlag[p] = TRUE;
-    }
+  if (RF_mResponseFlag == TRUE) {
     RF_response[treeID] = (double **) new_vvector(1, RF_ySize, NRUTIL_DPTR);
-    nonMissIndex = uivector(1, RF_observationSize);
-    permuteIndex = uivector(1, RF_observationSize);
-    permuteSize  = uivector(1, RF_ySize);
     for (p = 1; p <= RF_ySize; p++) {
-      RF_response[treeID][p] = dvector(1, RF_observationSize);
-      for (i = 1; i <= RF_observationSize; i++) {
-        RF_response[treeID][p][i] = RF_responseIn[p][i];
-      }
+      RF_response[treeID][p] = RF_responseIn[p];
     }
-    mpIndexIter = 1;
-    for (p = 1; p <= RF_ySize; p++) {
-      permuteSize[p] = RF_observationSize;
-      for (i = 1; i <= RF_observationSize; i++) {
-        nonMissIndex[i] = i;
+    for (p = 1; p <= RF_mpIndexSize; p++) {
+      if (RF_mpIndex[p] < 0) {
+        RF_response[treeID][(uint) abs(RF_mpIndex[p])] = dvector(1, RF_observationSize);
+        for (i = 1; i <= RF_observationSize; i++) {
+          RF_response[treeID][(uint) abs(RF_mpIndex[p])][i] = RF_responseIn[(uint) abs(RF_mpIndex[p])][i];
+        }
       }
-      if (RF_mRecordSize > 0) {
-        if (RF_mpIndex[mpIndexIter] < 0) {
-          unsignedIndexSource = (uint) abs(RF_mpIndex[p]);
-          if (unsignedIndexSource == p) {
-            permuteSize[unsignedIndexSource] = 0;
-            for (i = 1; i <= RF_observationSize; i++) {
-              if (RF_mRecordMap[i] == 0) {
-                nonMissIndex[++(permuteSize[unsignedIndexSource])] = i;
-              }
-              else {
-                if (RF_mpSign[unsignedIndexSource][RF_mRecordMap[i]] == 0) {
-                  nonMissIndex[++(permuteSize[unsignedIndexSource])] = i;
-                }
-              }
-            }
-            mpIndexIter++;
-          }
-        }
-      }  
-      if(nullSplitShadowFlag[p]) {
-        permute (1, treeID, permuteSize[p], permuteIndex);
-        for (i = 1; i <= permuteSize[p]; i++) {
-          RF_response[treeID][p][nonMissIndex[i]] = RF_responseIn[p][nonMissIndex[permuteIndex[i]]];
-        }
+      else {
+        p = RF_mpIndexSize;
       }
     }
     if (RF_timeIndex > 0) {
       RF_time[treeID] = RF_response[treeID][RF_timeIndex];
-      RF_masterTimeIndex[treeID] = uivector(1, RF_observationSize);
-      updateTimeIndexArray(treeID,
-                           NULL,
-                           RF_observationSize,
-                           RF_time[treeID],
-                           TRUE,
-                           FALSE,
-                           RF_masterTimeIndex[treeID]);
+      if (RF_mTimeFlag == TRUE) {
+        RF_masterTimeIndex[treeID] = uivector(1, RF_observationSize);
+        for (i = 1; i <= RF_observationSize; i++) {
+          RF_masterTimeIndex[treeID][i] = RF_masterTimeIndexIn[i];
+        }
+      }
+      else {
+        RF_masterTimeIndex[treeID] = RF_masterTimeIndexIn;
+      }
     }
     if (RF_statusIndex > 0) {
       RF_status[treeID] =  RF_response[treeID][RF_statusIndex];
     }
-  }
-  else {
-    if (RF_mResponseFlag == TRUE) {
-      RF_response[treeID] = (double **) new_vvector(1, RF_ySize, NRUTIL_DPTR);
-      for (p = 1; p <= RF_ySize; p++) {
-        RF_response[treeID][p] = RF_responseIn[p];
-      }
-      for (p = 1; p <= RF_mpIndexSize; p++) {
-        if (RF_mpIndex[p] < 0) {
-          RF_response[treeID][(uint) abs(RF_mpIndex[p])] = dvector(1, RF_observationSize);
-          for (i = 1; i <= RF_observationSize; i++) {
-            RF_response[treeID][(uint) abs(RF_mpIndex[p])][i] = RF_responseIn[(uint) abs(RF_mpIndex[p])][i];
-          }
-        }
-        else {
-          p = RF_mpIndexSize;
-        }
-      }
-      if (RF_timeIndex > 0) {
-        RF_time[treeID] = RF_response[treeID][RF_timeIndex];
-        if (RF_mTimeFlag == TRUE) {
-          RF_masterTimeIndex[treeID] = uivector(1, RF_observationSize);
-          for (i = 1; i <= RF_observationSize; i++) {
-            RF_masterTimeIndex[treeID][i] = RF_masterTimeIndexIn[i];
-          }
-        }
-        else {
-          RF_masterTimeIndex[treeID] = RF_masterTimeIndexIn;
-        }
-      }
-      if (RF_statusIndex > 0) {
-        RF_status[treeID] =  RF_response[treeID][RF_statusIndex];
-      }
-    }
-  }
-  if (RF_opt & OPT_SPLT_NULL) {
-    free_uivector(nonMissIndex, 1, RF_observationSize);
-    free_uivector(permuteIndex, 1, RF_observationSize);
-    free_uivector(permuteSize,  1, RF_ySize);
-    free_cvector(nullSplitShadowFlag, 1, RF_ySize);
   }
   if (mode == RF_PRED) {
     if (RF_frSize > 0) {
@@ -4419,30 +4348,19 @@ void unstackShadow (char mode, uint treeID, char respFlag, char covrFlag) {
   char vimpShadowFlag;
   uint k, p;
   if (respFlag) {
-    if (RF_opt & OPT_SPLT_NULL) {
-      for (p = 1; p <= RF_ySize; p++) {
-        free_dvector(RF_response[treeID][p], 1, RF_observationSize);
+    if (RF_mResponseFlag == TRUE) {
+      for (p = 1; p <= RF_mpIndexSize; p++) {
+        if (RF_mpIndex[p] < 0) {
+          free_dvector(RF_response[treeID][(uint) abs(RF_mpIndex[p])], 1, RF_observationSize);
+        }
+        else {
+          p = RF_mpIndexSize;
+        }
       }
       free_new_vvector(RF_response[treeID], 1, RF_ySize, NRUTIL_DPTR);
       if (RF_timeIndex > 0) {
-        free_uivector(RF_masterTimeIndex[treeID], 1, RF_observationSize);
-      }
-    }
-    else {
-      if (RF_mResponseFlag == TRUE) {
-        for (p = 1; p <= RF_mpIndexSize; p++) {
-          if (RF_mpIndex[p] < 0) {
-            free_dvector(RF_response[treeID][(uint) abs(RF_mpIndex[p])], 1, RF_observationSize);
-          }
-          else {
-            p = RF_mpIndexSize;
-          }
-        }
-        free_new_vvector(RF_response[treeID], 1, RF_ySize, NRUTIL_DPTR);
-        if (RF_timeIndex > 0) {
-          if (RF_mTimeFlag == TRUE) {
-            free_uivector(RF_masterTimeIndex[treeID], 1, RF_observationSize);
-          }
+        if (RF_mTimeFlag == TRUE) {
+          free_uivector(RF_masterTimeIndex[treeID], 1, RF_observationSize);
         }
       }
     }
@@ -4601,6 +4519,7 @@ char getMarginalNodeMembership(char     mode,
       uint *membershipIndicator = uivector(1, obsSize);
       leftAllMembrSize = rghtAllMembrSize = 0;
       daughterFlag = RIGHT;
+       
       if (daughterFlag != NEITHER) {
         factorFlag = FALSE;
         if (RF_xType[parent -> splitParameter] == 'C') {
@@ -6192,8 +6111,14 @@ void rfsrc(char mode, int seedValue) {
     RF_nativeExit();
   }
 #ifdef _OPENMP
-  if (RF_numThreads <= 0) {
+  if (RF_numThreads < 0) {
     RF_numThreads = omp_get_max_threads();
+  }
+  else if (RF_numThreads == 0) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Parameter verification failed.");
+    RF_nativeError("\nRF-SRC:  Number of threads must not be zero:  %10d \n", RF_numThreads);
+    RF_nativeExit();
   }
   else {
     RF_numThreads = (RF_numThreads < omp_get_max_threads()) ? (RF_numThreads) : (omp_get_max_threads());
@@ -6221,11 +6146,13 @@ void rfsrc(char mode, int seedValue) {
   if (RF_rFactorCount > 0) {
     stackClassificationArrays(mode);
   }
+  stackAuxiliaryInfoList();
   stackDefinedOutputObjects(mode,
                             RF_sexpString,
                             & RF_root,
                             & RF_tLeafCount_,
                             & RF_proximity_,
+                             
                             & RF_weight_,
                             & RF_seed_,
                             & RF_imputation_,
@@ -6462,19 +6389,6 @@ void rfsrc(char mode, int seedValue) {
     }
     RF_serialTreeID = 0;
     if (r == RF_nImpute) {
-      stackAuxTNQualitativeStructures(mode,
-                                      RF_RMBR_ID_,
-                                      RF_AMBR_ID_,
-                                      RF_TN_RCNT_,
-                                      RF_TN_ACNT_);
-      stackAuxTNQuantitativeStructures(mode,
-                                       RF_TN_SURV_,         
-                                       RF_TN_MORT_,         
-                                       RF_TN_NLSN_,         
-                                       RF_TN_CSHZ_,         
-                                       RF_TN_CIFN_,         
-                                       RF_TN_REGR_,         
-                                       RF_TN_CLAS_);        
     }  
     if (getUserTraceFlag()) {
       RF_userTimeStart = RF_userTimeSplit = time(NULL);
@@ -6498,11 +6412,10 @@ void rfsrc(char mode, int seedValue) {
           }
         }
       }
-      unstackAuxTNQualitativeStructures(mode);
-      unstackAuxTNQuantitativeStructures(mode);
       if (RF_opt & OPT_PROX) {
         finalizeProximity(mode);
       }
+       
       if (RF_optHigh & OPT_WGHT) {
         finalizeWeight(mode);
       }  
@@ -6667,6 +6580,7 @@ void rfsrc(char mode, int seedValue) {
     RF_nativePrint("\nRF-SRC:  Insufficient trees for analysis.  \n");
   }
   unstackAuxStatisticalStructures(mode);
+  unstackAuxiliaryInfoAndList();
   unstackDefinedOutputObjects(mode, RF_root);
   switch (mode) {
   case RF_GROW:
@@ -7070,12 +6984,12 @@ void getPerformance(uint      serialTreeID,
                                            maxVote);
           free_dvector(maxVote, 1, obsSize);
         }
-        else if ((RF_opt & OPT_PERF_GMND) && (RF_rFactorMinorityFlag[RF_rFactorMap[RF_rTargetFactor[j]]] == TRUE)) {        
-          perfCLSptr[j][1] = getGMeanDRC(obsSize,
-                                         RF_rTargetFactor[j],
-                                         responsePtr[RF_rTargetFactor[j]],
-                                         outcomeCLS[j],
-                                         denomPtr);
+        else if ((RF_opt & OPT_PERF_GMNQ) && (RF_rFactorMinorityFlag[RF_rFactorMap[RF_rTargetFactor[j]]] == TRUE)) {        
+          perfCLSptr[j][1] = getGMeanQC(obsSize,
+                                        RF_rTargetFactor[j],
+                                        responsePtr[RF_rTargetFactor[j]],
+                                        outcomeCLS[j],
+                                        denomPtr);
         }
         else {
           double *cpv = dvector(1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]);
@@ -7355,7 +7269,7 @@ void initializeCDF(uint     treeID,
         }
       }
       if (validElement) {
-        if (weightSorted[k] > 0) {
+        if (weight[kk] > 0) {
           (*index)[kk] = ++ i;
           (*cdfSize) ++;
           (*cdfSort)[(*cdfSize)] = kk;
@@ -7382,7 +7296,7 @@ void updateCDF(uint    treeID,
                uint   *sampleSize,
                uint    sampleSlot,
                double *cdf,
-               uint   *cdfSize,
+               uint    cdfSize,
                uint   *density,
                uint   *densitySize,
                uint  **densitySwap,
@@ -7444,7 +7358,7 @@ void updateCDF(uint    treeID,
     if (stepIndex > 1) {
       stepValue -= cdf[stepIndex-1];
     }
-    for (k = stepIndex; k <= (*cdfSize); k++) {
+    for (k = stepIndex; k <= cdfSize; k++) {
       cdf[k] = cdf[k] - stepValue;
     }
     break;
@@ -7616,6 +7530,9 @@ char getBestSplit(uint    treeID,
     break;
   case CLAS_WT_HVY:
     genericSplit = &classificationXwghtSplit;
+    break;
+  case CLAS_RNKPS:
+    genericSplit = &classificationRankedPS;
     break;
   case MVRG_SPLIT:
     genericSplit = &multivariateSplit;
@@ -8155,6 +8072,281 @@ char classificationXwghtSplit (uint    treeID,
                                  deltaMax);
   return result;
 }
+char classificationRankedPS (uint    treeID,
+                             Node   *parent,
+                             uint   *repMembrIndx,
+                             uint    repMembrSize,
+                             uint   *allMembrIndx,
+                             uint    allMembrSize,
+                             uint   *splitParameterMax,
+                             double *splitValueMaxCont,
+                             uint   *splitValueMaxFactSize,
+                             uint  **splitValueMaxFactPtr,
+                             double *splitStatistic,
+                             char  **splitIndicator,
+                             char   *splitMIA,
+                             char    multImpFlag) {
+  uint   *randomCovariateIndex;
+  uint    uniformCovariateIndex;
+  uint    uniformCovariateSize;
+  double *cdf;
+  uint    cdfSize;
+  uint   *cdfSort;
+  uint   *density;
+  uint    densitySize;
+  uint  **densitySwap;
+  uint     covariate;
+  double  *splitVector;
+  uint     splitVectorSize;
+  uint nonMissMembrSize, nonMissMembrSizeStatic;
+  uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
+  uint   *indxx;
+  uint priorMembrIter, currentMembrIter;
+  uint leftSize, rghtSize;
+  char *localSplitIndicator;
+  uint splitLength;
+  void *splitVectorPtr;
+  char factorFlag;
+  uint mwcpSizeAbsolute;
+  char deterministicSplitFlag;
+  char preliminaryResult, result;
+  double delta, deltaMax;
+  uint j, k, p;
+  localSplitIndicator    = NULL;  
+  mwcpSizeAbsolute       = 0;     
+  *splitParameterMax     = 0;
+  *splitValueMaxFactSize = 0;
+  *splitValueMaxFactPtr  = NULL;
+  *splitValueMaxCont     = RF_nativeNaN;
+  deltaMax               = RF_nativeNaN;
+  preliminaryResult = getPreSplitResult(treeID,
+                                        parent,
+                                        repMembrSize,
+                                        repMembrIndx,
+                                        & nonMissMembrSizeStatic,
+                                        & nonMissMembrIndxStatic,
+                                        & splitVector,
+                                        & parent -> mean,
+                                        multImpFlag,
+                                        FALSE);
+  if (preliminaryResult) {
+    stackSplitIndicator(repMembrSize, & localSplitIndicator);
+    stackRandomCovariates(treeID,
+                          parent,
+                          repMembrSize,
+                          multImpFlag,
+                          & randomCovariateIndex,
+                          & uniformCovariateSize,
+                          & cdf,
+                          & cdfSize,
+                          & cdfSort,
+                          & density,
+                          & densitySize,
+                          & densitySwap);
+    uint responseClassCount = RF_classLevelSize[1];
+    uint *parentClassProp = uivector(1, responseClassCount);
+    uint *leftClassProp   = uivector(1, responseClassCount);
+    uint *rghtClassProp   = uivector(1, responseClassCount);
+    double *piHatLeft     = dvector(1, responseClassCount);
+    double *piHatRght     = dvector(1, responseClassCount);
+    double *sumPiHatLeft  = dvector(1, responseClassCount);
+    double *sumPiHatRght  = dvector(1, responseClassCount);
+    double sumLeft, sumRght;
+    delta = 0;  
+    double indicator;
+    uint actualCovariateCount = 0;
+    uint candidateCovariateCount = 0;
+    while (selectRandomCovariates(treeID,
+                                  parent,
+                                  repMembrIndx,
+                                  repMembrSize,
+                                  randomCovariateIndex,
+                                  & uniformCovariateSize,
+                                  & uniformCovariateIndex,
+                                  cdf,
+                                  & cdfSize,
+                                  cdfSort,
+                                  density,
+                                  & densitySize,
+                                  densitySwap,
+                                  & covariate,
+                                  & actualCovariateCount,
+                                  & candidateCovariateCount,
+                                  splitVector,
+                                  & splitVectorSize,
+                                  & indxx,
+                                  nonMissMembrSizeStatic,
+                                  nonMissMembrIndxStatic,
+                                  & nonMissMembrSize,
+                                  & nonMissMembrIndx,
+                                  multImpFlag)) {
+      for (j = 1; j <= repMembrSize; j++) {
+        localSplitIndicator[j] = NEITHER;
+      }
+      for (p=1; p <= responseClassCount; p++) {
+        parentClassProp[p] = 0;
+      }
+      for (j = 1; j <= nonMissMembrSize; j++) {
+        parentClassProp[RF_classLevelIndex[1][ (uint) RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[j]]] ]]] ++;
+      }
+      leftSize = 0;
+      priorMembrIter = 0;
+      splitLength = stackAndConstructSplitVector(treeID,
+                                                 repMembrSize,
+                                                 covariate,
+                                                 splitVector,
+                                                 splitVectorSize,
+                                                 & factorFlag,
+                                                 & deterministicSplitFlag,
+                                                 & mwcpSizeAbsolute,
+                                                 & splitVectorPtr);
+      if (factorFlag == FALSE) {
+        for (j = 1; j <= nonMissMembrSize; j++) {
+          localSplitIndicator[ nonMissMembrIndx[indxx[j]] ] = RIGHT;
+        }
+        for (p = 1; p <= responseClassCount; p++) {
+          rghtClassProp[p] = parentClassProp[p];
+          leftClassProp[p] = 0;
+        }
+      }
+      for (j = 1; j < splitLength; j++) {
+        if (factorFlag == TRUE) {
+          priorMembrIter = 0;
+          leftSize = 0;
+        }
+        virtuallySplitNode(treeID,
+                              factorFlag,
+                              mwcpSizeAbsolute,
+                              covariate,
+                              repMembrIndx,
+                              repMembrSize,
+                              nonMissMembrIndx,
+                              nonMissMembrSize,
+                              indxx,
+                              splitVectorPtr,
+                              j,
+                              localSplitIndicator,
+                              & leftSize,
+                              priorMembrIter,
+                              & currentMembrIter);
+        rghtSize = nonMissMembrSize - leftSize;
+        if (factorFlag == TRUE) {
+          for (p=1; p <= responseClassCount; p++) {
+            leftClassProp[p] = 0;
+          }
+          for (k = 1; k <= nonMissMembrSize; k++) {
+            if (localSplitIndicator[ nonMissMembrIndx[indxx[k]] ] == LEFT)  {
+              leftClassProp[RF_classLevelIndex[1][ (uint) RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
+            }
+          }
+          for (p=1; p <= responseClassCount; p++) {
+            rghtClassProp[p] = parentClassProp[p] - leftClassProp[p];
+          }
+        }
+        else {
+          for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
+            leftClassProp[RF_classLevelIndex[1][(uint) RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] ++;
+            rghtClassProp[RF_classLevelIndex[1][(uint) RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]]] --;
+          }
+        }
+        for (p = 1; p <= responseClassCount; p++) {
+          piHatLeft[p] = (double) leftClassProp[p] / leftSize;
+          piHatRght[p] = (double) rghtClassProp[p] / rghtSize;
+        }
+        sumPiHatLeft[1] += piHatLeft[1];
+        sumPiHatRght[1] += piHatRght[1];
+        for (p = 2; p <= responseClassCount; p++) {
+          sumPiHatLeft[p] = sumPiHatLeft[p-1] + piHatLeft[p];
+          sumPiHatRght[p] = sumPiHatRght[p-1] + piHatRght[p]; 
+        }
+        sumLeft = sumRght = 0;
+        for (k = 1; k <= nonMissMembrSize; k++) {
+          for (p = 1; p <= responseClassCount - 1; p++) {
+            if (RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ] <= p) {
+              indicator = 1;
+            }
+            else {
+              indicator = 0;
+            }
+            if (localSplitIndicator[ nonMissMembrIndx[k] ] == LEFT) {              
+              sumLeft += pow(sumPiHatLeft[p] - indicator, 2.0);
+            }
+            else {
+              sumRght += pow(sumPiHatRght[p] - indicator, 2.0);
+            }
+          }
+        } 
+        delta = - (sumLeft + sumRght);
+        updateMaximumSplit(treeID,
+                           parent,
+                           delta,
+                           candidateCovariateCount,
+                           covariate,
+                           j,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           repMembrSize,
+                           localSplitIndicator,
+                           & deltaMax,
+                           splitParameterMax,
+                           splitValueMaxCont,
+                           splitValueMaxFactSize,
+                           splitValueMaxFactPtr,
+                           splitVectorPtr,
+                           splitIndicator);
+        if (factorFlag == FALSE) {
+          priorMembrIter = currentMembrIter - 1;
+        }
+      }  
+      unstackSplitVector(treeID,
+                         splitVectorSize,
+                         splitLength,
+                         factorFlag,
+                         deterministicSplitFlag,
+                         mwcpSizeAbsolute,
+                         splitVectorPtr);
+      unselectRandomCovariates(treeID,
+                               parent,
+                               repMembrSize,
+                               indxx,
+                               nonMissMembrSizeStatic,
+                               nonMissMembrIndx,
+                               multImpFlag);
+    }  
+    unstackRandomCovariates(treeID,
+                            parent,
+                            randomCovariateIndex,
+                            uniformCovariateSize,
+                            cdf,
+                            cdfSize,
+                            cdfSort,
+                            density,
+                            densitySize,
+                            densitySwap,
+                            repMembrSize);
+    free_uivector (parentClassProp, 1, responseClassCount);
+    free_uivector (leftClassProp,   1, responseClassCount);
+    free_uivector (rghtClassProp,   1, responseClassCount);
+    free_dvector(piHatLeft,    1, responseClassCount);
+    free_dvector(piHatRght,    1, responseClassCount);
+    free_dvector(sumPiHatLeft, 1, responseClassCount);
+    free_dvector(sumPiHatRght, 1, responseClassCount);
+    unstackSplitIndicator(repMembrSize, localSplitIndicator);
+  }  
+  unstackPreSplit(preliminaryResult,
+                  multImpFlag,
+                  FALSE,  
+                  repMembrSize,
+                  splitVector,
+                  nonMissMembrIndxStatic);
+  result = summarizeSplitResult(*splitParameterMax,
+                                *splitValueMaxCont,
+                                *splitValueMaxFactSize,
+                                *splitValueMaxFactPtr,
+                                 splitStatistic,
+                                 deltaMax);
+  return result;
+}
 char regressionXwghtSplit (uint    treeID,
                            Node   *parent,
                            uint   *repMembrIndx,
@@ -8169,6 +8361,297 @@ char regressionXwghtSplit (uint    treeID,
                            char  **splitIndicator,
                            char   *splitMIA,
                            char    multImpFlag) {
+  uint   *randomCovariateIndex;
+  uint    uniformCovariateIndex;
+  uint    uniformCovariateSize;
+  double *cdf;
+  uint    cdfSize;
+  uint   *cdfSort;
+  uint   *density;
+  uint    densitySize;
+  uint  **densitySwap;
+  uint     covariate;
+  double  *splitVector;
+  uint     splitVectorSize;
+  uint nonMissMembrSize, nonMissMembrSizeStatic;
+  uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
+  uint   *indxx;
+  uint priorMembrIter, currentMembrIter;
+  uint leftSize, rghtSize;
+  char *localSplitIndicator;
+  uint splitLength;
+  void *splitVectorPtr;
+  char factorFlag;
+  uint mwcpSizeAbsolute;
+  char deterministicSplitFlag;
+  char preliminaryResult, result;
+  double delta, deltaMax;
+  uint j, k;
+  localSplitIndicator    = NULL;  
+  mwcpSizeAbsolute       = 0;     
+  *splitParameterMax     = 0;
+  *splitValueMaxFactSize = 0;
+  *splitValueMaxFactPtr  = NULL;
+  *splitValueMaxCont     = RF_nativeNaN;
+  deltaMax               = RF_nativeNaN;
+  preliminaryResult = getPreSplitResult(treeID,
+                                        parent,
+                                        repMembrSize,
+                                        repMembrIndx,
+                                        & nonMissMembrSizeStatic,
+                                        & nonMissMembrIndxStatic,
+                                        & splitVector,
+                                        & parent -> mean,
+                                        multImpFlag,
+                                        FALSE);
+  if (preliminaryResult) {
+    stackSplitIndicator(repMembrSize, & localSplitIndicator);
+    stackRandomCovariates(treeID,
+                          parent,
+                          repMembrSize,
+                          multImpFlag,
+                          & randomCovariateIndex,
+                          & uniformCovariateSize,
+                          & cdf,
+                          & cdfSize,
+                          & cdfSort,
+                          & density,
+                          & densitySize,
+                          & densitySwap);
+    double sumLeft, sumRght, sumLeftSqr, sumRghtSqr;
+    double sumLeftTemp, sumRghtTemp, sumLeftSqrTemp, sumRghtSqrTemp;
+    sumLeft = sumRght = sumLeftSqr = sumRghtSqr = 0;                  
+    sumLeftTemp = sumRghtTemp = sumLeftSqrTemp = sumRghtSqrTemp = 0;  
+    delta = 0;                                                        
+    uint actualCovariateCount = 0;
+    uint candidateCovariateCount = 0;
+    while (selectRandomCovariates(treeID,
+                                  parent,
+                                  repMembrIndx,
+                                  repMembrSize,
+                                  randomCovariateIndex,
+                                  & uniformCovariateSize,
+                                  & uniformCovariateIndex,
+                                  cdf,
+                                  & cdfSize,
+                                  cdfSort,
+                                  density,
+                                  & densitySize,
+                                  densitySwap,
+                                  & covariate,
+                                  & actualCovariateCount,
+                                  & candidateCovariateCount,
+                                  splitVector,
+                                  & splitVectorSize,
+                                  & indxx,
+                                  nonMissMembrSizeStatic,
+                                  nonMissMembrIndxStatic,
+                                  & nonMissMembrSize,
+                                  & nonMissMembrIndx,
+                                  multImpFlag)) {
+      for (j = 1; j <= repMembrSize; j++) {
+        localSplitIndicator[j] = NEITHER;
+      }
+      leftSize = 0;
+      priorMembrIter = 0;
+      splitLength = stackAndConstructSplitVector(treeID,
+                                                 repMembrSize,
+                                                 covariate,
+                                                 splitVector,
+                                                 splitVectorSize,
+                                                 & factorFlag,
+                                                 & deterministicSplitFlag,
+                                                 & mwcpSizeAbsolute,
+                                                 & splitVectorPtr);
+      if (factorFlag == FALSE) {
+        sumLeft = sumLeftSqr = sumRght = sumRghtSqr = 0.0;
+        switch(RF_splitRule) {
+        case REGR_WT_NRM:
+          sumRght = 0.0;
+          for (j = 1; j <= nonMissMembrSize; j++) {
+            sumRght += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[j]] ];
+          }
+          break;
+        default:
+          sumRght = sumRghtSqr = 0.0;
+          for (j = 1; j <= nonMissMembrSize; j++) {
+            sumRght += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[j]] ];
+            sumRghtSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[j]] ], 2.0);
+          }
+          break;
+        }
+        for (j = 1; j <= nonMissMembrSize; j++) {
+          localSplitIndicator[ nonMissMembrIndx[j] ] = RIGHT;
+        }
+      }
+      for (j = 1; j < splitLength; j++) {
+        if (factorFlag == TRUE) {
+          priorMembrIter = 0;
+          leftSize = 0;
+        }
+        virtuallySplitNode(treeID,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           covariate,
+                           repMembrIndx,
+                           repMembrSize,
+                           nonMissMembrIndx,
+                           nonMissMembrSize,
+                           indxx,
+                           splitVectorPtr,
+                           j,
+                           localSplitIndicator,
+                           & leftSize,
+                           priorMembrIter,
+                           & currentMembrIter);
+        rghtSize = nonMissMembrSize - leftSize;
+        if (factorFlag == TRUE) {
+          switch (RF_splitRule) {
+          case REGR_WT_NRM:
+            sumLeft = sumRght = 0.0;
+            for (k = 1; k <= nonMissMembrSize; k++) {
+              if (localSplitIndicator[ nonMissMembrIndx[k] ] == LEFT) {
+                sumLeft += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+              }
+              else {
+                sumRght += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+              }
+            } 
+            break;
+          default:
+            sumLeft = sumRght = 0.0;
+            sumLeftSqr = sumRghtSqr = 0.0;
+            for (k = 1; k <= nonMissMembrSize; k++) {
+              if (localSplitIndicator[ nonMissMembrIndx[k] ] == LEFT) {
+                sumLeft    += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+                sumLeftSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ], 2.0);
+              }
+              else {
+                sumRght    += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+                sumRghtSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ], 2.0);
+              }
+            } 
+            break;
+          }
+        }
+        else {
+          switch(RF_splitRule) {
+          case REGR_WT_NRM:
+            for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
+              sumLeft += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+              sumRght -= RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+            }
+            break;
+          default:
+            for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
+              sumLeft    += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+              sumLeftSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], 2.0);
+              sumRght    -= RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+              sumRghtSqr -= pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], 2.0);
+            }
+            break;
+          }
+        }
+        switch(RF_splitRule) {
+        case REGR_WT_NRM:
+          sumLeftSqr = pow(sumLeft, 2.0) / leftSize;
+          sumRghtSqr = pow(sumRght, 2.0) / rghtSize;
+          delta = sumLeftSqr + sumRghtSqr;
+          break;
+        case REGR_WT_OFF:
+          sumLeftTemp = pow(sumLeft, 2.0) / pow(leftSize, 2.0);
+          sumRghtTemp = pow(sumRght, 2.0) / pow(rghtSize, 2.0);
+          sumLeftSqrTemp = sumLeftSqr / leftSize;
+          sumRghtSqrTemp = sumRghtSqr / rghtSize;
+          delta = sumLeftTemp + sumRghtTemp - sumLeftSqrTemp - sumRghtSqrTemp;
+          break;
+        case REGR_WT_HVY:
+          sumLeftTemp = pow(sumLeft, 2.0) / pow (leftSize + rghtSize, 2.0);
+          sumRghtTemp = pow(sumRght, 2.0) / pow (leftSize + rghtSize, 2.0);
+          sumLeftSqrTemp = sumLeftSqr * leftSize / pow (leftSize + rghtSize, 2.0);
+          sumRghtSqrTemp = sumRghtSqr * rghtSize / pow (leftSize + rghtSize, 2.0);
+          delta = sumLeftTemp + sumRghtTemp - sumLeftSqrTemp - sumRghtSqrTemp;
+          break;
+        default:
+          break;
+        }
+        updateMaximumSplit(treeID,
+                           parent,
+                           delta,
+                           candidateCovariateCount,
+                           covariate,
+                           j,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           repMembrSize,
+                           localSplitIndicator,
+                           & deltaMax,
+                           splitParameterMax,
+                           splitValueMaxCont,
+                           splitValueMaxFactSize,
+                           splitValueMaxFactPtr,
+                           splitVectorPtr,
+                           splitIndicator);
+        if (factorFlag == FALSE) {
+          priorMembrIter = currentMembrIter - 1;
+        }
+      }  
+      unstackSplitVector(treeID,
+                         splitVectorSize,
+                         splitLength,
+                         factorFlag,
+                         deterministicSplitFlag,
+                         mwcpSizeAbsolute,
+                         splitVectorPtr);
+      unselectRandomCovariates(treeID,
+                               parent,
+                               repMembrSize,
+                               indxx,
+                               nonMissMembrSizeStatic,
+                               nonMissMembrIndx,
+                               multImpFlag);
+    }  
+    unstackRandomCovariates(treeID,
+                            parent, 
+                            randomCovariateIndex,
+                            uniformCovariateSize,
+                            cdf,
+                            cdfSize,
+                            cdfSort,
+                            density,
+                            densitySize,
+                            densitySwap,
+                            repMembrSize);
+    unstackSplitIndicator(repMembrSize, localSplitIndicator);
+  }  
+  unstackPreSplit(preliminaryResult,
+                  multImpFlag,
+                  FALSE,  
+                  repMembrSize,
+                  splitVector,
+                  nonMissMembrIndxStatic);
+  result = summarizeSplitResult(*splitParameterMax,
+                                *splitValueMaxCont,
+                                *splitValueMaxFactSize,
+                                *splitValueMaxFactPtr,
+                                splitStatistic,
+                                deltaMax);
+  return result;
+}
+char regressionXwghtSplitMIA (uint    treeID,
+                              Node   *parent,
+                              uint   *repMembrIndx,
+                              uint    repMembrSize,
+                              uint   *allMembrIndx,
+                              uint    allMembrSize,
+                              uint   *splitParameterMax,
+                              double *splitValueMaxCont,
+                              uint   *splitValueMaxFactSize,
+                              uint  **splitValueMaxFactPtr,
+                              double *splitStatistic,
+                              char  **splitIndicator,
+                              char   *splitMIA,
+                              char    multImpFlag) {
   uint   *randomCovariateIndex;
   uint    uniformCovariateIndex;
   uint    uniformCovariateSize;
@@ -8207,7 +8690,7 @@ char regressionXwghtSplit (uint    treeID,
   *splitValueMaxFactPtr  = NULL;
   *splitValueMaxCont     = RF_nativeNaN;
   deltaMax               = RF_nativeNaN;
-  preliminaryResult = getPreSplitResultNew(treeID,
+  preliminaryResult = getPreSplitResultMIA(treeID,
                                            parent,
                                            repMembrSize,
                                            repMembrIndx,
@@ -8244,7 +8727,7 @@ char regressionXwghtSplit (uint    treeID,
     delta = 0;                                                        
     uint actualCovariateCount = 0;
     uint candidateCovariateCount = 0;
-    while (selectRandomCovariatesNew(treeID,
+    while (selectRandomCovariatesMIA(treeID,
                                   parent,
                                   repMembrIndx,
                                   repMembrSize,
@@ -8442,7 +8925,7 @@ char regressionXwghtSplit (uint    treeID,
           default:
             break;
           }
-          updateMaximumSplitNew(treeID,
+          updateMaximumSplitMIA(treeID,
                                 parent,
                                 delta,
                                 candidateCovariateCount,
@@ -8526,7 +9009,7 @@ char regressionXwghtSplit (uint    treeID,
             for (j = 1; j <= missMembrSize; j++) {
               localSplitIndicator[ missMembrIndx[j] ] = RIGHT;
             }
-            updateMaximumSplitNew(treeID,
+            updateMaximumSplitMIA(treeID,
                                   parent,
                                   delta,
                                   candidateCovariateCount,
@@ -8555,7 +9038,7 @@ char regressionXwghtSplit (uint    treeID,
                          deterministicSplitFlag,
                          mwcpSizeAbsolute,
                          splitVectorPtr);
-      unselectRandomCovariatesNew(treeID,
+      unselectRandomCovariatesMIA(treeID,
                                parent,
                                repMembrSize,
                                indxx,
@@ -8577,7 +9060,7 @@ char regressionXwghtSplit (uint    treeID,
                             repMembrSize);
     unstackSplitIndicator(repMembrSize, localSplitIndicator);
   }  
-  unstackPreSplitNew(preliminaryResult,
+  unstackPreSplitMIA(preliminaryResult,
                      multImpFlag,
                      FALSE,  
                      repMembrSize,
@@ -8591,6 +9074,455 @@ char regressionXwghtSplit (uint    treeID,
                                  splitStatistic,
                                  deltaMax);
   return result;
+}
+char regressionXwghtSplitGreedy (uint    treeID,
+                           Node   *parent,
+                           uint   *repMembrIndx,
+                           uint    repMembrSize,
+                           uint   *allMembrIndx,
+                           uint    allMembrSize,
+                           uint   *splitParameterMax,
+                           double *splitValueMaxCont,
+                           uint   *splitValueMaxFactSize,
+                           uint  **splitValueMaxFactPtr,
+                           double *splitStatistic,
+                           char  **splitIndicator,
+                           char   *splitMIA,
+                           char    multImpFlag) {
+  uint   *randomCovariateIndex;
+  uint    uniformCovariateIndex;
+  uint    uniformCovariateSize;
+  double *cdf;
+  uint    cdfSize;
+  uint   *cdfSort;
+  uint   *density;
+  uint    densitySize;
+  uint  **densitySwap;
+  uint     covariate;
+  double  *splitVector;
+  uint     splitVectorSize;
+  uint nonMissMembrSize, nonMissMembrSizeStatic;
+  uint *nonMissMembrIndx, *nonMissMembrIndxStatic;
+  uint   *indxx;
+  uint priorMembrIter, currentMembrIter;
+  uint leftSize, rghtSize;
+  char *localSplitIndicator;
+  uint splitLength;
+  void *splitVectorPtr;
+  char factorFlag;
+  uint mwcpSizeAbsolute;
+  char deterministicSplitFlag;
+  char preliminaryResult, result;
+  double delta, deltaMax;
+  uint j, k;
+  localSplitIndicator    = NULL;  
+  mwcpSizeAbsolute       = 0;     
+  *splitParameterMax     = 0;
+  *splitValueMaxFactSize = 0;
+  *splitValueMaxFactPtr  = NULL;
+  *splitValueMaxCont     = RF_nativeNaN;
+  deltaMax               = RF_nativeNaN;
+  preliminaryResult = getPreSplitResult(treeID,
+                                        parent,
+                                        repMembrSize,
+                                        repMembrIndx,
+                                        & nonMissMembrSizeStatic,
+                                        & nonMissMembrIndxStatic,
+                                        & splitVector,
+                                        & parent -> mean,
+                                        multImpFlag,
+                                        FALSE);
+  if (preliminaryResult) {
+    stackSplitIndicator(repMembrSize, & localSplitIndicator);
+    stackRandomCovariates(treeID,
+                          parent,
+                          repMembrSize,
+                          multImpFlag,
+                          & randomCovariateIndex,
+                          & uniformCovariateSize,
+                          & cdf,
+                          & cdfSize,
+                          & cdfSort,
+                          & density,
+                          & densitySize,
+                          & densitySwap);
+    double sumLeft, sumRght, sumLeftSqr, sumRghtSqr;
+    double sumLeftTemp, sumRghtTemp, sumLeftSqrTemp, sumRghtSqrTemp;
+    sumLeft = sumRght = sumLeftSqr = sumRghtSqr = 0;                  
+    sumLeftTemp = sumRghtTemp = sumLeftSqrTemp = sumRghtSqrTemp = 0;  
+    delta = 0;                                                        
+    uint actualCovariateCount = 0;
+    uint candidateCovariateCount = 0;
+    while (selectRandomCovariates(treeID,
+                                  parent,
+                                  repMembrIndx,
+                                  repMembrSize,
+                                  randomCovariateIndex,
+                                  & uniformCovariateSize,
+                                  & uniformCovariateIndex,
+                                  cdf,
+                                  & cdfSize,
+                                  cdfSort,
+                                  density,
+                                  & densitySize,
+                                  densitySwap,
+                                  & covariate,
+                                  & actualCovariateCount,
+                                  & candidateCovariateCount,
+                                  splitVector,
+                                  & splitVectorSize,
+                                  & indxx,
+                                  nonMissMembrSizeStatic,
+                                  nonMissMembrIndxStatic,
+                                  & nonMissMembrSize,
+                                  & nonMissMembrIndx,
+                                  multImpFlag)) {
+      for (j = 1; j <= repMembrSize; j++) {
+        localSplitIndicator[j] = NEITHER;
+      }
+      leftSize = 0;
+      priorMembrIter = 0;
+      splitLength = stackAndConstructSplitVector(treeID,
+                                                 repMembrSize,
+                                                 covariate,
+                                                 splitVector,
+                                                 splitVectorSize,
+                                                 & factorFlag,
+                                                 & deterministicSplitFlag,
+                                                 & mwcpSizeAbsolute,
+                                                 & splitVectorPtr);
+      if (factorFlag == FALSE) {
+        sumLeft = sumLeftSqr = sumRght = sumRghtSqr = 0.0;
+        switch(RF_splitRule) {
+        case REGR_WT_NRM:
+          sumRght = 0.0;
+          for (j = 1; j <= nonMissMembrSize; j++) {
+            sumRght += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[j]] ];
+          }
+          break;
+        default:
+          sumRght = sumRghtSqr = 0.0;
+          for (j = 1; j <= nonMissMembrSize; j++) {
+            sumRght += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[j]] ];
+            sumRghtSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[j]] ], 2.0);
+          }
+          break;
+        }
+        for (j = 1; j <= nonMissMembrSize; j++) {
+          localSplitIndicator[ nonMissMembrIndx[j] ] = RIGHT;
+        }
+      }
+      for (j = 1; j < splitLength; j++) {
+        if (factorFlag == TRUE) {
+          priorMembrIter = 0;
+          leftSize = 0;
+        }
+        virtuallySplitNode(treeID,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           covariate,
+                           repMembrIndx,
+                           repMembrSize,
+                           nonMissMembrIndx,
+                           nonMissMembrSize,
+                           indxx,
+                           splitVectorPtr,
+                           j,
+                           localSplitIndicator,
+                           & leftSize,
+                           priorMembrIter,
+                           & currentMembrIter);
+        rghtSize = nonMissMembrSize - leftSize;
+        if (factorFlag == TRUE) {
+          switch (RF_splitRule) {
+          case REGR_WT_NRM:
+            sumLeft = sumRght = 0.0;
+            for (k = 1; k <= nonMissMembrSize; k++) {
+              if (localSplitIndicator[ nonMissMembrIndx[k] ] == LEFT) {
+                sumLeft += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+              }
+              else {
+                sumRght += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+              }
+            } 
+            break;
+          default:
+            sumLeft = sumRght = 0.0;
+            sumLeftSqr = sumRghtSqr = 0.0;
+            for (k = 1; k <= nonMissMembrSize; k++) {
+              if (localSplitIndicator[ nonMissMembrIndx[k] ] == LEFT) {
+                sumLeft    += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+                sumLeftSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ], 2.0);
+              }
+              else {
+                sumRght    += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ];
+                sumRghtSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[k]] ], 2.0);
+              }
+            } 
+            break;
+          }
+        }
+        else {
+          switch(RF_splitRule) {
+          case REGR_WT_NRM:
+            for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
+              sumLeft += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+              sumRght -= RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+            }
+            break;
+          default:
+            for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
+              sumLeft    += RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+              sumLeftSqr += pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], 2.0);
+              sumRght    -= RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ];
+              sumRghtSqr -= pow(RF_response[treeID][1][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ], 2.0);
+            }
+            break;
+          }
+        }
+        switch(RF_splitRule) {
+        case REGR_WT_NRM:
+          sumLeftSqr = pow(sumLeft, 2.0) / leftSize;
+          sumRghtSqr = pow(sumRght, 2.0) / rghtSize;
+          delta = sumLeftSqr + sumRghtSqr;
+          break;
+        case REGR_WT_OFF:
+          sumLeftTemp = pow(sumLeft, 2.0) / pow(leftSize, 2.0);
+          sumRghtTemp = pow(sumRght, 2.0) / pow(rghtSize, 2.0);
+          sumLeftSqrTemp = sumLeftSqr / leftSize;
+          sumRghtSqrTemp = sumRghtSqr / rghtSize;
+          delta = sumLeftTemp + sumRghtTemp - sumLeftSqrTemp - sumRghtSqrTemp;
+          break;
+        case REGR_WT_HVY:
+          sumLeftTemp = pow(sumLeft, 2.0) / pow (leftSize + rghtSize, 2.0);
+          sumRghtTemp = pow(sumRght, 2.0) / pow (leftSize + rghtSize, 2.0);
+          sumLeftSqrTemp = sumLeftSqr * leftSize / pow (leftSize + rghtSize, 2.0);
+          sumRghtSqrTemp = sumRghtSqr * rghtSize / pow (leftSize + rghtSize, 2.0);
+          delta = sumLeftTemp + sumRghtTemp - sumLeftSqrTemp - sumRghtSqrTemp;
+          break;
+        default:
+          break;
+        }
+        updateMaximumSplit(treeID,
+                           parent,
+                           delta,
+                           candidateCovariateCount,
+                           covariate,
+                           j,
+                           factorFlag,
+                           mwcpSizeAbsolute,
+                           repMembrSize,
+                           localSplitIndicator,
+                           & deltaMax,
+                           splitParameterMax,
+                           splitValueMaxCont,
+                           splitValueMaxFactSize,
+                           splitValueMaxFactPtr,
+                           splitVectorPtr,
+                           splitIndicator);
+        if (factorFlag == FALSE) {
+          priorMembrIter = currentMembrIter - 1;
+        }
+      }  
+      unstackSplitVector(treeID,
+                         splitVectorSize,
+                         splitLength,
+                         factorFlag,
+                         deterministicSplitFlag,
+                         mwcpSizeAbsolute,
+                         splitVectorPtr);
+      unselectRandomCovariates(treeID,
+                               parent,
+                               repMembrSize,
+                               indxx,
+                               nonMissMembrSizeStatic,
+                               nonMissMembrIndx,
+                               multImpFlag);
+    }  
+    unstackRandomCovariates(treeID,
+                            parent, 
+                            randomCovariateIndex,
+                            uniformCovariateSize,
+                            cdf,
+                            cdfSize,
+                            cdfSort,
+                            density,
+                            densitySize,
+                            densitySwap,
+                            repMembrSize);
+    unstackSplitIndicator(repMembrSize, localSplitIndicator);
+  }  
+  unstackPreSplit(preliminaryResult,
+                  multImpFlag,
+                  FALSE,  
+                  repMembrSize,
+                  splitVector,
+                  nonMissMembrIndxStatic);
+  result = summarizeSplitResult(*splitParameterMax,
+                                *splitValueMaxCont,
+                                *splitValueMaxFactSize,
+                                *splitValueMaxFactPtr,
+                                splitStatistic,
+                                deltaMax);
+  return result;
+}
+char selectRandomCovariatesGreedy(uint     treeID,
+                                  Node     *parent,
+                                  uint     *repMembrIndx,
+                                  uint      repMembrSize,
+                                  uint     *covariateIndex,
+                                  uint     *uniformCovariateSize,
+                                  uint     *uniformCovariateIndex,
+                                  double   *cdf,
+                                  uint     *cdfSize,
+                                  uint     *cdfSort,
+                                  uint     *density,
+                                  uint     *densitySize,
+                                  uint    **densitySwap,
+                                  uint     *covariate,
+                                  uint     *actualCovariateCount,
+                                  uint     *candidateCovariateCount,
+                                  double   *splitVector,
+                                  uint     *splitVectorSize,
+                                  uint    **indxx,
+                                  uint      nonMissMembrSizeStatic,
+                                  uint     *nonMissMembrIndxStatic,
+                                  uint     *nonMissMembrSize,
+                                  uint    **nonMissMembrIndx,
+                                  char      multImpFlag) {
+  uint i, ii;
+  uint candidateCovariate;
+  uint offset;
+  double *nonMissSplit;
+  char mPredictorFlag;
+  char splittable;
+  if (nonMissMembrSizeStatic < 1) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Invalid nonMissMembrSizeStatic encountered in selectRandomCovariates():  %10d", nonMissMembrSizeStatic);
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+    RF_nativeExit();
+  }
+  nonMissSplit = dvector(1, repMembrSize);
+  (*covariate) = candidateCovariate = -1;
+  splittable = FALSE;
+  (*indxx) = uivector(1, repMembrSize);
+  if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+    *nonMissMembrSize = nonMissMembrSizeStatic;
+    *nonMissMembrIndx = nonMissMembrIndxStatic;
+  }
+  else {
+    *nonMissMembrSize = 0;
+    *nonMissMembrIndx = uivector(1, nonMissMembrSizeStatic);
+  }
+  while ( ((*candidateCovariateCount) < RF_mtry) &&
+          (candidateCovariate != 0) && (splittable == FALSE)) {
+    candidateCovariate = sampleFromCDF(ran1B,
+                                       treeID,
+                                       RF_xWeightType,
+                                       covariateIndex,
+                                       *uniformCovariateSize,
+                                       uniformCovariateIndex,
+                                       cdf,
+                                       *cdfSize,
+                                       cdfSort,
+                                       density,
+                                       *densitySize);
+    if (candidateCovariate != 0) {
+      updateCDF(treeID,
+                RF_xWeightType,
+                RF_xWeight,
+                covariateIndex,
+                uniformCovariateSize,
+                *uniformCovariateIndex,
+                cdf,
+                *cdfSize,
+                density,
+                densitySize,
+                densitySwap,
+                candidateCovariate);
+      (*actualCovariateCount) ++;
+      (*candidateCovariateCount) ++;
+      splittable = TRUE;
+      if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+        for (i = 1; i <= repMembrSize; i++) {
+          nonMissSplit[i] = RF_observation[treeID][candidateCovariate][repMembrIndx[i]];
+        }
+        *nonMissMembrSize = nonMissMembrSizeStatic;
+        *nonMissMembrIndx = nonMissMembrIndxStatic;
+      }
+      else {
+        offset = RF_ySize + candidateCovariate;
+        (*nonMissMembrSize) = 0;
+        for (i = 1; i <= nonMissMembrSizeStatic; i++) {
+          ii = nonMissMembrIndxStatic[i];
+          mPredictorFlag = FALSE;
+          if (RF_mRecordMap[repMembrIndx[ii]] > 0) {
+            if (RF_mpSign[offset][RF_mRecordMap[repMembrIndx[ii]]] == 1) {
+                mPredictorFlag = TRUE;
+            }
+          }
+          if (!mPredictorFlag) {
+            (*nonMissMembrSize) ++;
+            (*nonMissMembrIndx)[*nonMissMembrSize] = ii;
+            nonMissSplit[*nonMissMembrSize] = RF_observation[treeID][candidateCovariate][repMembrIndx[(*nonMissMembrIndx)[*nonMissMembrSize]]];
+          }
+        }  
+      }  
+      if ((*nonMissMembrSize) == 0) {
+        splittable = FALSE;
+      }
+      if (splittable) {
+        indexx((*nonMissMembrSize),
+               nonMissSplit,
+               (*indxx));
+        splitVector[1] = nonMissSplit[(*indxx)[1]];
+        (*splitVectorSize) = 1;
+        for (i = 2; i <= (*nonMissMembrSize); i++) {
+          if (nonMissSplit[(*indxx)[i]] > splitVector[(*splitVectorSize)]) {
+            (*splitVectorSize) ++;
+            splitVector[(*splitVectorSize)] = nonMissSplit[(*indxx)[i]];
+          }
+        }
+        if((*splitVectorSize) >= 2) {
+          (*covariate) = candidateCovariate;
+        }
+        else {
+          splittable = FALSE;
+        }
+      }  
+      if (!splittable) {
+        (parent -> permissibleSplit)[candidateCovariate] = FALSE;
+        (*actualCovariateCount) --;
+      }
+    }  
+    else {
+    }
+  }  
+  if (!splittable) {
+    free_uivector(*indxx, 1, repMembrSize);
+    if ((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP))) {
+      *nonMissMembrSize = 0;
+      *nonMissMembrIndx = NULL;
+    }
+    else {
+      *nonMissMembrSize = 0;
+      free_uivector(*nonMissMembrIndx, 1, nonMissMembrSizeStatic);
+    }
+  }
+  free_dvector(nonMissSplit, 1, repMembrSize);
+  return splittable;
+}
+void unselectRandomCovariatesGreedy(uint      treeID,
+                              Node     *parent,
+                              uint      repMembrSize,
+                              uint     *indxx,
+                              uint     nonMissMembrSizeStatic,
+                              uint    *nonMissMembrIndx,
+                              char      multImpFlag) {
+  free_uivector((indxx), 1, repMembrSize);
+  if (!((RF_mRecordSize == 0) || (multImpFlag) || (!(RF_optHigh & OPT_MISS_SKIP)))) {
+    free_uivector(nonMissMembrIndx, 1, nonMissMembrSizeStatic);
+  }
 }
 char logRankNCR (uint    treeID,
                  Node   *parent,
@@ -10149,7 +11081,6 @@ char unsupervisedSplit (uint    treeID,
         for (r = 1; r <= RF_ytry; r++) {
           if (impurity[r]) {
             if ((RF_xType[pseudoResponse[r]] == 'B') ||
-                (RF_xType[pseudoResponse[r]] == 'I') ||
                 (RF_xType[pseudoResponse[r]] == 'C')) {
               pseudoResponseClassSize[r] = RF_xFactorSize[RF_xFactorMap[pseudoResponse[r]]];
               parentClassProp[r] = uivector(1, pseudoResponseClassSize[r]);
@@ -10192,7 +11123,6 @@ char unsupervisedSplit (uint    treeID,
           for (r = 1; r <= RF_ytry; r++) {
             if (impurity[r]) {
               if ((RF_xType[pseudoResponse[r]] == 'B') ||
-                  (RF_xType[pseudoResponse[r]] == 'I') ||
                   (RF_xType[pseudoResponse[r]] == 'C')) {
                 for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
                   rghtClassProp[r][p] = parentClassProp[r][p];
@@ -10241,7 +11171,6 @@ char unsupervisedSplit (uint    treeID,
             if (impurity[r]) {
               if (factorFlag == TRUE) {
                 if ((RF_xType[pseudoResponse[r]] == 'B') ||
-                    (RF_xType[pseudoResponse[r]] == 'I') ||
                     (RF_xType[pseudoResponse[r]] == 'C')) {
                   for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
                     leftClassProp[r][p] = 0;
@@ -10280,7 +11209,6 @@ char unsupervisedSplit (uint    treeID,
                 for (k = priorMembrIter + 1; k < currentMembrIter; k++) {
                   if (secondNonMissMembrFlag[r][k] == TRUE) {
                     if ((RF_xType[pseudoResponse[r]] == 'B') ||
-                        (RF_xType[pseudoResponse[r]] == 'I') ||
                         (RF_xType[pseudoResponse[r]] == 'C')) {
                       leftClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] ++;
                       rghtClassProp[r][(uint) RF_observation[treeID][pseudoResponse[r]][ repMembrIndx[nonMissMembrIndx[indxx[k]]] ]] --;
@@ -10297,7 +11225,6 @@ char unsupervisedSplit (uint    treeID,
               if ((secondNonMissMembrLeftSize[r] > 0) && (secondNonMissMembrRghtSize[r] > 0)) {
                 deltaNorm ++;
                 if ((RF_xType[pseudoResponse[r]] == 'B') ||
-                    (RF_xType[pseudoResponse[r]] == 'I') ||
                     (RF_xType[pseudoResponse[r]] == 'C')) {
                   sumLeft[1] = sumRght[1] = 0;
                   for (p = 1; p <= pseudoResponseClassSize[r]; p++) {
@@ -10352,7 +11279,6 @@ char unsupervisedSplit (uint    treeID,
         for (r = 1; r <= RF_ytry; r++) {
           if (impurity[r]) {
             if ((RF_xType[pseudoResponse[r]] == 'B') ||
-                (RF_xType[pseudoResponse[r]] == 'I') ||
                 (RF_xType[pseudoResponse[r]] == 'C')) {
               free_uivector (parentClassProp[r], 1, pseudoResponseClassSize[r]);
               free_uivector (leftClassProp[r],   1, pseudoResponseClassSize[r]);
@@ -12244,8 +13170,8 @@ void stackRandomCovariates(uint      treeID,
                            uint   ***densitySwap) {
   initializeCDF(treeID,
                 NULL, 
-                (RF_xWeightType == RF_WGHT_UNIFORM) ? (parent -> permissibleSplit) : (parent -> permissibleSplit),
-                (RF_xWeightType == RF_WGHT_UNIFORM) ? parent -> xSize : parent -> xSize,
+                parent -> permissibleSplit,
+                parent -> xSize,
                 RF_xWeightType,
                 RF_xWeight,
                 RF_xWeightSorted,
@@ -12350,7 +13276,7 @@ char selectRandomCovariates(uint     treeID,
                 uniformCovariateSize,
                 *uniformCovariateIndex,
                 cdf,
-                cdfSize,
+                *cdfSize,
                 density,
                 densitySize,
                 densitySwap,
@@ -12439,7 +13365,7 @@ void unselectRandomCovariates(uint      treeID,
     free_uivector(nonMissMembrIndx, 1, nonMissMembrSizeStatic);
   }
 }
-char selectRandomCovariatesNew(uint     treeID,
+char selectRandomCovariatesMIA(uint     treeID,
                             Node     *parent,
                             uint     *repMembrIndx,
                             uint      repMembrSize,
@@ -12515,7 +13441,7 @@ char selectRandomCovariatesNew(uint     treeID,
                 uniformCovariateSize,
                 *uniformCovariateIndex,
                 cdf,
-                cdfSize,
+                *cdfSize,
                 density,
                 densitySize,
                 densitySwap,
@@ -12603,7 +13529,7 @@ char selectRandomCovariatesNew(uint     treeID,
   free_dvector(nonMissSplit, 1, repMembrSize);
   return splittable;
 }
-void unselectRandomCovariatesNew(uint      treeID,
+void unselectRandomCovariatesMIA(uint      treeID,
                                  Node     *parent,
                                  uint      repMembrSize,
                                  uint     *indxx,
@@ -12970,7 +13896,7 @@ void unstackPreSplit (char      preliminaryResult,
   else {
   }
 }
-char getPreSplitResultNew (uint      treeID,
+char getPreSplitResultMIA (uint      treeID,
                            Node     *parent,
                            uint      repMembrSize,
                            uint     *repMembrIndx,
@@ -13110,7 +14036,7 @@ char getPreSplitResultNew (uint      treeID,
   }
   return result;
 }
-void unstackPreSplitNew (char      preliminaryResult,
+void unstackPreSplitMIA (char      preliminaryResult,
                          char      multImpFlag,
                          char      multVarFlag,
                          uint      repMembrSize,
@@ -13156,7 +14082,7 @@ char updateMaximumSplit(uint    treeID,
     flag = FALSE;
   }
   else {
-    delta = delta * RF_xSplitStatWt[covariate];
+    delta = delta * RF_xSplitStatWeight[covariate];
     if(RF_nativeIsNaN(*deltaMax)) {
       flag = TRUE;
     }
@@ -13211,7 +14137,7 @@ char updateMaximumSplit(uint    treeID,
   }
   return flag;
 }
-char updateMaximumSplitNew(uint    treeID,
+char updateMaximumSplitMIA(uint    treeID,
                            Node   *parent,
                            double  delta,
                            uint    candidateCovariateCount,
@@ -13239,7 +14165,7 @@ char updateMaximumSplitNew(uint    treeID,
     flag = FALSE;
   }
   else {
-    delta = delta * RF_xSplitStatWt[covariate];
+    delta = delta * RF_xSplitStatWeight[covariate];
     if(RF_nativeIsNaN(*deltaMax)) {
       flag = TRUE;
     }
@@ -13313,7 +14239,7 @@ void updateNodeStatistics(Node *parent, double delta, uint candidateCovariateCou
     flag = FALSE;
   }
   else {
-    delta = delta * RF_xSplitStatWt[covariate];
+    delta = delta * RF_xSplitStatWeight[covariate];
     if(RF_nativeIsNaN((parent -> mtryStat)[candidateCovariateCount])) {
       flag = TRUE;
     }
@@ -13378,7 +14304,8 @@ void initializeTimeArrays(char mode) {
   }
 }
 void stackFactorArrays() {
-  stackFactorGeneric(RF_ySize,
+  stackFactorGeneric(TRUE,
+                     RF_ySize,
                      RF_rType,
                      &RF_rFactorMap,
                      &RF_rFactorCount,
@@ -13387,7 +14314,8 @@ void stackFactorArrays() {
                      &RF_rNonFactorMap,
                      &RF_rNonFactorCount,
                      &RF_rNonFactorIndex);
-  stackFactorGeneric(RF_xSize,
+  stackFactorGeneric(FALSE,
+                     RF_xSize,
                      RF_xType,
                      &RF_xFactorMap,
                      &RF_xFactorCount,
@@ -13397,7 +14325,8 @@ void stackFactorArrays() {
                      &RF_xNonFactorCount,
                      &RF_xNonFactorIndex);
 }
-void stackFactorGeneric(uint    size,
+void stackFactorGeneric(char    respFlag,
+                        uint    size,
                         char   *type,
                         uint  **p_factorMap,
                         uint   *factorCount,
@@ -13416,7 +14345,7 @@ void stackFactorGeneric(uint    size,
       (*p_factorMap)[i]    = 0;
       (*p_nonfactorMap)[i] = 0;
       if ((type[i] == 'B') ||
-          (type[i] == 'I') ||
+          ((type[i] == 'I') && respFlag) ||
           (type[i] == 'C')) {
         (*factorCount) ++;
         (*p_factorMap)[i] = *factorCount;
@@ -13500,7 +14429,7 @@ char stackMissingArrays(char mode) {
         if (!RF_nativeIsNaN(RF_responseIn[RF_timeIndex][i])) {
           if (RF_responseIn[RF_timeIndex][i] < 0) {
             result = FALSE;
-            RF_nativePrint("\nRF-SRC:  TRAINING time elements must be greater than or equal to zero or NA:  [%10d] = %12.4f \n", i, RF_responseIn[RF_timeIndex][i]);
+            RF_nativePrint("\nRF-SRC:  train time elements must be greater than or equal to zero or NA:  [%10d] = %12.4f \n", i, RF_responseIn[RF_timeIndex][i]);
           }
         }
       }
@@ -13510,7 +14439,7 @@ char stackMissingArrays(char mode) {
         if (!RF_nativeIsNaN(RF_responseIn[RF_statusIndex][i])) {
           if (RF_responseIn[RF_statusIndex][i] < 0) {
             result = FALSE;
-            RF_nativePrint("\nRF-SRC:  TRAINING status elements must be greater than or equal to zero or NA:  [%10d] = %12.4f \n", i, RF_responseIn[RF_statusIndex][i]);
+            RF_nativePrint("\nRF-SRC:  train status elements must be greater than or equal to zero or NA:  [%10d] = %12.4f \n", i, RF_responseIn[RF_statusIndex][i]);
           }
         }
       }
@@ -13526,7 +14455,7 @@ char stackMissingArrays(char mode) {
         }
       }
       if (mFlag == FALSE) {
-        RF_nativePrint("\nRF-SRC:  All TRAINING status elements are censored or missing. \n");
+        RF_nativePrint("\nRF-SRC:  All train status elements are censored or missing. \n");
         result = FALSE;
       }
     }
@@ -13539,7 +14468,7 @@ char stackMissingArrays(char mode) {
         }
       }
       if (mFlag == FALSE) {
-        RF_nativePrint("\nRF-SRC:  All TRAINING outcome/response elements are missing for:  %10d \n", j);
+        RF_nativePrint("\nRF-SRC:  All train outcome/response elements are missing for:  %10d \n", j);
         result = FALSE;
       }
     }
@@ -13958,7 +14887,6 @@ void stackMissingSignatures(uint     obsSize,
     }
     else {
       if ((RF_xType[(*p_pIndex)[p]] == 'B') ||
-          (RF_xType[(*p_pIndex)[p]] == 'I') ||
           (RF_xType[(*p_pIndex)[p]] == 'C')) {
         (*pRF_mxFactorSize) ++;
         (*pRF_mxFactorIndex)[*pRF_mxFactorSize] = (*p_pIndex)[p];
@@ -14139,7 +15067,7 @@ char stackCompetingArrays(char mode) {
         RF_nativeError("\nRF-SRC:  *** ERROR *** ");
         RF_nativeError("\nRF-SRC:  Parameter verification failed.");
         RF_nativeError("\nRF-SRC:  Competing Risk analysis has been requested.");
-        RF_nativeError("\nRF-SRC:  The training data set does not contain not contain competing risks.");
+        RF_nativeError("\nRF-SRC:  The train data set does not contain competing risks.");
         RF_nativeExit();
       }
     }
@@ -14169,7 +15097,7 @@ char stackCompetingArrays(char mode) {
       RF_nativeError("\nRF-SRC:  *** ERROR *** ");
       RF_nativeError("\nRF-SRC:  Parameter verification failed.");
       RF_nativeError("\nRF-SRC:  Performance or vimp has been requested.");
-      RF_nativeError("\nRF-SRC:  The training or pseudo-training data set does not contain any events.");
+      RF_nativeError("\nRF-SRC:  The train or pseudo-train data set does not contain any events.");
       RF_nativeExit();
     }
   }
@@ -14266,7 +15194,7 @@ char stackCompetingArrays(char mode) {
         RF_nativeError("\nRF-SRC:  *** ERROR *** ");
         RF_nativeError("\nRF-SRC:  Parameter verification failed.");
         RF_nativeError("\nRF-SRC:  Performance or vimp has been requested.");
-        RF_nativeError("\nRF-SRC:  The training or pseudo-training data set does not contain any events.");
+        RF_nativeError("\nRF-SRC:  The train or pseudo-train data set does not contain any events.");
         RF_nativeExit();
       }
     }
@@ -14558,18 +15486,21 @@ char stackClassificationArrays(char mode) {
     }
   }  
   if (RF_opt & OPT_PERF) {
-    if (RF_opt & OPT_PERF_GMND) {
+    if (RF_opt & OPT_PERF_GMNQ) {
       RF_rFactorMinority = uivector(1, RF_rFactorCount);
       RF_rFactorMajority = uivector(1, RF_rFactorCount);
       RF_rFactorThreshold = dvector(1, RF_rFactorCount);
+      uint totalCount;
       for (j = 1; j <= RF_rFactorCount; j++) {
         uint *levelCount = uivector(1, RF_rFactorSize[j]);
+        totalCount = 0;
         for (k = 1; k <= RF_rFactorSize[j]; k++) {
           levelCount[k] = 0;
         }
         for (i = 1; i <= RF_observationSize; i++) {
           if (!RF_nativeIsNaN(RF_responseIn[RF_rFactorIndex[j]][i])) {
             levelCount[(uint) RF_responseIn[RF_rFactorIndex[j]][i]] ++;
+            totalCount ++;
           }
         }
         minorityClassCnt = levelCount[1];
@@ -14590,11 +15521,11 @@ char stackClassificationArrays(char mode) {
           }
         }
         RF_rFactorMajority[j] = majorityClassID;
-        RF_rFactorThreshold[j] = (double) levelCount[RF_rFactorMinority[j]] / levelCount[RF_rFactorMajority[j]];
+        RF_rFactorThreshold[j] = (double) levelCount[RF_rFactorMinority[j]] / totalCount;
         free_uivector(levelCount, 1, RF_rFactorSize[j]);
       }
     }
-    if ((RF_opt & OPT_PERF_GMN2) || (RF_opt & OPT_PERF_GMND)) {
+    if ((RF_opt & OPT_PERF_GMN2) || (RF_opt & OPT_PERF_GMNQ)) {
       for (j = 1; j <= RF_rFactorCount; j++) {
         if (RF_rFactorSize[j] == 2) {
           RF_rFactorMinorityFlag[j] = TRUE;
@@ -14677,7 +15608,7 @@ void unstackClassificationArrays(char mode) {
   free_uivector(RF_classLevelSize, 1, RF_rFactorCount);
   free_cvector(RF_rFactorMinorityFlag, 1, RF_rFactorCount);
   if (RF_opt & OPT_PERF) {
-    if (RF_opt & OPT_PERF_GMND) {
+    if (RF_opt & OPT_PERF_GMNQ) {
       free_dvector(RF_rFactorThreshold, 1, RF_rFactorCount);
       free_uivector(RF_rFactorMinority, 1, RF_rFactorCount);
       free_uivector(RF_rFactorMajority, 1, RF_rFactorCount);
@@ -14689,6 +15620,7 @@ void stackDefinedOutputObjects(char      mode,
                                Node   ***pRF_root,
                                uint    **pRF_tLeafCount,
                                double  **pRF_proximity,
+                                
                                double  **pRF_weight,
                                int     **pRF_seed,
                                double  **p_imputation,
@@ -14809,6 +15741,7 @@ void stackDefinedOutputObjects(char      mode,
     if (RF_opt & OPT_PROX) {
       RF_stackCount += 1;
     }
+     
     if (RF_optHigh & OPT_WGHT) {
       RF_stackCount += 1;
     }
@@ -14931,6 +15864,7 @@ void stackDefinedOutputObjects(char      mode,
     if (RF_opt & OPT_PROX) {
       RF_stackCount += 1;
     }
+     
     if (RF_optHigh & OPT_WGHT) {
       RF_stackCount += 1;
     }
@@ -15021,6 +15955,7 @@ void stackDefinedOutputObjects(char      mode,
     }
     break;
   }  
+   
   initProtect(RF_stackCount);
   oobFlag = fullFlag = FALSE;
   if ((RF_opt & OPT_FENS) | (RF_opt & OPT_OENS)) {
@@ -15100,7 +16035,7 @@ void stackDefinedOutputObjects(char      mode,
         {
           (oobFlag == TRUE) ? (sexpIdentity = RF_OSRG_ID) : ((fullFlag == TRUE) ? sexpIdentity = RF_ASRG_ID : TRUE);
           localSize = (ulong) RF_eventTypeSize * RF_sortedTimeInterestSize * obsSize;
-          *ensembleSRG = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, RF_sexpString, ensembleSRGptr, 3, RF_eventTypeSize, RF_sortedTimeInterestSize, obsSize);
+          *ensembleSRG = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, 0, RF_sexpString, ensembleSRGptr, 3, RF_eventTypeSize, RF_sortedTimeInterestSize, obsSize);
           *ensembleSRGnum = (double ***) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR2);
           for (j = 1; j <= RF_eventTypeSize; j++) {
             (*ensembleSRGnum)[j] = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
@@ -15113,7 +16048,7 @@ void stackDefinedOutputObjects(char      mode,
           }
           (oobFlag == TRUE) ? (sexpIdentity = RF_OMRT_ID) : ((fullFlag == TRUE) ? sexpIdentity = RF_AMRT_ID: TRUE);
           localSize = (ulong) RF_eventTypeSize * obsSize;
-          *ensembleMRT = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, RF_sexpString, ensembleMRTptr, 2, RF_eventTypeSize, obsSize);
+          *ensembleMRT = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, 0, RF_sexpString, ensembleMRTptr, 2, RF_eventTypeSize, obsSize);
           *ensembleMRTnum = (double **) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR);
           for (j = 1; j <= RF_eventTypeSize; j++) {
             (*ensembleMRTnum)[j] = dvector(1, obsSize);
@@ -15124,7 +16059,7 @@ void stackDefinedOutputObjects(char      mode,
           if (!(RF_opt & OPT_COMP_RISK)) {
             (oobFlag == TRUE) ? (sexpIdentity = RF_OSRV_ID) : ((fullFlag == TRUE) ? sexpIdentity = RF_ASRV_ID: TRUE);
             localSize = (ulong) RF_sortedTimeInterestSize * obsSize;
-            *ensembleSRV = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, RF_sexpString, ensembleSRVptr, 2, RF_sortedTimeInterestSize, obsSize);
+            *ensembleSRV = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, 0, RF_sexpString, ensembleSRVptr, 2, RF_sortedTimeInterestSize, obsSize);
             *ensembleSRVnum = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
             for (j = 1; j <= RF_sortedTimeInterestSize; j++) {
               (*ensembleSRVnum)[j]  = dvector(1, obsSize);
@@ -15136,7 +16071,7 @@ void stackDefinedOutputObjects(char      mode,
           else {
             (oobFlag == TRUE) ? (sexpIdentity = RF_OCIF_ID) : ((fullFlag == TRUE) ? sexpIdentity = RF_ACIF_ID: TRUE);
             localSize = (ulong) RF_eventTypeSize * RF_sortedTimeInterestSize * obsSize;
-            *ensembleCIF = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, RF_sexpString, ensembleCIFptr, 3, RF_eventTypeSize, RF_sortedTimeInterestSize, obsSize);
+            *ensembleCIF = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, 0, RF_sexpString, ensembleCIFptr, 3, RF_eventTypeSize, RF_sortedTimeInterestSize, obsSize);
             *ensembleCIFnum = (double ***) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR2);
             for (j = 1; j <= RF_eventTypeSize; j++) {
               (*ensembleCIFnum)[j] = (double **) new_vvector(1, RF_sortedTimeInterestSize, NRUTIL_DPTR);
@@ -15159,19 +16094,15 @@ void stackDefinedOutputObjects(char      mode,
               localSize += (ulong) obsSize;
             }
           }
-          *ensembleCLS = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, RF_sexpString, NULL, 3, RF_rTargetFactorCount, 0, obsSize);
-          *ensembleCLSptr = (double ***) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR2);
+          *ensembleCLS = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, 0, RF_sexpString, ensembleCLSptr, 3, RF_rTargetFactorCount, 0, obsSize);
           *ensembleCLSnum = (double ***) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR2);
           localSize = 0;
           for (j = 1; j <= RF_rTargetFactorCount; j++) {
-            (*ensembleCLSptr)[j] = (double **) new_vvector(1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
             (*ensembleCLSnum)[j] = (double **) new_vvector(1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
             for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-              (*ensembleCLSptr)[j][k]  = (*ensembleCLS) + localSize - 1;
               (*ensembleCLSnum)[j][k]  = dvector(1, obsSize);
               localSize += (ulong) obsSize;
               for (i = 1; i <= obsSize; i++) {
-                (*ensembleCLSptr)[j][k][i] = 0.0;
                 (*ensembleCLSnum)[j][k][i] = 0.0;
               }
             }
@@ -15180,7 +16111,7 @@ void stackDefinedOutputObjects(char      mode,
         if (RF_rTargetNonFactorCount > 0) {
           (oobFlag == TRUE) ? (sexpIdentity = RF_ORGR_ID) : ((fullFlag == TRUE) ? sexpIdentity = RF_ARGR_ID: TRUE);
           localSize = (ulong) RF_rTargetNonFactorCount * obsSize;
-          *ensembleRGR = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, RF_sexpString, ensembleRGRptr, 2, RF_rTargetNonFactorCount, obsSize);
+          *ensembleRGR = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, sexpIdentity, localSize, 0, RF_sexpString, ensembleRGRptr, 2, RF_rTargetNonFactorCount, obsSize);
           (*ensembleRGRnum) = (double **) new_vvector(1, RF_rTargetNonFactorCount, NRUTIL_DPTR);
           for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
             (*ensembleRGRnum)[j] = dvector(1, obsSize);
@@ -15202,12 +16133,7 @@ void stackDefinedOutputObjects(char      mode,
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       {
         localSize = (ulong) RF_ntree * RF_eventTypeSize; 
-        RF_perfMRT_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_ER_SURV, localSize, RF_sexpString, &RF_perfMRTptr, 2, RF_ntree, RF_eventTypeSize);
-        for (i = 1; i <= RF_ntree; i++) {
-          for (k = 1; k <= RF_eventTypeSize; k++) {
-            RF_perfMRTptr[i][k] = RF_nativeNaN;
-          }
-        }
+        RF_perfMRT_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_ER_SURV, localSize, RF_nativeNaN, RF_sexpString, &RF_perfMRTptr, 2, RF_ntree, RF_eventTypeSize);
       }
     }  
     else {
@@ -15218,28 +16144,11 @@ void stackDefinedOutputObjects(char      mode,
             localSize += (ulong) RF_ntree;
           }
         }
-        RF_perfCLS_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_ER_CLAS, localSize, RF_sexpString, NULL, 3, RF_ntree, RF_rTargetFactorCount, 0);        
-        RF_perfCLSptr = (double ***) new_vvector(1, RF_ntree, NRUTIL_DPTR2);
-        localSize = 0;
-        for (i = 1; i <= RF_ntree; i++) {
-          RF_perfCLSptr[i] = (double **) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR);
-          for (j = 1; j <= RF_rTargetFactorCount; j++) {
-            RF_perfCLSptr[i][j]  = (RF_perfCLS_) + localSize - 1;
-            localSize += (ulong) 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]];
-            for (k = 1; k <= 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-              RF_perfCLSptr[i][j][k]  = RF_nativeNaN;
-            }
-          }
-        }
+        RF_perfCLS_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_ER_CLAS, localSize, RF_nativeNaN, RF_sexpString, &RF_perfCLSptr, 3, RF_ntree, RF_rTargetFactorCount, -1);
       }
       if (RF_rTargetNonFactorCount > 0) {
         localSize = (ulong) RF_ntree * RF_rTargetNonFactorCount;
-        RF_perfRGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_ER_REGR, localSize, RF_sexpString, &RF_perfRGRptr, 2, RF_ntree, RF_rTargetNonFactorCount);
-        for (i = 1; i <= RF_ntree; i++) {
-          for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
-            RF_perfRGRptr[i][j] = RF_nativeNaN;
-          }
-        }
+        RF_perfRGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_ER_REGR, localSize, RF_nativeNaN, RF_sexpString, &RF_perfRGRptr, 2, RF_ntree, RF_rTargetNonFactorCount);
       } 
     }
   }  
@@ -15279,12 +16188,7 @@ void stackDefinedOutputObjects(char      mode,
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       {
         localSize = (ulong) xVimpSize * RF_eventTypeSize;
-        RF_vimpMRT_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_VMP_SRG, localSize, RF_sexpString, &RF_vimpMRTptr, 2, xVimpSize, RF_eventTypeSize);
-        for (j = 1; j <= xVimpSize; j++) {
-          for (k = 1; k <= RF_eventTypeSize; k++) {
-            RF_vimpMRTptr[j][k] = RF_nativeNaN;
-          }
-        }
+        RF_vimpMRT_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_VMP_SRG, localSize, RF_nativeNaN, RF_sexpString, &RF_vimpMRTptr, 2, xVimpSize, RF_eventTypeSize);
         RF_vimpEnsembleMRT = (double ***) new_vvector(1, xVimpSize, NRUTIL_DPTR2);
         for (j = 1; j <= xVimpSize; j++) {
           RF_vimpEnsembleMRT[j]  = (double **) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR);
@@ -15323,22 +16227,8 @@ void stackDefinedOutputObjects(char      mode,
           localSize += (ulong) 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]];
         }
         localSize = (ulong) xVimpSize * localSize;
-        RF_vimpCLS_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_VMP_CLS, localSize, RF_sexpString, NULL, 3, xVimpSize, RF_rTargetFactorCount, 0);
-        RF_vimpCLSptr = (double ***) new_vvector(1, xVimpSize, NRUTIL_DPTR2);
-        localSize = 0;
-        for (i = 1; i <= xVimpSize; i++) {
-          RF_vimpCLSptr[i] = (double **) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR);
-          for (j = 1; j <= RF_rTargetFactorCount; j++) {
-            RF_vimpCLSptr[i][j]  = (RF_vimpCLS_) + localSize - 1;
-            localSize += (ulong) 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]];
-            for (k = 1; k <= 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
-              RF_vimpCLSptr[i][j][k]  = RF_nativeNaN;
-            }
-          }
-        }
+        RF_vimpCLS_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_VMP_CLS, localSize, RF_nativeNaN, RF_sexpString, &RF_vimpCLSptr, 3, xVimpSize, RF_rTargetFactorCount, -1);
         maxVoteFlag = !TRUE;
-        if ((RF_opt & OPT_PERF_CALB) || (RF_opt & OPT_PERF_GMND)) {
-        }
         if (maxVoteFlag) {
           RF_vimpEnsembleCLS = (double ****) new_vvector(1, xVimpSize, NRUTIL_DPTR3);        
           for (i = 1; i <= xVimpSize; i++) {
@@ -15395,12 +16285,7 @@ void stackDefinedOutputObjects(char      mode,
       }
       if (RF_rTargetNonFactorCount > 0) {
         localSize = (ulong) xVimpSize * RF_rTargetNonFactorCount;
-        RF_vimpRGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_VMP_RGR, localSize, RF_sexpString, &RF_vimpRGRptr, 2, xVimpSize, RF_rTargetNonFactorCount);        
-        for (i = 1; i <= xVimpSize; i++) {
-          for (j = 1; j <= RF_rTargetNonFactorCount; j++) {
-            RF_vimpRGRptr[i][j] = RF_nativeNaN;
-          }
-        }
+        RF_vimpRGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_VMP_RGR, localSize, RF_nativeNaN, RF_sexpString, &RF_vimpRGRptr, 2, xVimpSize, RF_rTargetNonFactorCount);        
         RF_vimpEnsembleRGR = (double ***) new_vvector(1, xVimpSize, NRUTIL_DPTR2);
         for (j = 1; j <= xVimpSize; j++) {
           RF_vimpEnsembleRGR[j]  = (double **) new_vvector(1, RF_rTargetNonFactorCount, NRUTIL_DPTR);
@@ -15435,7 +16320,7 @@ void stackDefinedOutputObjects(char      mode,
   }  
   if (RF_opt & OPT_PROX) {
     localSize = ((ulong) (obsSize + 1) * obsSize) >> 1;
-    *pRF_proximity = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PROX_ID, localSize, RF_sexpString, NULL, 1, 0);
+    *pRF_proximity = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PROX_ID, localSize, 0, RF_sexpString, NULL, 1, localSize);
     RF_proximityDen = dvector(1, localSize);
     (*pRF_proximity) --;
     RF_proximityPtr = (double **) new_vvector(1, obsSize, NRUTIL_DPTR);
@@ -15452,9 +16337,10 @@ void stackDefinedOutputObjects(char      mode,
       }
     }
   }
+   
   if (RF_optHigh & OPT_WGHT) {
     localSize = (ulong) obsSize * RF_observationSize;
-    *pRF_weight = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_WGHT_ID, localSize, RF_sexpString, &RF_weightPtr, 2, obsSize, RF_observationSize);
+    *pRF_weight = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_WGHT_ID, localSize, 0, RF_sexpString, &RF_weightPtr, 2, obsSize, RF_observationSize);
     RF_weightDenom = uivector(1, RF_observationSize);
     for (k = 1; k <= RF_observationSize; k++) {
       RF_weightDenom[k] = 0.0;
@@ -15462,21 +16348,21 @@ void stackDefinedOutputObjects(char      mode,
   }
   if (RF_opt & OPT_LEAF) {
     localSize = (ulong) RF_ntree;
-    *pRF_tLeafCount = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_LEAF_CT, localSize, RF_sexpString, NULL, 1, 0);
+    *pRF_tLeafCount = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_LEAF_CT, localSize, 0, RF_sexpString, NULL, 1, localSize);
     (*pRF_tLeafCount) --;
     RF_tLeafCount = *pRF_tLeafCount;
   }
   if (RF_opt & OPT_SEED) {
     localSize = (ulong) RF_ntree;
-    *pRF_seed = (int*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_SEED_ID, localSize, RF_sexpString, NULL, 1, 0);
+    *pRF_seed = (int*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_SEED_ID, localSize, 0, RF_sexpString, NULL, 1, localSize);
     (*pRF_seed) --;
     for (i = 1; i <= RF_ntree; i++) {
       (*pRF_seed)[i] = -1;
     }
   }
   if (RF_opt & OPT_MISS) {
-    localSize = (ulong) (RF_xSize + rspSize + 1) * mRecordSize;
-    *p_imputation = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_MISS_ID, localSize, RF_sexpString, NULL, 2, RF_xSize + rspSize + 1, mRecordSize);
+    localSize = (ulong) (1 + rspSize + RF_xSize) * mRecordSize;
+    *p_imputation = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_MISS_ID, localSize, RF_nativeNaN, RF_sexpString, &RF_sImputeDataPtr, 2, 1 + rspSize + RF_xSize, mRecordSize);
     if (rspSize > 0) {
       *pRF_sImputeResponsePtr = (double **) new_vvector(1, rspSize, NRUTIL_DPTR);
       for (i = 1; i <= rspSize; i++) {
@@ -15502,11 +16388,11 @@ void stackDefinedOutputObjects(char      mode,
   if (RF_opt & (OPT_VARUSED_F | OPT_VARUSED_T)) {
     if (RF_opt & OPT_VARUSED_T) {
       localSize = (ulong) RF_ntree * RF_xSize;
-      *pRF_varUsed = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_VUSE_ID, localSize, RF_sexpString, pRF_varUsedPtr, 2, RF_ntree, RF_xSize);
+      *pRF_varUsed = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_VUSE_ID, localSize, 0, RF_sexpString, pRF_varUsedPtr, 2, RF_ntree, RF_xSize);
     }
     else {
       localSize = (ulong) 1 * RF_xSize;
-      *pRF_varUsed = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_VUSE_ID, localSize, RF_sexpString, NULL, 1, 0);
+      *pRF_varUsed = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_VUSE_ID, localSize, 0, RF_sexpString, NULL, 1, localSize);
       *pRF_varUsedPtr = uimatrix(1, RF_ntree, 1, RF_xSize);
       for (i = 1; i <= RF_ntree; i++) {
         for (j = 1; j <= RF_xSize; j++) {
@@ -15524,17 +16410,17 @@ void stackDefinedOutputObjects(char      mode,
       dpthDimOne = RF_ntree;
     }
     localSize = (ulong) dpthDimOne * RF_xSize * RF_observationSize;
-    *p_splitDepth = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_DPTH_ID, localSize, RF_sexpString, &RF_splitDepthPtr, 3, dpthDimOne, RF_xSize, RF_observationSize);
+    *p_splitDepth = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_DPTH_ID, localSize, 0, RF_sexpString, &RF_splitDepthPtr, 3, dpthDimOne, RF_xSize, RF_observationSize);
   }
   if (RF_optHigh & OPT_MEMB_PRUN) {
     localSize = (ulong) RF_ntree * obsSize;
-    RF_PRUN_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_PRUN_ID, localSize, RF_sexpString, &RF_PRUN_ID_ptr, 2, RF_ntree, obsSize);
+    RF_PRUN_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_PRUN_ID, localSize, 0, RF_sexpString, &RF_PRUN_ID_ptr, 2, RF_ntree, obsSize);
   }
   if (RF_optHigh & OPT_MEMB_USER) {
     localSize = (ulong) RF_ntree * obsSize;
-    RF_MEMB_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MEMB_ID, localSize, RF_sexpString, &RF_MEMB_ID_ptr, 2, RF_ntree, obsSize);
+    RF_MEMB_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MEMB_ID, localSize, 0, RF_sexpString, &RF_MEMB_ID_ptr, 2, RF_ntree, obsSize);
     localSize = (ulong) RF_ntree * RF_observationSize;
-    RF_BOOT_CT_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_BOOT_CT, localSize, RF_sexpString, &RF_BOOT_CT_ptr, 2, RF_ntree, RF_observationSize);
+    RF_BOOT_CT_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_BOOT_CT, localSize, 0, RF_sexpString, &RF_BOOT_CT_ptr, 2, RF_ntree, RF_observationSize);
   }
   if (RF_optHigh & OPT_PART_PLOT) {
     RF_partSURVptr = NULL;
@@ -15609,7 +16495,7 @@ void stackDefinedOutputObjects(char      mode,
           }
         }
         localSize = (ulong) RF_partialLength * RF_eventTypeSize * dimThree * RF_observationSize;
-        RF_partial_SURV_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PART_SR, localSize, RF_sexpString, &RF_partSURVptr, 4, RF_partialLength, RF_eventTypeSize, dimThree, RF_observationSize);
+        RF_partial_SURV_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PART_SR, localSize, 0, RF_sexpString, &RF_partSURVptr, 4, RF_partialLength, RF_eventTypeSize, dimThree, RF_observationSize);
       }
     }  
     else {
@@ -15619,26 +16505,11 @@ void stackDefinedOutputObjects(char      mode,
           localSize += (ulong) 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[k]]];
         }
         localSize = (ulong) RF_partialLength * localSize * RF_observationSize;
-        RF_partial_CLAS_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PART_CL, localSize, RF_sexpString, NULL, 4, RF_partialLength, RF_rTargetFactorCount, 0, RF_observationSize);
-        RF_partCLASptr = (double ****) new_vvector(1, RF_partialLength, NRUTIL_DPTR3);
-        localSize = 0;
-        for (j = 1; j <= RF_partialLength; j++) {
-          RF_partCLASptr[j] = (double ***) new_vvector(1, RF_rTargetFactorCount, NRUTIL_DPTR2);
-          for (k = 1; k <= RF_rTargetFactorCount; k++) {
-            RF_partCLASptr[j][k] = (double **) new_vvector(1, 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[k]]], NRUTIL_DPTR);
-            for (m = 1; m <= 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[k]]]; m++) {
-              RF_partCLASptr[j][k][m] = (RF_partial_CLAS_) + localSize - 1;
-              for (i = 1; i <= RF_observationSize; i++) {
-                RF_partCLASptr[j][k][m][i] = 0.0;
-              }
-              localSize += (ulong) obsSize;
-            }
-          }
-        }
+        RF_partial_CLAS_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PART_CL, localSize, 0, RF_sexpString, &RF_partCLASptr, 4, RF_partialLength, RF_rTargetFactorCount, -1, RF_observationSize);
       }
       if (RF_rTargetNonFactorCount > 0) {
         localSize = (ulong) RF_partialLength * RF_rTargetNonFactorCount * RF_observationSize;
-        RF_partial_REGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PART_RG, localSize, RF_sexpString, &RF_partREGRptr, 3, RF_partialLength, RF_rTargetNonFactorCount, RF_observationSize);
+        RF_partial_REGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_PART_RG, localSize, 0, RF_sexpString, &RF_partREGRptr, 3, RF_partialLength, RF_rTargetNonFactorCount, RF_observationSize);
       }
     }
   }  
@@ -15651,7 +16522,6 @@ void unstackDefinedOutputObjects(char      mode,
   char oobFlag, fullFlag;
   uint rspSize;
   uint     **ensembleDen;
-  double ****ensembleCLSptr;
   double ****ensembleSRGnum;
   double  ***ensembleMRTnum;
   double  ***ensembleSRVnum;
@@ -15673,6 +16543,7 @@ void unstackDefinedOutputObjects(char      mode,
     rspSize = RF_ySize;
     break;
   }
+   
   oobFlag = fullFlag = FALSE;
   if ((RF_opt & OPT_FENS) | (RF_opt & OPT_OENS)) {
     if (RF_opt & OPT_FENS) {
@@ -15688,7 +16559,6 @@ void unstackDefinedOutputObjects(char      mode,
         ensembleMRTnum = &RF_oobEnsembleMRTnum;        
         ensembleSRVnum = &RF_oobEnsembleSRVnum;
         ensembleCIFnum = &RF_oobEnsembleCIFnum;
-        ensembleCLSptr = &RF_oobEnsembleCLSptr;
         ensembleCLSnum = &RF_oobEnsembleCLSnum;
         ensembleRGRnum = &RF_oobEnsembleRGRnum;
       }
@@ -15698,7 +16568,6 @@ void unstackDefinedOutputObjects(char      mode,
         ensembleMRTnum = &RF_fullEnsembleMRTnum;        
         ensembleSRVnum = &RF_fullEnsembleSRVnum;
         ensembleCIFnum = &RF_fullEnsembleCIFnum;
-        ensembleCLSptr = &RF_fullEnsembleCLSptr;
         ensembleCLSnum = &RF_fullEnsembleCLSnum;
         ensembleRGRnum = &RF_fullEnsembleRGRnum;
       }
@@ -15739,10 +16608,8 @@ void unstackDefinedOutputObjects(char      mode,
             for (k = 1; k <= RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]]; k++) {
               free_dvector((*ensembleCLSnum)[j][k], 1, obsSize);
             }
-            free_new_vvector((*ensembleCLSptr)[j], 1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
             free_new_vvector((*ensembleCLSnum)[j], 1, RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[j]]], NRUTIL_DPTR);
           }
-          free_new_vvector(*ensembleCLSptr, 1, RF_rTargetFactorCount, NRUTIL_DPTR2);
           free_new_vvector(*ensembleCLSnum, 1, RF_rTargetFactorCount, NRUTIL_DPTR2);
         }
         if (RF_rTargetNonFactorCount > 0) {
@@ -15767,10 +16634,6 @@ void unstackDefinedOutputObjects(char      mode,
     }  
     else {
       if (RF_rTargetFactorCount > 0) {
-        for (i = 1; i <= RF_ntree; i++) {
-          free_new_vvector(RF_perfCLSptr[i], 1, RF_rTargetFactorCount, NRUTIL_DPTR);
-        }
-        free_new_vvector(RF_perfCLSptr, 1, RF_ntree, NRUTIL_DPTR2);
       }
       if (RF_rTargetNonFactorCount > 0) {
       }
@@ -15817,13 +16680,7 @@ void unstackDefinedOutputObjects(char      mode,
     }  
     else {
       if (RF_rTargetFactorCount > 0) {
-        for (i = 1; i <= xVimpSize; i++) {
-          free_new_vvector(RF_vimpCLSptr[i], 1, RF_rTargetFactorCount, NRUTIL_DPTR);
-        }
-        free_new_vvector(RF_vimpCLSptr, 1, xVimpSize, NRUTIL_DPTR2);
         maxVoteFlag = !TRUE;
-        if ((RF_opt & OPT_PERF_CALB) || (RF_opt & OPT_PERF_GMND)) {
-        }
         if (maxVoteFlag) {
           for (i = 1; i <= xVimpSize; i++) {
             for (j = 1; j <= RF_rTargetFactorCount; j++) {
@@ -15896,6 +16753,7 @@ void unstackDefinedOutputObjects(char      mode,
     free_new_vvector(RF_proximityPtr, 1, obsSize, NRUTIL_DPTR);
     free_new_vvector(RF_proximityDenPtr, 1, obsSize, NRUTIL_DPTR);
   }
+   
   if (RF_optHigh & OPT_WGHT) {
     free_uivector(RF_weightDenom, 1, RF_observationSize);
   }
@@ -15926,13 +16784,6 @@ void unstackDefinedOutputObjects(char      mode,
     }
     else {
       if (RF_rTargetFactorCount > 0) {
-        for (j = 1; j <= RF_partialLength; j++) {
-          for (k = 1; k <= RF_rTargetFactorCount; k++) {
-            free_new_vvector(RF_partCLASptr[j][k], 1, 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[k]]], NRUTIL_DPTR);
-          }
-          free_new_vvector(RF_partCLASptr[j], 1, RF_rTargetFactorCount, NRUTIL_DPTR2);
-        }
-        free_new_vvector(RF_partCLASptr, 1, RF_partialLength, NRUTIL_DPTR3);
       }
       if (RF_rTargetNonFactorCount > 0) {
       }
@@ -15991,12 +16842,12 @@ void stackForestOutputObjects(char     mode,
         mwcpSize = 0;
       }
       totalMWCPCount = (ulong) mwcpSize * totalNodeCount;
-      *pRF_treeID = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TREE_ID, totalNodeCount, RF_sexpString, NULL, 1, 0);
-      *pRF_nodeID = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_NODE_ID, totalNodeCount, RF_sexpString, NULL, 1, 0);
-      *pRF_parmID = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_PARM_ID, totalNodeCount, RF_sexpString, NULL, 1, 0);
-      *pRF_contPT = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_CONT_PT, totalNodeCount, RF_sexpString, NULL, 1, 0);
-      *pRF_mwcpSZ = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_SZ, totalNodeCount, RF_sexpString, NULL, 1, 0);
-      *pRF_mwcpPT = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, totalMWCPCount, RF_sexpString, NULL, 1, 0);
+      *pRF_treeID = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TREE_ID, totalNodeCount, 0, RF_sexpString, NULL, 1, totalNodeCount);
+      *pRF_nodeID = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_NODE_ID, totalNodeCount, 0, RF_sexpString, NULL, 1, totalNodeCount);
+      *pRF_parmID = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_PARM_ID, totalNodeCount, 0, RF_sexpString, NULL, 1, totalNodeCount);
+      *pRF_contPT = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_CONT_PT, totalNodeCount, 0, RF_sexpString, NULL, 1, totalNodeCount);
+      *pRF_mwcpSZ = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_SZ, totalNodeCount, 0, RF_sexpString, NULL, 1, totalNodeCount);
+      *pRF_mwcpPT = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, totalMWCPCount, 0, RF_sexpString, NULL, 1, totalMWCPCount);
       (*pRF_treeID) --;
       (*pRF_nodeID) --;
       (*pRF_parmID) --;
@@ -16005,7 +16856,7 @@ void stackForestOutputObjects(char     mode,
       (*pRF_mwcpPT) --;
       RF_mwcpIterator = (*pRF_mwcpPT);
       localSize = (ulong) RF_ntree;
-      *pRF_mwcpCT = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_CT, localSize, RF_sexpString, NULL, 1, 0);
+      *pRF_mwcpCT = (uint*)   stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_CT, localSize, 0, RF_sexpString, NULL, 1, localSize);
       (*pRF_mwcpCT) --;
     }
   }
@@ -16024,7 +16875,7 @@ void stackStatisticalOutputObjects(char     mode,
     totalNodeCount = ((RF_theoreticalMaxtLeafCount[1] << 1) - 1) * RF_ntree;
     if (RF_opt & OPT_USPV_STAT) {
       localSize = (ulong) totalNodeCount * RF_ytry;
-      *pRF_uspvST = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_USPV_ST, localSize, RF_sexpString, &RF_uspvST_ptr, 2, totalNodeCount, RF_ytry);
+      *pRF_uspvST = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_USPV_ST, localSize, 0, RF_sexpString, &RF_uspvST_ptr, 2, totalNodeCount, RF_ytry);
     }
     break;
   default:
@@ -16033,13 +16884,13 @@ void stackStatisticalOutputObjects(char     mode,
   }
   if (RF_opt & OPT_NODE_STAT) {
     localSize = totalNodeCount;
-    *pRF_spltST = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_SPLT_ST, localSize, RF_sexpString, NULL, 1, 0);
+    *pRF_spltST = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_SPLT_ST, localSize, 0, RF_sexpString, NULL, 1, localSize);
     (*pRF_spltST) --;
     *pRF_spltVR = NULL;
     if (mode == RF_GROW) {
       localSize = (ulong) totalNodeCount * RF_mtry;
-      *pRF_mtryID = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MTRY_ID, localSize, RF_sexpString, &RF_mtryID_ptr, 2, totalNodeCount, RF_mtry);
-      *pRF_mtryST = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_MTRY_ST, localSize, RF_sexpString, &RF_mtryST_ptr, 2, totalNodeCount, RF_mtry);
+      *pRF_mtryID = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MTRY_ID, localSize, 0, RF_sexpString, &RF_mtryID_ptr, 2, totalNodeCount, RF_mtry);
+      *pRF_mtryST = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_MTRY_ST, localSize, 0, RF_sexpString, &RF_mtryST_ptr, 2, totalNodeCount, RF_mtry);
     }
   }
 }
@@ -16059,54 +16910,46 @@ void stackTNQualitativeOutputObjects(char     mode,
   ulong localSize;
   if (RF_optHigh & OPT_MEMB_OUTG) {
     localSize = (ulong) RF_ntree * RF_bootstrapSize;
-    *pRF_RMBR_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_RMBR_ID, localSize, RF_sexpString, &RF_RMBR_ID_ptr, 2, RF_ntree, RF_bootstrapSize);
+    *pRF_RMBR_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_RMBR_ID, localSize, 0, RF_sexpString, &RF_RMBR_ID_ptr, 2, RF_ntree, RF_bootstrapSize);
     localSize = (ulong) RF_ntree * RF_observationSize;
-    *pRF_AMBR_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_AMBR_ID, localSize, RF_sexpString, &RF_AMBR_ID_ptr, 2, RF_ntree, RF_observationSize);
+    *pRF_AMBR_ID_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_AMBR_ID, localSize, 0, RF_sexpString, &RF_AMBR_ID_ptr, 2, RF_ntree, RF_observationSize);
     localSize = RF_totalTerminalCount;
-    *pRF_TN_RCNT_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TN_RCNT, localSize, RF_sexpString, &RF_TN_RCNT_ptr, 2, RF_ntree, RF_theoreticalMaxtLeafCount[1]);
-    *pRF_TN_ACNT_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TN_ACNT, localSize, RF_sexpString, &RF_TN_ACNT_ptr, 2, RF_ntree, RF_theoreticalMaxtLeafCount[1]);
+    *pRF_TN_RCNT_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TN_RCNT, localSize, 0, RF_sexpString, &RF_TN_RCNT_ptr, 2, RF_ntree, RF_theoreticalMaxtLeafCount[1]);
+    *pRF_TN_ACNT_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TN_ACNT, localSize, 0, RF_sexpString, &RF_TN_ACNT_ptr, 2, RF_ntree, RF_theoreticalMaxtLeafCount[1]);
   }
-}
-void stackAuxTNQualitativeStructures(char     mode,
-                                     uint    *pRF_RMBR_ID_,
-                                     uint    *pRF_AMBR_ID_,
-                                     uint    *pRF_TN_RCNT_,
-                                     uint    *pRF_TN_ACNT_) {
-  uint *tLeafCount;
-  ulong offset;
-  uint i;
-  if (RF_optHigh & OPT_MEMB_INCG) {
-    RF_RMBR_ID_ptr = (uint **) new_vvector(1, RF_ntree, NRUTIL_UPTR);
-    for (i = 1; i <= RF_ntree; i++) {
-      (RF_RMBR_ID_ptr)[i] = (pRF_RMBR_ID_) + ((i-1) * RF_bootstrapSize) - 1;
-    }
-    RF_AMBR_ID_ptr = (uint **) new_vvector(1, RF_ntree, NRUTIL_UPTR);
-    for (i = 1; i <= RF_ntree; i++) {
-      (RF_AMBR_ID_ptr)[i] = (pRF_AMBR_ID_) + ((i-1) * RF_observationSize) - 1;
-    }
-    tLeafCount = RF_tLeafCount;
-    offset = 0;
-    RF_TN_RCNT_ptr = (uint **) new_vvector(1, RF_ntree, NRUTIL_UPTR);
-    RF_TN_ACNT_ptr = (uint **) new_vvector(1, RF_ntree, NRUTIL_UPTR);
-    for (i = 1; i <= RF_ntree; i++) {
-      if (tLeafCount[i] > 0) {
-        RF_TN_RCNT_ptr[i] = (pRF_TN_RCNT_) + offset - 1;
-        RF_TN_ACNT_ptr[i] = (pRF_TN_ACNT_) + offset - 1;
-        offset += (ulong) tLeafCount[i];
-      }
-      else {
-        RF_TN_RCNT_ptr[i] = NULL;
-        RF_TN_ACNT_ptr[i] = NULL;
-      }
-    }
-  }
-}
-void unstackAuxTNQualitativeStructures(char mode) {
-  if (RF_optHigh & OPT_MEMB_INCG) {
-    free_new_vvector(RF_RMBR_ID_ptr, 1, RF_ntree, NRUTIL_UPTR);
-    free_new_vvector(RF_AMBR_ID_ptr, 1, RF_ntree, NRUTIL_UPTR);
-    free_new_vvector(RF_TN_RCNT_ptr, 1, RF_ntree, NRUTIL_UPTR);
-    free_new_vvector(RF_TN_ACNT_ptr, 1, RF_ntree, NRUTIL_UPTR);
+  else if (RF_optHigh & OPT_MEMB_INCG) {
+    int *dim = ivector(1, 2);
+    dim[1] = RF_ntree;
+    dim[2] = RF_bootstrapSize;
+    allocateAuxiliaryInfo(NATIVE_TYPE_INTEGER,
+                          RF_RMBR_ID,
+                          *pRF_RMBR_ID_,
+                          &RF_RMBR_ID_ptr,
+                          2,
+                          dim);
+    dim[1] = RF_ntree;
+    dim[2] = RF_observationSize;
+    allocateAuxiliaryInfo(NATIVE_TYPE_INTEGER,
+                          RF_AMBR_ID,
+                          *pRF_AMBR_ID_,
+                          &RF_AMBR_ID_ptr,
+                          2,
+                          dim);
+    dim[1] = RF_ntree;
+    dim[2] = -2;
+    allocateAuxiliaryInfo(NATIVE_TYPE_INTEGER,
+                          RF_TN_RCNT,
+                          *pRF_TN_RCNT_,
+                          &RF_TN_RCNT_ptr,
+                          2,
+                          dim);
+    allocateAuxiliaryInfo(NATIVE_TYPE_INTEGER,
+                          RF_TN_ACNT,
+                          *pRF_TN_ACNT_,
+                          &RF_TN_ACNT_ptr,
+                          2,
+                          dim);
+    free_ivector(dim, 1, 2);
   }
 }
 void stackTNQuantitativeOutputObjects(char     mode,
@@ -16124,23 +16967,22 @@ void stackTNQuantitativeOutputObjects(char     mode,
     tnDimOne = RF_totalTerminalCount;
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
       localSize = (ulong) tnDimOne * RF_eventTypeSize;
-      *pRF_TN_MORT_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_MORT, localSize, RF_sexpString, RF_TN_MORT_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_eventTypeSize);
+      *pRF_TN_MORT_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_MORT, localSize, RF_nativeNaN, RF_sexpString, &RF_TN_MORT_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_eventTypeSize);
       if (!(RF_opt & OPT_COMP_RISK)) {
         localSize = (ulong) tnDimOne * RF_sortedTimeInterestSize;
-        *pRF_TN_SURV_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_SURV, localSize, RF_sexpString, RF_TN_SURV_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_sortedTimeInterestSize);
-        localSize = (ulong) tnDimOne * RF_sortedTimeInterestSize;
-        *pRF_TN_NLSN_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_NLSN, localSize, RF_sexpString, RF_TN_NLSN_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_sortedTimeInterestSize);
+        *pRF_TN_SURV_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_SURV, localSize, RF_nativeNaN, RF_sexpString, &RF_TN_SURV_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_sortedTimeInterestSize);
+        *pRF_TN_NLSN_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_NLSN, localSize, RF_nativeNaN, RF_sexpString, &RF_TN_NLSN_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_sortedTimeInterestSize);
       }
       else {
         localSize = (ulong) tnDimOne * RF_eventTypeSize * RF_sortedTimeInterestSize;
-        *pRF_TN_CSHZ_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_CSHZ, localSize, RF_sexpString, RF_TN_CSHZ_ptr, 4, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_eventTypeSize, RF_sortedTimeInterestSize);
-        *pRF_TN_CIFN_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_CIFN, localSize, RF_sexpString, RF_TN_CIFN_ptr, 4, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_eventTypeSize, RF_sortedTimeInterestSize);
+        *pRF_TN_CSHZ_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_CSHZ, localSize, RF_nativeNaN, RF_sexpString, &RF_TN_CSHZ_ptr, 4, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_eventTypeSize, RF_sortedTimeInterestSize);
+        *pRF_TN_CIFN_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_CIFN, localSize, RF_nativeNaN, RF_sexpString, &RF_TN_CIFN_ptr, 4, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_eventTypeSize, RF_sortedTimeInterestSize);
       }
     }
     else {
       if (RF_rNonFactorCount > 0) {
         localSize = (ulong) tnDimOne * RF_rNonFactorCount;
-        *pRF_TN_REGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_REGR, localSize, RF_sexpString, RF_TN_REGR_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_rNonFactorCount);
+        *pRF_TN_REGR_ = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, RF_TN_REGR, localSize, RF_nativeNaN, RF_sexpString, &RF_TN_REGR_ptr, 3, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_rNonFactorCount);
       }
       if (RF_rFactorCount > 0) {
         tnDimTwo = 0;
@@ -16148,220 +16990,84 @@ void stackTNQuantitativeOutputObjects(char     mode,
           tnDimTwo += RF_rFactorSize[j];
         }
         localSize = (ulong) tnDimOne * tnDimTwo;
-        *pRF_TN_CLAS_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TN_CLAS, localSize, RF_sexpString, NULL, 4, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_rFactorCount, 0);
+        *pRF_TN_CLAS_ = (uint*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_TN_CLAS, localSize, RF_nativeNaN, RF_sexpString, &RF_TN_CLAS_ptr, 4, RF_ntree, RF_theoreticalMaxtLeafCount[1], RF_rFactorCount, 0);
       }
     }
   }
-}
-void stackAuxTNQuantitativeStructures(char    mode,
-                                      double *pRF_TN_SURV,
-                                      double *pRF_TN_MORT,
-                                      double *pRF_TN_NLSN,
-                                      double *pRF_TN_CSHZ,
-                                      double *pRF_TN_CIFN,
-                                      double *pRF_TN_REGR,
-                                      uint   *pRF_TN_CLAS) {
-  uint *tLeafCount;
-  ulong offset;
-  uint  i, j, k;
-  if (RF_optHigh & OPT_TERM_INCG) {
-    tLeafCount = RF_tLeafCount;
+  else if (RF_optHigh & OPT_TERM_INCG) {
+    int *dim = ivector(1, 4);
     if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      offset = 0;
-      RF_TN_MORT_ptr = (double ***) new_vvector(1, RF_ntree, NRUTIL_DPTR2);
-      for (i = 1; i <= RF_ntree; i++) {
-        if (tLeafCount[i] > 0) {
-          RF_TN_MORT_ptr[i] = (double **) new_vvector(1, tLeafCount[i], NRUTIL_DPTR);
-          for (j = 1; j <= tLeafCount[i]; j++) {
-            RF_TN_MORT_ptr[i][j] = (pRF_TN_MORT) + offset - 1;
-            offset += (ulong) RF_eventTypeSize;
-          }
-        }
-        else {
-          RF_TN_MORT_ptr[i] = NULL;
-        }
-      }
+      dim[1] = RF_ntree;
+      dim[2] = -2;
+      dim[3] = RF_eventTypeSize;
+      allocateAuxiliaryInfo(NATIVE_TYPE_NUMERIC,
+                          RF_TN_MORT,
+                          *pRF_TN_MORT_,
+                          &RF_TN_MORT_ptr,
+                          3,
+                          dim);
       if (!(RF_opt & OPT_COMP_RISK)) {
-        offset = 0;
-        RF_TN_SURV_ptr = (double ***) new_vvector(1, RF_ntree, NRUTIL_DPTR2);
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            RF_TN_SURV_ptr[i] = (double **) new_vvector(1, tLeafCount[i], NRUTIL_DPTR);
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              RF_TN_SURV_ptr[i][j] = (pRF_TN_SURV) + offset - 1;
-              offset += (ulong) RF_sortedTimeInterestSize;
-            }
-          }
-          else {
-            RF_TN_SURV_ptr[i] = NULL;
-          }
-        }
-        offset = 0;
-        RF_TN_NLSN_ptr = (double ***) new_vvector(1, RF_ntree, NRUTIL_DPTR2);
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            RF_TN_NLSN_ptr[i] = (double **) new_vvector(1, tLeafCount[i], NRUTIL_DPTR);
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              RF_TN_NLSN_ptr[i][j] = (pRF_TN_NLSN) + offset - 1;
-              offset += (ulong) RF_sortedTimeInterestSize;
-            }
-          }
-          else {
-            RF_TN_NLSN_ptr[i] = NULL;
-          }
-        }
+        dim[1] = RF_ntree;
+        dim[2] = -2;
+        dim[3] = RF_sortedTimeInterestSize;
+        allocateAuxiliaryInfo(NATIVE_TYPE_NUMERIC,
+                              RF_TN_SURV,
+                              *pRF_TN_SURV_,
+                              &RF_TN_SURV_ptr,
+                              3,
+                              dim);
+        allocateAuxiliaryInfo(NATIVE_TYPE_NUMERIC,
+                              RF_TN_NLSN,
+                              *pRF_TN_NLSN_,
+                              &RF_TN_NLSN_ptr,
+                              3,
+                              dim);
       }
       else {
-        offset = 0;
-        RF_TN_CSHZ_ptr = (double ****) new_vvector(1, RF_ntree, NRUTIL_DPTR3);
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            RF_TN_CSHZ_ptr[i] = (double ***) new_vvector(1, tLeafCount[i], NRUTIL_DPTR2);
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              RF_TN_CSHZ_ptr[i][j] = (double **) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR);
-              for (k = 1; k <= RF_eventTypeSize; k++) {
-                RF_TN_CSHZ_ptr[i][j][k] = (pRF_TN_CSHZ) + offset - 1;
-                offset += (ulong) RF_sortedTimeInterestSize;
-              }
-            }
-          }
-          else {
-            RF_TN_CSHZ_ptr[i] = NULL;
-          }
-        }
-        offset = 0;
-        RF_TN_CIFN_ptr = (double ****) new_vvector(1, RF_ntree, NRUTIL_DPTR3);
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            RF_TN_CIFN_ptr[i] = (double ***) new_vvector(1, tLeafCount[i], NRUTIL_DPTR2);
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              RF_TN_CIFN_ptr[i][j] = (double **) new_vvector(1, RF_eventTypeSize, NRUTIL_DPTR);
-              for (k = 1; k <= RF_eventTypeSize; k++) {
-                RF_TN_CIFN_ptr[i][j][k] = (pRF_TN_CIFN) + offset - 1;
-                offset += (ulong) RF_sortedTimeInterestSize;
-              }
-            }
-          }
-          else {
-            RF_TN_CIFN_ptr[i] = NULL;
-          }
-        }
+        dim[1] = RF_ntree;
+        dim[2] = -2;
+        dim[3] = RF_eventTypeSize;
+        dim[4] = RF_sortedTimeInterestSize;
+        allocateAuxiliaryInfo(NATIVE_TYPE_NUMERIC,
+                              RF_TN_CSHZ,
+                              *pRF_TN_CSHZ_,
+                              &RF_TN_CSHZ_ptr,
+                              4,
+                              dim);
+        allocateAuxiliaryInfo(NATIVE_TYPE_NUMERIC,
+                              RF_TN_CIFN,
+                              *pRF_TN_CIFN_,
+                              &RF_TN_CIFN_ptr,
+                              4,
+                              dim);
       }
     }
     else {
       if (RF_rNonFactorCount > 0) {
-        offset = 0;
-        RF_TN_REGR_ptr = (double ***) new_vvector(1, RF_ntree, NRUTIL_DPTR2);
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            RF_TN_REGR_ptr[i] = (double **) new_vvector(1, tLeafCount[i], NRUTIL_DPTR);
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              RF_TN_REGR_ptr[i][j] = (pRF_TN_REGR) + offset - 1;
-              offset += (ulong) RF_rNonFactorCount;
-            }
-          }
-          else {
-            RF_TN_REGR_ptr[i] = NULL;
-          }
-        }
+        dim[1] = RF_ntree;
+        dim[2] = -2;
+        dim[3] = RF_rNonFactorCount;
+        allocateAuxiliaryInfo(NATIVE_TYPE_NUMERIC,
+                              RF_TN_REGR,
+                              *pRF_TN_REGR_,
+                              &RF_TN_REGR_ptr,
+                              3,
+                              dim);
       }
       if (RF_rFactorCount > 0) {
-        offset = 0;
-        RF_TN_CLAS_ptr = (uint ****) new_vvector(1, RF_ntree, NRUTIL_UPTR3);
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            RF_TN_CLAS_ptr[i] = (uint ***) new_vvector(1, tLeafCount[i], NRUTIL_UPTR2);
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              RF_TN_CLAS_ptr[i][j] = (uint **) new_vvector(1, RF_rFactorCount, NRUTIL_UPTR);
-              for (k = 1; k <= RF_rFactorCount; k++) {
-                RF_TN_CLAS_ptr[i][j][k] = (pRF_TN_CLAS) + offset - 1;
-                offset += (ulong) RF_rFactorSize[k];
-              }
-            }
-          }
-          else {
-            RF_TN_CLAS_ptr[i] = NULL;
-          }
-        }
+        dim[1] = RF_ntree;
+        dim[2] = -2;
+        dim[3] = RF_rFactorCount;
+        dim[4] = 0;
+        allocateAuxiliaryInfo(NATIVE_TYPE_INTEGER,
+                              RF_TN_CLAS,
+                              *pRF_TN_CLAS_,
+                              &RF_TN_CLAS_ptr,
+                              4,
+                              dim);
       }
     }
-  }
-}
-void unstackAuxTNQuantitativeStructures(char mode) {
-  uint *tLeafCount;
-  uint i, j;
-  if (RF_optHigh & OPT_TERM_INCG) {  
-    tLeafCount = RF_tLeafCount;
-    if ((RF_timeIndex > 0) && (RF_statusIndex > 0)) {
-      for (i = 1; i <= RF_ntree; i++) {
-        if (tLeafCount[i] > 0) {
-          free_new_vvector(RF_TN_MORT_ptr[i], 1, tLeafCount[i], NRUTIL_DPTR);
-        }
-      }
-      free_new_vvector(RF_TN_MORT_ptr, 1, RF_ntree, NRUTIL_DPTR2);
-      RF_TN_MORT_ptr = NULL;
-      if (!(RF_opt & OPT_COMP_RISK)) {
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            free_new_vvector(RF_TN_SURV_ptr[i], 1, tLeafCount[i], NRUTIL_DPTR);
-          }
-        }
-        free_new_vvector(RF_TN_SURV_ptr, 1, RF_ntree, NRUTIL_DPTR2);
-        RF_TN_SURV_ptr = NULL;
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            free_new_vvector(RF_TN_NLSN_ptr[i], 1, tLeafCount[i], NRUTIL_DPTR);
-          }
-        }
-        free_new_vvector(RF_TN_NLSN_ptr, 1, RF_ntree, NRUTIL_DPTR2);
-        RF_TN_NLSN_ptr = NULL;
-      }
-      else {
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              free_new_vvector(RF_TN_CSHZ_ptr[i][j], 1, RF_eventTypeSize, NRUTIL_DPTR);
-            }
-            free_new_vvector(RF_TN_CSHZ_ptr[i], 1, tLeafCount[i], NRUTIL_DPTR2);
-          }
-        }
-        free_new_vvector(RF_TN_CSHZ_ptr, 1, RF_ntree, NRUTIL_DPTR3);
-        RF_TN_CSHZ_ptr = NULL;
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              free_new_vvector(RF_TN_CIFN_ptr[i][j], 1, RF_eventTypeSize, NRUTIL_DPTR);
-            }
-            free_new_vvector(RF_TN_CIFN_ptr[i], 1, tLeafCount[i], NRUTIL_DPTR2);
-          }
-        }
-        free_new_vvector(RF_TN_CIFN_ptr, 1, RF_ntree, NRUTIL_DPTR3);
-        RF_TN_CIFN_ptr = NULL;
-      }
-    }
-    else {
-      if (RF_rNonFactorCount > 0) {
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            free_new_vvector(RF_TN_REGR_ptr[i], 1, tLeafCount[i], NRUTIL_DPTR);
-          }
-        }
-        free_new_vvector(RF_TN_REGR_ptr, 1, RF_ntree, NRUTIL_DPTR2);
-        RF_TN_REGR_ptr = NULL;
-      }
-      if (RF_rFactorCount > 0) {
-        for (i = 1; i <= RF_ntree; i++) {
-          if (tLeafCount[i] > 0) {
-            for (j = 1; j <= tLeafCount[i]; j++) {
-              free_new_vvector(RF_TN_CLAS_ptr[i][j], 1, RF_rFactorCount, NRUTIL_UPTR);
-            }
-            free_new_vvector(RF_TN_CLAS_ptr[i], 1, tLeafCount[i], NRUTIL_UPTR2);
-          }
-        }
-        free_new_vvector(RF_TN_CLAS_ptr, 1, RF_ntree, NRUTIL_UPTR3);
-        RF_TN_CLAS_ptr = NULL;
-      }
-    }
+    free_ivector(dim, 1, 4);
   }
 }
 void verifyAndRegisterCustomSplitRules() {
@@ -16420,198 +17126,240 @@ void verifyAndRegisterCustomSplitRules() {
  }
 void allocateAuxiliaryInfo(char   type,
                            uint   identity,
-                           ulong  linearSize,
                            void  *snpPtr,
-                           void  *auxiliaryPtr,
+                           void  *auxiliaryArrayPtr,
                            uint   dimSize,
-                           uint  *dim) {
-  SNPAuxiliaryInfo *infoPtr = (SNPAuxiliaryInfo*) gblock((size_t) sizeof(SNPAuxiliaryInfo));
-  RF_snpAuxiliaryInfoList[identity] = infoPtr;
-  infoPtr -> type = type;
-  infoPtr -> identity = identity;
-  infoPtr -> linearSize = linearSize;
-  infoPtr -> snpPtr = snpPtr;
-  infoPtr -> auxiliaryPtr = auxiliaryPtr;
-  infoPtr -> dimSize = dimSize;
-  infoPtr -> dim = dim;
+                           int   *dim) {
+  uint dim1, dim2, dim3, dim4;
+  ulong offset;
+  SNPAuxiliaryInfo *auxInfoPtr = (SNPAuxiliaryInfo*) gblock((size_t) sizeof(SNPAuxiliaryInfo));
+  RF_snpAuxiliaryInfoList[identity] = auxInfoPtr;
+  auxInfoPtr -> type = type;
+  auxInfoPtr -> identity = identity;
+  auxInfoPtr -> snpPtr = snpPtr;
+  auxInfoPtr -> auxiliaryArrayPtr = auxiliaryArrayPtr;
+  auxInfoPtr -> dimSize = dimSize;
+  (auxInfoPtr -> dim) = ivector(1, dimSize);
+  for (uint i = 1; i <= dimSize; i++) {
+    (auxInfoPtr -> dim)[i] = dim[i];
+  }
   switch(type) {
   case NATIVE_TYPE_NUMERIC:
-    for (ulong i = 0; i < linearSize; i++) {
-      ((double *) snpPtr )[i] = 0.0;
-    }
-    if (auxiliaryPtr == NULL) {
+    if (auxiliaryArrayPtr == NULL) {
     }
     else if (dimSize == 4) {
-      *((double *****) auxiliaryPtr) = (double ****) new_vvector(1, dim[1], NRUTIL_DPTR3);
-      for (uint i = 1; i <= dim[1]; i++) {
-        (*((double *****) auxiliaryPtr))[i] = (double ***) new_vvector(1, dim[2], NRUTIL_DPTR2);
-        for (uint j = 1; j <= dim[2]; j++) {
-          (*((double *****) auxiliaryPtr))[i][j] = (double **) new_vvector(1, dim[3], NRUTIL_DPTR);
-          for (uint k = 1; k <= dim[3]; k++) {
-            (*((double *****) auxiliaryPtr))[i][j][k] = (double *) snpPtr +
-              ((i-1) * dim[2] * dim[3] * dim[4]) +
-              ((j-1) * dim[3] * dim[4]) +
-              ((k-1) * dim[4]) - 1;
-            for (uint m = 1; m <= dim[4]; m++) {
-              (*((double *****) auxiliaryPtr))[i][j][k][m] = 0.0;
-            }
+      offset = 0;
+      dim1 = getAuxDim(dim, 0 , 1);
+      *((double *****) auxiliaryArrayPtr) = (double ****) new_vvector(1, dim1, NRUTIL_DPTR3);
+      for (uint i = 1; i <= dim1; i++) {
+        dim2 = getAuxDim(dim, i , 2);
+        (*((double *****) auxiliaryArrayPtr))[i] = (double ***) new_vvector(1, dim2, NRUTIL_DPTR2);
+        for (uint j = 1; j <= dim2; j++) {
+          dim3 = getAuxDim(dim, j , 3);
+          (*((double *****) auxiliaryArrayPtr))[i][j] = (double **) new_vvector(1, dim3, NRUTIL_DPTR);
+          for (uint k = 1; k <= dim3; k++) {
+            dim4 = getAuxDim(dim, k , 4);
+            (*((double *****) auxiliaryArrayPtr))[i][j][k] = (double *) snpPtr + offset - 1;
+            offset += dim4;
           }
         }
       }
     }
-    else if ((infoPtr -> dimSize) == 3) {
-      *((double ****) auxiliaryPtr) = (double ***) new_vvector(1, dim[1], NRUTIL_DPTR2);
-      for (uint i = 1; i <= dim[1]; i++) {
-        (*((double ****) auxiliaryPtr))[i] = (double **) new_vvector(1, dim[2], NRUTIL_DPTR);
-        for (uint j = 1; j <= dim[2]; j++) {
-          (*((double ****) auxiliaryPtr))[i][j] = (double *) snpPtr +
-            ((i-1) * dim[2] * dim[3]) +
-            ((j-1) * dim[3]) - 1;
-          for (uint k = 1; k <= dim[3]; k++) {
-            (*((double ****) auxiliaryPtr))[i][j][k] = 0.0;
-          }
+    else if (dimSize == 3) {
+      offset = 0;      
+      dim1 = getAuxDim(dim, 0 , 1);
+      *((double ****) auxiliaryArrayPtr) = (double ***) new_vvector(1, dim1, NRUTIL_DPTR2);
+      for (uint i = 1; i <= dim1; i++) {
+        dim2 = getAuxDim(dim, i , 2);
+        (*((double ****) auxiliaryArrayPtr))[i] = (double **) new_vvector(1, dim2, NRUTIL_DPTR);
+        for (uint j = 1; j <= dim2; j++) {
+          dim3 = getAuxDim(dim, j , 3);
+          (*((double ****) auxiliaryArrayPtr))[i][j] = (double *) snpPtr + offset - 1;
+          offset += dim3;
         }
       }
     }
-    else if ((infoPtr -> dimSize) == 2) {
-      *((double ***) auxiliaryPtr) = (double **) new_vvector(1, dim[1], NRUTIL_DPTR);
-      for (uint i = 1; i <= dim[1]; i++) {
-        (*((double ***) auxiliaryPtr))[i] = (double *) snpPtr +
-          ((i-1) * dim[2]) - 1;
-        for (uint j = 1; j <= dim[2]; j++) {
-          (*((double ***) auxiliaryPtr))[i][j] = 0.0;
-        }
+    else if (dimSize == 2) {
+      offset = 0;
+      dim1 = getAuxDim(dim, 0 , 1);
+      *((double ***) auxiliaryArrayPtr) = (double **) new_vvector(1, dim1, NRUTIL_DPTR);
+      for (uint i = 1; i <= dim1; i++) {
+        dim2 = getAuxDim(dim, i , 2);
+        (*((double ***) auxiliaryArrayPtr))[i] = (double *) snpPtr + offset - 1;
+          offset += dim2;
       }
     }
-    else if ((infoPtr -> dimSize) == 1) {
+    else if (dimSize == 1) {
     }
     else {
       RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-      RF_nativeError("\nRF-SRC:  Invalid ( > 4 ) dimension in stackAndProtect() auxiliary arrays:  %10d", infoPtr -> dimSize);
+      RF_nativeError("\nRF-SRC:  Invalid ( > 4 ) dimension in stackAndProtect() auxiliary arrays:  %10d", dimSize);
       RF_nativeExit();
     }
     break;
   case NATIVE_TYPE_INTEGER:
-    for (ulong i = 0; i < linearSize; i++) {
-      ((uint *) snpPtr )[i] = 0;
-    }
-    if (auxiliaryPtr == NULL) {
+    if (auxiliaryArrayPtr == NULL) {
     }
     else if (dimSize == 4) {
-      *((uint *****) auxiliaryPtr) = (uint ****) new_vvector(1, dim[1], NRUTIL_UPTR3);
-      for (uint i = 1; i <= dim[1]; i++) {
-        (*((uint *****) auxiliaryPtr))[i] = (uint ***) new_vvector(1, dim[2], NRUTIL_UPTR2);
-        for (uint j = 1; j <= dim[2]; j++) {
-          (*((uint *****) auxiliaryPtr))[i][j] = (uint **) new_vvector(1, dim[3], NRUTIL_UPTR);
-          for (uint k = 1; k <= dim[3]; k++) {
-            (*((uint *****) auxiliaryPtr))[i][j][k] = (uint *) snpPtr +
-              ((i-1) * dim[2] * dim[3] * dim[4]) +
-              ((j-1) * dim[3] * dim[4]) +
-              ((k-1) * dim[4]) - 1;
-            for (uint m = 1; m <= dim[4]; m++) {
-              (*((uint *****) auxiliaryPtr))[i][j][k][m] = 0;
-            }
+      offset = 0;
+      dim1 = getAuxDim(dim, 0 , 1);
+      *((uint *****) auxiliaryArrayPtr) = (uint ****) new_vvector(1, dim1, NRUTIL_UPTR3);
+      for (uint i = 1; i <= dim1; i++) {
+        dim2 = getAuxDim(dim, i , 2);
+        (*((uint *****) auxiliaryArrayPtr))[i] = (uint ***) new_vvector(1, dim2, NRUTIL_UPTR2);
+        for (uint j = 1; j <= dim2; j++) {
+          dim3 = getAuxDim(dim, j , 3);
+          (*((uint *****) auxiliaryArrayPtr))[i][j] = (uint **) new_vvector(1, dim3, NRUTIL_UPTR);
+          for (uint k = 1; k <= dim3; k++) {
+            dim4 = getAuxDim(dim, k , 4);
+            (*((uint *****) auxiliaryArrayPtr))[i][j][k] = (uint *) snpPtr + offset - 1;
+            offset += dim4;
           }
         }
       }
     }
-    else if ((infoPtr -> dimSize) == 3) {
-      *((uint ****) auxiliaryPtr) = (uint ***) new_vvector(1, dim[1], NRUTIL_UPTR2);
-      for (uint i = 1; i <= dim[1]; i++) {
-        (*((uint ****) auxiliaryPtr))[i] = (uint **) new_vvector(1, dim[2], NRUTIL_UPTR);
-        for (uint j = 1; j <= dim[2]; j++) {
-          (*((uint ****) auxiliaryPtr))[i][j] = (uint *) snpPtr +
-            ((i-1) * dim[2] * dim[3]) +
-            ((j-1) * dim[3]) - 1;
-          for (uint k = 1; k <= dim[3]; k++) {
-            (*((uint ****) auxiliaryPtr))[i][j][k] = 0;
-          }
+    else if (dimSize == 3) {
+      offset = 0;
+      dim1 = getAuxDim(dim, 0 , 1);
+      *((uint ****) auxiliaryArrayPtr) = (uint ***) new_vvector(1, dim1, NRUTIL_UPTR2);
+      for (uint i = 1; i <= dim1; i++) {
+        dim2 = getAuxDim(dim, i , 2);
+        (*((uint ****) auxiliaryArrayPtr))[i] = (uint **) new_vvector(1, dim2, NRUTIL_UPTR);
+        for (uint j = 1; j <= dim2; j++) {
+          dim3 = getAuxDim(dim, j , 3);
+          (*((uint ****) auxiliaryArrayPtr))[i][j] = (uint *) snpPtr + offset - 1;
+            offset += dim3;
         }
       }
     }
-    else if ((infoPtr -> dimSize) == 2) {
-      *((uint ***) auxiliaryPtr) = (uint **) new_vvector(1, dim[1], NRUTIL_UPTR);
-      for (uint i = 1; i <= dim[1]; i++) {
-        (*((uint ***) auxiliaryPtr))[i] = (uint *) snpPtr +
-          ((i-1) * dim[2]) - 1;
-        for (uint j = 1; j <= dim[2]; j++) {
-          (*((uint ***) auxiliaryPtr))[i][j] = 0;
-        }
+    else if (dimSize == 2) {
+      offset = 0;
+      dim1 = getAuxDim(dim, 0 , 1);
+      *((uint ***) auxiliaryArrayPtr) = (uint **) new_vvector(1, dim1, NRUTIL_UPTR);
+      for (uint i = 1; i <= dim1; i++) {
+        dim2 = getAuxDim(dim, i , 2);
+        (*((uint ***) auxiliaryArrayPtr))[i] = (uint *) snpPtr + offset - 1;
+          offset += dim2;
       }
     }
-    else if ((infoPtr -> dimSize) == 1) {
+    else if (dimSize == 1) {
     }
     else {
       RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-      RF_nativeError("\nRF-SRC:  Invalid ( > 4 ) dimension in stackAndProtect() auxiliary arrays:  %10d", infoPtr -> dimSize);
+      RF_nativeError("\nRF-SRC:  Invalid ( > 4 ) dimension in stackAndProtect() auxiliary arrays:  %10d", dimSize);
       RF_nativeExit();
     }
     break;
   }
 }
+uint getAuxDim(int *dim, uint preIndex, uint postIndex) {
+  uint result = 0;
+  if (postIndex == 1) {
+    result = dim[postIndex];
+  }
+  else if (dim[postIndex] >= 1) {
+    result = dim[postIndex];
+  }
+  else if (dim[postIndex] == 0) {
+    result = RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[preIndex]]];
+  }
+  else if (dim[postIndex] == -1) {
+    result = 1 + RF_rFactorSize[RF_rFactorMap[RF_rTargetFactor[preIndex]]];
+  }
+  else if (dim[postIndex] == -2) {
+    result = RF_tLeafCount[preIndex];
+  }
+  else {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Inconsistent internal dimension of auxiliary array in getAuxDim():  %10d", dim[postIndex]);
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+  }
+  return result;
+}
 void unstackAuxiliaryInfoAndList() {
+  int  *dim;
+  uint  dimSize;
+  uint  dim1, dim2, dim3;
   for (uint ii = 0; ii < (1 << 6); ii++) {
-     SNPAuxiliaryInfo *infoPtr = RF_snpAuxiliaryInfoList[ii];
-     if (infoPtr != NULL) {
-       switch(infoPtr -> type) {
+     SNPAuxiliaryInfo *auxInfoPtr = RF_snpAuxiliaryInfoList[ii];
+     if (auxInfoPtr != NULL) {
+       dim = auxInfoPtr -> dim;
+       dimSize = auxInfoPtr -> dimSize;
+       switch(auxInfoPtr -> type) {
        case NATIVE_TYPE_NUMERIC:
-         if ((infoPtr -> dimSize) == 1) {
+         if ((auxInfoPtr -> auxiliaryArrayPtr) == NULL) {
          }
-         else {
-           if ((infoPtr -> auxiliaryPtr) == NULL) {
-           }
-           else if ((infoPtr -> dimSize) == 4) {
-             for (uint i = 1; i <= (infoPtr -> dim)[1]; i++) {
-               for (uint j = 1; j <= (infoPtr -> dim)[2]; j++) {
-                 free_new_vvector((*((double *****) (infoPtr -> auxiliaryPtr)))[i][j], 1, (infoPtr -> dim)[3], NRUTIL_DPTR);
-               }
-               free_new_vvector((*((double *****) (infoPtr -> auxiliaryPtr)))[i], 1, (infoPtr -> dim)[2], NRUTIL_DPTR2);
+         else if (dimSize == 4) {
+           dim1 = getAuxDim(dim, 0 , 1);
+           for (uint i = 1; i <= dim1; i++) {
+             dim2 = getAuxDim(dim, i , 2);
+             for (uint j = 1; j <= dim2; j++) {
+               dim3 = getAuxDim(dim, j , 3);
+               free_new_vvector((*((double *****) (auxInfoPtr -> auxiliaryArrayPtr)))[i][j], 1, dim3, NRUTIL_DPTR);
              }
-             free_new_vvector((*((double *****) (infoPtr -> auxiliaryPtr))), 1, (infoPtr -> dim)[1], NRUTIL_DPTR3);
+             free_new_vvector((*((double *****) (auxInfoPtr -> auxiliaryArrayPtr)))[i], 1, dim2, NRUTIL_DPTR2);
            }
-           else if ((infoPtr -> dimSize) == 3) {
-             for (uint i = 1; i <= (infoPtr -> dim)[1]; i++) {
-               free_new_vvector((*((double ****) (infoPtr -> auxiliaryPtr)))[i], 1, (infoPtr -> dim)[2], NRUTIL_DPTR);
-             }
-             free_new_vvector((*((double ****) (infoPtr -> auxiliaryPtr))), 1, (infoPtr -> dim)[1], NRUTIL_DPTR2);
+           free_new_vvector((*((double *****) (auxInfoPtr -> auxiliaryArrayPtr))), 1, dim1, NRUTIL_DPTR3);
+         }
+         else if (dimSize == 3) {
+           dim1 = getAuxDim(dim, 0 , 1);
+           for (uint i = 1; i <= dim1; i++) {
+             dim2 = getAuxDim(dim, i , 2);
+             free_new_vvector((*((double ****) (auxInfoPtr -> auxiliaryArrayPtr)))[i], 1, dim2, NRUTIL_DPTR);
            }
-           else if ((infoPtr -> dimSize) == 2) {
-             free_new_vvector((*((double ***) (infoPtr -> auxiliaryPtr))), 1, (infoPtr -> dim)[1], NRUTIL_DPTR);
-           }
+           free_new_vvector((*((double ****) (auxInfoPtr -> auxiliaryArrayPtr))), 1, dim1, NRUTIL_DPTR2);
+         }
+         else if (dimSize == 2) {
+           dim1 = getAuxDim(dim, 0 , 1);
+           free_new_vvector((*((double ***) (auxInfoPtr -> auxiliaryArrayPtr))), 1, dim1, NRUTIL_DPTR);
+         }
+         else if (dimSize == 1) {
          }
          break;
        case NATIVE_TYPE_INTEGER:
-         if ((infoPtr -> dimSize) == 1) {
+         if ((auxInfoPtr -> auxiliaryArrayPtr) == NULL) {
          }
-         else {
-           if ((infoPtr -> auxiliaryPtr) == NULL) {
-           }
-           else if ((infoPtr -> dimSize) == 4) {
-             for (uint i = 1; i <= (infoPtr -> dim)[1]; i++) {
-               for (uint j = 1; j <= (infoPtr -> dim)[2]; j++) {
-                 free_new_vvector((*((uint *****) (infoPtr -> auxiliaryPtr)))[i][j], 1, (infoPtr -> dim)[3], NRUTIL_UPTR);
-               }
-               free_new_vvector((*((uint *****) (infoPtr -> auxiliaryPtr)))[i], 1, (infoPtr -> dim)[2], NRUTIL_UPTR2);
+         else if (dimSize == 4) {
+           dim1 = getAuxDim(dim, 0 , 1);
+           for (uint i = 1; i <= dim1; i++) {
+             dim2 = getAuxDim(dim, i , 2);
+             for (uint j = 1; j <= dim2; j++) {
+               dim3 = getAuxDim(dim, j , 3);
+               free_new_vvector((*((uint *****) (auxInfoPtr -> auxiliaryArrayPtr)))[i][j], 1, dim3, NRUTIL_UPTR);
              }
-             free_new_vvector((*((uint *****) (infoPtr -> auxiliaryPtr))), 1, (infoPtr -> dim)[1], NRUTIL_UPTR3);
+             free_new_vvector((*((uint *****) (auxInfoPtr -> auxiliaryArrayPtr)))[i], 1, dim2, NRUTIL_UPTR2);
            }
-           else if ((infoPtr -> dimSize) == 3) {
-             for (uint i = 1; i <= (infoPtr -> dim)[1]; i++) {
-               free_new_vvector((*((uint ****) (infoPtr -> auxiliaryPtr)))[i], 1, (infoPtr -> dim)[2], NRUTIL_UPTR);
-             }
-             free_new_vvector((*((uint ****) (infoPtr -> auxiliaryPtr))), 1, (infoPtr -> dim)[1], NRUTIL_UPTR2);
+           free_new_vvector((*((uint *****) (auxInfoPtr -> auxiliaryArrayPtr))), 1,  dim1, NRUTIL_UPTR3);
+         }
+         else if (dimSize == 3) {
+           dim1 = getAuxDim(dim, 0 , 1);
+           for (uint i = 1; i <= dim1; i++) {
+             dim2 = getAuxDim(dim, i , 2);             
+             free_new_vvector((*((uint ****) (auxInfoPtr -> auxiliaryArrayPtr)))[i], 1, dim2, NRUTIL_UPTR);
            }
-           else if ((infoPtr -> dimSize) == 2) {
-             free_new_vvector((*((uint ***) (infoPtr -> auxiliaryPtr))), 1, (infoPtr -> dim)[1], NRUTIL_UPTR);
-           }
+           free_new_vvector((*((uint ****) (auxInfoPtr -> auxiliaryArrayPtr))), 1, dim1, NRUTIL_UPTR2);
+         }
+         else if (dimSize == 2) {
+           dim1 = getAuxDim(dim, 0 , 1);
+           free_new_vvector((*((uint ***) (auxInfoPtr -> auxiliaryArrayPtr))), 1, dim1, NRUTIL_UPTR);
+         }
+         else if (dimSize == 1) {
          }
          break;
        }
-       free_uivector(infoPtr -> dim, 1, infoPtr -> dimSize);
-       free_gblock(infoPtr, sizeof(SNPAuxiliaryInfo));
+       free_ivector(auxInfoPtr -> dim, 1, auxInfoPtr -> dimSize);
+       free_gblock(auxInfoPtr, sizeof(SNPAuxiliaryInfo));
      }
    }
   free_new_vvector(RF_snpAuxiliaryInfoList, 0, (1 << 6), NRUTIL_XPTR);
+}
+void memoryCheck() {
+  if (RF_nativeIndex != RF_stackCount) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Stack imbalance in PROTECT/UNPROTECT:  %10d + 1 versus %10d  ", RF_nativeIndex, RF_stackCount);
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+    RF_nativeExit();
+  }
 }
 void stackIncomingResponseArrays(char mode) {
   uint i, j;
@@ -16647,8 +17395,8 @@ void stackIncomingResponseArrays(char mode) {
       if (RF_frSize > 0) {
         if (RF_ySize != RF_frSize) {
           RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-          RF_nativeError("\nRF-SRC:  TRAIN and TEST outcome/response matrices must be of the same dimension.  ");
-          RF_nativeError("\nRF-SRC:  TRAIN vs TEST:  %10d vs %10d  ", RF_ySize, RF_frSize);
+          RF_nativeError("\nRF-SRC:  train and test outcome/response matrices must be of the same dimension.  ");
+          RF_nativeError("\nRF-SRC:  train vs test:  %10d vs %10d  ", RF_ySize, RF_frSize);
           RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
           RF_nativeExit();
         }
@@ -16656,7 +17404,7 @@ void stackIncomingResponseArrays(char mode) {
       else {
         if ((RF_opt & OPT_PERF) | (RF_opt & OPT_VIMP)) {
           RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-          RF_nativeError("\nRF-SRC:  TEST outcome/response matrix must be present when PERF or VIMP is requested.  ");
+          RF_nativeError("\nRF-SRC:  test outcome/response matrix must be present when PERF or VIMP is requested.  ");
           RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
           RF_nativeExit();
         }
@@ -16730,7 +17478,7 @@ void stackIncomingArrays(char mode) {
       RF_nativeError("\nRF-SRC:  Invalid split rule:  %10d \n", RF_splitRule);
       RF_nativeExit();
     }
-    if (!(RF_splitRule == USPV_SPLIT)) {
+    if (!(RF_splitRule == USPV_SPLIT) && !(RF_splitRule == RAND_SPLIT)) {
       if (RF_ySize == 0) {
         RF_nativeError("\nRF-SRC:  *** ERROR *** ");
         RF_nativeError("\nRF-SRC:  Parameter verification failed.");
@@ -16768,10 +17516,10 @@ void stackIncomingArrays(char mode) {
       }
     }
     for (uint i = 1; i <= RF_xSize; i++) {
-      if(RF_xSplitStatWt[i] < 0) {
+      if(RF_xSplitStatWeight[i] < 0) {
         RF_nativeError("\nRF-SRC:  *** ERROR *** ");
         RF_nativeError("\nRF-SRC:  Parameter verification failed.");
-        RF_nativeError("\nRF-SRC:  Split-weight elements must be greater than or equal to zero:  %12.4f \n", RF_xSplitStatWt[i]);
+        RF_nativeError("\nRF-SRC:  Split statistical weight elements must be greater than or equal to zero:  %12.4f \n", RF_xSplitStatWeight[i]);
         RF_nativeExit();
       }
     }
@@ -16803,6 +17551,7 @@ void stackIncomingArrays(char mode) {
           (RF_splitRule != CLAS_WT_NRM) &&
           (RF_splitRule != CLAS_WT_OFF) &&
           (RF_splitRule != CLAS_WT_HVY) &&
+          (RF_splitRule != CLAS_RNKPS)  &&
           (RF_splitRule != MVRG_SPLIT)  &&
           (RF_splitRule != MVCL_SPLIT)  &&
           (RF_splitRule != MVMX_SPLIT)  &&
@@ -18492,71 +19241,6 @@ void getTerminalInfo(Terminal *termPtr) {
   RF_nativePrint("\n lmiSize             = %20d", termPtr -> lmiSize);
   RF_nativePrint("\n lmiValue            = %20x", termPtr -> lmiValue);
 }
-unsigned int    RF_traceFlagDiagLevel;
-unsigned int    RF_traceFlagIterValue;
-size_t          RF_memor_maxMemoryAllocation;
-size_t          RF_memor_minMemoryAllocation;
-void setTraceFlag(unsigned int traceFlag, unsigned int tree) {
-  RF_traceFlagDiagLevel = traceFlag;
-  RF_traceFlagIterValue = tree;
-}
-unsigned int getTraceFlag(unsigned int tree) {
-  unsigned int result;
-  result = FALSE;
-  if (RF_traceFlagIterValue == tree) {
-    result = RF_traceFlagDiagLevel;
-  }
-  else {
-    if (RF_traceFlagIterValue == 0) {
-      result = RF_traceFlagDiagLevel;
-    }
-  }
-  return result;
-}
-unsigned int updateTimeStamp(unsigned int before) {
-  unsigned int stamp;
-  double cpuTimeUsed;
-  stamp = clock();
-  cpuTimeUsed = ((double) (stamp - before)) / CLOCKS_PER_SEC;
-  RF_nativePrint("\nRF-SRC:  CPU process time:  %20.3f \n", cpuTimeUsed);
-  return stamp;
-}
-unsigned int getNodeDefTraceFlag() {
-  return(NODE_DEF_TRACE);
-}
-unsigned int getForkDefTraceFlag() {
-  return(FORK_DEF_TRACE);
-}
-unsigned int getTurnOffTraceFlag() {
-  return(TURN_OFF_TRACE);
-}
-unsigned int getNumrDefTraceFlag() {
-  return(NUMR_DEF_TRACE);
-}
-unsigned int getTimeDefTraceFlag() {
-  return(TIME_DEF_TRACE);
-}
-void setMaxMemoryAllocation(size_t value) {
-  RF_memor_maxMemoryAllocation = value;
-}
-void setMinMemoryAllocation(size_t value) {
-  RF_memor_minMemoryAllocation = value;
-}
-size_t getMaxMemoryAllocation() {
-  return (RF_memor_maxMemoryAllocation);
-}
-size_t getMinMemoryAllocation() {
-  return (RF_memor_minMemoryAllocation);
-}
-void increaseMemoryAllocation(size_t amount) {
-  RF_memor_minMemoryAllocation += amount;
-  if (RF_memor_minMemoryAllocation > RF_memor_maxMemoryAllocation) {
-    RF_memor_maxMemoryAllocation = RF_memor_minMemoryAllocation;
-  }
-}
-void decreaseMemoryAllocation(size_t amount) {
-    RF_memor_minMemoryAllocation -= amount;
-}
 void acquireTree(char mode, uint r, uint b) {
   Node  *rootPtr;
   uint **mwcpPtrPtr;
@@ -18838,6 +19522,8 @@ void acquireTree(char mode, uint r, uint b) {
         }
         free_new_vvector(membership, 1, RF_observationSize, NRUTIL_TPTR);
       }
+       
+       
       if (RF_optHigh & OPT_WGHT) {
 #ifdef _OPENMP
 #pragma omp critical (_update_weight)
@@ -18846,9 +19532,11 @@ void acquireTree(char mode, uint r, uint b) {
           updateWeight(mode, b);
         }
       }
+       
       if (RF_opt & OPT_PROX) {
         updateProximity(mode, b);
       }
+       
       if (mode == RF_GROW) {
         if (RF_opt & OPT_TREE) {
 #ifdef _OPENMP
@@ -18946,7 +19634,10 @@ void updateWeight(char mode, uint b) {
       RF_nativeExit();
     }
   }
+  
   mtnmFlag = FALSE;
+  
+   
   if (flag != ACTIVE) {
     if (flag == TRUE) {
       if (!mtnmFlag) {
@@ -19124,6 +19815,7 @@ void finalizeProximity(char mode) {
   }
 }
 void updateProximity(char mode, uint b) {
+   
   Terminal **tTermMembership;
   uint  *membershipIndex;
   uint   membershipSize;
@@ -19161,7 +19853,10 @@ void updateProximity(char mode, uint b) {
     }
     tTermMembership = RF_tTermMembership[b];
   }
+  
   mtnmFlag = FALSE;
+  
+   
   if (!mtnmFlag) {
     for (uint i = 1; i <= membershipSize; i++) {
       uint ii, jj;
@@ -19181,7 +19876,10 @@ void updateProximity(char mode, uint b) {
       }
     }
   }
+   
 }
+ 
+ 
 void updateSplitDepth(uint treeID, Node *rootPtr, uint maxDepth) {
   Node  *parent;
   double *localSplitDepth;
@@ -20207,7 +20905,7 @@ SEXP rfsrcCIndex(SEXP sexp_traceFlag,
   RF_stackCount = 1;
   initProtect(RF_stackCount);
   stackAuxiliaryInfoList();
-  v = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, 2, 1, sexpString, NULL, 1, 0);
+  v = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, 2, 1, 0, sexpString, NULL, 1, 1);
   *v = getConcordanceIndex( 1,
                             size,
                             time,
@@ -20215,6 +20913,7 @@ SEXP rfsrcCIndex(SEXP sexp_traceFlag,
                             predicted,
                             denom);
   unstackAuxiliaryInfoAndList();
+  memoryCheck();
   UNPROTECT(RF_stackCount + 2);
   return RF_sexpVector[RF_OUTP_ID];
 }
@@ -20230,9 +20929,10 @@ SEXP rfsrcTestSEXP(SEXP sexp_size) {
   RF_stackCount = 1;
   initProtect(RF_stackCount);
   stackAuxiliaryInfoList();
-  v = (char*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_CHARACTER, 2, size, sexpString, NULL, 1, 0);
+  v = (char*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_CHARACTER, 2, size, 0, sexpString, NULL, 1, size);
   v --;
   unstackAuxiliaryInfoAndList();
+  memoryCheck();
   UNPROTECT(RF_stackCount + 2);
   return RF_sexpVector[RF_OUTP_ID];
 }
@@ -20304,7 +21004,7 @@ SEXP rfsrcDistance(SEXP sexp_metricType,
   RF_stackCount = 1;
   initProtect(RF_stackCount);
   stackAuxiliaryInfoList();
-  dist = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, 2, sizeIJ, sexpString, NULL, 1, 0);
+  dist = (double*) stackAndProtect(&RF_nativeIndex, NATIVE_TYPE_NUMERIC, 2, sizeIJ, 0, sexpString, NULL, 1, sizeIJ);
   dist --;
   xMatrix = (double **) new_vvector(1, p, NRUTIL_DPTR);
   for (i = 1; i <= p; i++) {
@@ -20317,6 +21017,7 @@ SEXP rfsrcDistance(SEXP sexp_metricType,
     dist[k] = euclidean(n, p, rowI[k], rowJ[k], xMatrix);
   }
   unstackAuxiliaryInfoAndList();
+  memoryCheck();
   UNPROTECT(RF_stackCount + 2);
   return RF_sexpVector[RF_OUTP_ID];
 }
@@ -20356,7 +21057,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP bootstrapSize,
                SEXP bootstrap,
                SEXP caseWeight,
-               SEXP xSplitStatWt,
+               SEXP xSplitStatWeight,
                SEXP yWeight,
                SEXP xWeight,
                SEXP xData,
@@ -20376,20 +21077,20 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_nodeSize             = INTEGER(nodeSize)[0];
   RF_nodeDepth            = INTEGER(nodeDepth)[0];
   RF_crWeightSize         = INTEGER(crWeightSize)[0];
-  RF_crWeight             = (double *) copy1DObject(crWeight, NATIVE_TYPE_NUMERIC, RF_crWeightSize);
+  RF_crWeight             = REAL(crWeight); RF_crWeight--;
   RF_ntree                = INTEGER(ntree)[0];
   RF_observationSize      = INTEGER(observationSize)[0];
   RF_ySize                = INTEGER(ySize)[0];
-  RF_rType                = (char *) copy1DObject(rType, NATIVE_TYPE_CHARACTER, RF_ySize);
-  RF_rLevels              = INTEGER(rLevels); RF_rLevels--;
+  RF_rType                = (char *) copy1DObject(rType, NATIVE_TYPE_CHARACTER, RF_ySize, TRUE);
+  RF_rLevels              = (uint *) INTEGER(rLevels); RF_rLevels--;
   RF_responseIn           = (double **) copy2DObject(rData, NATIVE_TYPE_NUMERIC, RF_ySize > 0, RF_ySize, RF_observationSize);
   RF_xSize                = INTEGER(xSize)[0];
-  RF_xType                = (char *) copy1DObject(xType, NATIVE_TYPE_CHARACTER, RF_xSize);
-  RF_xLevels              = INTEGER(xLevels); RF_xLevels--;
+  RF_xType                = (char *) copy1DObject(xType, NATIVE_TYPE_CHARACTER, RF_xSize, TRUE);
+  RF_xLevels              = (uint *) INTEGER(xLevels); RF_xLevels--;
   RF_bootstrapSize        = INTEGER(bootstrapSize)[0];
   RF_bootstrapIn          = (uint **) copy2DObject(bootstrap, NATIVE_TYPE_INTEGER, (RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2), RF_ntree, RF_observationSize);
   RF_caseWeight           = REAL(caseWeight);  RF_caseWeight--;
-  RF_xSplitStatWt          = REAL(xSplitStatWt);  RF_xSplitStatWt--;
+  RF_xSplitStatWeight     = REAL(xSplitStatWeight);  RF_xSplitStatWeight--;
   RF_yWeight               = REAL(yWeight);  RF_yWeight--;
   RF_xWeight              = REAL(xWeight);  RF_xWeight--;
   RF_observationIn        = (double **) copy2DObject(xData, NATIVE_TYPE_NUMERIC, TRUE, RF_xSize, RF_observationSize);
@@ -20398,21 +21099,13 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_nImpute              = INTEGER(nImpute)[0];
   RF_numThreads           = INTEGER(numThreads)[0];
   processDefaultGrow();
-  stackAuxiliaryInfoList();
   rfsrc(RF_GROW, seedValue);
-  free_1DObject(RF_crWeight, NATIVE_TYPE_NUMERIC, RF_crWeightSize);
   free_1DObject(RF_rType, NATIVE_TYPE_CHARACTER, RF_ySize);
   free_1DObject(RF_xType, NATIVE_TYPE_CHARACTER, RF_xSize);
   free_2DObject(RF_responseIn, NATIVE_TYPE_NUMERIC, RF_ySize > 0, RF_ySize, RF_observationSize);
   free_2DObject(RF_bootstrapIn, NATIVE_TYPE_INTEGER, (RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2), RF_ntree, RF_observationSize);
   free_2DObject(RF_observationIn, NATIVE_TYPE_NUMERIC, TRUE, RF_xSize, RF_observationSize);  
-  unstackAuxiliaryInfoAndList();
-  if (RF_nativeIndex != RF_stackCount) {
-    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-    RF_nativeError("\nRF-SRC:  Stack imbalance in PROTECT/UNPROTECT:  %10d + 1 versus %10d  ", RF_nativeIndex, RF_stackCount);
-    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
-    RF_nativeExit();
-  }
+  memoryCheck();
   UNPROTECT(RF_stackCount + 2);
   return RF_sexpVector[RF_OUTP_ID];
 }
@@ -20455,6 +21148,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP intrPredictor,
                   SEXP sobservationSize,
                   SEXP sobservationIndv,
+                                  
                   SEXP partialType,
                   SEXP partialXvar,
                   SEXP partialLength,
@@ -20481,14 +21175,14 @@ SEXP rfsrcPredict(SEXP traceFlag,
   RF_ntree                = INTEGER(ntree)[0];
   RF_observationSize      = INTEGER(observationSize)[0];
   RF_ySize                = INTEGER(ySize)[0];
-  RF_rType                = (char *) copy1DObject(rType, NATIVE_TYPE_CHARACTER, RF_ySize);
+  RF_rType                = (char *) copy1DObject(rType, NATIVE_TYPE_CHARACTER, RF_ySize, TRUE);
   RF_rTarget              = (uint *) INTEGER(rTarget); RF_rTarget --;
   RF_rTargetCount         = INTEGER(rTargetCount)[0];
-  RF_rLevels              = INTEGER(rLevels); RF_rLevels--;
+  RF_rLevels              = (uint *) INTEGER(rLevels); RF_rLevels--;
   RF_responseIn           = (double **) copy2DObject(rData, NATIVE_TYPE_NUMERIC, RF_ySize > 0, RF_ySize, RF_observationSize);
   RF_xSize                = INTEGER(xSize)[0];
-  RF_xType                = (char *) copy1DObject(xType, NATIVE_TYPE_CHARACTER, RF_xSize);
-  RF_xLevels              = INTEGER(xLevels); RF_xLevels--;
+  RF_xType                = (char *) copy1DObject(xType, NATIVE_TYPE_CHARACTER, RF_xSize, TRUE);
+  RF_xLevels              = (uint *) INTEGER(xLevels); RF_xLevels--;
   RF_observationIn        = (double **) copy2DObject(xData, NATIVE_TYPE_NUMERIC, TRUE, RF_xSize, RF_observationSize);
   RF_bootstrapSize        = INTEGER(bootstrapSize)[0];
   RF_bootstrapIn          = (uint **) copy2DObject(bootstrap, NATIVE_TYPE_INTEGER, (RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2), RF_ntree, RF_observationSize);
@@ -20513,6 +21207,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
   RF_intrPredictor        = (uint *) INTEGER(intrPredictor);  RF_intrPredictor --;
   RF_sobservationSize     = INTEGER(sobservationSize)[0];
   RF_sobservationIndv     = (uint *) INTEGER(sobservationIndv);  RF_sobservationIndv --;
+   
   RF_partialType          = INTEGER(partialType)[0];
   RF_partialXvar          = INTEGER(partialXvar)[0];
   RF_partialLength        = INTEGER(partialLength)[0];
@@ -20532,7 +21227,6 @@ SEXP rfsrcPredict(SEXP traceFlag,
   RF_TN_REGR_ = REAL(tnREGR);
   RF_TN_CLAS_ = (uint *) INTEGER(tnCLAS);
   processDefaultPredict();
-  stackAuxiliaryInfoList();
   rfsrc((RF_fobservationSize > 0)? RF_PRED : RF_REST, seedValue);
   free_1DObject(RF_rType, NATIVE_TYPE_CHARACTER, RF_ySize);
   free_1DObject(RF_xType, NATIVE_TYPE_CHARACTER, RF_xSize);
@@ -20541,13 +21235,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
   free_2DObject(RF_bootstrapIn, NATIVE_TYPE_INTEGER, (RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2), RF_ntree, RF_observationSize);
   free_2DObject(RF_fresponseIn, NATIVE_TYPE_NUMERIC, RF_frSize > 0, RF_frSize, RF_fobservationSize);
   free_2DObject(RF_fobservationIn, NATIVE_TYPE_NUMERIC, RF_fobservationSize > 0 , RF_xSize, RF_fobservationSize);
-  unstackAuxiliaryInfoAndList();
-  if (RF_nativeIndex != RF_stackCount) {
-    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
-    RF_nativeError("\nRF-SRC:  Stack imbalance in PROTECT/UNPROTECT:  %10d + 1 versus %10d  ", RF_nativeIndex, RF_stackCount);
-    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
-    RF_nativeExit();
-  }
+  memoryCheck();
   UNPROTECT(RF_stackCount + 2);
   return RF_sexpVector[RF_OUTP_ID];
 }
@@ -20567,7 +21255,7 @@ void printR(char *format, ...) {
 void setNativeGlobalEnv() {
   RF_nativeIndex = RF_stackCount = 0;
 }
-void *copy1DObject(SEXP arr, char type, uint size) {
+void *copy1DObject(SEXP arr, char type, uint size, char actual) {
   void   *buffer;
   char   *cbuffer;
   double *dbuffer;
@@ -20652,6 +21340,7 @@ void *stackAndProtect(uint  *sexpIndex,
                       char   sexpType,
                       uint   sexpIdentity,
                       ulong  size,
+                      double value,
                       char **sexpString,
                       void  *auxiliaryPtr,
                       uint   auxiliaryDimSize,
@@ -20677,9 +21366,9 @@ void *stackAndProtect(uint  *sexpIndex,
   }
   va_list list;
   va_start(list, auxiliaryDimSize);
-  uint *auxiliaryDim = uivector(1, auxiliaryDimSize);
-  for (int i = 1; i <= auxiliaryDimSize; i++) {
-    auxiliaryDim[i] = va_arg(list, unsigned int);
+  int *auxiliaryDim = ivector(1, auxiliaryDimSize);
+  for (uint i = 1; i <= auxiliaryDimSize; i++) {
+    auxiliaryDim[i] = va_arg(list, int);
   }
   va_end(list);
   switch(sexpType) {
@@ -20701,16 +21390,24 @@ void *stackAndProtect(uint  *sexpIndex,
   }
   SET_VECTOR_ELT(RF_sexpVector[RF_OUTP_ID], *sexpIndex, thisVector);
   SET_STRING_ELT(RF_sexpVector[RF_STRG_ID], *sexpIndex, mkChar(sexpString[sexpIdentity]));
-  (*sexpIndex) ++;
   switch(sexpType) {
   case NATIVE_TYPE_NUMERIC:
     v = (double*) NUMERIC_POINTER(thisVector);
+    for (ulong i = 0; i < size; i++) {
+      ((double*) v)[i] = value;
+    }
     break;
   case NATIVE_TYPE_INTEGER:
     v = (uint*) INTEGER_POINTER(thisVector);
+    for (ulong i = 0; i < size; i++) {
+      ((uint*) v)[i] = 0;
+    }
     break;
   case NATIVE_TYPE_CHARACTER:
     v = (char*) CHARACTER_POINTER(thisVector);
+    for (ulong i = 0; i < size; i++) {
+      ((char*) v)[i] = 0;
+    }
     break;
   default:
     v = NULL;
@@ -20718,11 +21415,12 @@ void *stackAndProtect(uint  *sexpIndex,
   }
   allocateAuxiliaryInfo(sexpType,
                         sexpIdentity,
-                        size,
                         v,
                         auxiliaryPtr,
                         auxiliaryDimSize,
                         auxiliaryDim);
+  free_ivector(auxiliaryDim, 1, auxiliaryDimSize);
+  (*sexpIndex) ++;
   return v;
 }
 void setUserTraceFlag (uint traceFlag) {
