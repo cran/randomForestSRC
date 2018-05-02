@@ -1,8 +1,9 @@
 generic.predict.rfsrc <-
   function(object,
            newdata,
-           outcome.target = NULL, 
-           importance = c(FALSE, TRUE, "none", "permute", "random", "anti", "permute.ensemble", "random.ensemble", "anti.ensemble"),
+           m.target = NULL,
+           importance = FALSE,
+           err.block = NULL,
            importance.xvar,
            subset = NULL,
            na.action = c("na.omit", "na.impute"),
@@ -16,29 +17,24 @@ generic.predict.rfsrc <-
            seed = NULL,
            do.trace = FALSE,
            membership = FALSE,
-           tree.err = FALSE,
            statistics = FALSE,
            ...)
 {
-  univariate.nomenclature = TRUE
+  univariate.nomenclature <- TRUE
   ## get any hidden options
   user.option <- list(...)
   terminal.qualts <- is.hidden.terminal.qualts(user.option)
   terminal.quants <- is.hidden.terminal.quants(user.option)
   perf.type <- is.hidden.perf.type(user.option)
-  ## set perf.type for coherent drc for class imbalanced data
-  if (!is.null(perf.type) &&
-      !is.null(object$forest$perf.type) &&
-      perf.type == "g.mean" &&
-      object$forest$perf.type == "g.mean.rfq") {
-    perf.type <- "g.mean.rfq"
-  }
+  rfq <- is.hidden.rfq(user.option)
+  ## set the family
+  family <- object$family
   ## incoming parameter checks: all are fatal
   if (missing(object)) {
     stop("object is missing!")
   }
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) != 2    &
-      sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2)  
+      sum(inherits(object, c("rfsrc", "forest"), TRUE) == c(1, 2)) != 2)
     stop("this function only works for objects of class `(rfsrc, grow)' or '(rfsrc, forest)'")
   ## verify the importance option
   importance <- match.arg(as.character(importance), c(FALSE, TRUE,
@@ -69,14 +65,6 @@ generic.predict.rfsrc <-
   if (split.depth == "FALSE") split.depth <- FALSE
   ## initialize the seed
   seed <- get.seed(seed)
-  ## needed for coherent drc classifier used for class imbalanced data
-  pi.hat.org <- object$pi.hat
-  if (!is.null(perf.type) && perf.type == "g.mean.rfq") {
-    pi.hat <- object$pi.hat
-  }
-  else {
-    pi.hat <- NULL
-  }
   ## if newdata is missing then we assume grow.equivalent
   ## note that outcome = "test" is treated as grow.equivalent = FALSE for processing
   ## but after processing the data, we switch this to grow.equivalent = TRUE
@@ -87,8 +75,8 @@ generic.predict.rfsrc <-
     else {
       grow.equivalent <- FALSE
     }
-  ## acquire the forest
-  ## (TBD) memory management "big.data" not currently implemented: TBD 
+  ## hereafter we only need the forest and reassign "object" to the forest
+  ## (TBD) memory management "big.data" not currently implemented: TBD
   if (sum(inherits(object, c("rfsrc", "grow"), TRUE) == c(1, 2)) == 2) {
     if (is.null(object$forest)) {
       stop("The forest is empty.  Re-run rfsrc (grow) call with forest=TRUE")
@@ -101,15 +89,16 @@ generic.predict.rfsrc <-
       }
     object <- object$forest
   }
-    else {
-      ## object is already a forest
-      if (inherits(object, "bigdata")) {
-        big.data <- TRUE
-      }
-        else {
-          big.data <- FALSE
-        }
+  else {
+    ## object is already a forest
+    if (inherits(object, "bigdata")) {
+      big.data <- TRUE
     }
+    else {
+      big.data <- FALSE
+    }
+  }
+  ## confirm version coherence
   if (is.null(object$version)) {
     cat("\n  This function only works with objects created with the following minimum version of the package:")
     cat("\n    Minimum version:  ")
@@ -121,11 +110,11 @@ generic.predict.rfsrc <-
   }
     else {
       object.version <- as.integer(unlist(strsplit(object$version, "[.]")))
-      installed.version <- as.integer(unlist(strsplit("2.5.1", "[.]")))
+      installed.version <- as.integer(unlist(strsplit("2.6.0", "[.]")))
       minimum.version <- as.integer(unlist(strsplit("2.3.0", "[.]")))
       object.version.adj <- object.version[1] + (object.version[2]/10) + (object.version[3]/100)
       installed.version.adj <- installed.version[1] + (installed.version[2]/10) + (installed.version[3]/100)
-      minimum.version.adj <- minimum.version[1] + (minimum.version[2]/10) + (minimum.version[3]/100) 
+      minimum.version.adj <- minimum.version[1] + (minimum.version[2]/10) + (minimum.version[3]/100)
       ## Minimum object version must be satisfied for us to proceed.  This is the only way
       ## terminal node restoration is guaranteed, due to RNG coherency.
       if (object.version.adj >= minimum.version.adj) {
@@ -140,7 +129,20 @@ generic.predict.rfsrc <-
           cat("\n")
           stop()
         }
+  }
+  ## class imbalanced processing
+  pi.hat <- NULL
+  if (family == "class") {
+    if (is.null(rfq) && !is.null(object$rfq)) {
+      rfq <- object$rfq
     }
+    if (!is.null(rfq) && rfq) {
+      pi.hat <- table(object$yvar) / length(object$yvar)
+    }
+    if (is.null(perf.type) && !is.null(object$perf.type)) {
+      perf.type <- object$perf.type
+    }
+  }
   ## recover the split rule
   splitrule <- object$splitrule
   ## Determine the immutable yvar factor map which is needed for
@@ -150,8 +152,7 @@ generic.predict.rfsrc <-
   colnames(object$yvar) <- yvar.names
   yfactor <- extract.factor(object$yvar)
   ## multivariate family details
-  family <- object$family
-  outcome.target.idx <- get.outcome.target(family, yvar.names, outcome.target)
+  m.target.idx <- get.outcome.target(family, yvar.names, m.target)
   ## get the y-outcome type and number of levels
   yvar.types <- get.yvar.type(family, yfactor$generic.types, yvar.names)
   yvar.nlevels <- get.yvar.nlevels(family, yfactor$nlevels, yvar.names, object$yvar)
@@ -165,13 +166,11 @@ generic.predict.rfsrc <-
   ## get the x-variable type and number of levels
   xvar.types <- get.xvar.type(xfactor$generic.types, xvar.names)
   xvar.nlevels <- get.xvar.nlevels(xfactor$nlevels, xvar.names, object$xvar)
-  ## Initialize the performance option
-  perf <- NULL
   ## set flags appropriately for unsupervised forests
   ## there are layers of checks appearing later, so some of these are redundant
   if (family == "unsupv") {
     outcome <- "train"
-    perf <- "none"
+    perf.type <- "none"
     importance <- "none"
   }
   ## Override ptn.count by family.  Pruning is based on variance,
@@ -208,7 +207,7 @@ generic.predict.rfsrc <-
     }
     any.outcome.factor <- family == "class"
     if (family == "class+" | family ==  "mix+") {
-      if (length(intersect("R", yfactor$generic.types[outcome.target.idx])) == 0) {
+      if (length(intersect("R", yfactor$generic.types[m.target.idx])) == 0) {
         any.outcome.factor <- TRUE
       }
     }
@@ -270,7 +269,7 @@ generic.predict.rfsrc <-
       ## Survival specific coherency checks
       ## if there are no deaths, turn off performance values and VIMP
       if (grepl("surv", family) && all(na.omit(event.info.newdata$cens) == 0)) {
-        perf <- "none"
+        perf.type <- "none"
         importance <- "none"
       }
       ## Ensure consistency of event types
@@ -287,7 +286,7 @@ generic.predict.rfsrc <-
         ## There are no outcomes.
         r.dim.newdata <- 0
         yvar.newdata <-  NULL
-        perf <- "none"
+        perf.type <- "none"
         importance <- "none"
       }
     ## Remove xvar row and column names for proper processing by the native library
@@ -311,11 +310,11 @@ generic.predict.rfsrc <-
       outcome <- "train"
       if (object$bootstrap != "by.root" | family == "unsupv") {
         importance <- "none"
-        perf <- "none"
+        perf.type <- "none"
       }
-        else {
-          ## Do nothing.
-        }
+      else {
+        ## do nothing.
+      }
     } ## ends grow.equivalent check
   ## ------------------------------------------------------------
   ## We have completed the restore/non-restore mode processing
@@ -364,12 +363,15 @@ generic.predict.rfsrc <-
   ## Initialize the low bits
   importance.bits <- get.importance(importance)
   proximity.bits <- get.proximity(grow.equivalent, proximity)
-    
+   
   split.depth.bits <- get.split.depth(split.depth)
   var.used.bits <- get.var.used(var.used)
   outcome.bits <- get.outcome(outcome)
-  perf <- get.perf(perf, FALSE, family, perf.type)    
-  perf.bits <-  get.perf.bits(perf)
+  ## get performance and rfq bits
+  perf.type <- get.perf(perf.type, FALSE, family)
+  perf.bits <-  get.perf.bits(perf.type)
+  rfq <- get.rfq(rfq)
+  rfq.bits <- get.rfq.bits(rfq, family)
   statistics.bits <- get.statistics(statistics)
   bootstrap.bits <- get.bootstrap(object$bootstrap)
   ## Initalize the high bits
@@ -379,11 +381,11 @@ generic.predict.rfsrc <-
   membership.bits <-  get.membership(membership)
   terminal.qualts.bits <- get.terminal.qualts(terminal.qualts, object$terminal.qualts)
   terminal.quants.bits <- get.terminal.quants(terminal.quants, object$terminal.quants)
-  tree.err.bits <- get.tree.err(tree.err)
+  err.block <- get.err.block(err.block, ntree)
   ## Turn off partial option.
   partial.bits <- get.partial(0)
   ## na.action in the native code is only revelant to the training data.
-  ## Unless outcome == "test", we send in the protocol used for the training data. 
+  ## Unless outcome == "test", we send in the protocol used for the training data.
   if (outcome == "test") {
     ## respect the user defined protocol
   }
@@ -406,34 +408,47 @@ generic.predict.rfsrc <-
         stop("'subset' not set properly")
       }
     }
-  do.trace <- get.trace(do.trace)
-  nativeOutput <- tryCatch({.Call("rfsrcPredict",
+  ## Check that htry is initialized.  If not, set it zero.
+  ## This is necessary for backwards compatibility with 2.3.0
+  if (is.null(object$htry)) {
+    htry <- 0
+  }
+  else {
+    htry <- object$htry
+  }
+    do.trace <- get.trace(do.trace)
+    ## Marker for start of native forest topology.  This can change with the outputs requested.
+    ## For the arithmetic related to the pivot point, you need to refer to stackOutput.c and in
+    ## particular, stackForestOutputObjects().
+    pivot <- which(names(object$nativeArray) == "treeID")
+    ## WARNING:  Note that the maximum number of slots in the following foreign function call is 64.
+    ## Ensure that this limit is not exceeded.  Otherwise, the program will error on the call.
+    nativeOutput <- tryCatch({.Call("rfsrcPredict",
                                   as.integer(do.trace),
                                   as.integer(seed),
                                   as.integer(importance.bits +
-                                               bootstrap.bits +
-                                                 proximity.bits +
-                                                     split.depth.bits +
-                                                       var.used.bits +
-                                                         outcome.bits +
-                                                           perf.bits +
-                                                             cr.bits +
-                                                               statistics.bits),
+                                             bootstrap.bits +
+                                             proximity.bits +
+                                             split.depth.bits +
+                                             var.used.bits +
+                                             outcome.bits +
+                                             perf.bits +
+                                             rfq.bits +
+                                             cr.bits +
+                                             statistics.bits),
                                   as.integer(
                                     forest.wt.bits +
                                        
                                         samptype.bits +
-                                          na.action.bits +
-                                            tree.err.bits +
-                                              membership.bits +
-                                                terminal.qualts.bits +
-                                                  terminal.quants.bits),
+                                        na.action.bits +
+                                        membership.bits +
+                                        terminal.qualts.bits +
+                                        terminal.quants.bits),
+                                  ## >>>> start of maxi forest object >>>>
                                   as.integer(ntree),
                                   as.integer(n),
                                   as.integer(r.dim),
                                   as.character(yvar.types),
-                                  as.integer(outcome.target.idx),
-                                  as.integer(length(outcome.target.idx)),
                                   as.integer(yvar.nlevels),
                                   as.double(as.vector(yvar)),
                                   as.integer(ncol(xvar)),
@@ -445,44 +460,62 @@ generic.predict.rfsrc <-
                                   as.double(case.wt),
                                   as.integer(length(event.info$time.interest)),
                                   as.double(event.info$time.interest),
+                                  as.integer(object$totalNodeCount),
+                                  as.integer(object$seed),
+                                  as.integer(htry),
                                   as.integer((object$nativeArray)$treeID),
                                   as.integer((object$nativeArray)$nodeID),
-                                  as.integer((object$nativeArray)$parmID),
+                                  list(as.integer((object$nativeArray)$parmID),
                                   as.double((object$nativeArray)$contPT),
                                   as.integer((object$nativeArray)$mwcpSZ),
-                                  as.integer(object$nativeFactorArray),
+                                  as.integer((object$nativeFactorArray)$mwcpPT)),
+                                  if (htry > 0) {
+                                      list(as.integer((object$nativeArray)$hcDim),
+                                      as.double((object$nativeArray)$contPTR))
+                                  } else { NULL },
+                                  if (htry > 1) {
+                                      lapply(0:htry-2, function(x) {as.integer(object$nativeArray[[pivot + 9 + (0 * htry) + x]])})
+                                  } else { NULL },
+                                  if (htry > 1) {
+                                      lapply(0:htry-2, function(x) {as.double(object$nativeArray[[pivot + 9 + (1 * htry) + x]])})
+                                  } else { NULL },
+                                  if (htry > 1) {
+                                      lapply(0:htry-2, function(x) {as.double(object$nativeArray[[pivot + 9 + (2 * htry) + x]])})
+                                  } else { NULL },
+                                  if (htry > 1) {
+                                      lapply(0:htry-2, function(x) {as.integer(object$nativeArray[[pivot + 9 + (3 * htry) + x]])})
+                                  } else { NULL },
+                                  if (htry > 1) {
+                                      lapply(0:htry-2, function(x) {as.integer(object$nativeArray[[pivot + 9 + (4 * htry) + x]])})
+                                  } else { NULL },
                                   as.integer(object$nativeArrayTNDS$tnRMBR),
                                   as.integer(object$nativeArrayTNDS$tnAMBR),
                                   as.integer(object$nativeArrayTNDS$tnRCNT),
                                   as.integer(object$nativeArrayTNDS$tnACNT),
-                                  as.integer(object$totalNodeCount),
-                                  as.integer(object$seed),
-                                  as.integer(get.rf.cores()),
-                                  as.integer(ptn.count),
-                                  as.integer(length(importance.xvar.idx)),
-                                  as.integer(importance.xvar.idx),
-                                  as.integer(length(subset)),
-                                  as.integer(subset),
-                                    
-                                  ## Partial variables disabled.
-                                  as.integer(0),
-                                  as.integer(0),
-                                  as.integer(0),
-                                  as.double(NULL),
-                                  as.integer(0),
-                                  as.integer(NULL),
-                                  as.double(NULL),
-                                  as.integer(n.newdata),
-                                  as.integer(r.dim.newdata),
-                                  as.double(if (outcome != "test") yvar.newdata else NULL),
-                                  as.double(if (outcome != "test") xvar.newdata else NULL),
                                   as.double((object$nativeArrayTNDS$tnSURV)),
                                   as.double((object$nativeArrayTNDS$tnMORT)),
                                   as.double((object$nativeArrayTNDS$tnNLSN)),
                                   as.double((object$nativeArrayTNDS$tnCSHZ)),
                                   as.double((object$nativeArrayTNDS$tnCIFN)),
                                   as.double((object$nativeArrayTNDS$tnREGR)),
-                                  as.integer((object$nativeArrayTNDS$tnCLAS)))}, error = function(e) {
+                                  as.integer((object$nativeArrayTNDS$tnCLAS)),
+                                  ## <<<< end of maxi forest object <<<<
+                                  as.integer(m.target.idx),
+                                  as.integer(length(m.target.idx)),
+                                  as.integer(ptn.count),
+                                    
+                                  as.integer(length(importance.xvar.idx)),
+                                  as.integer(importance.xvar.idx),
+                                  ## Partial variables disabled.
+                                  list(as.integer(0), as.integer(0), as.integer(0), NULL, as.integer(0), NULL, NULL),
+                                  as.integer(length(subset)),
+                                  as.integer(subset),
+                                  as.integer(n.newdata),
+                                  as.integer(r.dim.newdata),
+                                  as.double(if (outcome != "test") yvar.newdata else NULL),
+                                  as.double(if (outcome != "test") xvar.newdata else NULL),
+                                  as.integer(err.block),
+                                  as.integer(get.rf.cores()))}, error = function(e) {
                                     print(e)
                                     NULL})
   ## check for error return condition in the native code
@@ -502,7 +535,7 @@ generic.predict.rfsrc <-
     nativeOutput$imputation <- NULL
     imputed.indv <- imputed.data[, 1]
     imputed.data <- as.data.frame(imputed.data[, -1, drop = FALSE])
-    if ((r.dim.newdata > 0) | (perf != "none")) {
+    if ((r.dim.newdata > 0) | (perf.type != "none")) {
       colnames(imputed.data) <- c(yvar.names, xvar.names)
     }
       else {
@@ -518,7 +551,7 @@ generic.predict.rfsrc <-
     colnames(xvar.newdata) <- xvar.names
     ## map xvar factors back to original values
     xvar.newdata <- map.factor(xvar.newdata, xfactor)
-    if (perf != "none") {
+    if (perf.type != "none") {
       ## add column names to test response matrix
       yvar.newdata <- as.data.frame(yvar.newdata)
       colnames(yvar.newdata) <- yvar.names
@@ -529,7 +562,7 @@ generic.predict.rfsrc <-
   ## Map imputed data factors back to original values
   if (n.miss > 0) {
     imputed.data <- map.factor(imputed.data, xfactor)
-    if (perf != "none") {
+    if (perf.type != "none") {
       imputed.data <- map.factor(imputed.data, yfactor)
     }
   }
@@ -553,7 +586,7 @@ generic.predict.rfsrc <-
     else {
       proximity.out <- NULL
     }
-    
+   
   ## forest weight matrix
   if (forest.wt != FALSE) {
     if (grow.equivalent) {
@@ -635,7 +668,7 @@ generic.predict.rfsrc <-
     family = family,
     n = n.observed,
     ntree = ntree,
-    yvar = (if ((outcome == "train" & grow.equivalent) | (perf != "none")) {
+    yvar = (if ((outcome == "train" & grow.equivalent) | (perf.type != "none")) {
       if (outcome == "train" & grow.equivalent)
         amatrix.remove.names(object$yvar) else amatrix.remove.names(yvar.newdata)} else NULL),
     yvar.names = yvar.names,
@@ -655,8 +688,7 @@ generic.predict.rfsrc <-
     imputed.data = (if (n.miss>0) imputed.data else NULL),
     split.depth  = split.depth.out,
     node.stats = node.stats,
-    tree.err = tree.err,
-    pi.hat = pi.hat.org,
+    err.block = err.block,
     perf.type = perf.type
   )
   ## memory management
@@ -715,7 +747,7 @@ generic.predict.rfsrc <-
     ## -> of dim [length(event.info$event.type)] x [RF_sortedTimeInterestSize] x [n]
     ##    where [length(event.info$event.type)] may be equal to [1].
     ## To the R code:
-    ## -> of dim [n] x [RF_sortedTimeInterestSize] x [length(event.info$event.type)]  
+    ## -> of dim [n] x [RF_sortedTimeInterestSize] x [length(event.info$event.type)]
     chf <- (if (!is.null(nativeOutput$allEnsbCHF))
               adrop3d.last(array(nativeOutput$allEnsbCHF,
                                  c(n.observed, length(event.info$time.interest), length(event.info$event.type)),
@@ -735,7 +767,7 @@ generic.predict.rfsrc <-
     ##   "oobEnsbMRT"
     ## -> of dim [length(event.info$event.type)] x [n]
     ## To the R code:
-    ## -> of dim [n] x [length(event.info$event.type)] 
+    ## -> of dim [n] x [length(event.info$event.type)]
     predicted <- (if (!is.null(nativeOutput$allEnsbMRT))
                     adrop2d.last(array(nativeOutput$allEnsbMRT,
                                        c(n.observed, length(event.info$event.type)), dimnames=mortality.names), coerced.event.count) else NULL)
@@ -791,7 +823,7 @@ generic.predict.rfsrc <-
     ##   -> of dim [ntree] x length(event.info$event.type)]
     ## To the R code:
     ##   -> of dim [ntree] x length(event.info$event.type)]
-    if (!is.null(nativeOutput$perfSurv)) {      
+    if (!is.null(nativeOutput$perfSurv)) {
       err.rate <- adrop2d.first(array(nativeOutput$perfSurv,
                                       c(length(event.info$event.type), ntree),
                                       dimnames=err.names),
@@ -827,7 +859,7 @@ generic.predict.rfsrc <-
     survOutput = c(
       survOutput, list(
         time.interest = event.info$time.interest,
-        ndead = (if (perf != "none") sum((if (grow.equivalent) yvar[, 2] else yvar.newdata[, 2]) !=0 , na.rm=TRUE) else NULL))
+        ndead = (if (perf.type != "none") sum((if (grow.equivalent) yvar[, 2] else yvar.newdata[, 2]) !=0 , na.rm=TRUE) else NULL))
     )
     ## When TRUE we revert to univariate nomenclature for all the outputs.
     if(univariate.nomenclature) {
@@ -861,9 +893,9 @@ generic.predict.rfsrc <-
         classOutput <- vector("list", class.count)
         ## Names of the classification outputs.
         names(classOutput) <- yvar.names[class.index]
-        ## Vector to hold the number of levels in each factor response. 
+        ## Vector to hold the number of levels in each factor response.
         levels.count <- array(0, class.count)
-        ## List to hold the names of levels in each factor response. 
+        ## List to hold the names of levels in each factor response.
         levels.names <- vector("list", class.count)
         counter <- 0
         for (i in class.index) {
@@ -883,21 +915,21 @@ generic.predict.rfsrc <-
             }
         }
         ## Incoming error rates: T=tree R=response L=level
-        ## T1R1L0 T1R1L1 T1R1L2 T1R1L3 T1R2L0 T1R2L1 T1R2L2, T2R1L0 T2R1L1 T2R1L2 T2R1L3 T2R2L0 T2R2L1 T2R2L2, ... 
+        ## T1R1L0 T1R1L1 T1R1L2 T1R1L3 T1R2L0 T1R2L1 T1R2L2, T2R1L0 T2R1L1 T2R1L2 T2R1L3 T2R2L0 T2R2L1 T2R2L2, ...
         ## In GROW mode, all class objects are represented in the tree offset calculation.
         ## In PRED mode, the offsets are dependent on the only those targets that are requested!
-        ## Yeilds tree.offset = c(1, 8, ...) 
+        ## Yeilds tree.offset = c(1, 8, ...)
         tree.offset <- array(1, ntree)
         ## Sum of all level counts targetted classification.  For example,
         ## if R1 has 3 levels, and R2 has 2 levels, and R3 has 6 levels, and
         ## only R1 and R3 and targetted, then levels.total = 9 + 3
-        levels.total <- 0 
+        levels.total <- 0
         if (ntree > 1) {
           ## Iterate over all the target outcomes and map them to the class list.
-          for (i in 1:length(outcome.target.idx)) {
+          for (i in 1:length(m.target.idx)) {
             ## This is the slot in the class list.  The class list spans all the classification
-            ## outputs, some of which may be NULL.  
-            target.idx <- which (class.index == outcome.target.idx[i])
+            ## outputs, some of which may be NULL.
+            target.idx <- which (class.index == m.target.idx[i])
             ## Is the target a classification y-variable.
             if (length(target.idx) > 0) {
               levels.total <- levels.total + 1 + levels.count[target.idx]
@@ -907,8 +939,8 @@ generic.predict.rfsrc <-
         }
         tree.offset <-  cumsum(tree.offset)
         ## Incoming vimp rates: V=xvar R=response L=level
-        ## V1R1L0 V1R1L1 V1R1L2 V1R1L3 V1R1L0 V1R2L1 V1R2L2, V2R1L0 V2R1L1 V2R1L2 V2R1L3 V2R2L0 V2R2L1 V2R2L2, ... 
-        ## Yeilds vimp.offset = c(1, 8, ...) 
+        ## V1R1L0 V1R1L1 V1R1L2 V1R1L3 V1R1L0 V1R2L1 V1R2L2, V2R1L0 V2R1L1 V2R1L2 V2R1L3 V2R2L0 V2R2L1 V2R2L2, ...
+        ## Yeilds vimp.offset = c(1, 8, ...)
         vimp.offset <- array(1, vimp.count)
         if (vimp.count > 1) {
           vimp.offset[2:vimp.count] <- levels.total
@@ -927,16 +959,16 @@ generic.predict.rfsrc <-
         ## where the slot [.] x [.] x [1] holds the unconditional error rate.
         ## Note that this is a ragged array.
         ## To the R code:
-        ## -> of dim [[class.count]] x [ntree] x [1 + levels.count[]] 
+        ## -> of dim [[class.count]] x [ntree] x [1 + levels.count[]]
         ## From the native code:
         ##   "vimpClas"
         ## -> of dim [n.xvar] x [class.count] x [1 + levels.count]
         ## where the slot [.] x [.] x [1] holds the unconditional vimp.
         ## Note that this is a ragged array.
         ## To the R code:
-        ## -> of dim [[class.count]] x [1 + levels.count] x [n.xvar] 
-        for (i in 1:length(outcome.target.idx)) {
-          target.idx <- which (class.index == outcome.target.idx[i])
+        ## -> of dim [[class.count]] x [1 + levels.count] x [n.xvar]
+        for (i in 1:length(m.target.idx)) {
+          target.idx <- which (class.index == m.target.idx[i])
           if (length(target.idx) > 0) {
             iter.ensb.start <- iter.ensb.end
             iter.ensb.end <- iter.ensb.end + (levels.count[target.idx] * n.observed)
@@ -1002,16 +1034,16 @@ generic.predict.rfsrc <-
         regrOutput <- vector("list", regr.count)
         names(regrOutput) <- yvar.names[regr.index]
         ## Incoming: T=tree R=response
-        ## T1R1 T1R2, T2R1 T2R2, T3R1 T3R2, ... 
-        ## Yeilds tree.offset = c(1, 3, 5) 
+        ## T1R1 T1R2, T2R1 T2R2, T3R1 T3R2, ...
+        ## Yeilds tree.offset = c(1, 3, 5)
         tree.offset <- array(1, ntree)
         if (ntree > 1) {
           tree.offset[2:ntree] <- length(regr.index)
         }
         tree.offset <-  cumsum(tree.offset)
         ## Incoming vimp rates: V=xvar R=response L=level
-        ## V1R1 V1R2, V2R1 V2R2, V3R1 V3R2, ... 
-        ## Yeilds vimp.offset = c(1, 3, 5, ...) 
+        ## V1R1 V1R2, V2R1 V2R2, V3R1 V3R2, ...
+        ## Yeilds vimp.offset = c(1, 3, 5, ...)
         vimp.offset <- array(1, vimp.count)
         if (vimp.count > 1) {
           vimp.offset[2:vimp.count] <- length(regr.index)
@@ -1032,8 +1064,8 @@ generic.predict.rfsrc <-
         ## -> of dim [n.vxar] x [regr.count]
         ## To the R code:
         ## -> of dim  [[regr.count]] x [n.xvar]
-        for (i in 1:length(outcome.target.idx)) {
-          target.idx <- which (regr.index == outcome.target.idx[i])
+        for (i in 1:length(m.target.idx)) {
+          target.idx <- which (regr.index == m.target.idx[i])
           if (length(target.idx) > 0) {
             iter.ensb.start <- iter.ensb.end
             iter.ensb.end <- iter.ensb.end + n.observed

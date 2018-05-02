@@ -134,7 +134,7 @@
   \command{\link{rfsrc}}
 }
 \examples{
-\dontrun{
+\donttest{
 ## veteran data
 data(veteran, package = "randomForestSRC") 
 plot.survival(rfsrc(Surv(time, status)~ ., veteran), cens.model = "rfsrc")

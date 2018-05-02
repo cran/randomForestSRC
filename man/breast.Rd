@@ -13,16 +13,32 @@
   The data were obtained from the UCI machine learning repository, see
   \url{http://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Prognostic)}.
 }
+ 
 \examples{
-\dontrun{
+\donttest{
 ## ------------------------------------------------------------
-## classification analysis
+## Standard analysis
 ## ------------------------------------------------------------
 
 data(breast, package = "randomForestSRC")
 breast <- na.omit(breast)
-obj <- rfsrc(status ~ ., data = breast, nsplit = 10)
-print(obj)
+o <- rfsrc(status ~ ., data = breast, nsplit = 10)
+print(o)
+
+## ------------------------------------------------------------
+## The data is imbalanced so we use balanced random forests
+## with undersampling of the majority class
+##
+## Specifically let n0, n1 be sample sizes for majority, minority
+## cases.  We sample 2 x n1 cases with majority, minority cases chosen
+## with probabilities n1/n, n0/n where n=n0+n1
+## ------------------------------------------------------------
+
+y <- breast$status
+o <- rfsrc(status ~ ., data = breast, nsplit = 10,
+            case.wt = randomForestSRC:::make.wt(y),
+            sampsize = randomForestSRC:::make.size(y))
+print(o)
 
 }}
 \keyword{datasets}
