@@ -699,7 +699,7 @@ rfsrc <- function(formula,
                        terminal.qualts = terminal.qualts,
                        terminal.quants = terminal.quants,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.6.0",
+                       version = "2.6.1",
                        na.action = na.action,
                        perf.type = perf.type)
     ## family specific additions to the forest object

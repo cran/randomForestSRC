@@ -1,4 +1,4 @@
-6ebd2d50400970fb4bcdbd55bb88eea8 *DESCRIPTION
+012d1ca0b9c7689243a9a0b7bd4c4e69 *DESCRIPTION
 bd2ad64a8bb3a6b2e96af3eb745b228d *NAMESPACE
 3eac059385f93d49a6e823f4f552f9a8 *R/cindex.R
 86ae524a2c86aa9bf025ac64ddbfec49 *R/data.utilities.R
@@ -6,7 +6,7 @@ bd2ad64a8bb3a6b2e96af3eb745b228d *NAMESPACE
 18a4aefc0c0b10022638fcfff1d81d4f *R/factor.utilities.R
 b62d1d126ddbe938f2b3fb0dfbd06b07 *R/find.interaction.rfsrc.R
 edf621b4979c616f7e2a992c0c87a765 *R/generic.impute.rfsrc.R
-e12d4dd9cf59b3b3f0ac614073444161 *R/generic.predict.rfsrc.R
+03340271cf47ddc30572b65f5908c0be *R/generic.predict.rfsrc.R
 bac99c2c3327bcda38795ef306cbdb27 *R/impute.rfsrc.R
 0bd4b911bb80b5c34d6bc98b8d88669a *R/max.subtree.rfsrc.R
 03aafa68233ec4949965a92abcba7b82 *R/partial.rfsrc.R
@@ -17,7 +17,7 @@ cf05a1c85822ce99c6437c1f7ca3308f *R/plot.survival.rfsrc.R
 98847aef0dcd8858f7a52c5e096e5dee *R/predict.rfsrc.R
 11eb0eba0b5c72b7f04e2f1e9da733af *R/print.rfsrc.R
 8845e0b0da39425e88b602b8f9f73b7f *R/quantileReg.rfsrc.R
-7ddb7eb5bcf3beda91d7512eb4aff749 *R/rfsrc.R
+cf09c563306e1b41faed86f3d1a3e856 *R/rfsrc.R
 080c70f76f7091e0b112b57417ef08c6 *R/rfsrc.news.R
 6f6d9dd6bab64e83f4ec01f48bb168f2 *R/rfsrcSyn.rfsrc.R
 52f3766e21eb83049db791bfe576bac4 *R/stat.split.rfsrc.R
@@ -26,8 +26,8 @@ d320fc26cb7518a16ac68cff48bf111b *R/var.select.rfsrc.R
 29bbd97844917716ca69ee20b83eb5ce *R/vimp.rfsrc.R
 cf2d3f8015d7cf2f0f25baaf59226651 *R/zzz.R
 e66900a0e679a19b0c32de56a9a33366 *cleanup
-4739865e99c5990203e0144de4982d34 *configure
-9557efaa624b691986243e806ba934d8 *configure.ac
+36daa76c2790a951cc13ec1b1b2d0f26 *configure
+5a42f2fba5fdac67bf01ecc7658a35a5 *configure.ac
 5cf4d89bbf935e771cb65019cac9b4ce *data/breast.rda
 2b4bcaeead80387576687c62988a3214 *data/follic.rda
 d02bfee6f6a0c9c4d13d8650e92efe0f *data/hd.rda
@@ -37,7 +37,7 @@ c1d0706497e93d297a9e1e066a4a4da7 *data/nutrigenomic.rda
 b8156d9ad38d0a7e4f391991933e7297 *data/veteran.rda
 2e852d9f57e490166797b6a230d2b978 *data/wihs.rda
 c5f5f248dcd2ba86cc52e1d0a4f0abbf *inst/CITATION
-e25c89dfeca75c5f4ce20ddd9476f485 *inst/NEWS
+3d0ffb9d1f51a13c54ddf336d548e08d *inst/NEWS
 e9c35e45c8eaf353f6b004f6ea1a07e3 *man/breast.Rd
 00bf70b924016cfbd4cb94247f6dcddc *man/find.interaction.rfsrc.Rd
 31d66443d4d6894db52b6df210db4034 *man/follic.Rd
@@ -67,7 +67,7 @@ d1a566e5d57a31ed32f26fd23489ac38 *man/vimp.rfsrc.Rd
 5d80adb116b199741822855b448a427b *src/Makevars.in
 617d01aba48fe56fd9f8d72381c6e008 *src/Makevars.win
 61d2abae73c926617a3b844dadc34a07 *src/R_init_randomForestSRC.c
-f07f90a7a364a83092cd3e1890687d56 *src/randomForestSRC.c
+6571d0248caafa80a3f24df7e06ed0d7 *src/randomForestSRC.c
 829d9d36e77c2a1f2c25770ac69a4c68 *src/randomForestSRC.h
 b850e242feae74a87550eb7675be6f85 *src/splitCustom.c
 3fe9966eff4ed659456a751feceecab0 *src/splitCustom.h

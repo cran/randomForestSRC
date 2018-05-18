@@ -7201,6 +7201,7 @@ void rfsrc(char mode, int seedValue) {
         summarizePartialCalculations(0, p);
       }
     }
+    finalizeEnsembleEstimates(mode);
     if (RF_opt & OPT_MISS) {
       for (b = 1; b <= RF_ntree; b++) {
         for (j = 1; j <= RF_tLeafCount[b]; j++) {
@@ -21697,7 +21698,8 @@ SEXP rfsrcGrow(SEXP traceFlag,
   free_2DObject(RF_bootstrapIn, NATIVE_TYPE_INTEGER, (RF_opt & OPT_BOOT_TYP1) && (RF_opt & OPT_BOOT_TYP2), RF_ntree, RF_observationSize);
   free_2DObject(RF_observationIn, NATIVE_TYPE_NUMERIC, TRUE, RF_xSize, RF_observationSize);  
   memoryCheck();
-  UNPROTECT(RF_stackCount + 2);
+  UNPROTECT(RF_stackCount);
+  UNPROTECT(2);
   return RF_sexpVector[RF_OUTP_ID];
 }
 SEXP rfsrcPredict(SEXP traceFlag,
@@ -21870,7 +21872,8 @@ SEXP rfsrcPredict(SEXP traceFlag,
   free_2DObject(RF_fresponseIn, NATIVE_TYPE_NUMERIC, RF_frSize > 0, RF_frSize, RF_fobservationSize);
   free_2DObject(RF_fobservationIn, NATIVE_TYPE_NUMERIC, RF_fobservationSize > 0 , RF_xSize, RF_fobservationSize);
   memoryCheck();
-  UNPROTECT(RF_stackCount + 2);
+  UNPROTECT(RF_stackCount);
+  UNPROTECT(2);
   return RF_sexpVector[RF_OUTP_ID];
 }
 void exit2R() {

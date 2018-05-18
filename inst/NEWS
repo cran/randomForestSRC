@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 2.6.0 (bld20180425)
+Version: 2.6.1 (bld20180518)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -7,6 +7,12 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
   https://github.com/kogalur/randomForestSRC
 ---------------------------------------------------------------------------------
 
+---------------------------------------------------------------------------------
+CHANGES TO RELEASE 2.6.1
+---------------------------------------------------------------------------------
+Fix to predict() call not returning ensembles when y-vars not present.  Sorry
+about that.
+  
 ---------------------------------------------------------------------------------
 CHANGES TO RELEASE 2.6.0
 ---------------------------------------------------------------------------------
