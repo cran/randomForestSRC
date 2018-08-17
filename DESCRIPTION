@@ -1,6 +1,6 @@
 Package: randomForestSRC
-Version: 2.6.1
-Date: 2018-05-17
+Version: 2.7.0
+Date: 2018-08-17
 Title: Random Forests for Survival, Regression, and Classification
         (RF-SRC)
 Author: Hemant Ishwaran <hemant.ishwaran@gmail.com>, Udaya B. Kogalur <ubk@kogalur.com>
@@ -8,12 +8,12 @@ Maintainer: Udaya B. Kogalur <ubk@kogalur.com>
 BugReports: https://github.com/kogalur/randomForestSRC/issues/new
 Depends: R (>= 3.1.0),
 Imports: parallel
-Suggests: glmnet, survival, pec, prodlim, mlbench, RCurl
-Description: A unified treatment of Breiman's random forests for survival, regression and classification problems based on Ishwaran and Kogalur's random survival forests (RSF) package.  Now extended to include multivariate and unsupervised forests.  Also includes quantile regression forests for univariate and multivariate training/testing settings.  The package runs in both serial and parallel (OpenMP) modes. 
+Suggests: glmnet, survival, pec, prodlim, mlbench, akima, caret
+Description: Fast OpenMP parallel processing for Breiman's random forests for survival, competing risks, regression and classification based on Ishwaran and Kogalur's popular random survival forests (RSF) package.  Handles missing data and now includes multivariate, unsupervised forests and quantile regression.  New fast interface using subsampling. 
 License: GPL (>= 3)
 URL: http://web.ccs.miami.edu/~hishwaran http://www.kogalur.com
         https://github.com/kogalur/randomForestSRC
 NeedsCompilation: yes
-Packaged: 2018-05-18 02:12:12 UTC; kogalur
+Packaged: 2018-08-17 21:36:42 UTC; kogalur
 Repository: CRAN
-Date/Publication: 2018-05-18 12:42:16 UTC
+Date/Publication: 2018-08-17 22:10:03 UTC
