@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 2.8.0 (bld20190102)
+Version: 2.9.0 (bld20190422a)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -9,7 +9,16 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.8.0
+CHANGES TO RELEASE 2.9.0
+---------------------------------------------------------------------------------
+Added new splitrules "auc" and "entropy" for classification.
+Improvements to quantile regression.  Updates to holdout vimp.  Some
+function names were changed as a general move towards name uniformity
+in the package.  Updates to function imbalanced used for class
+imbalanced data.
+
+---------------------------------------------------------------------------------
+RELEASE 2.8.0
 ---------------------------------------------------------------------------------
 Ensembles in regression now support Greenwald-Khanna approximate
 quantile queries via rfsrc(), predict.rfsrc() and the new wrapper

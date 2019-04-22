@@ -1,4 +1,4 @@
-rfsrcSyn.rfsrc <-
+synthetic.rfsrc <-
   function(formula, data, object, newdata,
            ntree = 1000, mtry = NULL, nodesize = 5, nsplit = 10,
            mtrySeq = NULL, nodesizeSeq = c(1:10,20,30,50,100),
@@ -45,7 +45,7 @@ rfsrcSyn.rfsrc <-
       if (verbose) {
         cat("\t imputing the data\n")
       }
-      data <- impute(data = data, ntree = ntree, nodesize = nodesize, nsplit = nsplit, fast = TRUE)
+      data <- impute(data = data, ntree = ntree, nodesize = nodesize, nsplit = nsplit[1], fast = TRUE)
     }
     ##use fast forests for parsing the data
     preObj <- rfsrc(f.org, data, ntree = 1, nodesize = nrow(data), splitrule = "random")
@@ -63,9 +63,11 @@ rfsrcSyn.rfsrc <-
     p <- length(xvar.names)
     ##conditions under which mtrySeq is assinged to default values or to mtry
     if (is.null(mtrySeq)) {
+      mtrySeqDefault <- TRUE
       mtrySeq <- ceiling(p/3)
     }
     else {
+      mtrySeqDefault <- FALSE
       mtrySeq <- unique(ceiling(mtrySeq))
       mtrySeq <- mtrySeq[mtrySeq>=1 & mtrySeq <= p]
       if (length(mtrySeq) == 0) {
@@ -74,14 +76,15 @@ rfsrcSyn.rfsrc <-
     }
     ##sort the nodesize sequence
     nodesizeSeq <- sort(nodesizeSeq)
-    ## determine the grow interface - rfsrc or rfsrcFast?
+    ## determine the grow interface - rfsrc or rfsrc.fast?
     if (!fast) {
       rfsrc.grow <- "rfsrc"
     }
     else {
-      rfsrc.grow <- "rfsrcFast"
+      rfsrc.grow <- "rfsrc.fast"
     }
   }
+   
   ## --------------------------------------------------------------
   ##   
   ##   synthetic forests
@@ -91,11 +94,12 @@ rfsrcSyn.rfsrc <-
     ## generate a fixed inbag sample if oob is in effect
     if (oob) {
       ## use a rough forest to determine sample size (due to NA's this may not = nrow(data))
-      ## the resulting inbag sample depends on whether fast rfsrc is requested
-      roughO <- do.call(rfsrc.grow,
+      ## inbag sample depends on whether rfsrc.fast is requested or default sampling used by rfsrc
+      ## note that this is now "swor" in both cases
+      roughO <- do.call("rfsrc",
                         c(list(formula = f.org, data = data, ntree = 1,
                                nodesize = nrow(data), splitrule = "random")))
-      samp <- make.sample(ntree, roughO$n, roughO$forest$sampsize, roughO$forest$samptype == "swr")
+      samp <- make.sample(ntree, roughO$n, roughO$forest$sampsize(roughO$n), roughO$forest$samptype == "swr")
     }
     ## construct RF machines for each nodesize
     rfMachines <- lapply(nodesizeSeq, function(nn) {
@@ -106,13 +110,13 @@ rfsrcSyn.rfsrc <-
         if (oob) {
           do.call(rfsrc.grow,
                   c(list(formula = f.org, data = data, ensemble = "all",
-                         ntree = ntree, mtry = mm, nodesize = nn, nsplit = nsplit,
+                         ntree = ntree, mtry = mm, nodesize = nn, nsplit = nsplit[1],
                          bootstrap = "by.user", samp = samp)))
         }
         else {
           do.call(rfsrc.grow,
                   c(list(formula = f.org, data = data, ensemble = "all",
-                         ntree = ntree, mtry = mm, nodesize = nn, nsplit = nsplit)))
+                         ntree = ntree, mtry = mm, nodesize = nn, nsplit = nsplit[1])))
         }
       })
     })
@@ -183,9 +187,10 @@ rfsrcSyn.rfsrc <-
     if (use.org.features) {
       data <- data.frame(preObj$yvar, preObj$xvar, x.s = x.s)
     }
-      else {
-        data <- data.frame(preObj$yvar, x.s = x.s)
-      }
+    else {
+      data <- data.frame(preObj$yvar, x.s = x.s)
+    }
+     
     ## the final forest call - make the over-arching synthetic forest
     ## for generality, the formula is specified as multivariate but this reverts to univariate families
     ## when there is only one y-variable
@@ -193,13 +198,13 @@ rfsrcSyn.rfsrc <-
     if (oob) {
       rfSyn <- do.call(rfsrc.grow,
                        c(list(formula = rfSyn.f, data = data,
-                              ntree = ntree, mtry = mtry, nodesize = nodesize, nsplit = nsplit,
+                              ntree = ntree, mtry = mtry, nodesize = nodesize, nsplit = nsplit[1],
                               bootstrap = "by.user", samp = samp), dots))
     }
     else {
       rfSyn <- do.call(rfsrc.grow,
                        c(list(formula = rfSyn.f, data = data,
-                              ntree = ntree, mtry = mtry, nodesize = nodesize, nsplit = nsplit), dots))
+                              ntree = ntree, mtry = mtry, nodesize = nodesize, nsplit = nsplit[1]), dots))
     }
   }
   ## --------------------------------------------------------------
@@ -213,7 +218,7 @@ rfsrcSyn.rfsrc <-
         cat("\t imputing the test data\n")
       }
       newdata <- impute(data = newdata, ntree = ntree,
-                  nodesize = nodesize, nsplit = nsplit, fast = TRUE)
+                  nodesize = nodesize, nsplit = nsplit[1], fast = TRUE)
     }
     if (verbose) {
       cat("\t making the test set synthetic features\n")
@@ -291,7 +296,7 @@ rf.opt <- function(obj)
       o.coerced <- coerce.multivariate(obj[[m]], nn)
       yhat <- o.coerced$predicted.oob
       if (o.coerced$family == "class") {
-        brier(o.coerced$yvar, yhat)
+        get.brier.error(o.coerced$yvar, yhat)
       }
         else {
           yvar <- as.numeric(o.coerced$yvar) 
@@ -300,4 +305,4 @@ rf.opt <- function(obj)
     }), na.rm = TRUE)
   }))[1]
 }
-rfsrcSyn <- rfsrcSyn.rfsrc
+synthetic <- synthetic.rfsrc

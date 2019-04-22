@@ -1,63 +1,83 @@
-\name{quantileReg}
-\alias{quantileReg}
-\alias{quantileReg.rfsrc}
+\name{quantreg.rfsrc}
+\alias{quantreg.rfsrc}
+\alias{quantreg}
+\alias{extract.quantile}
+\alias{get.auc}
+\alias{get.bayes.rule}
+\alias{get.brier.error}
+\alias{get.confusion}
+\alias{get.misclass.error}
+\alias{get.quantile}
+\alias{get.quantile.crps}
+\alias{get.quantile.stat}
 \title{Quantile Regression Forests}
 \description{
   Grows a univariate or multivariate quantile regression forest and returns
   its conditional quantile and density values.  Can be used for
   both training and testing purposes.
 }
-\usage{\method{quantileReg}{rfsrc}(formula, data, object, newdata,
-  method = "forest", prob = NULL, prob.epsilon = NULL,
+\usage{\method{quantreg}{rfsrc}(formula, data, object, newdata,
+  method = "forest", splitrule = NULL, prob = NULL, prob.epsilon = NULL,
   oob = TRUE, fast = FALSE, maxn = 1e3, ...)
 }
 \arguments{
+
   \item{formula}{A symbolic description of the model to be fit.
     Must be specified unless \code{object} is given.}
+
   \item{data}{Data frame containing the y-outcome and x-variables in
     the model. Must be specified unless \code{object} is given.}
+
   \item{object}{(Optional) A previously grown quantile regression
     forest.}
+
   \item{method}{Method used to calculate quantiles.  Forest weighted
     averaging is used by default.  While this works well for standard
     data, consider using the Greenwald-Khanna algorithm for big data.
     The latter is specified by any one of the following: "gk", "GK",
     "G-K", "g-k".}
+
+  \item{splitrule}{The default action is local adaptive quantile regression splitting,
+    but this can be over-ridden by the user.}
+  
   \item{prob}{Target quantile probabilities when training.  If left unspecified,
     uses percentiles (1 through 99) for \code{method = "forest"}, and 
     for Greenwald-Khanna selects equally spaced percentiles optimized
     for accuracy (see below).}
+  
   \item{prob.epsilon}{Greenwald-Khanna allowable error for quantile
     probabilities when training.}
+  
   \item{newdata}{Test data (optional) over which conditional quantiles
     are evaluated over.}
+
   \item{oob}{Return OOB (out-of-bag) quantiles?  If false, in-bag values
     are returned.}
+
   \item{fast}{Use fast random forests, \code{rfsrcFast}, in place of
     \code{rfsrc}?  Improves speed but may be less accurate.}
+
   \item{maxn}{Maximum number of unique y training values used when
     calculating the conditional density.}
+
   \item{...}{Further arguments to be passed to the \code{rfsrc}
     function used for fitting the quantile regression forest.}  
 }
 \details{
-
-  Grows a univariate or multivariate quantile regression forest using
-  quantile regression splitting using the new splitrule
-  \code{quantile.regr} based on the quantile loss function (often called
-  the "check function").
   
   The default method for calculating quantiles is \code{method}="forest"
-  which uses forest weights as in Meinshausen (2006).  However, because
-  quantile regression splitting is used, and not mean-squared error
-  splitting (as used by Meinshuasen), results may differ substantially
-  from Meinshausen.  We believe quantile regression splitting will
-  provide superior performance.
+  which uses forest weights as in Meinshausen (2006).  However the
+  method here differs from Meinshuasen (2006) in two important ways: (1)
+  local adaptive quantile regression splitting is used instead of CART
+  regression mean squared splitting, and (2) quantiles are estimated
+  using a local cumulative distribution function estimator.  Thus
+  results may differ substantially from Meinshausen (2006).
 
-  While calculating quantiles using forest weights works well for
-  standard data, a second approach, the Greenwald-Khanna (2001)
-  algorithm, will be more appropriate for big data due to its high
-  memory efficiency.
+  A second method uses the Greenwald-Khanna (2001) algorithm (invoked by
+  \code{method}="gk", "GK", "G-K" or "g-k").  While this will not be as
+  accurate as forest weights, the high memory efficiency of
+  Greenwald-Khanna makes it feasible to implement in big data settings
+  unlike forest weights.
   
   The Greenwald-Khanna algorithm is implemented roughly as follows.  To
   form a distribution of values for each case, from which we sample to
@@ -89,14 +109,16 @@
 }
 \value{
   
-  Returns quantiles for each of the requested probabilities.  Also
-  returns the conditional density (and conditional cdf) for unique
-  y-values in the training data (or test data if provided).  The
+  Returns the object \code{quantreg} containing quantiles for each of
+  the requested probabilities (which can be conveniently extracted using
+  \code{get.quantile}).  Also contains the conditional density (and
+  conditional cdf) for each case in the training data (or test data if
+  provided) evaluated at each of the unique grow y-values.  The
   conditional density can be used to calculate conditional moments, such
-  as the mean and standard deviation.  For convenience, the mean is
-  returned as the object \code{yhat}.
+  as the mean and standard deviation.  Use \code{get.quantile.stat} as a
+  way to conveniently obtain these quantities.
 
-  For multivariate forests, the returned object will be a list of length
+  For multivariate forests, returned values will be a list of length
   equal to the number of target outcomes.
 
 }
@@ -120,19 +142,17 @@
 ## ------------------------------------------------------------
 
 ## standard call
-o <- quantileReg(mpg ~ ., mtcars)
-qo <- o$quantileReg
+o <- quantreg(mpg ~ ., mtcars)
 
-## calculate the conditional mean, compare to OOB predicted value
-## note that the conditional mean is returned as "yhat"
-c.mean <- qo$density \%*\% qo$yunq
-print(data.frame(c.mean = c.mean, yhat = qo$yhat, pred.oob = o$predicted.oob))
+## extract conditional quantiles
+print(get.quantile(o))
+print(get.quantile(o, c(.25, .50, .75)))
 
-## calculate conditional standard deviation
-c.std <- sqrt(qo$density \%*\% qo$yunq^2 - c.mean ^ 2)
-quant <- qo$quantile
-colnames(quant) <- paste("q", 100 * qo$prob, sep = "")
-print(data.frame(quant, c.std))
+## extract conditional mean and standard deviation
+print(get.quantile.stat(o))
+
+## continuous rank probabiliy score (crps) performance
+plot(get.quantile.crps(o), type = "l")
 
 
 ## ------------------------------------------------------------
@@ -140,17 +160,46 @@ print(data.frame(quant, c.std))
 ## ------------------------------------------------------------
 
 ## train (grow) call followed by test call
-trn <- quantileReg(mpg ~ ., mtcars[1:20,])
-test <- quantileReg(object = trn, newdata = mtcars[-(1:20),-1])
+o <- quantreg(mpg ~ ., mtcars[1:20,])
+o.tst <- quantreg(object = o, newdata = mtcars[-(1:20),-1])
 
-## calculate test set conditional mean and standard deviation
-qo <- test$quantileReg
-c.mean <- qo$density \%*\% qo$yunq
-c.std <- sqrt(qo$density \%*\% qo$yunq^2 - c.mean ^ 2)
-quant <- qo$quant
-colnames(quant) <- paste("q", 100 * qo$prob, sep = "")
-print(data.frame(quant, c.mean, c.std))
+## extract test set quantiles and conditional statistics
+print(get.quantile(o.tst))
+print(get.quantile.stat(o.tst))
 
+
+## ------------------------------------------------------------
+## quantile regression for Boston Housing with mse splitting
+## ------------------------------------------------------------
+
+if (library("mlbench", logical.return = TRUE)) {
+
+  ## quantile regression with mse splitting
+  data(BostonHousing)
+  o <- quantreg(medv ~ ., BostonHousing, splitrule = "mse", nodesize = 1)
+
+  ## continuous rank probabiliy score (crps) 
+  plot(get.quantile.crps(o), type = "l")
+
+  ## quantile regression plot
+  plot.quantreg(o, .05, .95)
+  plot.quantreg(o, .25, .75)
+
+  ## (A) extract 25,50,75 quantiles
+  quant.dat <- get.quantile(o, c(.25, .50, .75))
+
+  ## (B) values expected under normality
+  quant.stat <- get.quantile.stat(o)
+  c.mean <- quant.stat$mean
+  c.std <- quant.stat$std
+  q.25.est <- c.mean + qnorm(.25) * c.std
+  q.75.est <- c.mean + qnorm(.75) * c.std
+
+  ## compare (A) and (B)
+  print(head(data.frame(quant.dat[, -2],  q.25.est, q.75.est)))
+
+
+}
 
 ## ------------------------------------------------------------
 ## multivariate mixed outcomes example
@@ -159,85 +208,53 @@ print(data.frame(quant, c.mean, c.std))
 dta <- mtcars
 dta$cyl <- factor(dta$cyl)
 dta$carb <- factor(dta$carb, ordered = TRUE)
-o <- quantileReg(cbind(carb, mpg, cyl, disp) ~., data = dta)
+o <- quantreg(cbind(carb, mpg, cyl, disp) ~., data = dta)
 
-print(head(o$quantileReg$mpg$quant))
-print(head(o$quantileReg$disp$quant))
+plot.quantreg(o, m.target = "mpg")
+plot.quantreg(o, m.target = "disp")
 
-
-## ------------------------------------------------------------
-## quantile regression plot for Boston Housing data
-## ------------------------------------------------------------
-
-if (library("mlbench", logical.return = TRUE)) {
-
-  ## apply quantile regression to Boston Housing data
-  data(BostonHousing)
-  o <- quantileReg(medv ~ ., BostonHousing, nodesize = 1)
-  y <- o$yvar
-  qo <- o$quantileReg
-
-  ## pull desired quantiles - nice little wrapper for doing this
-  get.quantile <- function(q, target.prob) {
-    target.prob <- sort(unique(target.prob))
-    q.dta <- do.call(cbind, lapply(target.prob, function(pr) {
-      q$quant[, which.min(abs(pr - q$prob))]
-    }))
-    colnames(q.dta) <-  paste("q.", 100 * target.prob, sep = "")
-    q.dta
-   }
-
-  ## extract 25,50,75 quantiles
-  quant.dat <- get.quantile(qo, c(.25, .50, .75))
-  
-  ## quantile regression plot
-  plot(range(y), range(quant.dat), xlab = "y",
-       ylab = ".25-.75 Quantiles", type = "n")
-  jitter.y <- jitter(y, 10)
-  points(jitter.y, quant.dat[, 2], pch = 15, col = 4, cex = 0.75)
-  segments(jitter.y, quant.dat[, 2], jitter.y, quant.dat[, 1], col = "grey")
-  segments(jitter.y, quant.dat[, 2], jitter.y, quant.dat[, 3], col = "grey")
-  points(jitter.y, quant.dat[, 1], pch = "-", cex = 1)
-  points(jitter.y, quant.dat[, 3], pch = "-", cex = 1)
-  abline(0, 1, lty = 2, col = 2)
-
-  ## compare 25-75 percentiles to values expected under normality
-  c.mean <- qo$density \%*\% qo$yunq
-  c.std <- sqrt(qo$density \%*\% qo$yunq^2 - c.mean ^ 2)
-  q.25.est <- c.mean + qnorm(.25) * c.std
-  q.75.est <- c.mean + qnorm(.75) * c.std
-  print(head(data.frame(quant.dat[, -2],  q.25.est, q.75.est)))
-
-  ## compare performance of quantile regression estimator to
-  ## standard random forest estimator of averaged tree mean
-  cat("quantile regression yhat error:", mean((o$yvar-qo$yhat)^2), "\n")
-  cat("RF averaged tree mean error:", mean((o$yvar-o$predicted.oob)^2), "\n")
-
-
-}
 
 ## ------------------------------------------------------------
 ## example of quantile regression for ordinal data
 ## ------------------------------------------------------------
 
- ## use the wine data for illustration
- data(wine, package = "randomForestSRC")
+## use the wine data for illustration
+data(wine, package = "randomForestSRC")
 
- ## run quantile regression
- o <- quantileReg(quality ~ ., wine, ntree = 100)
+## run quantile regression
+o <- quantreg(quality ~ ., wine, ntree = 100)
 
- ## extract "probabilities" = density values
- qo <- o$quantileReg
- yunq <- qo$yunq
- yvar <- factor(cut(o$yvar, c(-1, yunq), labels = yunq)) 
- qo.dens <- qo$density
- colnames(qo.dens) <- yunq 
- qo.class <- randomForestSRC:::bayes.rule(qo.dens)
- qo.confusion <- table(yvar, qo.class)
- qo.err <- 1 - diag(qo.confusion) / rowSums(qo.confusion)
- qo.confusion <- cbind(qo.confusion, qo.err)
- print(qo.confusion)
- cat("Normalized Brier:", 100 * randomForestSRC:::brier(yvar, qo.dens), "\n")
+## extract "probabilities" = density values
+qo.dens <- o$quantreg$density
+yunq <- o$quantreg$yunq
+colnames(qo.dens) <- yunq
+
+## convert y to a factor 
+yvar <- factor(cut(o$yvar, c(-1, yunq), labels = yunq)) 
+ 
+## confusion matrix
+qo.confusion <- get.confusion(yvar, qo.dens)
+print(qo.confusion)
+
+## normalized Brier score
+cat("Brier:", 100 * get.brier.error(yvar, qo.dens), "\n")
+
+
+## ------------------------------------------------------------
+## example of large data using Greenwald-Khanna algorithm 
+## ------------------------------------------------------------
+
+## load the data and do quick and dirty imputation
+data(housing, package = "randomForestSRC")
+housing <- impute(SalePrice ~ ., housing,
+         ntree = 50, nimpute = 1, splitrule = "random")
+
+## Greenwald-Khanna algorithm 
+## request a small number of quantiles 
+o <- quantreg(SalePrice ~ ., housing, prob = (1:20) / 20,
+        prob.epsilon = 1 / 20, ntree = 250)
+plot.quantreg(o)
+  
 
 }}
 \keyword{quantile regression forests}

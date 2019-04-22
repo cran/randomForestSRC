@@ -1,17 +1,16 @@
-\name{rfsrcFast}
-\alias{rfsrcFast}
-\alias{rfsrcFast.rfsrc}
+\name{rfsrc.fast}
+\alias{rfsrc.fast}
 \title{Fast Random Forests}
 \description{
   Fast approximate random forests using subsampling with forest options
   set to encourage computational speed.  Applies to all families.
 }
-\usage{\method{rfsrcFast}{rfsrc}(formula, data,
+\usage{rfsrc.fast(formula, data,
   ntree = 500,
   nsplit = 10,
   bootstrap = "by.root",
   ensemble = "oob",
-  sampsize = function(x){min(x * .632, max(150, sqrt(x)))},
+  sampsize = function(x){min(x * .632, max(150, x ^ (3/4)))},
   samptype = "swor",
   samp = NULL,
   ntime = 50,
@@ -29,9 +28,7 @@
   \item{bootstrap}{Bootstrap protocol used in growing a tree.}
   \item{ensemble}{Specifies the type of ensemble.  We request only
     out-of-sample which corresponds to "oob".}
-  \item{sampsize}{Function specifying requested size of subsampled data
-    relative to the original data.  The requested sample size can also
-    be passed in as a number.}
+  \item{sampsize}{Function specifying size of subsampled data. Can also be a number.}
   \item{samptype}{Type of bootstrap used.}
   \item{samp}{Bootstrap specification when \code{"by.user"} is used.}
   \item{ntime}{Integer value used for survival to
@@ -64,17 +61,17 @@
 data(housing, package = "randomForestSRC")
 
 ## do quick and *dirty* imputation
-housing2 <- impute(SalePrice ~ ., housing,
+housing <- impute(SalePrice ~ ., housing,
          ntree = 50, nimpute = 1, splitrule = "random")
 
 ## grow a fast forest
-o1 <- rfsrcFast(SalePrice ~ ., housing2)
-o2 <- rfsrcFast(SalePrice ~ ., housing2, nodesize = 1)
+o1 <- rfsrc.fast(SalePrice ~ ., housing)
+o2 <- rfsrc.fast(SalePrice ~ ., housing, nodesize = 1)
 print(o1)
 print(o2)
 
 ## grow a fast bivariate forest
-o3 <- rfsrcFast(cbind(SalePrice,Overall.Qual) ~ ., housing2)
+o3 <- rfsrc.fast(cbind(SalePrice,Overall.Qual) ~ ., housing)
 print(o3)
 
 ## ------------------------------------------------------------
@@ -83,7 +80,7 @@ print(o3)
 
 data(wine, package = "randomForestSRC")
 wine$quality <- factor(wine$quality)
-o <- rfsrcFast(quality ~ ., wine)
+o <- rfsrc.fast(quality ~ ., wine)
 print(o)
 
 
@@ -92,7 +89,7 @@ print(o)
 ## ------------------------------------------------------------
 
 data(pbc, package = "randomForestSRC")
-o <- rfsrcFast(Surv(days, status) ~ ., pbc)
+o <- rfsrc.fast(Surv(days, status) ~ ., pbc)
 print(o)
 
 ## ------------------------------------------------------------
@@ -100,7 +97,7 @@ print(o)
 ## ------------------------------------------------------------
 
 data(wihs, package = "randomForestSRC")
-o <- rfsrcFast(Surv(time, status) ~ ., wihs)
+o <- rfsrc.fast(Surv(time, status) ~ ., wihs)
 print(o)
 
 }}

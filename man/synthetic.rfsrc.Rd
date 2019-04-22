@@ -1,12 +1,12 @@
-\name{rfsrcSyn}
-\alias{rfsrcSyn}
-\alias{rfsrcSyn.rfsrc}
+\name{synthetic}
+\alias{synthetic.rfsrc}
+\alias{synthetic}
 \title{Synthetic Random Forests}
 \description{
   Grows a synthetic random forest (RF) using RF machines as synthetic
   features.  Applies only to regression and classification settings.
 }
-\usage{\method{rfsrcSyn}{rfsrc}(formula, data, object, newdata,
+\usage{\method{synthetic}{rfsrc}(formula, data, object, newdata,
   ntree = 1000, mtry = NULL, nodesize = 5, nsplit = 10,
   mtrySeq = NULL, nodesizeSeq = c(1:10,20,30,50,100),
   min.node = 3,
@@ -36,7 +36,7 @@
     collection of RF machines.}
   \item{min.node}{Minimum forest averaged number of nodes a RF machine
     must exceed in order to be used as a synthetic feature.}
-  \item{fast}{Use fast random forests, \code{rfsrcFast}, in place of
+  \item{fast}{Use fast random forests, \code{rfsrc.fast}, in place of
     \code{rfsrc}?  Improves speed but may be less accurate.}
   \item{use.org.features}{In addition to synthetic features, should
     the original features be used when fitting synthetic forests?}
@@ -88,7 +88,7 @@
 }
 \seealso{
   \command{\link{rfsrc}},
-  \command{\link{rfsrcFast}}
+  \command{\link{rfsrc.fast}}
 }
 \examples{
 \donttest{
@@ -96,7 +96,7 @@
 ## compare synthetic forests to regular forest (classification)
 ## ------------------------------------------------------------
 
-## rfsrc and rfsrcSyn calls
+## rfsrc and synthetic calls
 if (library("mlbench", logical.return = TRUE)) {
 
   ## simulate the data 
@@ -108,14 +108,14 @@ if (library("mlbench", logical.return = TRUE)) {
   ## synthetic forests
   ## 1 = nodesize varied
   ## 2 = nodesize/mtry varied
-  ringSyn1 <- rfsrcSyn(classes ~., ring)
-  ringSyn2 <- rfsrcSyn(classes ~., ring, mtrySeq = c(1, 10, 20))
+  ringSyn1 <- synthetic(classes ~., ring)
+  ringSyn2 <- synthetic(classes ~., ring, mtrySeq = c(1, 10, 20))
 
   ## test-set performance
   ring.test <- data.frame(mlbench.ringnorm(500, 20))
   pred.ringRF <- predict(ringRF, newdata = ring.test)
-  pred.ringSyn1 <- rfsrcSyn(object = ringSyn1, newdata = ring.test)$rfSynPred
-  pred.ringSyn2 <- rfsrcSyn(object = ringSyn2, newdata = ring.test)$rfSynPred
+  pred.ringSyn1 <- synthetic(object = ringSyn1, newdata = ring.test)$rfSynPred
+  pred.ringSyn2 <- synthetic(object = ringSyn2, newdata = ring.test)$rfSynPred
 
 
   print(pred.ringRF)
@@ -141,11 +141,11 @@ test <- (n+1):N
 
 ## regression forests
 regF <- rfsrc(y ~ ., dat[-test, ], )
-pred.regF <- predict(regF, dat[test, ], importance = "none")
+pred.regF <- predict(regF, dat[test, ])
 
 ## synthetic forests using fast rfsrc
-synF1 <- rfsrcSyn(y ~ ., dat[-test, ], fast = TRUE, newdata = dat[test, ])
-synF2 <- rfsrcSyn(y ~ ., dat[-test, ], fast = TRUE,
+synF1 <- synthetic(y ~ ., dat[-test, ], newdata = dat[test, ])
+synF2 <- synthetic(y ~ ., dat[-test, ],
   newdata = dat[test, ], mtrySeq = c(1, 10, 20, 30, 40, 50))
 
 ## standardized MSE performance
@@ -163,8 +163,8 @@ mtcars.new <- mtcars
 mtcars.new$cyl <- factor(mtcars.new$cyl)
 mtcars.new$carb <- factor(mtcars.new$carb, ordered = TRUE)
 trn <- sample(1:nrow(mtcars.new), nrow(mtcars.new)/2)
-mvSyn <- rfsrcSyn(cbind(carb, mpg, cyl) ~., mtcars.new[trn,])
-mvSyn.pred <- rfsrcSyn(object = mvSyn, newdata = mtcars.new[-trn,])
+mvSyn <- synthetic(cbind(carb, mpg, cyl) ~., mtcars.new[trn,])
+mvSyn.pred <- synthetic(object = mvSyn, newdata = mtcars.new[-trn,])
 }
 }
 \keyword{forest}

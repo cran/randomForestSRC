@@ -1,28 +1,33 @@
-\name{holdoutvimp}
-\alias{holdoutvimp}
-\alias{holdoutvimp.rfsrc}
+\name{holdout.vimp.rfsrc}
+\alias{holdout.vimp.rfsrc}
+\alias{holdout.vimp}
 \title{Hold out variable importance (VIMP)}
 \description{
   Hold out VIMP is calculated from the error rate for trees 
   grown with and without a variable.  Applies to all families.
 }
-\usage{\method{holdoutvimp}{rfsrc}(formula, data,
-  ntree = 1000 * ncol(data) / vtry,
+\usage{\method{holdout.vimp}{rfsrc}(formula, data,
+  ntree = function(p, vtry){1000 * p / vtry},
   ntree.max = 2000,
+  ntree.allvars = NULL,
   nsplit = 10,
   ntime = 50,
   mtry = NULL,
   vtry = 1,
   fast = FALSE,
-  verbose = TRUE,
+  verbose = TRUE, 
   ...)
 }
 \arguments{
   \item{formula}{A symbolic description of the model to be fit.}
-  \item{data}{Data frame containing the y-outcome and x-variables.} 
-  \item{ntree}{Number of trees used for growing the forest.}
+  \item{data}{Data frame containing the y-outcome and x-variables.}
+  \item{ntree}{Function specifying requested number of trees used for
+    growing the forest.  Inputs are dimension and number of holdout
+    variables. The requested number of trees can also be a number.}
   \item{ntree.max}{Maximum number of trees used when calculating prediction
     error for determing hold out VIMP.}
+  \item{ntree.allvars}{Grow this many additional trees and use them for
+    calculating the baseline error rate.  Ignored if \code{NULL}.}
   \item{nsplit}{Non-negative integer value specifying number of 
     random split points used to split a node (deterministic splitting
     corresponds to the value zero and is much slower).}
@@ -32,12 +37,13 @@
     splitting a node.}
   \item{vtry}{Number of variables randomly selected to be held out when
     growning a tree.}
-  \item{fast}{Use fast random forests, \code{rfsrcFast}, in place of
+  \item{fast}{Use fast random forests, \code{rfsrc.fast}, in place of
     \code{rfsrc}?  Improves speed but is less accurate.}
   \item{verbose}{Provide verbose output?}
   \item{...}{Further arguments to be passed to \code{\link{rfsrc}}.}
 }
 \details{
+
   Prior to growing a tree, a random set of \code{vtry} features are held
   out.  Tree growing proceeds as usual with the remaining features.
   Once the forest is grown, hold out VIMP for a given variable v is
@@ -48,25 +54,28 @@
   the importance of a variable when that variable is truly removed from
   tree growing.
 
-  Accuracy of hold out VIMP depends heavily on the size of the forest.
-  If the number of trees is too small, then number of trees where v is
-  held out will be small, and the resulting OOB error will have high
+  If \code{ntree.allvars} is set to an integer value, then a total of
+  this many trees are grown using all variables.  The above procedure is
+  then implemented with the following change.  Determine the error rate
+  for these additional trees.  Hold out VIMP for v is the difference
+  between this value and the error rate for trees where v was held out.
+  Unlike the above procedure, this makes sure that the baseline used for
+  calculating holdout VIMP is the same for all v.  This feature is
+  probably most useful in low-dimensional settings. 
+  
+  Note that accuracy of hold out VIMP depends heavily on the size of the
+  forest.  If the number of trees is too small, then number of times a
+  variable is held out will be small and OOB error may suffer from high
   variance.  Thus, \code{ntree} should be set fairly high - we recommend
   using 1000 times the number of features.  Increasing \code{vtry} is
   another way to increase number of hold out trees.  In particular,
-  number of trees needed should decrease linearly with \code{vtry}.
-  Keep in mind however that intrepretation of holdout VIMP is altered
-  when \code{vtry} is different than 1.  This is likely to be more of a
-  concern in low dimensional settings.
+  number of trees needed should decrease linearly with \code{vtry}.  For
+  this reason the default \code{ntree} equals 1000 trees for each
+  feature divided by \code{vtry}.  Keep in mind that intrepretation of
+  holdout VIMP is altered when \code{vtry} is different than 1.
 
-  Uses the new \code{get.tree} option in \code{predict} to extract
-  specific trees from a forest and the hidden option \code{vtry} in
-  \code{rfsrc}.  The latter creates a hidden array \code{holdout.array}
-  of zeroes and ones indicating which variable to hold out in a tree
-  where number of rows equals number of features and number of columns
-  equals number of trees.  The array can also be passed as a hidden
-  option but is not checked for coherence so users should be careful
-  when doing so.  
+   
+  
 }
 \value{
   Hold out VIMP for each variable.  For multivariate forests, hold out
@@ -76,42 +85,67 @@
   Hemant Ishwaran and Udaya B. Kogalur
 }
 \references{
+
+  Ishwaran H. (2019).  Holdout variable importance for random forest
+  models.
+    
   Lu M. and Ishwaran H. (2018). Expert Opinion: A prediction-based
   alternative to p-values in regression models. \emph{J. Thoracic and
-  Cardiovascular Surgery}, 155(3), 1130--1136. 
+    Cardiovascular Surgery}, 155(3), 1130--1136.
+
+  
 }
 
 \seealso{
-  \command{\link{vimp}}
+  \command{\link{vimp.rfsrc}}
 }
 \examples{
 \donttest{
 ## ------------------------------------------------------------
-## Boston housing example
+## boston housing example
 ## ------------------------------------------------------------
 
 if (library("mlbench", logical.return = TRUE)) {
 
   data(BostonHousing)
-  hv <- holdoutvimp(medv ~ ., BostonHousing)
+  hv <- holdout.vimp(medv ~ ., BostonHousing)
   print(hv)
 
 }
 
 ## ------------------------------------------------------------
-## Multivariate regression analysis
+## iris example illustrating vtry
 ## ------------------------------------------------------------
 
-hv <- holdoutvimp(cbind(mpg, cyl) ~., mtcars)
-print(hv)
+print(100 * holdout.vimp(Species ~ ., iris))
+print(100 * holdout.vimp(Species ~ ., iris, vtry=2))
 
 ## ------------------------------------------------------------
-## White wine classification example
+## example involving class imbalanced data
+## illustrates the new RFQ classifier
+## see the function "imbalanced" for more information about RFQ
+## ------------------------------------------------------------
+
+data(breast, package = "randomForestSRC")
+breast <- na.omit(breast)
+f <- as.formula(status ~ .)
+hv <- holdout.vimp(f, breast, rfq=TRUE, perf.type="g.mean")
+print(10 * hv)
+
+
+## ------------------------------------------------------------
+## multivariate regression analysis example
+## ------------------------------------------------------------
+
+print(holdout.vimp(cbind(mpg, cyl) ~., mtcars))
+
+## ------------------------------------------------------------
+## white wine classification example
 ## ------------------------------------------------------------
 
 data(wine, package = "randomForestSRC")
 wine$quality <- factor(wine$quality)
-hv <- holdoutvimp(quality ~ ., wine, vtry = 5)
+hv <- holdout.vimp(quality ~ ., wine, vtry = 5)
 print(100 * hv)
 
 
@@ -120,7 +154,7 @@ print(100 * hv)
 ## ------------------------------------------------------------
 
 data(pbc, package = "randomForestSRC")
-hv <- holdoutvimp(Surv(days, status) ~ ., pbc, splitrule = "random")
+hv <- holdout.vimp(Surv(days, status) ~ ., pbc, splitrule = "random")
 print(100 * hv)
 
 ## ------------------------------------------------------------
@@ -128,7 +162,7 @@ print(100 * hv)
 ## ------------------------------------------------------------
 
 data(wihs, package = "randomForestSRC")
-hv <- holdoutvimp(Surv(time, status) ~ ., wihs, ntree = 1000)
+hv <- holdout.vimp(Surv(time, status) ~ ., wihs, ntree = 1000)
 print(100 * hv)
 
 }}

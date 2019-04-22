@@ -1,14 +1,14 @@
-rfsrcFast.rfsrc <- function(formula, data,
-                            ntree = 500,
-                            nsplit = 10,
-                            bootstrap = "by.root",
-                            ensemble = "oob",
-                            sampsize = function(x){min(x * .632, max(150, sqrt(x)))},
-                            samptype = "swor",
-                            samp = NULL,
-                            ntime = 50,
-                            forest = FALSE,
-                            ...)
+rfsrc.fast <- function(formula, data,
+                       ntree = 500,
+                       nsplit = 10,
+                       bootstrap = "by.root",
+                       ensemble = "oob",
+                       sampsize = function(x){min(x * .632, max(150, x ^ (3/4)))},
+                       samptype = "swor",
+                       samp = NULL,
+                       ntime = 50,
+                       forest = FALSE,
+                       ...)
 {
   ## --------------------------------------------------------------
   ##   
@@ -19,9 +19,9 @@ rfsrcFast.rfsrc <- function(formula, data,
   if (!is.function(sampsize) && !is.numeric(sampsize)) {
     stop("sampsize must be a function or number specifying size of subsampled data")
   }
-  if (is.function(sampsize)) {
-    sampsize <- sampsize(nrow(data))
-  }
+  ##if (is.function(sampsize)) {
+  ##  sampsize <- sampsize(nrow(data))
+  ##}
   ##--------------------------------------------------------------
   ##
   ## extract additional options specified by user
@@ -71,4 +71,3 @@ rfsrcFast.rfsrc <- function(formula, data,
                  ntime = ntime,
                  forest = forest), dots)))
 }
-rfsrcFast <- rfsrcFast.rfsrc
