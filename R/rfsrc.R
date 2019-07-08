@@ -722,7 +722,7 @@ rfsrc <- function(formula, data, ntree = 1000,
                        terminal.qualts = terminal.qualts,
                        terminal.quants = terminal.quants,
                        nativeArrayTNDS = nativeArrayTNDS,
-                       version = "2.9.0",
+                       version = "2.9.1",
                        na.action = na.action,
                        perf.type = perf.type,
                        rfq = rfq,
@@ -844,20 +844,18 @@ rfsrc <- function(formula, data, ntree = 1000,
       node.mtry.index <- NULL
       node.ytry.index <- NULL
     }
-  if (empirical.risk) {
-      if (!is.null(nativeOutput$emprRisk)) {
-          empr.risk <- array(nativeOutput$emprRisk, c(lot$treesize, ntree))
-          nativeOutput$emprRisk <- NULL
-      }
-      if (!is.null(nativeOutput$oobEmprRisk)) {
-          oob.empr.risk <- array(nativeOutput$oobEmprRisk, c(lot$treesize, ntree))
-          nativeOutput$oobEmprRisk <- NULL
-      }
-  }
-  else {
-      empr.risk = NULL
-      oob.empr.risk = NULL
-  }
+    empr.risk <- NULL
+    oob.empr.risk <- NULL
+    if (empirical.risk) {
+        if (!is.null(nativeOutput$emprRisk)) {
+            empr.risk <- array(nativeOutput$emprRisk, c(lot$treesize, ntree))
+            nativeOutput$emprRisk <- NULL
+        }
+        if (!is.null(nativeOutput$oobEmprRisk)) {
+            oob.empr.risk <- array(nativeOutput$oobEmprRisk, c(lot$treesize, ntree))
+            nativeOutput$oobEmprRisk <- NULL
+        }
+    }
   ## make the output object
   rfsrcOutput <- list(
     call = my.call,
