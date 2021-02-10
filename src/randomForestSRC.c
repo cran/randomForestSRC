@@ -31529,7 +31529,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP tnCLAS,
                   SEXP rTargetObj,
                   SEXP ptnCount,
-                                  
+                  SEXP xMarginalObj,
                   SEXP intrPredictorObj,
                   SEXP partial,
                   SEXP sobservationSize,

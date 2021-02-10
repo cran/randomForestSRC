@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 2.10.0 (bld20210131)
+Version: 2.10.1 (bld20210210)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -8,7 +8,7 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 ---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.10.0
+CHANGES TO RELEASE 2.10.1
 ---------------------------------------------------------------------------------
 New additions to the package include sidClustering of unsupervised
 data using staggered interaction data (SID) (Mantero and Ishwaran,
