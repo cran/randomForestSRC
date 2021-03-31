@@ -242,140 +242,6 @@ finalizeData <- function(fnames, data, na.action, miss.flag = TRUE) {
   }
   return (data)
 }
-### AUC workhorse
-get.auc.workhorse <- function(roc.data) {
-  x <- roc.data[, 1][roc.data[, 2] == 1]
-  y <- roc.data[, 1][roc.data[, 2] == 0]
-  if (length(x) > 1 & length(y) > 1) {
-    AUC  <- tryCatch({wilcox.test(x, y, exact=F)$stat/(length(x)*length(y))}, error=function(ex){NA})
-  }
-  else {
-    AUC <- NA
-  }
-  AUC
-}
-### Multiclass AUC -- Hand & Till (2001) definition
-get.auc <- function(y, prob) {
-  if (is.factor(y)) {
-    y.uniq <- levels(y)
-  }
-  else {
-    y.uniq <- sort(unique(y))
-  }
-  nclass <- length(y.uniq)
-  AUC <- NULL
-  for (i in 1:(nclass - 1)) {
-    for (j in (i + 1):nclass) {
-      pt.ij <- (y == y.uniq[i] | y == y.uniq[j])
-      if (sum(pt.ij) > 1) {
-        y.ij <- y[pt.ij]
-        pij <- prob[pt.ij, j]
-        pji <- prob[pt.ij, i]
-        Aij <-  get.auc.workhorse(cbind(pij, 1 * (y.ij == y.uniq[j])))
-        Aji <-  get.auc.workhorse(cbind(pji, 1 * (y.ij == y.uniq[i])))
-        AUC <- c(AUC, (Aij + Aji)/2)
-      }
-    } 
-  }
-  if (is.null(AUC)) {
-    NA
-  }
-  else {
-    mean(AUC, na.rm = TRUE)
-  }
-}                          
-## bayes rule 
-get.bayes.rule <- function(prob, pi.hat = NULL) {
-  class.labels <- colnames(prob)
-  if (is.null(pi.hat)) {
-    factor(class.labels[apply(prob, 1, function(x) {
-      if (!all(is.na(x))) {
-        resample(which(x == max(x, na.rm = TRUE)), 1)
-      }
-      else {
-        NA
-      }
-    })], levels = class.labels)
-  }
-  ## added to handle the rfq classifier
-  else {
-    minority <- which.min(pi.hat)
-    majority <- setdiff(1:2, minority)      
-    rfq.rule <- rep(majority, nrow(prob))
-    rfq.rule[prob[, minority] >= min(pi.hat, na.rm = TRUE)] <- minority
-    factor(class.labels[rfq.rule], levels = class.labels)
-  }
-}
-## normalized brier (normalized to one for strawman coin toss)
-get.brier.error <- function(y, prob) {
-  if (is.null(colnames(prob))) {
-    colnames(prob) <- levels(y)
-  }
-  cl <- colnames(prob)
-  J <- length(cl)
-  bs <- rep(NA, J)
-  nullO <- sapply(1:J, function(j) {
-    bs[j] <<- mean((1 * (y == cl[j]) - prob[, j]) ^ 2, na.rm = TRUE)
-    NULL
-  })
-  norm.const <- (J / (J - 1))
-  sum(bs * norm.const, na.rm = TRUE)
-}
-## misclassification error
-get.misclass.error <- function(y, yhat) {
-  cl <- sort(unique(y))
-  err <- rep(NA, length(cl))
-  for (k in 1:length(cl)) {
-    cl.pt  <- (y == cl[k])
-    if (sum(cl.pt) > 0) {
-        err[k] <- mean(y[cl.pt] != yhat[cl.pt])
-    }
-  }
-  err
-}
-## get confusion matrix
-get.confusion <- function(y, class.or.prob) {
-  ## response or probability?
-  if (is.factor(class.or.prob)) {
-    confusion <- table(y, class.or.prob)
-  }
-  else {
-    if (is.null(colnames(class.or.prob))) {
-      colnames(class.or.prob) <- levels(y)
-    }
-    confusion <- table(y, get.bayes.rule(class.or.prob))
-  }
-  class.error <- 1 - diag(confusion) / rowSums(confusion, na.rm = TRUE)
-  cbind(confusion, class.error = round(class.error, 4))
-}
-## cindex
-get.cindex <- function (time, censoring, predicted, do.trace = FALSE) {
-  size <- length(time)
-  if (size != length(time) |
-      size != length(censoring) |
-      size != length(predicted)) {
-    stop("time, censoring, and predicted must have the same length")
-  }
-  miss <- is.na(time) | is.na(censoring) | is.na(predicted)
-  nmiss <- sum(miss)
-  if (nmiss == size) {
-    stop("no valid pairs found, too much missing data")
-  }
-  ## Flag missing members so we can exclude them in the pairs.
-  denom <- sapply(miss, function(x) if (x) 0 else 1)
-  nativeOutput <- .Call("rfsrcCIndex",
-                        as.integer(do.trace),
-                        as.integer(size),
-                        as.double(time),
-                        as.double(censoring),
-                        as.double(predicted),
-                        as.integer(denom))
-  ## check for error return condition in the native code
-  if (is.null(nativeOutput)) {
-    stop("An error has occurred in rfsrcCIndex.  Please turn trace on for further analysis.")
-  }
-  return (nativeOutput$err)
-}
 get.coerced.survival.fmly <- function(fmly, subj, event.type, splitrule = NULL) {
     if (grepl("surv", fmly)) {
         ## assume no coercion
@@ -456,48 +322,6 @@ get.event.info <- function(obj, subset = NULL) {
     }
   return(list(event = event, event.type = event.type, cens = cens,
               time.interest = time.interest, time = time, r.dim = r.dim))
-}
-## gmean for imbalanced classification
-get.gmean <- function(y, prob, rfq = FALSE, robust = FALSE) {
-  ## determine frequencies: exit if this is not a two-class problem
-  frq <- table(y)  
-  if (length(frq) > 2) {
-    return(NULL)
-  }
-  ## determine threshold
-  if (rfq) {
-    threshold <- min(frq, na.rm = TRUE) / sum(frq, na.rm = TRUE)
-  }
-  else {
-    threshold <- 0.5
-  }
-  ## convert yhat to a class label: 0 = majority, 1 = minority
-  minority <- which.min(frq)
-  majority <- setdiff(1:2, minority)
-  yhat <- factor(1 * (prob[, minority] >= threshold), levels = c(0,1))
-  ## compute the confusion matrix and extract TN,TP etc.
-  confusion.matrix <- table(y, yhat)
-  if (nrow(confusion.matrix) > 1) {##check that dimension is correct
-    ## calculate the various rates
-    TN <- confusion.matrix[minority, 2]
-    FP <- confusion.matrix[minority, 1]
-    FN <- confusion.matrix[majority, 2]
-    TP <- confusion.matrix[majority, 1]
-    ## assemble the sensitivity/specificity values
-    if (robust) {##modified with 1 added to diagonals
-      sensitivity <- (1 + TP) / (1 + TP + FN)
-      specificity <- (1 + TN) / (1 + TN + FP)
-    }
-    else {
-      sensitivity <- TP / (TP + FN)
-      specificity <- TN / (TN + FP)
-    }
-    ## return the g mean
-    sqrt(sensitivity * specificity)
-  }
-  else {
-    NA
-  }
 }
 get.grow.event.info <- function(yvar, fmly, need.deaths = TRUE, ntime) {
   if (grepl("surv", fmly)) {
@@ -911,158 +735,6 @@ get.importance.xvar <- function(importance.xvar, importance, object) {
   return (importance.xvar)
 }
  
-get.mv.error <- function(obj, standardize = FALSE, pretty = TRUE, block = FALSE) {
-  ## acquire yvar names - don't want "censoring" for surv and surv-CR
-  nms <- NULL
-  ynms <- obj$yvar.names
-  if (obj$family == "surv" ||  obj$family == "surv-CR") {
-    ynms <- ynms[1]
-  }
-  ## pretty option is not allowed for blocked error
-  if (block) {
-    pretty <- FALSE
-  }
-  ## loop over the yvar names acquring error if it is present
-  err <- lapply(ynms, function(nn) {
-    o.coerce <- coerce.multivariate(obj, nn)
-    if (!block) {
-      er <- o.coerce$err.rate
-    }
-    else {
-      er <- o.coerce$err.block.rate
-    }
-    if (!is.null(er)) {
-      if (o.coerce$family != "regr" || !standardize) {
-        if (pretty && o.coerce$family == "class") {##pretty can only pull first vimp column "all"
-            er <- utils::tail(cbind(er)[, 1], 1)
-        }
-        ## now returns survival error rates more coherently
-        else {
-          if (!block) {
-            er <- utils::tail(er, 1)
-            rownames(er) <- NULL
-          }
-        }
-      }
-      else {##standardized VIMP only applies to regression
-        if (!block) {
-          er <- utils::tail(er, 1) / var(o.coerce$yvar, na.rm = TRUE)
-        }
-        else {
-          er <- er / var(o.coerce$yvar, na.rm = TRUE)
-        }
-      }
-    }
-    if (is.null(dim(er))) {
-      nms <<- c(nms, paste(nn))
-    }
-    else {
-      nms <<- c(nms, colnames(er))
-    }
-    er
-  })
-  ## if the first entry is NULL make the entire list NULL
-  if (is.null(err[[1]])) {
-    err <- NULL
-  }  
-  ## return as a vector for convenient interpretation?
-  ## vector reduces information for classification to "all"
-  if (!is.null(err)) {
-    if (pretty) {
-      err <- unlist(err)
-      names(err) <- nms
-    }
-    else {
-      names(err) <- ynms
-    }
-  }
-  ### return the goodies
-  err
-}
-get.mv.error.block <- function(obj, standardize = FALSE) {
-  ## use get.mv.error but request blocked error rate
-  get.mv.error(obj, standardize = standardize, block = TRUE)
-}
-get.mv.formula <- function(ynames) {
-  as.formula(paste("Multivar(", paste(ynames, collapse = ","),paste(") ~ ."), sep = ""))
-}
-get.mv.predicted <- function(obj, oob = TRUE) {
-  ## loop over the yvar names acquring the vimp if it is present
-  ## acquire yvar names - don't want "censoring" for surv and surv-CR
-  nms <- NULL
-  ynms <- obj$yvar.names
-  if (obj$family == "surv" ||  obj$family == "surv-CR") {
-    ynms <- ynms[1]
-  }
-  pred <- do.call(cbind, lapply(ynms, function(nn) {
-    o.coerce <- coerce.multivariate(obj, nn)
-    if (o.coerce$family == "class" || o.coerce$family == "surv-CR") {
-      ## ensembles can now be either oob, inbag, or all 05/06/2018
-      if (!is.null(o.coerce$predicted.oob)) {
-        nms <<- c(nms, paste(nn, ".", colnames(o.coerce$predicted.oob), sep = ""))
-      }
-      else {
-        nms <<- c(nms, paste(nn, ".", colnames(o.coerce$predicted), sep = ""))
-      }
-    }
-    else {
-      nms <<- c(nms, paste(nn))
-    }
-    ## user may request OOB when it doesn't exist: noted 04/04/2018
-    if (oob && !is.null(o.coerce$predicted.oob)) {
-      o.coerce$predicted.oob
-    }
-    else {
-      o.coerce$predicted
-    }
-  }))
-  ## pretty names
-  colnames(pred) <- nms
-  pred
-}
-get.mv.vimp <- function(obj, standardize = FALSE, pretty = TRUE) {
-  ## acquire yvar names - don't want "censoring" for surv and surv-CR
-  ynms <- obj$yvar.names
-  if (obj$family == "surv" ||  obj$family == "surv-CR") {
-    ynms <- ynms[1]
-  }
-  ## loop over the yvar names acquring the vimp if it is present
-  vmp <- lapply(ynms, function(nn) {
-    o.coerce <- coerce.multivariate(obj, nn)
-    v <- o.coerce$importance
-    if (!is.null(v)) {
-      if (o.coerce$family != "regr" || !standardize) {
-        if (pretty && o.coerce$family == "class") {##pretty can only pull first vimp column "all"
-          v <- v[, 1]
-        }
-      }
-      else {##standardized VIMP only applies to regression
-        v <- v / var(o.coerce$yvar, na.rm = TRUE)
-      }
-      if (is.null(dim(v))) {
-        v <- cbind(v)
-        colnames(v) <- nn
-      }
-    }
-    v
-  })
-  ## if the first entry is NULL make the entire list NULL
-  if (is.null(vmp[[1]])) {
-    vmp <- NULL
-  }  
-  ## return as a matrix for convenient interpretation?
-  ## matrix reduces information for classification to "all"
-  if (!is.null(vmp)) {
-    if (pretty) {
-      vmp <- do.call(cbind, vmp)
-    }
-    else {
-      names(vmp) <- ynms
-    }
-  }
-  ### return the goodies
-  vmp 
-}
 get.nmiss <- function(xvar, yvar = NULL) {
   if (!is.null(yvar)) {
     sum(apply(yvar, 1, function(x){any(is.na(x))}) | apply(xvar, 1, function(x){any(is.na(x))}))
@@ -1089,79 +761,6 @@ get.outcome.target <- function(family, yvar.names, outcome.target) {
       outcome.target <- 0
     }
 }
-get.univariate.target <- function(x, outcome.target = NULL) {
-  ## This function takes a grow, grow-equivalent, or predict object and returns a single coherent target.
-  ## That is, if no target has been specified, the first regression outcome with statistics is chosen.
-  ## If no regression outcome exists, the first classification outcome with statistics is chosen.
-  ## If the target is specified, the object is verified to contain the target outcome statistics
-  ## for that y-var.  If none exist, the function will error.
-  if (x$family == "regr+" | x$family == "class+" | x$family == "mix+") {
-    if (is.null(outcome.target)) {
-      ## Check the y-vars against regression and then classification.
-      ## We choose the "first" variable, favoring regression, then
-      ## classification.
-      target <- match(c("regrOutput", "classOutput"), names(x))
-      target <- target[!is.na(target)]
-      if(length(target) > 0) {
-        do.break <- FALSE
-        for (i in target) {
-          for (j in 1:length(x[[i]])) {
-            if (length(x[[i]][[j]]) > 0) {
-              ## This is a non-null output.
-              outcome.target <- names(x[[i]][j])
-              ## Exit the loop.
-              do.break <- TRUE
-              break
-            }
-          }
-          if (do.break == TRUE) {
-            break
-          }
-        }
-      }
-      else {
-        ## Something would have to be seriously wrong for this to happen.
-        stop("No outcomes found in object.  Please contact technical support.")
-      }
-    }
-    else {
-      ## Check that one and only one target has been specified.
-      if (sum(is.element(outcome.target, x$yvar.names)) != 1) {
-        stop("Specified target was not found or too many target outcomes were supplied (only one is allowed).")
-      }
-      ## A target outcome has been specified.  Verify that it contains outcome statistics.
-      target <- match(c("regrOutput", "classOutput"), names(x))
-      target <- target[!is.na(target)]
-      found = FALSE
-      if(length(target) > 0) {
-        do.break <- FALSE
-        for (i in target) {
-          for (j in 1:length(x[[i]])) {
-            if (length(x[[i]][[j]]) > 0) {
-              ## This is a non-null output.
-              if (outcome.target == names(x[[i]][j])) {
-                found = TRUE
-                ## Exit the loop.
-                do.break <- TRUE
-                break
-              }
-            }
-          }
-          if (do.break == TRUE) {
-            break
-          }
-        }     
-      }
-      if (!found) {
-        stop("Target outcome has been correctly specified but it did not contain outcome statistics.")
-      }
-    }
-  }
-  ## This function will return NULL if the function is not
-  ## multivariate.  Otherwise, the outcome and its associated statistics is
-  ## guaranteed to exist in the object.
-  outcome.target
-}
 get.weight <- function(weight, n) {
   ## set the default weight
   if (!is.null(weight)) {
@@ -1179,22 +778,7 @@ get.weight <- function(weight, n) {
 }
 get.ytry <- function(f) {
 }
-get.xvar.type <- function(generic.types, xvar.names, coerce.factor = NULL) {
-  xvar.type <- generic.types
-  if (!is.null(coerce.factor$xvar.names)) {
-    xvar.type[is.element(xvar.names, coerce.factor$xvar.names)] <- "C"
-  }
-  xvar.type
-}
-get.xvar.nlevels <- function(nlevels, xvar.names, xvar, coerce.factor = NULL) {
-  xvar.nlevels <- nlevels
-  if (!is.null(coerce.factor$xvar.names)) {
-    pt <- is.element(xvar.names, coerce.factor$xvar.names)
-    xvar.nlevels[pt] <- sapply(coerce.factor$xvar.names, function(nn) {max(xvar[, nn])})
-  }
-  xvar.nlevels
-}
-get.yvar.type <- function(fmly, generic.types, yvar.names, coerce.factor = NULL) {
+get.yvar.type <- function(fmly, generic.types, yvar.names) {
   if (fmly == "unsupv") {
     yvar.type <- NULL
   }
@@ -1209,26 +793,26 @@ get.yvar.type <- function(fmly, generic.types, yvar.names, coerce.factor = NULL)
       }
         else {
           yvar.type <- generic.types
-          ## is coerce.factor at play for the y-outcomes?
-          if (!is.null(coerce.factor$yvar.names)) {
-            yvar.type[is.element(yvar.names, coerce.factor$yvar.names)] <- "C"
-          }
         }
     }
   yvar.type
 }
-get.yvar.nlevels <- function(fmly, nlevels, yvar.names, yvar, coerce.factor = NULL) {
+get.yvar.nlevels <- function(fmly, nlevels, yvar.names, yvar) {
   if (fmly == "unsupv") {
-    yvar.nlevels <- NULL
+    NULL
   }
   else {
-    yvar.nlevels <- nlevels
-    if (!is.null(coerce.factor$yvar.names)) {
-      pt <- is.element(yvar.names, coerce.factor$yvar.names)
-      yvar.nlevels[pt] <- sapply(coerce.factor$yvar.names, function(nn) {max(yvar[, nn])})
-    }
+    nlevels
   }
-    yvar.nlevels
+}
+get.numeric.levels <- function(fmly, nlevels, gvar) {
+    gvar.numeric.levels  <- lapply(1:length(nlevels),
+                                   function(nn) {if(nlevels[nn] > 0) unique(sort(gvar[, nn])) else NULL})
+    ## Remove null elements in the list
+    gvar.numeric.levels <- gvar.numeric.levels[!sapply(gvar.numeric.levels,is.null)]
+    ## We are uncomfortable in sending a ist of length zero into the C-code, so we add an additional check.
+    if (length(gvar.numeric.levels) == 0) gvar.numeric.levels = NULL
+    gvar.numeric.levels
 }
 global.prob.assign <- function(prob, prob.epsilon, gk.quantile, quantile.regr, splitrule, n) {
   ## default values
@@ -1310,7 +894,7 @@ make.holdout.array <- function(vtry = 0, p, ntree, ntree.allvars = NULL) {
   ## everything is OK, go ahead and make the p x ntree array
   holdout <- do.call(cbind, lapply(1:ntree, function(b) {
     ho <- rep(0, p)
-    ho[sample(1:p, size = vtry, replace = FALSE)] <- 1
+    ho[resample(1:p, size = vtry, replace = FALSE)] <- 1
     ho
   }))
   if (is.null(ntree.allvars)) {
@@ -1341,8 +925,8 @@ make.imbalanced.sample <- function(ntree, ratio = 0.5, y, replace = FALSE) {
   ## use rbind to ensure a matrix
   rbind(sapply(1:ntree, function(bb){
     inb <- rep(0, samp.size)
-    smp.min <- sample(which(y == class.labels[minority]), size = n.minority, replace = TRUE)
-    smp.maj <- sample(which(y == class.labels[majority]), size = ratio * n.majority, replace = replace)
+    smp.min <- resample(which(y == class.labels[minority]), size = n.minority, replace = TRUE)
+    smp.maj <- resample(which(y == class.labels[majority]), size = ratio * n.majority, replace = replace)
     smp <- c(smp.min, smp.maj)
     inb.frq <- tapply(smp, smp, length)
     idx <- as.numeric(names(inb.frq))
@@ -1370,202 +954,12 @@ make.sample <- function(ntree, samp.size, boot.size = NULL, replace = FALSE) {
   ## use rbind at the end to ensure a matrix
   rbind(sapply(1:ntree, function(bb){
     inb <- rep(0, samp.size)
-    smp <- sample(1:samp.size, size = boot.size, replace = replace)
+    smp <- resample(1:samp.size, size = boot.size, replace = replace)
     frq <- tapply(smp, smp, length)
     idx <- as.numeric(names(frq))
     inb[idx] <- frq
     inb
   }))
-}
-##  make SH data (modes 1 and 2)
-make.sh <- function(dat, mode = 1) {
-  ## extract sample size dimension
-  nr <- dim(dat)[[1]]
-  nc <- dim(dat)[[2]]
-  if (nc == 0) {
-    stop("can't make SH data ... not enough unique values\n")
-  }
-  ## coerce to data frame format
-  if (!is.data.frame(dat)) {
-    dat <- data.frame(dat)
-  }
-  ## mode 1
-  if (mode == 1) {
-    data.frame(classes = factor(c(rep(1, nr), rep(2, nr))),
-      rbind(dat, data.frame(mclapply(dat, sample, replace = TRUE))))
-  }
-  ## mode 2
-  else {
-    data.frame(classes = factor(c(rep(1, nr), rep(2, nr))),
-      rbind(dat, data.frame(mclapply(dat, function(x) {
-        if (is.factor(x)) {
-          sample(x, replace = TRUE)
-        }
-        else {
-          runif(nr, min(x, na.rm = TRUE), max(x, na.rm = TRUE))
-        }
-      }))))
-  }
-}
-##  make sid (staggered interaction data)
-make.sid <- function(dat, order.by.range = TRUE, delta = NULL) {
-  ## coerce to data frame format
-  if (!is.data.frame(dat)) {
-    dat <- data.frame(dat)
-  }
-  ## remove any column with less than two unique values
-  void.var <- sapply(dat, function(x) {length(unique(x, na.rm = TRUE)) < 2})
-  if (sum(void.var) > 0) {
-    dat[, which(void.var)] <- NULL
-  }
-  ## there might be nothing left (small sample size issue)
-  if (ncol(dat) == 0) {
-    stop("can't make sid data ... not enough unique values\n")
-  }
-  ## order columns by range of values: noted improvement Alex 04/30/2018
-  ## we do this before positivity and translation - but we could just as
-  ## well have done this afterwards
-  if (order.by.range) {
-    order.range <- order(sapply(dat, function(x) {
-    if (is.factor(x)) {
-      1##changed from -Inf to 1 which is the correct value of a factor noted by Alex 06/05/2018
-    }
-    else {
-      diff(range(x, na.rm = TRUE))
-    }
-  }), decreasing = TRUE)
-  dat <- dat[, order.range, drop = FALSE]
-  }
-  ## make continuous variables positive
-  posdat <- dat
-  lapply(1:ncol(posdat), function(i) {
-    if(!is.factor(posdat[, i]) && min(posdat[, i], na.rm = TRUE) < 0) {
-      posdat[, i] <<- abs(min(posdat[, i], na.rm = TRUE)) + posdat[, i]
-    }
-    NULL
-  })
-  ## define the delta offset value (delta = 1 by default)
-  ## if ordering is in effect, translate features to have the same maximum value
-  ## this was observed in counter-example of theorem of revised paper 05/04/2018 
-  if (is.null(delta)) {
-    delta <- 1
-  }
-  if (order.by.range) {
-    cont.feature <- sapply(posdat, function(x) {!is.factor(x)})
-    ## acquire the maximum value
-    if (sum(cont.feature) > 1) {
-      maxV <- max(c(0, sapply(which(cont.feature), function(i) {
-        max(posdat[, i], na.rm = TRUE)
-      })), na.rm = TRUE)
-      ## translate the features to have the same max
-      lapply(which(cont.feature), function(i) {
-        posdat[, i] <<- (maxV - max(posdat[, i], na.rm = TRUE)) + posdat[, i]
-        NULL
-      })	
-    }
-  }		
-  ## two level factors are converted to numeric
-  binary.fac <- sapply(posdat, function(x) {is.factor(x) & length(levels(x)) == 2})
-  if (sum(binary.fac) > 0) {
-    lapply(which(binary.fac), function(i) {
-      names(posdat)[i] <<- names(posdat)[i]
-      posdat[, i] <<- as.numeric(posdat[, i])
-      NULL 
-    })
-  }
-  ## the following list makes it possible to map SID back to original variable names 
-  org.names <- list()
-  ## make anova data for remaining factors - i.e. make everything numeric
-  ## updated to make column names more appealing for binary factors (03/14/2018)
-  counter <- 0
-  numdat <- data.frame(lapply(1:ncol(posdat), function(j) {
-    m.j <- model.matrix(~.-1, posdat[,j, drop = FALSE])
-    ##SID main effect names mapped back to original names
-    org.names[(counter + 1):(counter + ncol(m.j))] <<- colnames(posdat)[j]
-    counter <<- counter + ncol(m.j)
-    m.j
-  }))
-  ## stagger the positive data using delta
-  ## use integer values when staggering to minimize creating double precision values
-  ## the latter is accomplished using ceiling
-  numvar <- dim(numdat)[2]
-  staggerdat <- numdat
-  staggerdat[, 1] <- staggerdat[, 1] + delta
-  if (numvar > 1) {##handles pathological case of one column design matrix - maybe add this as a failure check?
-    lapply(2:numvar, function(i) {
-      staggerdat[, i] <<- staggerdat[, i] + ceiling(max(staggerdat[, (i-1)], na.rm = TRUE)) + delta
-    })
-  }
-  ## make interactions
-  ## -- do not create interactions WITHIN levels of the same factor -- noted by Alex M. 04/25/17
-  ##    such instances are caught using unstaggered numerical data and checking x[,i]*x[,j]=constant
-  ## -- interactions BETWEEN distinct factors (two or more levels) must always produce a factor
-  ##    we catch this by checking the number of distinct values of each variable
-  ##    all factors at this point have <= 2 unique values (whether they are dummy anova or numerical)
-  intdat <- staggerdat
-  if (numvar > 1) {##interactions do not apply if only one variable is supplied - maybe add this as a failure check?
-    ##SID interaction names mapped back to original names
-    ##we do this first inside of an lapply and not in next mclapply
-    counter <- numvar
-    lapply(1:(numvar-1), function(i) {
-      for (j in (i + 1):numvar) {
-        if (length(unique(numdat[,i] * numdat[,j])) > 1) {
-          counter <<- counter + 1
-          org.names[[counter]] <<- c(org.names[[i]], org.names[[j]])
-        }
-      }
-      NULL
-    })
-    ## suggested by Alex M. 02/19/2019
-    ## make interaction matrix after creating interactions - faster on big p
-    ints <- mclapply(1:(numvar - 1), function(i) {
-      d <- data.frame(rep(NA, dim(dat)[1]))
-      d <- d[, -1]
-      counter.ints <- 1
-      for (j in (i + 1):numvar) {
-        if (length(unique(numdat[,i] * numdat[,j])) > 1) {
-          if (length(unique(numdat[, i])) <= 2 & length(unique(numdat[, j])) <= 2) {
-            holder <- factor(staggerdat[, i] * staggerdat[, j])
-            ## suggested by Alex M. 11/12/17
-            levels(holder) <- c('FF','FT','TF','TT') #new factor levels, should always come out in same order
-            d <- cbind(d, holder)
-          }
-          else {
-            d <- cbind(d, staggerdat[, i] * staggerdat[, j])
-          }
-          names(d)[counter.ints] <- paste(names(intdat)[i], "_", names(intdat)[j], sep = "")
-          counter.ints <- counter.ints + 1
-        }
-      }
-      d
-    })
-    intdat <- data.frame(intdat, ints)
-  }
-  ## suggested by Alex M. 11/12/17
-  ## final processing of numeric 0/1 variables to convert them to a binary factor with new levels
-  binary.fac2 <- sapply(intdat, function(x){is.numeric(x) & length(unique(x)) == 2})
-  if (sum(binary.fac2) > 0) {
-    lapply(which(binary.fac2), function(i) {
-      intdat[, i] <<- as.factor(intdat[, i])
-      levels(intdat[, i]) <<- c('F','T') #new levels, similarly tested
-      NULL
-    })
-  }
-  ## pull the "x" and "y" features
-  ## y=staggered main effects
-  ## x=staggered interactions
-  y <- intdat[, 1:numvar, drop = FALSE]
-  names(org.names) <- colnames(intdat)
-  y.names <- org.names[1:numvar]
-  if (numvar > 1) {
-    x <- intdat[, -(1:numvar), drop = FALSE]
-    x.names <- org.names[-(1:numvar)]
-  }
-  else {
-    x <- x.names <- NULL
-  }
-  ## return the goodies
-  list(y = y, x = x, y.names = y.names, x.names = x.names, delta = delta)
 }
 ## make stratified inbag bootstrap samples for imbalanced two class problem
 ## allows for arbitrary under-sampling ratio of the majority class
@@ -1789,56 +1183,4 @@ row.col.deleted <- function(dat, r.n, c.n)
       which.c <- NULL
     }
   return(list(row = which.r, col = which.c))
-}
-#weighted gini/entropy performance metric
-#mode is equal to either 'gini' or 'entropy'
-sid.perf.metric <- function(truth,cluster,mode=c("entropy", "gini")){
-  ## verify mode option
-  mode <- match.arg(mode, c("entropy", "gini"))
-  ## confusion matrix
-  k=length(unique(truth))
-  tab=table(truth,cluster)
-  clustersizes=colSums(tab)
-  clustersizesnorm=clustersizes/sum(clustersizes)
-  tabprop=tab
-  lapply(1:(dim(tab)[2]),function(i){
-    tabprop[,i]<<-tabprop[,i]/clustersizes[i]
-    NULL
-  })
-  if(mode=="entropy"){
-    measure=0
-    maxmeasure=0
-    lapply(1:(dim(tabprop)[2]),function(i){
-      clustermeasure=0
-      maxclustermeasure=0
-      lapply(1:(dim(tabprop)[1]),function(j){
-        if(tabprop[j,i]!=0){
-          clustermeasure<<-clustermeasure+-tabprop[j,i]*log2(tabprop[j,i])
-        }
-        maxclustermeasure<<-maxclustermeasure+-1/k*log2(1/k)
-        NULL
-      })
-      measure<<-measure+clustersizesnorm[i]*clustermeasure
-      maxmeasure<<-maxmeasure+clustersizesnorm[i]*maxclustermeasure
-    })
-  }
-  if(mode=="gini"){
-    measure=0
-    maxmeasure=0
-    lapply(1:(dim(tabprop)[2]),function(i){
-      clustermeasure=1
-      maxclustermeasure=1
-      lapply(1:(dim(tabprop)[1]),function(j){
-        if(tabprop[j,i]!=0){
-          clustermeasure<<-clustermeasure+(-tabprop[j,i]^2)
-        }
-        maxclustermeasure<<-maxclustermeasure+(-1/k^2)
-        NULL
-      })
-      measure<<-measure+clustersizesnorm[i]*clustermeasure
-      maxmeasure<<-maxmeasure+clustersizesnorm[i]*maxclustermeasure
-      NULL
-    })
-  }
-  list(result=measure,measure=mode,normalized_measure=measure/maxmeasure)
 }
