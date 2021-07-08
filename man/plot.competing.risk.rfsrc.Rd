@@ -53,7 +53,17 @@
 
   data(follic, package = "randomForestSRC")
   follic.obj <- rfsrc(Surv(time, status) ~ ., follic, nsplit = 3, ntree = 100)
+  print(follic.obj)
   plot.competing.risk(follic.obj)
+
+## ------------------------------------------------------------
+## Hodgkin's Disease
+## ------------------------------------------------------------
+
+  data(hd, package = "randomForestSRC")
+  hd.obj <- rfsrc(Surv(time, status) ~ ., hd, nsplit = 3, ntree = 100)
+  print(hd.obj)
+  plot.competing.risk(hd.obj)
 
 ## ------------------------------------------------------------
 ## competing risk analysis of pbc data from the survival package
