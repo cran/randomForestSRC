@@ -1,9 +1,9 @@
-7dee3173a761b5269fd0c4069f1ae092 *DESCRIPTION
+10c7c31c314a9714efc9e5b9604d40b7 *DESCRIPTION
 3391849e557ad768bec1537d4dc6d282 *NAMESPACE
 7b15e7e738fcb46297ff2c3f86fcef8a *R/distance.R
 e772de9efbd12450cacb799b78eac7ca *R/find.interaction.rfsrc.R
 a5c4872b1459db1f9261049613114e0b *R/generic.impute.rfsrc.R
-01ac2748a056145faa9b6ebe6158600e *R/generic.predict.rfsrc.R
+3cc2da9290fcbec344a4bfe770985bb8 *R/generic.predict.rfsrc.R
 5ac3e880bcdf0841c799343813138dc5 *R/get.tree.rfsrc.R
 f5558db12cad4a08c18648542293a35e *R/holdout.vimp.rfsrc.R
 3728ba1eea97bfa3205bd00fda07dcca *R/imbalanced.rfsrc.R
@@ -19,7 +19,7 @@ dfb67c63c2d77aeec9aee33c577ee366 *R/plot.survival.rfsrc.R
 c0c30fe427760ecee828a1c18ac8344e *R/predict.rfsrc.R
 a17fcaec1eaa4ec956f33ee43070ff84 *R/print.rfsrc.R
 3ebc08168dd9c3158d06e85d6f28b76d *R/quantreg.rfsrc.R
-561fc91e081422c020ec8d39559e1abe *R/rfsrc.R
+adde089504f8608d325329219048ce10 *R/rfsrc.R
 084799351229afab7661aaa97fe632c0 *R/rfsrc.anonymous.R
 019b3cd8fc9829656001801487e8f939 *R/rfsrc.cart.R
 f0b84def0b55998989c24a6610b7a48f *R/rfsrc.fast.R
@@ -30,7 +30,7 @@ f0b84def0b55998989c24a6610b7a48f *R/rfsrc.fast.R
 914c5296055085fb6623769a5595728d *R/synthetic.rfsrc.R
 d17b7124c89c88dabdbac41dac8d0056 *R/tune.nodesize.rfsrc.R
 7afff9681bb5851d2f7b33952db37d34 *R/tune.rfsrc.R
-b27ac12308e8156d7b0d7f3adc9eeaf5 *R/utilities.R
+1042e5d6d3e681c01e3150bc36a89692 *R/utilities.R
 45a6fee553f5d3e43cc1b0c4b3284539 *R/utilities.data.R
 3cae0d0543b3694c89bc77c373334475 *R/utilities.factor.R
 31c8c097fb5433ad6cd381e455f7e3b2 *R/utilities.imbalanced.R
@@ -43,8 +43,8 @@ fe687a94b8a6d400d0c111d891a0e13b *R/utilities.unsupervised.R
 fb83a8390e3eeed1e4b9577c7b0a81a6 *R/vimp.rfsrc.R
 cf2d3f8015d7cf2f0f25baaf59226651 *R/zzz.R
 e66900a0e679a19b0c32de56a9a33366 *cleanup
-65dfe809bd2fa8ffdbaa1dc9b078ff3c *configure
-1275edeadde04842be4dfb0431172107 *configure.ac
+16e5445ab6aabeb5b18aed500e7e48ce *configure
+44752fe115f83cf98b1a3f0f2e11e981 *configure.ac
 0ca4252698f402916ac8b335826434f6 *data/breast.rda
 e5b0998e539401659451bc4ce051fd95 *data/follic.rda
 6da9c85f8d84c8d8810b6c8139ff8ddd *data/hd.rda
@@ -56,7 +56,7 @@ cfa1bcc5699272941d286e2f0a635626 *data/vdv.rda
 76482eb3ff453cdb94ae441479172931 *data/wihs.rda
 3e1bd3eda967241a0fd021c255da55e5 *data/wine.rda
 6e00d7b631a1a0f04e0d52950fc148a9 *inst/CITATION
-c2d5bd1a37fa9e0981af3a20db9473e6 *inst/NEWS
+b751a49c1bcf027bc9672a082a0fd2fa *inst/NEWS
 36145bafe4af08d3ff52181c30fae361 *man/breast.Rd
 bd1f80f3755d4cb1b1238ab15cedd7f2 *man/find.interaction.rfsrc.Rd
 31d66443d4d6894db52b6df210db4034 *man/follic.Rd
@@ -98,7 +98,7 @@ c8d90765e17c52330541bf1d6c0f9a79 *man/vimp.rfsrc.Rd
 5d80adb116b199741822855b448a427b *src/Makevars.in
 617d01aba48fe56fd9f8d72381c6e008 *src/Makevars.win
 43c4a8496e5974583be2a7cb146d5341 *src/R_init_randomForestSRC.c
-ae149cab480e4a5cdde34fc8a71f6eaa *src/randomForestSRC.c
-e5085994cf22fe1e7efa29f07515e3f8 *src/randomForestSRC.h
+4ebed0a46082904c1f2450d81c59cc44 *src/randomForestSRC.c
+a9281c11a99323938d8776295327b5be *src/randomForestSRC.h
 6c1d80d8297bbfa5a9f3f9afe92aaf33 *src/splitCustom.c
 7e3fea837a61b8942f4066b90cc8933e *src/splitCustom.h

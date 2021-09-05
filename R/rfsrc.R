@@ -520,7 +520,7 @@ rfsrc <- function(formula, data, ntree = 500,
                                     list(if (is.null(prob)) as.integer(0) else as.integer(length(prob)),
                                          if (is.null(prob)) NULL else as.double(prob),
                                          if (is.null(prob.epsilon)) as.double(0) else as.double(prob.epsilon)),
-                                    as.integer(presort.xvar),
+                                    as.double(presort.xvar),
                                     as.integer(get.rf.cores()))}, error = function(e) {
                                         print(e)
                                         NULL})
@@ -932,7 +932,7 @@ rfsrc <- function(formula, data, ntree = 500,
                          seedVimp = if (importance == FALSE) NULL else nativeOutput$seedVimp,
                          terminal.qualts = terminal.qualts,
                          terminal.quants = terminal.quants,
-                         version = "2.12.0")
+                         version = "2.12.1")
       ## family specific additions to the forest object
       if (grepl("surv", family)) {
         forest.out$time.interest <- event.info$time.interest
@@ -967,7 +967,7 @@ rfsrc <- function(formula, data, ntree = 500,
                          samptype = samptype,
                          samp = samp,
                          case.wt = case.wt,
-                         version = "2.12.0",
+                         version = "2.12.1",
                          na.action = na.action,
                          perf.type = perf.type,
                          rfq = rfq,
