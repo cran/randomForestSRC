@@ -9,7 +9,7 @@ rfsrc <- function(formula, data, ntree = 500,
                   samptype = c("swor", "swr"),  samp = NULL, membership = FALSE,
                   sampsize = if (samptype == "swor") function(x){x * .632} else function(x){x},
                   na.action = c("na.omit", "na.impute"), nimpute = 1,
-                  ntime = 250, cause,
+                  ntime = 150, cause,
                   proximity = FALSE, distance = FALSE, forest.wt = FALSE,
                   xvar.wt = NULL, yvar.wt = NULL, split.wt = NULL, case.wt = NULL, 
                   forest = TRUE,
@@ -50,6 +50,7 @@ rfsrc <- function(formula, data, ntree = 500,
     holdout.specs <- is.hidden.holdout.specs(user.option)
     empirical.risk <- is.hidden.empirical.risk(user.option)
     tdc.rule <- is.hidden.tdc.rule(user.option)
+    chunkify  <- is.hidden.chunkify(user.option)
     ## verify key options
     ensemble <- match.arg(ensemble, c("all", "oob", "inbag"))  
     bootstrap <- match.arg(bootstrap, c("by.root", "none", "by.user"))
@@ -475,6 +476,7 @@ rfsrc <- function(formula, data, ntree = 500,
                                     as.integer(nodedepth),
                                     as.integer(length(cause.wt)),
                                     as.double(cause.wt),
+                                    as.integer(chunkify),
                                     as.integer(ntree),
                                     as.integer(n),
                                     list(as.integer(length(yvar.types)),
@@ -932,7 +934,7 @@ rfsrc <- function(formula, data, ntree = 500,
                          seedVimp = if (importance == FALSE) NULL else nativeOutput$seedVimp,
                          terminal.qualts = terminal.qualts,
                          terminal.quants = terminal.quants,
-                         version = "2.12.1")
+                         version = "2.13.0")
       ## family specific additions to the forest object
       if (grepl("surv", family)) {
         forest.out$time.interest <- event.info$time.interest
@@ -967,7 +969,7 @@ rfsrc <- function(formula, data, ntree = 500,
                          samptype = samptype,
                          samp = samp,
                          case.wt = case.wt,
-                         version = "2.12.1",
+                         version = "2.13.0",
                          na.action = na.action,
                          perf.type = perf.type,
                          rfq = rfq,

@@ -228,6 +228,7 @@ typedef unsigned long ulong;
 #define NEITHER   0x00
 #define BOTH      0x03
 #define EPSILON 1.0e-9
+#define SVD_EPS 1.0e-9
 #define RF_GROW   0x01
 #define RF_PRED   0x02
 #define RF_REST   0x04
@@ -252,7 +253,8 @@ typedef unsigned long ulong;
 #define CLAS_SGS    18
 #define SURV_SGS    19
 #define SURV_TDC    20
-#define MAXM_SPLIT  20 
+#define MAHALANOBIS 21
+#define MAXM_SPLIT  21 
 #define AUGT_INTR_NONE      0
 #define AUGT_INTR_MULT      1
 #define AUGT_INTR_DIVS      2
@@ -1162,7 +1164,6 @@ char getBestSplit(uint       treeID,
                   Node      *parent,
                   uint       splitRule,
                   SplitInfoMax *splitInfoMax,
-                  GreedyObj    *greedyMembr,
                   char       multImpFlag);
 char randomSplitGeneric(uint       treeID,
                         Node      *parent,
@@ -1324,6 +1325,11 @@ char randomSGS (uint       treeID,
 LatOptTreeObj *makeLatOptTreeObj();
 void freeLatOptTreeObj(LatOptTreeObj *lotObj);
 void insertRisk(uint treeID, LatOptTreeObj *obj, double value);
+char mahalanobis (uint       treeID,
+                  Node      *parent,
+                  SplitInfoMax *splitInfoMax,
+                  GreedyObj    *greedyMembr,
+                  char       multImpFlag);
 char unsupervisedSplit(uint       treeID,
                        Node      *parent,
                        SplitInfoMax *splitInfoMax,
@@ -1910,6 +1916,17 @@ void updateEnsembleHazard(char     mode,
                           uint     treeID,
                           char     normalizationFlag);
 uint getTimeInterestIndex(double *array, uint length, double value);
+void svdcmp(double **a, int m, int n, double ***uptr, double **wptr, double ***vptr);
+char svdchk(double **a, uint m, uint n, double **u, double *w, double **v);
+double **svdinv(double **u, double *w, double **v, uint m, uint n, uint singularity);
+void free_svdcmp(double **a, int m, int n, double **u, double *w, double **v);
+void svbksb(double **u, double *w, double **v, uint m, uint n, double *b, double *x);
+double **matrixCopy(double **a, uint m, uint n);
+double **matrixTrans(double **a, uint m, uint n);
+double **matrixMult(double **a, double **b, uint m, uint n, uint p);
+void matrixPrint(double **x, uint m, uint n);
+double pythag(double a, double b);
+void harness();
 Terminal *makeTerminal();
 void freeTerminal(Terminal *parent);
 void stackTermLMIIndex(Terminal *tTerm, unsigned int size);
@@ -2045,6 +2062,7 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP nodeDepth,
                SEXP crWeightSize,
                SEXP crWeight,
+               SEXP chunkify,
                SEXP ntree,
                SEXP observationSize,
                SEXP yInfo,
@@ -2067,6 +2085,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP seedPtr,
                   SEXP optLow,
                   SEXP optHigh,
+                  SEXP chunkify,
                   SEXP ntree,
                   SEXP observationSize,
                   SEXP yInfo,
