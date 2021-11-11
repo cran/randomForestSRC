@@ -1,6 +1,6 @@
 Package: randomForestSRC
-Version: 2.13.0
-Date: 2021-10-15
+Version: 2.14.0
+Date: 2021-11-10
 Title: Fast Unified Random Forests for Survival, Regression, and
         Classification (RF-SRC)
 Author: Hemant Ishwaran <hemant.ishwaran@gmail.com>, Udaya B. Kogalur <ubk@kogalur.com>
@@ -16,6 +16,6 @@ URL: https://luminwin.github.io/randomForestSRC/
         https://github.com/kogalur/randomForestSRC/
         https://web.ccs.miami.edu/~hishwaran/
 NeedsCompilation: yes
-Packaged: 2021-10-15 13:45:01 UTC; kogalur
+Packaged: 2021-11-10 16:24:14 UTC; kogalur
 Repository: CRAN
-Date/Publication: 2021-10-15 14:10:02 UTC
+Date/Publication: 2021-11-11 15:20:02 UTC

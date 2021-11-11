@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 2.13.0 (bld20211015)
+Version: 2.14.0 (bld20211110)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -8,7 +8,16 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 ---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.13.0
+CHANGES TO RELEASE 2.14.0
+---------------------------------------------------------------------------------
+Fix to R_init per Prof. Ripley.  Improved output from analysis,
+including more reported performance metrics. New get.brier.survival
+function for extracting Brier score in survival settings.  Importance,
+when true, now defaults to anti.  Fix to get.tree not playing well
+with seed for repeatability of importance.
+
+---------------------------------------------------------------------------------
+RELEASE 2.13.0
 ---------------------------------------------------------------------------------
 Fix to missing data segfault related to GitHub issue 112.  Mahalanobis
 splitting in multivariate regression settings when all outcomes are
