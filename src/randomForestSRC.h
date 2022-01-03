@@ -152,10 +152,13 @@ typedef unsigned long ulong;
 #define RF_TDC_MEMB_ID   93  
 #define RF_CSE_DEN       94  
 #define RF_CSV_DEN       95  
-#define RF_OPT_LO_GROW   96  
-#define RF_OPT_HI_GROW   97  
-#define RF_CPU_TIME      98  
-#define RF_SEXP_CNT      99  
+#define RF_BL_NODE_ID     96  
+#define RF_BR_NODE_ID     97  
+#define RF_FS_REC_ID      98  
+#define RF_OPT_LO_GROW    99  
+#define RF_OPT_HI_GROW   100  
+#define RF_CPU_TIME      101  
+#define RF_SEXP_CNT      102  
 #define RF_SEXP_ASCII_SIZE 16
 #define OPT_FENS      0x00000001 
 #define OPT_OENS      0x00000002 
@@ -210,6 +213,7 @@ typedef unsigned long ulong;
 #define OPT_DIST_IBG  0x00200000 
 #define OPT_DIST_OOB  0x00400000 
 #define OPT_DIST_FUL  0x00600000 
+#define OPT_JIT_TOP   0x00800000 
 #define OPT_TDC_BIT1  0x01000000 
 #define OPT_TDC_BIT2  0x02000000 
 #define OPT_TDC_BIT3  0x04000000 
@@ -285,6 +289,10 @@ typedef unsigned long ulong;
 typedef struct node Node;
 struct node {
   unsigned int nodeID;
+  unsigned int bnodeID;
+  unsigned int blnodeID;
+  unsigned int brnodeID;
+  unsigned int fsrecID;
   struct node *parent;
   struct node *left;
   struct node *right;
@@ -369,10 +377,6 @@ struct terminal {
   double weight;
   unsigned int membrCount;
   unsigned int *membrStream;
-  unsigned int *revEventCount;
-  unsigned int cTimeSize;
-  unsigned int *revEventTimeIndex;
-  double *revLocalRatio;
   unsigned int *membrIndx;
   unsigned int inbagProxy;
   double timeCutLeft;
@@ -580,7 +584,7 @@ void getRawNodeSize(uint  type,
                     uint *repMembrSize,
                     uint *allMembrIndx,
                     uint *allMembrSize);
-void getTreeInfo(uint treeID, Node *parent);
+void printTreeInfo(uint treeID, Node *parent);
 void processDefaultGrow();
 void processDefaultPredict();
 typedef struct factor Factor;
@@ -608,34 +612,12 @@ char splitOnFactor(uint level, uint *mwcp);
 Node *identifyExtrapolatedMembership (Node      *parent,
                                       double  **yShadow,
                                       double  **xShadow);
-Node *randomizeMembership(Node    *parent,
-                          double **predictor,
-                          uint     individual,
-                          uint     splitParameter,
-                          uint     treeID);
-Node *antiMembership(Node    *parent,
-                     double **predictor,
-                     uint     individual,
-                     uint     splitParameter,
-                     uint     treeID);
 void permute(uint ranGenID, uint p, uint n, uint *indx);
-void getAntiMembership(char       mode,
-                       uint       treeID,
-                       Terminal **vimpMembership,
-                       uint       p);
-void getRandomMembership(char       mode,
-                         uint       treeID,
-                         Terminal **vimpMembership,
-                         uint       p);
-void getPermuteMembership(char       mode,
-                          uint       treeID,
-                          Terminal **vimpMembership,
-                          uint       p);
 void getVimpMembership(char       mode,
                        uint       treeID,
                        Terminal **vimpMembership,
                        uint       p);
-void updateVimpEnsemble (char       mode,
+void updateEnsembleVimp (char       mode,
                          uint       treeID,
                          Terminal **vimpMembership,
                          uint       xVarIdx);
@@ -647,11 +629,6 @@ void summarizePerturbedPerformance(char       mode,
 void finalizeVimpPerformance(char mode);
 void  stackVimpMembership(char mode, Terminal ***membership);
 void  unstackVimpMembership(char mode, Terminal **membership);
-void updatePartialCalculations (uint       treeID,
-                                uint       pVarIdx,
-                                Terminal **partialMembership);
-void summarizePartialCalculations(uint       treeID,
-                                  uint       pVarIdx);
 void normalizeBlockedEnsembleEstimates(char      mode,
                                        double  **blkEnsembleMRTnum,
                                        double ***blkEnsembleCLSnum,
@@ -666,6 +643,56 @@ void rfsrc_omp_unset_lock (omp_lock_t *lock);
 #endif
 void rfsrc_omp_atomic_update(double *addr, double incr);
 uint getVimpRecoverySeedDimension(char mode, uint opt);
+void getAntiMembership(char       mode,
+                       uint       treeID,
+                       Terminal **vimpMembership,
+                       uint       p);
+Node *antiMembershipGeneric(uint     treeID,
+                            Node    *parent,
+                            uint     individual,
+                            uint     vimpX,
+                            double **xArray);
+Node *antiMembershipJIT(uint     treeID,
+                        Node    *parent,
+                        uint     individual,
+                        uint     vimpX,
+                        double **xArray);
+void getPermuteMembership(char       mode,
+                          uint       treeID,
+                          Terminal **vimpMembership,
+                          uint       p);
+Node *permuteMembershipGeneric(uint     treeID,
+                               Node    *parent,
+                               uint     individual,
+                               uint     vimpX,
+                               double **xArray);
+Node *permuteMembershipJIT(uint     treeID,
+                           Node    *parent,
+                           uint     individual,
+                           uint     vimpX,
+                           double **xArray);
+Node *getMembershipGeneric(uint     treeID,
+                           Node    *parent,
+                           uint     individual,
+                           double **xArray);
+Node *getMembershipJIT(uint     treeID,
+                       Node    *parent,
+                       uint     individual,
+                       double **xArray);
+void getRandomMembership (char       mode,
+                          uint       treeID,
+                          Terminal **vimpMembership,
+                          uint       p);
+Node *randomMembershipGeneric(uint     treeID,
+                              Node    *parent,
+                              uint     individual,                            
+                              uint     vimpX,
+                              double **xArray);
+Node *randomMembershipJIT(uint     treeID,
+                          Node    *parent,
+                          uint     individual,
+                          uint     vimpX,
+                          double **xArray);
 char imputeNode (char     type,
                  char     termFlag,
                  char     chainFlag,
@@ -675,8 +702,7 @@ char imputeNode (char     type,
                  uint     repNodeSize,
                  uint    *iAbsIdx,
                  uint     iNodeSize);
-char restoreNodeMembership(uint  r,
-                           char  mode, 
+char restoreNodeMembership(char  mode, 
                            char  rootFlag,
                            uint  treeID, 
                            Node *parent, 
@@ -745,21 +771,14 @@ void updateEventTypeSubsets(double *summaryStatus,
 void stackShadow (char mode, uint treeID);
 void unstackShadow (char mode, uint treeID);
 char xferMissingness(char type, Node *source, Terminal *destination);
-char getMarginalNodeMembership(char     mode,
-                               char     rootFlag,
-                               uint     treeID,
-                               Node    *parent,
-                               uint    *gAllMembrIndx,
-                               uint     gAllMembrSize,
-                               double **observationPtr);
-char getPartialNodeMembership(char       rootFlag,
-                              uint       treeID,
-                              uint       partialIndex,
-                              Node      *parent,
-                              uint      *allMembrIndx,
-                              uint       allMembrSize,
-                              double   **observationPtr,
-                              Terminal **membership);
+void getMarginalMembership(char mode, uint treeID);
+void releaseMarginalMembership(char mode, uint treeID);
+void marginalMembership(uint     treeID,
+                        Node    *parent,
+                        uint    *gAllMembrIndx,
+                        uint     gAllMembrSize,
+                        uint     obsSize,
+                        double **xArray);
 Node *makeNode(unsigned int xSize);
 void freeNode(Node *parent);
 void setParent(
@@ -873,6 +892,38 @@ void nrCopyVector(
   unsigned int ncol
 );
 void testEndianness();
+void getAndUpdatePartialMembership(uint treeID, Node *root);
+void partialMembershipGeneric(uint       treeID,
+                              Node      *parent,
+                              uint       partialIndex,
+                              uint      *allMembrIndx,
+                              uint       allMembrSize,
+                              double   **xArray,
+                              Terminal **membership);
+void partialMembershipJIT(uint       treeID,
+                          Node      *root,
+                          uint       partialIndex,
+                          uint      *nullMembrIndx,
+                          uint       individual,
+                          double   **xArray,
+                          Terminal **membership);
+void updatePartialCalculations (uint       treeID,
+                                uint       pVarIdx,
+                                Terminal **partialMembership);
+void summarizePartialCalculations(uint       treeID,
+                                  uint       pVarIdx);
+char getDaughterPolaritySimpleFactor   (uint treeID, SplitInfo *info, uint index, void *value, ...);
+char getDaughterPolaritySimpleNonFactor(uint treeID, SplitInfo *info, uint index, void *value, ...);
+char getDaughterPolaritySimpleTime     (uint treeID, SplitInfo *info, uint index, void *value, ...);
+char getDaughterPolarityComplex        (uint treeID, SplitInfo *info, uint index, void *value, ...);
+char getDaughterPolarity               (uint treeID, SplitInfo *info, uint index, void *value, ...);
+char getDaughterPolaritySimpleFactorSingle(uint treeID, SplitInfo *info, uint index, void *value, ...);
+char getDaughterPolaritySimpleNonFactor(uint treeID, SplitInfo *info, uint index, void *value, ...);
+void stackFactorInSitu(uint treeID);
+void unstackFactorInSitu(uint treeID);
+void processEnsembleInSitu(char mode, char multImpFlag, uint b);
+void processEnsemblePost(char mode);
+void processEnsembleHoldout(uint xVarIdx, uint b);
 typedef struct quantileObj QuantileObj;
 struct quantileObj {
   double v;
@@ -985,9 +1036,7 @@ void getMembrCountOnly (uint       treeID,
                         uint      *allMembrIndx,
                         uint       allMembrSize,
                         uint      *rmbrIterator);
-void updateEnsembleTree (char      mode,
-                         uint      b,
-                         char      perfFlag);
+void updateEnsemble (char mode, uint b);
 void summarizeFaithfulBlockPerformance (char        mode,
                                         uint        b,
                                         uint        blockID,
@@ -1033,83 +1082,6 @@ void getPerformance(uint      serialTreeID,
 void normalizeEnsembleEstimates(char mode, char final);
 char getPerfFlag (char mode, uint serialTreeID);
 void getVariablesUsed(uint treeID, Node *rootPtr, uint *varUsedVector);
-void initializeCDF(uint     treeID,
-                   uint    *permissibilityIndex,
-                   char    *permissibilityFlag,
-                   uint     permissibilitySize,
-                   uint     *augmentationSize,
-                   uint     weightType,
-                   double  *weight,
-                   uint    *weightSorted,
-                   uint     densitySizeMax,
-                   uint   **index,
-                   uint    *sampleSize,
-                   double **cdf,
-                   uint    *cdfSize,
-                   uint   **cdfSort,
-                   uint   **density,
-                   uint    *densitySize,
-                   uint  ***densitySwap);
-void updateCDF(uint    treeID,
-               uint    weightType,
-               double *weight,
-               uint   *index,
-               uint   *sampleSize,
-               uint    sampleSlot,
-               double *cdf,
-               uint    cdfSize,
-               uint   *density,
-               uint   *densitySize,
-               uint  **densitySwap,
-               uint    absoluteSlot);
-uint sampleFromCDF (float (*genericGenerator) (uint),
-                    uint    treeID,
-                    uint    weightType,
-                    uint   *sampleIndex,
-                    uint    sampleSize,
-                    uint   *sampleSlot,
-                    double *cdf,
-                    uint    cdfSize,
-                    uint   *cdfSort,
-                    uint   *density,
-                    uint    densitySize);
-void discardCDF(uint     treeID,
-                uint     weightType,
-                double  *weight,
-                uint     permissibilitySize,
-                uint    *index,
-                uint     indexSize,
-                uint    *augmentationSize,
-                uint    *density,
-                uint     densitySizeAlloc,
-                uint   **densitySwap,
-                double  *cdf,
-                uint     cdfSizeAlloc,
-                uint    *cdfSort);
-void duplicateCDF(uint treeID,
-                  uint  type,
-                  double  *weight,
-                  uint     weightSize,
-                  uint    *inc_index,
-                  uint     inc_sampleSize,
-                  double  *inc_cdf,
-                  uint     inc_cdfSize,
-                  uint    *inc_cdfSort,
-                  uint    *inc_density,
-                  uint     inc_densitySize,
-                  uint   **inc_densitySwap,
-                  uint   **index,
-                  uint    *sampleSize,
-                  double **cdf,
-                  uint    *cdfSize,
-                  uint   **cdfSort,
-                  uint   **density,
-                  uint    *densitySize,
-                  uint  ***densitySwap);
-uint sampleUniformlyFromVector (uint    treeID,
-                                uint   *index,
-                                uint    size,
-                                uint   *sampleSlot);
 typedef struct distributionObj DistributionObj;
 struct distributionObj {
   uint *permissibilityIndex;
@@ -1138,6 +1110,10 @@ void initializeCDFNew(uint treeID, DistributionObj *obj);
 uint sampleFromCDFNew (float (*genericGenerator) (uint), uint treeID, DistributionObj *obj);
 void updateCDFNew(uint    treeID, DistributionObj *obj);
 void discardCDFNew(uint treeID, DistributionObj *obj);
+uint sampleUniformlyFromVector (uint    treeID,
+                                uint   *index,
+                                uint    size,
+                                uint   *sampleSlot);
 typedef struct snpAuxiliaryInfo SNPAuxiliaryInfo;
 struct snpAuxiliaryInfo {
   char type;
@@ -1293,11 +1269,6 @@ void defineHyperCube(uint  treeID,
                      uint *hcCount,
                      uint *hcMapping,
                      SplitInfo *splitInfo);
-char getDaughterPolaritySimpleFactor   (uint treeID, SplitInfo *info, uint index, void *value, ...);
-char getDaughterPolaritySimpleNonFactor(uint treeID, SplitInfo *info, uint index, void *value, ...);
-char getDaughterPolaritySimpleTime     (uint treeID, SplitInfo *info, uint index, void *value, ...);
-char getDaughterPolarityComplex        (uint treeID, SplitInfo *info, uint index, void *value, ...);
-char getDaughterPolarity               (uint treeID, SplitInfo *info, uint index, void *value, ...);
 GreedyObj *makeGreedyObj(Node *parent, GreedyObj *head);
 void freeGreedyObj(GreedyObj *gObj);
 void freeGreedyObjList(GreedyObj *gObj);
@@ -1779,15 +1750,6 @@ void stackTNQualitativeObjectsKnown(char     mode,
 void stackTNQualitativeObjectsUnknown(char     mode,
                                       uint   **pRF_TN_RCNT_,
                                       uint   **pRF_TN_ACNT_);
-void stackTNQuantitativeOutputObjects(char     mode,
-                                      double **pRF_TN_SURV_,
-                                      double **pRF_TN_MORT_,
-                                      double **pRF_TN_NLSN_,
-                                      double **pRF_TN_CSHZ_,
-                                      double **pRF_TN_CIFN_,
-                                      double **pRF_TN_KHZF_,
-                                      double **pRF_TN_REGR_,
-                                      uint   **pRF_TN_CLAS_);
 void stackTNQuantitativeForestObjectsPtrOnly(char mode);
 void unstackTNQuantitativeForestObjectsPtrOnly(char mode);
 void stackTNQuantitativeTreeObjectsPtrOnly(uint treeID);
@@ -1799,7 +1761,8 @@ void restackTermListAndQualitativeObjectsUnknown(uint treeID, uint length);
 void verifyAndRegisterCustomSplitRules();
 extern void registerCustomFunctions();
 void stackAuxiliaryInfoList(SNPAuxiliaryInfo ***list, uint count);
-void allocateAuxiliaryInfo(char   type,
+void allocateAuxiliaryInfo(char   targetFlag,
+                           char   type,
                            char  *stringIdentifier,
                            SNPAuxiliaryInfo **list,
                            uint   slot,
@@ -1807,8 +1770,8 @@ void allocateAuxiliaryInfo(char   type,
                            void  *auxiliaryArrayPtr,
                            uint   dimSize,
                            int   *dim);
-uint getAuxDim(int *dim, uint preIndex, uint postIndex);
-void unstackAuxiliaryInfoAndList(SNPAuxiliaryInfo **list, uint count);
+uint getAuxDim(char flag, int *dim, uint preIndex, uint postIndex);
+void unstackAuxiliaryInfoAndList(char targetFlag, SNPAuxiliaryInfo **list, uint count);
 void memoryCheck();
 void stackIncomingResponseArrays(char mode);
 void unstackIncomingResponseArrays(char mode);
@@ -1974,7 +1937,7 @@ void stackLocalEmpiricalHazard(Terminal *tTerm, unsigned int eTimeSize);
 void unstackLocalEmpiricalHazard(Terminal *tTerm);
 void stackEmpiricalHazard(Terminal *tTerm, unsigned int sTimeSize);
 void unstackEmpiricalHazard(Terminal *tTerm);
-void acquireTree(char mode, uint r, uint b);
+void acquireTreeGeneric(char mode, uint r, uint b);
 void updateWeight(char mode, uint b);
 void finalizeWeight(char mode);
 void updateDistance(char mode, uint b);
@@ -1994,8 +1957,8 @@ void getSplitPath(uint treeID, Node *parent);
 void freeSplitPath(uint treeID);
 uint getMaximumDepth(Node *parent);
 void getNodesAtDepth(Node *parent, uint tagDepth, Node **nodesAtDepth, uint *nadCount);
-void processEnsembleInSitu(char mode, char multImpFlag, uint b);
-void processEnsembleHoldout(uint xVarIdx, uint b);
+void acquireTreeJIT(char mode, uint r, uint treeID);
+void restoreTerminalNodeJIT(uint treeID, Node *root, uint indv, double **xArray, Terminal **termMembership);
 char growTree(uint     r,
               char     rootFlag,
               char     multImpFlag,
@@ -2023,9 +1986,6 @@ void initTerminalNodeMembership(uint       treeID,
                                 uint      *allMembrIndx,
                                 uint       allMembrSize);
 void updatePruning(char mode, uint treeID);
-void stackFactorInSitu(uint treeID);
-void unstackFactorInSitu(uint treeID);
-void processEnsemblePost(char mode);
 SEXP rfsrcCIndex(SEXP sexp_traceFlag,
                  SEXP sexp_size,
                  SEXP sexp_time,
@@ -2101,6 +2061,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP baseLearn,
                   SEXP treeID,
                   SEXP nodeID,
+                  SEXP brnodeID,
                   SEXP hc_zero,
                   SEXP hc_oneAugIntr,
                   SEXP hc_oneAugSyth,
@@ -2109,6 +2070,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP hc_contPT,
                   SEXP hc_contPTR,
                   SEXP hc_mwcpSZ,
+                  SEXP hc_fsrecID,
                   SEXP hc_mwcpPT,
                   SEXP hc_augmXone,
                   SEXP hc_augmXtwo,
@@ -2146,7 +2108,8 @@ void *copy2DObject(SEXP arr, char type, char flag, uint row, uint col);
 void free_1DObject(void *arr, char type, uint size);
 void free_2DObject(void *arr, char type, char flag, uint row, uint col);
 void initProtect(uint  stackCount);
-void *stackAndProtect(uint  *sexpIndex,
+void *stackAndProtect(char   mode,
+                      uint  *sexpIndex,
                       char   sexpType,
                       uint   sexpIdentity,
                       ulong  size,

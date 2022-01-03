@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 2.14.0 (bld20211110)
+Version: 3.0.0 (bld20220102)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -8,7 +8,18 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 ---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 2.14.0
+CHANGES TO RELEASE 3.0.0
+---------------------------------------------------------------------------------
+Added the ability to get confidence intervals for out-of-bag error
+rates using the subsample function.  Significant improvements in CPU
+times for restoration of models and prediction with new data.  Fixed the
+ability to select between in situ ensemble calculation and post-forest
+ensemble calculation.  This can be useful when doing these
+calculations in parallel causes significant contention for memory
+locations that are in critical OpenMP regions.
+  
+---------------------------------------------------------------------------------
+RELEASE 2.14.0
 ---------------------------------------------------------------------------------
 Fix to R_init per Prof. Ripley.  Improved output from analysis,
 including more reported performance metrics. New get.brier.survival
