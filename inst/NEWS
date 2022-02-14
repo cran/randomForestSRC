@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 3.0.0 (bld20220102)
+Version: 3.0.1 (bld20220210)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -8,7 +8,15 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 ---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.0.0
+CHANGES TO RELEASE 3.0.1
+---------------------------------------------------------------------------------
+Minor changes to Rd files. Re-introduction of competing risk
+generalized logrank split rule (3.1.1 in the CR paper).  This had been
+accidentally removed in CRAN build 2_9_0. Fix to DESCRIPTION URL per
+Prof. Ripley's request.
+  
+---------------------------------------------------------------------------------
+RELEASE 3.0.0
 ---------------------------------------------------------------------------------
 Added the ability to get confidence intervals for out-of-bag error
 rates using the subsample function.  Significant improvements in CPU

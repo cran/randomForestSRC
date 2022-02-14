@@ -8,6 +8,7 @@ generic.predict.rfsrc <-
            importance.xvar,
            na.action = c("na.omit", "na.impute"),
            outcome = c("train", "test"),
+           perf.type = NULL,
            proximity = FALSE,
            forest.wt = FALSE,
            ptn.count = 0,
@@ -42,9 +43,9 @@ generic.predict.rfsrc <-
   ## insitu/jitt
   insitu.ensemble  <- is.hidden.insitu.ensemble(user.option)
   jitt <- is.hidden.jitt(user.option, importance)
-  ## TBD TBD make perf.type visible TBD TBD    
-  perf.type <- is.hidden.perf.type(user.option)
+  ## rfq
   rfq <- is.hidden.rfq(user.option)
+  ## quantile regression
   gk.quantile <- is.hidden.gk.quantile(user.option)
   prob <- is.hidden.prob(user.option)
   prob.epsilon <- is.hidden.prob.epsilon(user.option)
@@ -146,7 +147,7 @@ generic.predict.rfsrc <-
   }
     else {
       object.version <- as.integer(unlist(strsplit(object$version, "[.]")))
-      installed.version <- as.integer(unlist(strsplit("3.0.0", "[.]")))
+      installed.version <- as.integer(unlist(strsplit("3.0.1", "[.]")))
       minimum.version <- as.integer(unlist(strsplit("2.3.0", "[.]")))
       object.version.adj <- object.version[1] + (object.version[2]/10) + (object.version[3]/100)
       installed.version.adj <- installed.version[1] + (installed.version[2]/10) + (installed.version[3]/100)
