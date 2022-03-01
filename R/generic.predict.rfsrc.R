@@ -147,7 +147,7 @@ generic.predict.rfsrc <-
   }
     else {
       object.version <- as.integer(unlist(strsplit(object$version, "[.]")))
-      installed.version <- as.integer(unlist(strsplit("3.0.1", "[.]")))
+      installed.version <- as.integer(unlist(strsplit("3.0.2", "[.]")))
       minimum.version <- as.integer(unlist(strsplit("2.3.0", "[.]")))
       object.version.adj <- object.version[1] + (object.version[2]/10) + (object.version[3]/100)
       installed.version.adj <- installed.version[1] + (installed.version[2]/10) + (installed.version[3]/100)
@@ -497,12 +497,6 @@ generic.predict.rfsrc <-
     }
   }
   jitt.bits <- get.jitt(jitt)
-  ## The experimental flag simply inherits the grow mode flag.  We do not
-  ## offer the user any other alternative. Currently this option
-  ## really only affects the splitting related functions. So it's a
-  ## bit redundant, but later we may have other changes that are
-  ## particular to restore or predict mode.
-  experimental.bits <- get.experimental(object$experimental)
   ## We have two data.pass flags. We have one for the training data, and
   ## one for the test data. In restore mode, the the training data.pass flag
   ## inherits the grow data.pass flag.  
@@ -603,8 +597,7 @@ generic.predict.rfsrc <-
                                              csv.bits +
                                              data.pass.bits +
                                              data.pass.predict.bits +
-                                             jitt.bits +
-                                             experimental.bits),
+                                             jitt.bits),
                                   ## >>>> start of maxi forest object >>>>
                                   as.double(vimp.threshold),
                                   as.integer(ntree),

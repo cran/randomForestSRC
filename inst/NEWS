@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 3.0.1 (bld20220210)
+Version: 3.0.2 (bld20220224)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -8,7 +8,13 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 ---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.0.1
+CHANGES TO RELEASE 3.0.2
+---------------------------------------------------------------------------------
+Miner changes to donttest examples that caused issues.  Continued
+improvements to overall speed of the package.
+
+---------------------------------------------------------------------------------
+RELEASE 3.0.1
 ---------------------------------------------------------------------------------
 Minor changes to Rd files. Re-introduction of competing risk
 generalized logrank split rule (3.1.1 in the CR paper).  This had been

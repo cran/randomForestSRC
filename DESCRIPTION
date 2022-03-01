@@ -1,6 +1,6 @@
 Package: randomForestSRC
-Version: 3.0.1
-Date: 2022-02-10
+Version: 3.0.2
+Date: 2022-02-24
 Title: Fast Unified Random Forests for Survival, Regression, and
         Classification (RF-SRC)
 Author: Hemant Ishwaran <hemant.ishwaran@gmail.com>, Udaya B. Kogalur <ubk@kogalur.com>
@@ -15,6 +15,6 @@ License: GPL (>= 3)
 URL: https://luminwin.github.io/randomForestSRC/
         https://ishwaran.org/ishwaran.html
 NeedsCompilation: yes
-Packaged: 2022-02-10 15:16:16 UTC; udaya
+Packaged: 2022-02-24 21:55:49 UTC; kogalur
 Repository: CRAN
-Date/Publication: 2022-02-14 09:50:02 UTC
+Date/Publication: 2022-03-02 00:10:02 UTC
