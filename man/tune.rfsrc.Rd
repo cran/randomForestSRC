@@ -96,7 +96,7 @@ o <- tune(quality ~ ., wine, doBest = TRUE)
 print(o$rf)
 
 ## visualize the nodesize/mtry OOB surface
-if (library("akima", logical.return = TRUE)) {
+if (library("interp", logical.return = TRUE)) {
 
   ## nice little wrapper for plotting results
   plot.tune <- function(o, linear = TRUE) {

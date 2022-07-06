@@ -1,5 +1,5 @@
 Package: randomForestSRC
-Version: 3.1.0 (bld20220416)
+Version: 3.1.1 (bld20220706)
 
 ---------------------------------------------------------------------------------
 FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
@@ -8,7 +8,14 @@ FOR BETA BUILDS, DOCUMENTATION, and dual compilation for R and
 ---------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------
-CHANGES TO RELEASE 3.1.0
+CHANGES TO RELEASE 3.1.1
+---------------------------------------------------------------------------------
+Swapped suggests for akima with interp per Prof. Ripley's request. New
+home page with documentation and vignettes at
+https://www.randomforestsrc.org/
+
+---------------------------------------------------------------------------------
+RELEASE 3.1.0
 ---------------------------------------------------------------------------------
 Added a new way to deal with missing data in prediction where missing
 data is assigned randomly by daughter size.  Use option
