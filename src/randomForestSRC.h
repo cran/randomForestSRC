@@ -159,10 +159,11 @@ typedef unsigned long ulong;
 #define RF_BR_NODE_ID     97  
 #define RF_FS_REC_ID      98  
 #define RF_NODE_SZ        99  
-#define RF_OPT_LO_GROW   100  
-#define RF_OPT_HI_GROW   101  
-#define RF_CPU_TIME      102  
-#define RF_SEXP_CNT      103  
+#define RF_CASE_DEPTH    100  
+#define RF_OPT_LO_GROW   101  
+#define RF_OPT_HI_GROW   102  
+#define RF_CPU_TIME      103  
+#define RF_SEXP_CNT      104  
 #define RF_SEXP_ASCII_SIZE 16
 #define OPT_FENS      0x00000001 
 #define OPT_OENS      0x00000002 
@@ -175,6 +176,7 @@ typedef unsigned long ulong;
 #define OPT_VIMP_TYP1 0x00000100 
 #define OPT_VIMP_TYP2 0x00000200 
 #define OPT_VIMP_JOIN 0x00000400 
+#define OPT_CASE_DPTH 0x00000800 
 #define OPT_VARUSED_F 0x00001000 
 #define OPT_VARUSED_T 0x00002000 
 #define OPT_PERF_GMN2 0x00004000 
@@ -409,8 +411,8 @@ struct leafLinkedObjSimple {
   struct leafLinkedObjSimple *bakLink;
   struct node     *nodePtr;
 };
-LeafLinkedObj *makeLeafLinkedObj();
-LeafLinkedObjSimple *makeLeafLinkedObjSimple();
+LeafLinkedObj *makeLeafLinkedObj(void);
+LeafLinkedObjSimple *makeLeafLinkedObjSimple(void);
 LeafLinkedObj *makeAndSpliceLeafLinkedObj(LeafLinkedObj *tail,
                                           Node *nodePtr,
                                           uint ibgCount,
@@ -606,11 +608,11 @@ void getRawNodeSize(uint  type,
                     uint *allMembrIndx,
                     uint *allMembrSize);
 void printTreeInfo(uint treeID, Node *parent);
-void initTimer();
-void printTimer();
+void initTimer(void);
+void printTimer(void);
 void printParameters(char mode);
-void processDefaultGrow();
-void processDefaultPredict();
+void processDefaultGrow(void);
+void processDefaultPredict(void);
 typedef struct factor Factor;
 struct factor {
   unsigned int r; 
@@ -921,7 +923,7 @@ void nrCopyVector(
   char *old,
   unsigned int ncol
 );
-void testEndianness();
+void testEndianness(void);
 void acquireTreePosix (void *arg);
 typedef struct _acquireTreeArg acquireTreeArg;
 struct _acquireTreeArg {
@@ -999,7 +1001,7 @@ double getApproxQuantile(QuantileObj *head, double phi, uint streamSize);
 void populateBand(uint p, uint *band);
 void makeLookUpTree(LookUpInfo *infoObj, QuantileObj *qObj, uint size, uint depth);
 void findApproximateInsertionPoint(QuantileObj *head, LookUpInfo *tree, double value, QuantileObj **insertPtr);
-LookUpInfo *makeLookUpInfo();
+LookUpInfo *makeLookUpInfo(void);
 void freeLookUpInfo(LookUpInfo *obj);
 void freeLookUpTree(LookUpInfo *obj);
 void testQuantile(uint treeID);
@@ -1160,8 +1162,8 @@ struct distributionObj {
   uint  uIndexAllocSize;
   uint  slot;
 };
-DistributionObj *makeDistributionObjRaw();
-DistributionObj *makeDistributionObjFull();
+DistributionObj *makeDistributionObjRaw(void);
+DistributionObj *makeDistributionObjFull(void);
 void freeDistributionObjRaw(DistributionObj *obj);
 void initializeCDFNew(uint treeID, DistributionObj *obj);
 uint sampleFromCDFNew (float (*genericGenerator) (uint), uint treeID, DistributionObj *obj);
@@ -1182,6 +1184,21 @@ struct snpAuxiliaryInfo {
   uint dimSize;
   int *dim;
 };
+typedef struct sortedLinkedObj SortedLinkedObj;
+struct sortedLinkedObj {
+  struct sortedLinkedObj *fwdLink;
+  struct sortedLinkedObj *bakLink;
+  uint rank;
+  uint indx;
+};
+SortedLinkedObj *makeSortedLinkedObj(void);
+void makeAndSpliceSortedLinkedObj(uint treeID,
+                                  SortedLinkedObj **headPtr,
+                                  SortedLinkedObj **tailPtr,
+                                  uint *listLength,
+                                  uint rank, uint indx);
+void freeSortedLinkedObjList(SortedLinkedObj *obj);
+void freeSortedLinkedObj(SortedLinkedObj *obj);
 typedef struct splitRuleObj SplitRuleObj;
 struct splitRuleObj {
   char (*function) (uint,
@@ -1352,7 +1369,7 @@ char randomSGS (uint       treeID,
                 SplitInfoMax *splitInfoMax,
                 GreedyObj    *greedyMembr,
                 char       multImpFlag);
-LatOptTreeObj *makeLatOptTreeObj();
+LatOptTreeObj *makeLatOptTreeObj(void);
 void freeLatOptTreeObj(LatOptTreeObj *lotObj);
 void insertRisk(uint treeID, LatOptTreeObj *obj, double value);
 char mahalanobis (uint       treeID,
@@ -1370,6 +1387,25 @@ char multivariateSplit (uint       treeID,
                         SplitInfoMax *splitInfoMax,
                         GreedyObj    *greedyMembr,
                         char       multImpFlag);
+char multivariateSplitNew (uint       treeID,
+                           Node      *parent,
+                           SplitInfoMax *splitInfoMax,
+                           GreedyObj    *greedyMembr,
+                           char       multImpFlag);
+DistributionObj *stackRandomResponsesSimple(uint treeID, Node *parent);
+void unstackRandomResponsesSimple(uint treeID, DistributionObj *obj);
+char selectRandomResponsesSimpleVector(uint  treeID,
+                                       Node *parent,
+                                       DistributionObj *distributionObj,
+                                       uint *response,
+                                       uint *responseCount);
+DistributionObj *stackRandomResponsesGeneric(uint treeID, Node *parent);
+void unstackRandomResponsesGeneric(uint treeID, DistributionObj *obj);
+char selectRandomResponsesGenericVector(uint     treeID,
+                                        Node     *parent,
+                                        DistributionObj *distributionObj,
+                                        uint     *covariate,
+                                        uint     *covariateCount);
 char locallyAdaptiveQuantileRegrSplit (uint       treeID,
                                        Node      *parent,
                                        SplitInfoMax *splitInfoMax,
@@ -1499,31 +1535,20 @@ void convertRelToAbsBinaryPair(uint    treeID,
                                uint    relativePair,
                                double *absoluteLevel,
                                uint   *pair);
-typedef struct sortedLinkedObj SortedLinkedObj;
-struct sortedLinkedObj {
-  struct sortedLinkedObj *fwdLink;
-  struct sortedLinkedObj *bakLink;
-  uint rank;
-  uint indx;
-};
-void initPreSortExtra();
+void initPreSortExtra(void);
 void initPreSortIntra(uint treeID);
 void execPreSort(uint treeID, uint xvar, uint *membrIndx, uint membrSize);
 void freePreSort(uint treeID, uint xvar);
 void freePreSortIntra(uint treeID);
-void freePreSortExtra();
-SortedLinkedObj *makeSortedLinkedObj();
-void makeAndSpliceSortedLinkedObj(uint treeID, uint *listLength, uint rank, uint indx);
-void freeSortedLinkedObjList(SortedLinkedObj *obj);
-void freeSortedLinkedObj(SortedLinkedObj *obj);
+void freePreSortExtra(void);
 DistributionObj *stackRandomCovariatesSimple(uint treeID, Node *parent);
 void unstackRandomCovariatesSimple(uint treeID, DistributionObj *obj);
 char selectRandomCovariatesSimpleSingle(uint  treeID,
-                                  Node *parent,
-                                  DistributionObj *distributionObj,
-                                  char *factorFlag,
-                                  uint *covariate,
-                                  uint *covariateCount);
+                                        Node *parent,
+                                        DistributionObj *distributionObj,
+                                        char *factorFlag,
+                                        uint *covariate,
+                                        uint *covariateCount);
 char selectRandomCovariatesSimpleVector(uint  treeID,
                                         Node *parent,
                                         DistributionObj *distributionObj,
@@ -1830,8 +1855,6 @@ void unstackCompetingArrays(char mode);
 char stackClassificationArrays(char mode);
 void unstackClassificationArrays(char mode);
 void getEventInfo(char mode);
-void stackLocksOpenMP(char mode);
-void unstackLocksOpenMP(char mode);
 void stackDefinedOutputObjects(char      mode,
                                char    **sexpString,
                                Node   ***pRF_root,
@@ -1871,8 +1894,8 @@ void saveTNQuantitativeTreeObjects(uint treeID);
 void stackTNQuantitativeForestObjectsOutput(char mode);
 void writeTNQuantitativeForestObjectsOutput(char mode);
 void restackTermListAndQualitativeObjectsUnknown(uint treeID, uint length);
-void verifyAndRegisterCustomSplitRules();
-extern void registerCustomFunctions();
+void verifyAndRegisterCustomSplitRules(void);
+extern void registerCustomFunctions(void);
 void stackAuxiliaryInfoList(SNPAuxiliaryInfo ***list, uint count);
 void allocateAuxiliaryInfo(char   targetFlag,
                            char   type,
@@ -1885,14 +1908,18 @@ void allocateAuxiliaryInfo(char   targetFlag,
                            int   *dim);
 uint getAuxDim(char flag, int *dim, uint preIndex, uint postIndex);
 void unstackAuxiliaryInfoAndList(char targetFlag, SNPAuxiliaryInfo **list, uint count);
-void memoryCheck();
+void memoryCheck(void);
+void stackLocksOpenMP(char mode);
+void unstackLocksOpenMP(char mode);
+void stackLocksPosix(char mode);
+void unstackLocksPosix(char mode);
 void stackIncomingResponseArrays(char mode);
 void unstackIncomingResponseArrays(char mode);
 void unstackIncomingCovariateArrays(char mode);
 void unstackIncomingCovariateArrays(char mode);
 void stackIncomingArrays(char mode);
 void unstackIncomingArrays(char mode);
-void checkInteraction();
+void checkInteraction(void);
 void stackPreDefinedCommonArrays(char          mode,
                                  Node      ****nodeMembership,
                                  Terminal  ****tTermMembership,
@@ -1903,12 +1930,12 @@ void unstackPreDefinedCommonArrays(char          mode,
                                    Terminal  ***tTermMembership,
                                    Terminal  ***tTermList,
                                    Node       **root);
-void stackPreDefinedGrowthArrays();
-void unstackPreDefinedGrowthArrays();
-void stackPreDefinedRestoreArrays();
-void unstackPreDefinedRestoreArrays();
-void stackPreDefinedPredictArrays();
-void unstackPreDefinedPredictArrays();
+void stackPreDefinedGrowthArrays(void);
+void unstackPreDefinedGrowthArrays(void);
+void stackPreDefinedRestoreArrays(void);
+void unstackPreDefinedRestoreArrays(void);
+void stackPreDefinedPredictArrays(void);
+void unstackPreDefinedPredictArrays(void);
 void stackWeights(double *weight,
                   uint    size,
                   uint   *weightType,
@@ -1980,6 +2007,12 @@ double getConcordanceIndex(int     polarity,
                            double *statusPtr, 
                            double *predictedOutcome,
                            double *oobCount);
+double getConcordanceIndexNew(int     polarity,
+                              uint    size, 
+                              double *timePtr, 
+                              double *statusPtr, 
+                              double *predicted,
+                              double *oobCount);
 void getCRPerformance (char     mode,
                        uint     obsSize,
                        double **responsePtr,
@@ -2000,8 +2033,8 @@ double **matrixTrans(double **a, uint m, uint n);
 double **matrixMult(double **a, double **b, uint m, uint n, uint p);
 void matrixPrint(double **x, uint m, uint n);
 double pythag(double a, double b);
-void harness();
-Terminal *makeTerminal();
+void harness(void);
+Terminal *makeTerminal(void);
 void freeTerminal(Terminal *parent);
 void stackTermLMIIndex(Terminal *tTerm, unsigned int size);
 void unstackTermLMIIndex(Terminal *tTerm);
@@ -2100,12 +2133,19 @@ void initTerminalNodeMembership(uint       treeID,
                                 uint      *allMembrIndx,
                                 uint       allMembrSize);
 void updatePruning(char mode, uint treeID);
+void updateCaseDepth(char mode, uint treeID);
 SEXP rfsrcCIndex(SEXP sexp_traceFlag,
                  SEXP sexp_size,
                  SEXP sexp_time,
                  SEXP sexp_censoring,
                  SEXP sexp_predicted,
                  SEXP sexp_denom);
+SEXP rfsrcCIndexNew(SEXP sexp_traceFlag,
+                    SEXP sexp_size,
+                    SEXP sexp_time,
+                    SEXP sexp_censoring,
+                    SEXP sexp_predicted,
+                    SEXP sexp_denom);
 SEXP rfsrcTestSEXP(SEXP sexp_size);
 SEXP rfsrcDistance(SEXP sexp_metric,
                    SEXP sexp_n,
@@ -2217,9 +2257,9 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP quantileInfo,
                   SEXP getTree,
                   SEXP numThreads);
-void exit2R();
+void exit2R(void);
 void printR(char *format, ...);
-void setNativeGlobalEnv();
+void setNativeGlobalEnv(uint *nativeIndex, uint *stackCount);
 void *copy1DObject(SEXP arr, char type, uint size, char actual);
 void *copy2DObject(SEXP arr, char type, char flag, uint row, uint col);
 void free_1DObject(void *arr, char type, uint size);
@@ -2236,4 +2276,4 @@ void *stackAndProtect(char   mode,
                       uint   auxiliaryDimSize,
                       ...);
 void setUserTraceFlag (uint traceFlag);
-uint getUserTraceFlag ();
+uint getUserTraceFlag (void);
