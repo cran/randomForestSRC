@@ -10562,6 +10562,8 @@ void rfsrc(char mode, int seedValue) {
     for (b = 1; b <= RF_ntree; b++) {
       randomSetChain(b , RF_seed_[b]);
     }
+    seedValueLC = abs(seedValue);
+    lcgenerator(&seedValueLC, TRUE);
     for (b = 1; b <= RF_ntree; b++) {
       lcgenerator(&seedValueLC, FALSE);
       lcgenerator(&seedValueLC, FALSE);
@@ -19535,7 +19537,11 @@ char regressionXwghtSplitCur (uint       treeID,
                 deltaMax = delta;
                 indexMax = j;
               }
+              else {
+              }
             }
+          }
+          else {
           }
           if (factorFlag == FALSE) {
             priorMembrIter = currentMembrIter - 1;
@@ -19749,7 +19755,11 @@ char regressionXwghtSplitOpt (uint       treeID,
                 deltaMax = delta;
                 indexMax = j;
               }
+              else {
+              }
             }
+          }
+          else {
           }
           if (factorFlag == FALSE) {
             priorMembrIter = currentMembrIter - 1;
@@ -31216,7 +31226,6 @@ void stackIncomingArrays(char mode) {
         if (RF_ySizeProxy == 0) {
           RF_nativeError("\nRF-SRC:  *** ERROR *** ");
           RF_nativeError("\nRF-SRC:  No non-[S] and non-[C] responses found.");
-          RF_nativeError("\nRF-SRC:  The application will now exit.\n");
           RF_nativeExit();
         }
         if (RF_ytry > RF_ySizeProxy) {
@@ -36810,7 +36819,7 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP numThreads) {
   char mode;
   uint i;
-clock_t cpuTimeStart = clock();
+  clock_t cpuTimeStart = clock();
   setUserTraceFlag(INTEGER(traceFlag)[0]);
   setNativeGlobalEnv(&RF_nativeIndex, &RF_stackCount);
   int seedValue           = INTEGER(seedPtr)[0];
@@ -37126,8 +37135,10 @@ clock_t cpuTimeStart = clock();
   R_ReleaseObject(RF_sexpVector[RF_STRG_ID]);
   return RF_sexpVector[RF_OUTP_ID];
 }
+const char vomit[] = "\nRF-SRC:  The application will now exit.\n";
 void exit2R(void) {
-  error("\nRF-SRC:  The application will now exit.\n");
+  Rprintf("%s", vomit);
+  error(NULL);
 }
 void printR(char *format, ...) {
   char *buffer;
@@ -37136,7 +37147,7 @@ void printR(char *format, ...) {
   va_start(aptr, format);
   vsnprintf(buffer, sizeof(char) * 1023, format, aptr);
   va_end(aptr);
-  Rprintf(buffer);
+  Rprintf("%s", buffer);
   free((char *) buffer);
 }
 void setNativeGlobalEnv(uint *nativeIndex, uint *stackCount) {
