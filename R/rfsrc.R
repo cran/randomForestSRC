@@ -445,6 +445,8 @@ rfsrc <- function(formula, data, ntree = 500,
   presort.xvar  <- get.presort.xvar.bits(presort.xvar)
   data.pass.bits <- get.data.pass.bits(data.pass)
   experimental.bits <- get.experimental.bits(experimental)
+  ## set the maximum class levels
+  max.class.levels <- 0
   ## Set the trace
   do.trace <- get.trace.bits(do.trace)
   ## Start the C external timer.
@@ -497,8 +499,10 @@ rfsrc <- function(formula, data, ntree = 500,
                                   as.integer(n),
                                   list(as.integer(length(yvar.types)),
                                        if (is.null(yvar.types)) NULL else as.character(yvar.types),
-                                       if (is.null(yvar.types)) NULL else as.integer(yvar.nlevels),
-                                       if (is.null(yvar.numeric.levels)) NULL else sapply(1:length(yvar.numeric.levels), function(nn) {as.integer(length(yvar.numeric.levels[[nn]]))}),
+                                       if (is.null(yvar.types)) NULL else as.integer (sapply(1:length(yvar.nlevels), function(nn) {
+                                         if(yvar.nlevels[nn] > 0) max(max.class.levels, yvar.nlevels[nn]) else 0})),
+                                       if (is.null(yvar.numeric.levels)) NULL else sapply(1:length(yvar.numeric.levels), function(nn) {
+                                         as.integer(length(yvar.numeric.levels[[nn]]))}),
                                        if (is.null(subj)) NULL else as.integer(subj),
                                        if (is.null(event.info)) NULL else as.integer(length(event.info$event.type)),
                                        if (is.null(event.info)) NULL else as.integer(event.info$event.type)),
@@ -854,7 +858,7 @@ rfsrc <- function(formula, data, ntree = 500,
                        terminal.quants = terminal.quants,
                        importance = importance.value,
                        vimp.threshold = vimp.threshold,
-                       version = "3.2.3")
+                       version = "3.3.0")
     ## family specific additions to the forest object
     if (grepl("surv", family)) {
       forest.out$time.interest <- event.info$time.interest
@@ -889,7 +893,7 @@ rfsrc <- function(formula, data, ntree = 500,
                        samptype = samptype,
                        samp = samp,
                        case.wt = case.wt,
-                       version = "3.2.3",
+                       version = "3.3.0",
                        na.action = na.action,
                        perf.type = perf.type,
                        rfq = rfq,

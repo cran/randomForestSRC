@@ -373,6 +373,7 @@ uint      RF_rFactorCount;
 uint     *RF_rFactorMap;
 uint     *RF_rFactorIndex;
 uint     *RF_rFactorSize;
+uint     *RF_rFactorSizeTest;
 uint      RF_mrFactorSize;
 uint      RF_fmrFactorSize;
 uint     *RF_mrFactorIndex;
@@ -696,6 +697,18 @@ char (*regressionXwghtSplit) (uint, Node*, SplitInfoMax*, GreedyObj*, char);
 char (*classificationXwghtSplit) (uint, Node*, SplitInfoMax*, GreedyObj*, char);
 char (*multivariateSplit) (uint, Node*, SplitInfoMax*, GreedyObj*, char);
 char (*unsupervisedSplit) (uint, Node*, SplitInfoMax*, GreedyObj*, char);
+void (*getConditionalClassificationIndex) (uint,
+                                           uint,
+                                           double*,
+                                           double**,
+                                           double*,
+                                           double*,
+                                           double*);
+double (*getGMeanIndex) (uint,
+                         uint,
+                         double*,
+                         double*,
+                         double*);
 float (*ran1A) (uint);
 void  (*randomSetChain) (uint, int);
 int   (*randomGetChain) (uint);
@@ -2684,7 +2697,7 @@ double getBrierScore(uint     obsSize,
   free_uivector(oaaResponse, 1, obsSize);
   return result;
 }
-void getConditionalClassificationIndex(uint     size,
+void getConditionalClassificationIndexGrow(uint     size,
                                        uint     rTarget,
                                        double  *responsePtr,
                                        double **outcomeCLS,
@@ -2705,6 +2718,50 @@ void getConditionalClassificationIndex(uint     size,
       cumDenomCount += 1;
       if (responsePtr[i] == maxVote[i]) {
         cpv[(uint) responsePtr[i]] += 1.0;
+      }
+    }
+  }  
+  if (cumDenomCount == 0) {
+    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+      cpv[k] = RF_nativeNaN;
+    }
+  }
+  else {
+    for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+      if (condClassificationCount[k] != 0) {
+        cpv[k] = 1.0 - cpv[k] / (double) condClassificationCount[k];
+      }
+      else {
+        cpv[k] = RF_nativeNaN;
+      }
+    }
+  }
+  free_uivector(condClassificationCount, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
+  return;
+}
+void getConditionalClassificationIndexPred(uint     size,
+                                           uint     rTarget,
+                                           double  *responsePtr,
+                                           double **outcomeCLS,
+                                           double  *maxVote,
+                                           double  *denomCount,
+                                           double  *cpv) {
+  uint i, k;
+  uint cumDenomCount;
+  uint *condClassificationCount;
+  cumDenomCount = 0;
+  condClassificationCount = uivector(1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
+  for (k=1; k <= RF_rFactorSize[RF_rFactorMap[rTarget]]; k++) {
+    cpv[k] = condClassificationCount[k] = 0;
+  }
+  for (i = 1; i <= size; i++) {
+    if ( (uint) responsePtr[i] <= RF_rFactorSize[RF_rFactorMap[rTarget]]) {
+      condClassificationCount[(uint) responsePtr[i]] ++;
+      if (denomCount[i] != 0) {
+        cumDenomCount += 1;
+        if (responsePtr[i] == maxVote[i]) {
+          cpv[(uint) responsePtr[i]] += 1.0;
+        }
       }
     }
   }  
@@ -2755,11 +2812,11 @@ double getClassificationIndex(uint     size,
   }
   return result;
 }
-double getGMeanIndex(uint    size,
-                     uint    rTarget,
-                     double *responsePtr,
-                     double *denomCount,
-                     double *maxVote) {
+double getGMeanIndexGrow(uint    size,
+                         uint    rTarget,
+                         double *responsePtr,
+                         double *denomCount,
+                         double *maxVote) {
   uint i, k;
   uint cumDenomCount;
   double *trueRate, *falseRate;
@@ -2799,6 +2856,52 @@ double getGMeanIndex(uint    size,
   }
   free_dvector(trueRate, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
   free_dvector(falseRate, 1, RF_rFactorSize[RF_rFactorMap[rTarget]]);
+  return result;
+}
+double getGMeanIndexPred(uint    size,
+                         uint    rTarget,
+                         double *responsePtr,
+                         double *denomCount,
+                         double *maxVote) {
+  uint i, k;
+  uint cumDenomCount;
+  double *trueRate, *falseRate;
+  double denom, result;
+  cumDenomCount = 0;
+  result = 1.0;
+  trueRate  = dvector(1, RF_rFactorSizeTest[RF_rFactorMap[rTarget]]);
+  falseRate = dvector(1, RF_rFactorSizeTest[RF_rFactorMap[rTarget]]);
+  for (k = 1; k <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; k++) {
+    trueRate[k] = falseRate[k] = 0;
+  }
+  for (i = 1; i <= size; i++) {
+    if (denomCount[i] > 0) {
+      cumDenomCount += 1;
+      if (responsePtr[i] == maxVote[i]) {
+        trueRate[(uint) responsePtr[i]] += 1.0;
+      }
+      else {
+        falseRate[(uint) responsePtr[i]] += 1.0;
+      }
+    }
+  }  
+  if (cumDenomCount == 0) {
+    result = RF_nativeNaN;
+  }
+  else {
+    for (k = 1; k <= RF_rFactorSizeTest[RF_rFactorMap[rTarget]]; k++) {
+      denom = trueRate[k] + falseRate[k];
+      if (denom > 0) {
+        result = result * trueRate[k] / denom; 
+      }
+      else {
+        result = result * (1 + trueRate[k]) / (1 + denom); 
+      }
+    }
+    result = 1.0 - sqrt(result);
+  }
+  free_dvector(trueRate, 1, RF_rFactorSizeTest[RF_rFactorMap[rTarget]]);
+  free_dvector(falseRate, 1, RF_rFactorSizeTest[RF_rFactorMap[rTarget]]);
   return result;
 }
 void restoreMultiClassProb(uint treeID) {
@@ -10486,6 +10589,12 @@ void rfsrc(char mode, int seedValue) {
       }
     }
     break;
+  }
+  getConditionalClassificationIndex = &getConditionalClassificationIndexGrow;
+  getGMeanIndex = &getGMeanIndexGrow;
+  if (mode == RF_PRED) {
+    getConditionalClassificationIndex = &getConditionalClassificationIndexPred;
+    getGMeanIndex = &getGMeanIndexPred;
   }
   stackMissingArraysPhase2(mode);
   stackDefinedOutputObjects(mode,
@@ -26397,9 +26506,11 @@ char stackClassificationArrays(char mode) {
         minorityClassCnt = levelCount[1];
         minorityClassID = 1;
         for (k = 1; k <= RF_rFactorSize[j]; k++) {
-          if (levelCount[k] < minorityClassCnt) {
-            minorityClassCnt = levelCount[k];
-            minorityClassID = k;
+          if (levelCount[k] > 0) {
+            if (levelCount[k] < minorityClassCnt) {
+              minorityClassCnt = levelCount[k];
+              minorityClassID = k;
+            }
           }
         }
         RF_rFactorMinority[j] = minorityClassID;
@@ -26419,6 +26530,21 @@ char stackClassificationArrays(char mode) {
     for (j = 1; j <= RF_rFactorCount; j++) {
       if (RF_rFactorSize[j] == 2) {
         RF_rFactorMinorityFlag[j] = TRUE;
+      }
+    }
+  }
+  if (mode == RF_PRED) {
+    RF_rFactorSizeTest = uivector(1, RF_rFactorCount);
+    if (RF_frSize > 0) {
+      for (k = 1; k <= RF_rFactorCount; k++) {
+        RF_rFactorSizeTest[k] = RF_rFactorSize[k];
+        for (i = 1; i <= RF_fobservationSize; i++) {
+          if (!RF_nativeIsNaN(RF_fresponseIn[RF_rFactorIndex[k]][i])) {
+            if ((uint) RF_fresponseIn[RF_rFactorIndex[k]][i] > RF_rFactorSize[k]) {
+              RF_rFactorSizeTest[k] = (uint) RF_fresponseIn[RF_rFactorIndex[k]][i];
+            }
+          }
+        }
       }
     }
   }
@@ -26448,6 +26574,9 @@ void unstackClassificationArrays(char mode) {
       free_uivector(RF_rFactorMinority, 1, RF_rFactorCount);
       free_uivector(RF_rFactorMajority, 1, RF_rFactorCount);
     }
+  }
+  if (mode == RF_PRED) {
+    free_uivector(RF_rFactorSizeTest, 1, RF_rFactorCount);
   }
 }
 void stackDefinedOutputObjects(char      mode,
@@ -37273,13 +37402,13 @@ void *stackAndProtect(char   mode,
   va_end(list);
   switch(sexpType) {
   case NATIVE_TYPE_NUMERIC:
-    PROTECT(thisVector = NEW_NUMERIC(size));
+    thisVector = PROTECT(allocVector(REALSXP, size));
     break;
   case NATIVE_TYPE_INTEGER:
-    PROTECT(thisVector = NEW_INTEGER(size));
+    thisVector = PROTECT(allocVector(INTSXP, size));
     break;
   case NATIVE_TYPE_CHARACTER:
-    PROTECT(thisVector = NEW_CHARACTER(size));
+    thisVector = PROTECT(allocVector(STRSXP, size));
     break;
   default:
     RF_nativeError("\nRF-SRC:  *** ERROR *** ");
@@ -37293,19 +37422,19 @@ void *stackAndProtect(char   mode,
   UNPROTECT(1);
   switch(sexpType) {
   case NATIVE_TYPE_NUMERIC:
-    v = (double*) NUMERIC_POINTER(thisVector);
+    v = (double*) REAL(thisVector);
     for (ulong i = 0; i < size; i++) {
       ((double*) v)[i] = value;
     }
     break;
   case NATIVE_TYPE_INTEGER:
-    v = (uint*) INTEGER_POINTER(thisVector);
+    v = (uint*) INTEGER(thisVector);
     for (ulong i = 0; i < size; i++) {
       ((uint*) v)[i] = 0;
     }
     break;
   case NATIVE_TYPE_CHARACTER:
-    v = (char*) CHARACTER_POINTER(thisVector);
+    v = (char*) CHAR(thisVector);
     for (ulong i = 0; i < size; i++) {
       ((char*) v)[i] = 0;
     }
