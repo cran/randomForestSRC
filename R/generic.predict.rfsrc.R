@@ -15,6 +15,7 @@ generic.predict.rfsrc <-
            distance = FALSE,
            var.used = c(FALSE, "all.trees", "by.tree"),
            split.depth = c(FALSE, "all.trees", "by.tree"),
+           case.depth = FALSE,
            seed = NULL,
            do.trace = FALSE,
            membership = FALSE,
@@ -103,8 +104,6 @@ generic.predict.rfsrc <-
   prob.epsilon <- is.hidden.prob.epsilon(user.option)
   ## vimp
   vimp.threshold  <- is.hidden.vimp.threshold(user.option)
-  ## case.depth
-  case.depth  <- is.hidden.case.depth(user.option)
   ## set the family
   family <- object$family
   ## pull the x-variable and y-outcome names from the grow object
@@ -150,7 +149,7 @@ generic.predict.rfsrc <-
   }
     else {
       object.version <- as.integer(unlist(strsplit(object$version, "[.]")))
-      installed.version <- as.integer(unlist(strsplit("3.3.0", "[.]")))
+      installed.version <- as.integer(unlist(strsplit("3.3.1", "[.]")))
       minimum.version <- as.integer(unlist(strsplit("2.3.0", "[.]")))
       object.version.adj <- object.version[1] + (object.version[2]/10) + (object.version[3]/100)
       installed.version.adj <- installed.version[1] + (installed.version[2]/10) + (installed.version[3]/100)
