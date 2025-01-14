@@ -28814,8 +28814,13 @@ void stackForestObjectsOutput(char mode) {
       RF_contPT_[1]  --;
       RF_mwcpSZ_[1]  --;
       RF_fsrecID_[1] --;
-      RF_mwcpPT_[1] = (uint*)   stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, totalMWCPCount[1], 0, RF_sexpString[RF_MWCP_PT], NULL, 1, totalMWCPCount[1]);
-      RF_mwcpPT_[1] --;
+      if (totalMWCPCount[1] > 0) {
+        RF_mwcpPT_[1] = (uint*)   stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, totalMWCPCount[1], 0, RF_sexpString[RF_MWCP_PT], NULL, 1, totalMWCPCount[1]);
+        RF_mwcpPT_[1] --;
+      }
+      else {
+        RF_mwcpPT_[1] = (uint*)   stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, 1, 0, RF_sexpString[RF_MWCP_PT], NULL, 1, 1);
+      }
       RF_mwcpCT_[1] = (uint*)   stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_CT, (ulong) RF_ntree, 0, RF_sexpString[RF_MWCP_CT], NULL, 1, RF_ntree);
       RF_mwcpCT_[1] --;
       if (RF_hdim > 0) {
@@ -28880,8 +28885,13 @@ void stackForestObjectsOutput(char mode) {
           integerToHexString(i, adjStr);
           strcpy(resultStr, RF_sexpString[RF_MWCP_PT]);
           strcat(resultStr, adjStr);
-          RF_mwcpPT_[i]   = (uint*)   stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, totalMWCPCount[i], 0, resultStr, NULL, 1, totalMWCPCount[i]);
-          RF_mwcpPT_[i] --;
+          if (totalMWCPCount[i] > 0) {
+            RF_mwcpPT_[i]   = (uint*)   stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, totalMWCPCount[i], 0, resultStr, NULL, 1, totalMWCPCount[i]);
+            RF_mwcpPT_[i] --;
+          }
+          else {
+            RF_mwcpPT_[i]   = (uint*)   stackAndProtect(mode, &RF_nativeIndex, NATIVE_TYPE_INTEGER, RF_MWCP_PT, 1, 0, resultStr, NULL, 1, 1);
+          }
         }
         for (i = 2; i <= RF_hdim; i++) {
           integerToHexString(i, adjStr);
@@ -36712,8 +36722,11 @@ SEXP rfsrcGrow(SEXP traceFlag,
   RF_ytry                 = INTEGER(ytry)[0];
   RF_nodeSize             = INTEGER(nodeSize)[0];
   RF_nodeDepth            = INTEGER(nodeDepth)[0];
+  RF_crWeight             = NULL;
   RF_crWeightSize         = INTEGER(crWeightSize)[0];
-  RF_crWeight             = REAL(crWeight); RF_crWeight--;
+  if (RF_crWeightSize > 0) {
+    RF_crWeight             = REAL(crWeight); RF_crWeight--;
+  }
   RF_vimpThreshold        = REAL(vimpThreshold)[0];
   RF_ntree                = INTEGER(ntree)[0];
   RF_observationSize      = INTEGER(observationSize)[0];
@@ -37403,6 +37416,12 @@ void *stackAndProtect(char   mode,
     auxiliaryDim[i] = va_arg(list, int);
   }
   va_end(list);
+  if (!(size > 0)) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  SEXP vector element is of size zero (0) and of aux dimensionality:  %20d", auxiliaryDimSize);
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+    RF_nativeExit();
+  }
   switch(sexpType) {
   case NATIVE_TYPE_NUMERIC:
     thisVector = PROTECT(allocVector(REALSXP, size));
