@@ -790,9 +790,15 @@ rfsrc <- function(formula, data, ntree = 500,
                               if(!is.null(nativeOutput$tnCLAS)) nativeOutput$tnCLAS[valid.clas.indices] else NULL,
                               nativeOutput$rmbrMembership,
                               nativeOutput$ambrMembership,
+                              nativeOutput$ombrMembership,
+                              nativeOutput$imbrMembership,
                               nativeOutput$tnRCNT[valid.mcnt.indices],
-                              nativeOutput$tnACNT[valid.mcnt.indices]);
-      names(nativeArrayTNDS) <- c("tnSURV","tnMORT","tnNLSN","tnCSHZ","tnCIFN","tnREGR","tnCLAS", "tnRMBR", "tnAMBR", "tnRCNT", "tnACNT")
+                              nativeOutput$tnACNT[valid.mcnt.indices],
+                              nativeOutput$tnOCNT[valid.mcnt.indices],
+                              nativeOutput$tnICNT[valid.mcnt.indices],                             
+                              nativeOutput$oobSZ,
+                              nativeOutput$ibgSZ);
+      names(nativeArrayTNDS) <- c("tnSURV","tnMORT","tnNLSN","tnCSHZ","tnCIFN","tnREGR","tnCLAS", "tnRMBR", "tnAMBR", "tnOMBR", "tnIMBR", "tnRCNT", "tnACNT", "tnOCNT", "tnICNT", "oobSZ", "ibgSZ")
     }
     else {
       nativeArrayTNDS <- NULL
@@ -856,7 +862,7 @@ rfsrc <- function(formula, data, ntree = 500,
                        terminal.quants = terminal.quants,
                        importance = importance.value,
                        vimp.threshold = vimp.threshold,
-                       version = "3.3.3")
+                       version = "3.4.0")
     ## family specific additions to the forest object
     if (grepl("surv", family)) {
       forest.out$time.interest <- event.info$time.interest
@@ -891,7 +897,7 @@ rfsrc <- function(formula, data, ntree = 500,
                        samptype = samptype,
                        samp = samp,
                        case.wt = case.wt,
-                       version = "3.3.3",
+                       version = "3.4.0",
                        na.action = na.action,
                        perf.type = perf.type,
                        rfq = rfq,
