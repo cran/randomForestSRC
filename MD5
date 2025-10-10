@@ -1,8 +1,8 @@
-ae16e672f7199460264bc781622009a7 *DESCRIPTION
+8fe0dd5fd8c69bfe311a2d500f456251 *DESCRIPTION
 c4d90c08d75844c1964fe388b89e58b8 *NAMESPACE
 7b15e7e738fcb46297ff2c3f86fcef8a *R/distance.R
 6db1261803865bc428630c8397dac694 *R/generic.impute.rfsrc.R
-d7c827079d790948b315a1c6fe2bc361 *R/generic.predict.rfsrc.R
+ca8962825e4c8d40ec7200d1cf9cff7b *R/generic.predict.rfsrc.R
 3919a8fbe8e70784d40017b2b3d2a183 *R/get.tree.rfsrc.R
 f5558db12cad4a08c18648542293a35e *R/holdout.vimp.rfsrc.R
 e976039a14a96f23508cb1a8b8cc5bab *R/imbalanced.rfsrc.R
@@ -18,7 +18,7 @@ f43d2435601dcc4f059f9a41cf89525c *R/plot.competing.risk.rfsrc.R
 27bb37a076dded8b4e705dc35b259489 *R/predict.rfsrc.R
 71266bc9c1045167c2d84670b9d10928 *R/print.rfsrc.R
 1b6525d403727b36a76b4bae7744f381 *R/quantreg.rfsrc.R
-b41f5d3190bcf4c43c237bdb1535f22f *R/rfsrc.R
+aab410ec4e9304f86aecdd6971df4f7c *R/rfsrc.R
 ff9072ad3dc4ef38cc9feca2ef40dd1a *R/rfsrc.anonymous.R
 019b3cd8fc9829656001801487e8f939 *R/rfsrc.cart.R
 64d23a5d20ce3ac1776e99a1f8e588cf *R/rfsrc.fast.R
@@ -46,8 +46,8 @@ ecfa73d291c021a31945f0974c50d1b2 *R/utilities_varselect.R
 c6a160551d8b0ae0c23903a25492a7e4 *R/vimp.rfsrc.R
 cf2d3f8015d7cf2f0f25baaf59226651 *R/zzz.R
 e66900a0e679a19b0c32de56a9a33366 *cleanup
-7d4160118c90df6df061b0c0380a6925 *configure
-dc1b3f32ccd75a3b0626b2f39dcadf6e *configure.ac
+ed4253aaf0cbe7d63272cd15130bd5fe *configure
+2df2ea61b2a9f7b530d4edeb7d08cb29 *configure.ac
 ec8a3fa53a505db46707dee7d3223074 *data/breast.rda
 3383dc613134cd8fbd8a2c40239cde36 *data/follic.rda
 665824ac18a859a56e7074c2a0a52739 *data/hd.rda
@@ -60,7 +60,7 @@ e87927b9d4f5b67d29e1048b59a2f711 *data/peakVO2.rda
 a89fc9c0296b028c7d392c4ad3737b08 *data/wihs.rda
 4a4d1598f6836700a7c6589c3cdf0b60 *data/wine.rda
 b7d03c3f920211ba354a63f798e19a6d *inst/CITATION
-7df6732c86e2d9e5c204120fc6da0b8a *inst/NEWS
+aab558a3971306072048e26b3391fe4f *inst/NEWS
 8880edae83822fbe8a39ef6b3586b5f9 *man/breast.Rd
 31d66443d4d6894db52b6df210db4034 *man/follic.Rd
 9bd94352dc84bd57987345809b5d2400 *man/get.tree.rfsrc.Rd
@@ -120,7 +120,7 @@ a0c2e5530f2230fb2ba1123c363f595c *src/factor.h
 248a40bd28d18d096df2b37683b77d81 *src/factorOps.c
 920124ca86aed2f76d4b0bace3e5c071 *src/factorOps.h
 6178a6b68ee6a3924a8ba84d74ffc051 *src/global.h
-2d8929f3d9a3e4d9cae796f77d1f85b1 *src/importance.c
+04022b4b71f4a4dc09b51a6847a9a91c *src/importance.c
 243def3a50fd1139d74504911e65c212 *src/importance.h
 e379d943c927ec12297bc003f61c52c5 *src/importanceAnti.c
 cd4850cde1ef9d43e09501d41f06c218 *src/importanceAnti.h
@@ -211,8 +211,8 @@ e649b0ea04bb1eb3792238ef426640fc *src/survivalE.c
 fc555aca55a2486fc24616abdac6c22b *src/termOps.c
 7141122a4dc761b7f7bd7eab07a9e490 *src/termOps.h
 d2034fa21ae179fd7cfe47e905479d9c *src/terminal.h
-365f88d3ec3f89eb8fcd0d7041dbe4ef *src/trace.c
-dd87dc1a0e9c2cb56c3fa070bda1e563 *src/trace.h
+49bd48593d571c5a83897d29d6382acb *src/trace.c
+3b74ddc00f37af6dc4d861677bd9f5c2 *src/trace.h
 d2d2c329e49411887c31c21e5250e5c2 *src/tree.c
 9b9430ca8a4704bd6415ed89078077a0 *src/tree.h
 3475e035bef498c7bc94ead6617b4a88 *src/treeJIT.c
