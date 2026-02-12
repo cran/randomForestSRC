@@ -1,8 +1,8 @@
-186b1a3207c2c0def140fc23d39104aa *DESCRIPTION
+c9bfd062f20641b085819d6e1ecfc091 *DESCRIPTION
 3a1aec820d0c255d392d95422e207621 *NAMESPACE
 7b15e7e738fcb46297ff2c3f86fcef8a *R/distance.R
 6db1261803865bc428630c8397dac694 *R/generic.impute.rfsrc.R
-24184c72c83fb78221fc5fe5f16b31ca *R/generic.predict.rfsrc.R
+ff0bd095b2db59227b78d8a3ebd96215 *R/generic.predict.rfsrc.R
 3919a8fbe8e70784d40017b2b3d2a183 *R/get.tree.rfsrc.R
 f5558db12cad4a08c18648542293a35e *R/holdout.vimp.rfsrc.R
 e976039a14a96f23508cb1a8b8cc5bab *R/imbalanced.rfsrc.R
@@ -18,7 +18,7 @@ f43d2435601dcc4f059f9a41cf89525c *R/plot.competing.risk.rfsrc.R
 27bb37a076dded8b4e705dc35b259489 *R/predict.rfsrc.R
 051467c6a1a6413883e163caa3edac4b *R/print.rfsrc.R
 83e0770ec7ec9838e8bc7d86580ab48f *R/quantreg.rfsrc.R
-358a25516136e97ccf247cef11506de8 *R/rfsrc.R
+89739a14e8e2c08c68f9b4382c6796b1 *R/rfsrc.R
 ff9072ad3dc4ef38cc9feca2ef40dd1a *R/rfsrc.anonymous.R
 c56c655a131501475b9cdbfe01933c42 *R/rfsrc.cart.R
 64d23a5d20ce3ac1776e99a1f8e588cf *R/rfsrc.fast.R
@@ -41,7 +41,7 @@ b99aa923057a8f12c25992529fb64398 *R/utilities_performance.R
 40b58b9be01919b0a4c0acdf8e78d43f *R/utilities_saveload.R
 d4caaecd3f619b101a58eab287ef8aff *R/utilities_subsample.R
 8d0fc6aa421c1b21ca7b64629817648a *R/utilities_subsample_bootstrap.R
-a2a0119b8a2f929c0a16a6848adaaef8 *R/utilities_survival.R
+817ef7d2fa53afee129ad9efe445ad7c *R/utilities_survival.R
 c640d51c1d01d9fe93dc6f93ef2647a3 *R/utilities_unsupervised.R
 ecfa73d291c021a31945f0974c50d1b2 *R/utilities_varselect.R
 c6a160551d8b0ae0c23903a25492a7e4 *R/vimp.rfsrc.R
@@ -58,7 +58,7 @@ b11e04173e64a989094a02bd2e9d4529 *data/vdv.rda
 3ecf558cb357c54521df666e085b04c3 *data/wihs.rda
 32ea9a7335a05652bc9a2b831fcf00e4 *data/wine.rda
 b7d03c3f920211ba354a63f798e19a6d *inst/CITATION
-553771de5f0187e8d3ea4a078965c272 *inst/NEWS
+a6641f4cda47b5c6967b3c1b003f842a *inst/NEWS
 d20384c20dce45e756ae45af282d71ec *inst/copyright
 8880edae83822fbe8a39ef6b3586b5f9 *man/breast.Rd
 31d66443d4d6894db52b6df210db4034 *man/follic.Rd
