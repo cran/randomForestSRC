@@ -1,6 +1,6 @@
 Package: randomForestSRC
-Version: 3.6.0
-Date: 2026-03-25
+Version: 3.6.1
+Date: 2026-04-09
 Title: Fast Unified Random Forests for Survival, Regression, and
         Classification (RF-SRC)
 Authors@R: c(person("Hemant", "Ishwaran", email = "hemant.ishwaran@gmail.com", role = "aut"),
@@ -18,6 +18,6 @@ Description: Fast OpenMP parallel computing of Breiman's random forests for univ
 License: GPL (>= 3)
 URL: https://www.randomforestsrc.org/ https://ishwaran.org/
 NeedsCompilation: yes
-Packaged: 2026-03-25 14:21:15 UTC; kogalur
+Packaged: 2026-04-09 19:19:08 UTC; kogalur
 Repository: CRAN
-Date/Publication: 2026-03-25 16:20:02 UTC
+Date/Publication: 2026-04-10 05:10:08 UTC

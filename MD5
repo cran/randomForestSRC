@@ -1,12 +1,13 @@
-55cd13926af6b2bb2473af5f93b6939e *DESCRIPTION
-492555832c485918dc4b957b54a6b315 *NAMESPACE
+f45e2594ca017b8675278c42135b9608 *DESCRIPTION
+a93d6ebf6b2cb260e764919e7016c8f5 *NAMESPACE
+1456e3434ceb5e0c3bcd15e36c14f828 *NEWS.md
 7b15e7e738fcb46297ff2c3f86fcef8a *R/distance.R
 6db1261803865bc428630c8397dac694 *R/generic.impute.rfsrc.R
-7e37908f75308d525c4a3311746c0033 *R/generic.predict.rfsrc.R
+03cbf9abd6e73d8131b078ee3d3dd049 *R/generic.predict.rfsrc.R
 3919a8fbe8e70784d40017b2b3d2a183 *R/get.tree.rfsrc.R
 f5558db12cad4a08c18648542293a35e *R/holdout.vimp.rfsrc.R
 e976039a14a96f23508cb1a8b8cc5bab *R/imbalanced.rfsrc.R
-9ceeee85bc8959663a729f49827a05c5 *R/impute.learn.rfsrc.R
+02fbbedcc8d7dea1952852e972ae0994 *R/impute.learn.rfsrc.R
 963a965ce63207d5efefd8d001512db4 *R/impute.rfsrc.R
 c1138272dd9886f60eede7d21045fc42 *R/max.subtree.rfsrc.R
 feb68bf486079622dce2ac644be65c54 *R/partial.rfsrc.R
@@ -19,7 +20,7 @@ f43d2435601dcc4f059f9a41cf89525c *R/plot.competing.risk.rfsrc.R
 27bb37a076dded8b4e705dc35b259489 *R/predict.rfsrc.R
 051467c6a1a6413883e163caa3edac4b *R/print.rfsrc.R
 83e0770ec7ec9838e8bc7d86580ab48f *R/quantreg.rfsrc.R
-05cf275fce553e1d6ff35affbb498a49 *R/rfsrc.R
+d9696fc5a902e657d4ad94649d7ce25c *R/rfsrc.R
 ff9072ad3dc4ef38cc9feca2ef40dd1a *R/rfsrc.anonymous.R
 c56c655a131501475b9cdbfe01933c42 *R/rfsrc.cart.R
 64d23a5d20ce3ac1776e99a1f8e588cf *R/rfsrc.fast.R
@@ -32,8 +33,8 @@ ed7914b1b56695c2e7a6cc83f39c7dec *R/utilities.R
 5300b38230369398f2b08c59f24ca1c4 *R/utilities_data.R
 253e283906f29c94ab3546addcbff264 *R/utilities_factor.R
 d49719f9f432c7e0f45bcb99500cee41 *R/utilities_imbalanced.R
-c65da1c79c549ad060ff564effeaed1e *R/utilities_impute.R
-f3c753e083dbc7356da483f3edfdabeb *R/utilities_impute.learn.R
+73732d1ed93838b07eb381d95ef8e238 *R/utilities_impute.R
+d514f3e3e79726744da63a179a23c2b4 *R/utilities_impute.learn.R
 66aebf7e9ad31aac84319464797593d6 *R/utilities_internal.R
 8e59b9e0dcf4d4f7f5d7df33c82249de *R/utilities_multivariate.R
 d0451e7e4b6da8e1c6ffb7435051ba8a *R/utilities_papply_psock.R
@@ -60,7 +61,6 @@ b11e04173e64a989094a02bd2e9d4529 *data/vdv.rda
 3ecf558cb357c54521df666e085b04c3 *data/wihs.rda
 32ea9a7335a05652bc9a2b831fcf00e4 *data/wine.rda
 b7d03c3f920211ba354a63f798e19a6d *inst/CITATION
-abb86b654789cb27a80f5cf81d3cb1a1 *inst/NEWS
 d20384c20dce45e756ae45af282d71ec *inst/copyright
 8880edae83822fbe8a39ef6b3586b5f9 *man/breast.Rd
 31d66443d4d6894db52b6df210db4034 *man/follic.Rd
@@ -69,7 +69,7 @@ f4363eccce6552fd74994ddef4381a95 *man/hd.Rd
 6c90734af44c189f9fd3d8c895e32353 *man/holdout.vimp.rfsrc.Rd
 c5d5485a9247e6ab29a4512f53781fa5 *man/housing.Rd
 fff7a7311936ee0e13c84e138eb364e5 *man/imbalanced.rfsrc.Rd
-645387e0b0a69a8873e4c7cc6a3dfa6a *man/impute.learn.rfsrc.Rd
+51247eba357e4e34de1d8a364c1303bd *man/impute.learn.rfsrc.Rd
 c14b31e5f4287834fd8de54741595959 *man/impute.rfsrc.Rd
 efba2212a635c0f40bcc18e60bb3f4c8 *man/max.subtree.rfsrc.Rd
 0f52b42427844b252dcb280557f6749b *man/nutrigenomic.Rd
@@ -99,6 +99,7 @@ be7edec1b99bdf8050589fd8ed36fc22 *man/veteran.Rd
 27629087a731691019a81dbea910bb14 *man/vimp.rfsrc.Rd
 6051a8d5014070da3c75f5709eda79b7 *man/wihs.Rd
 35f22f35f694bdfd79eafe5589f43a61 *man/wine.Rd
+cb8a107c998d6808d69d84d05ea9acad *src/Makevars
 43459d84548a356e3e0e0f2824abc2b2 *src/R_init_randomForestSRC.c
 a92750e30b2c604a72aaa26a348333c0 *src/bootstrap.c
 f2de5eecb9f4b20fdd6f36d125fb2162 *src/bootstrap.h
