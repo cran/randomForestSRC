@@ -166,6 +166,9 @@ void rfsrc(char mode, int seedValue) {
     RF_splitRuleObj = makeSplitRuleObj(RF_splitRule);
     break;
   default:
+    if ((mode == RF_PRED) && (RF_optHigh & OPT_DIST) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
+      RF_optHigh = RF_optHigh & (~OPT_JIT_TOP);
+    }
     acquireTree = &acquireTreeGeneric;
     antiMembership = &antiMembershipGeneric;
     randomMembership = &randomMembershipGeneric;
@@ -447,10 +450,20 @@ void rfsrc(char mode, int seedValue) {
         }
       }
       if (RF_opt & OPT_PROX) {
-        finalizeProximity(mode);
+        if ((mode == RF_PRED) && (RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) {
+          finalizeProximityHybrid(mode);
+        }
+        else {
+          finalizeProximity(mode);
+        }
       }
       if (RF_optHigh & OPT_DIST) {
-        finalizeDistance(mode);
+        if ((mode == RF_PRED) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
+          finalizeDistanceHybrid(mode);
+        }
+        else {
+          finalizeDistance(mode);
+        }
       }
       if (RF_optHigh & OPT_WGHT) {
         finalizeWeight(mode);

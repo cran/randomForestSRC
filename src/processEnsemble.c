@@ -186,21 +186,31 @@ void processEnsembleInSitu(char mode, char multImpFlag, uint b) {
     if (RF_optHigh & OPT_PART_PLOT) {
       getAndUpdatePartialMembership(b, RF_root[b]);
     }
-      if (RF_xMarginalSize > 0) {
-        getMarginalMembership(mode, b);
-      }
+    if (RF_xMarginalSize > 0) {
+      getMarginalMembership(mode, b);
+    }
     if (RF_optHigh & OPT_WGHT) {
       updateWeight(mode, b);
     }
     if (RF_optHigh & OPT_DIST) {
-      updateDistance(mode, b);
+      if ((mode == RF_PRED) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
+        updateDistanceHybrid(mode, b);
+      }
+      else {
+        updateDistance(mode, b);
+      }
     }
     if (RF_opt & OPT_PROX) {
-      updateProximity(mode, b);
-    }
-      if (RF_xMarginalSize > 0) {
-        releaseMarginalMembership(mode, b);
+      if ((mode == RF_PRED) && (RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) {
+        updateProximityHybrid(mode, b);
       }
+      else {
+        updateProximity(mode, b);
+      }
+    }
+    if (RF_xMarginalSize > 0) {
+      releaseMarginalMembership(mode, b);
+    }
 }
 void processEnsemblePost(char mode) {
   char perfFlag;
@@ -376,21 +386,31 @@ void processEnsemblePost(char mode) {
   for (bb = 1; bb <= RF_getTreeCount; bb++) {
     uint b = RF_getTreeIndex[bb];
     if (RF_tLeafCount[b] > 0) {
-        if (RF_xMarginalSize > 0) {
-          getMarginalMembership(mode, b);
-        }
-        if (RF_optHigh & OPT_WGHT) {
-          updateWeight(mode, b);
-        }
+      if (RF_xMarginalSize > 0) {
+        getMarginalMembership(mode, b);
+      }
+      if (RF_optHigh & OPT_WGHT) {
+        updateWeight(mode, b);
+      }
       if (RF_optHigh & OPT_DIST) {
-        updateDistance(mode, b);
+        if ((mode == RF_PRED) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
+          updateDistanceHybrid(mode, b);
+        }
+        else {
+          updateDistance(mode, b);
+        }
       }
       if (RF_opt & OPT_PROX) {
-        updateProximity(mode, b);
-      }
-        if (RF_xMarginalSize > 0) {
-          releaseMarginalMembership(mode, b);
+        if ((mode == RF_PRED) && (RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) {
+          updateProximityHybrid(mode, b);
         }
+        else {
+          updateProximity(mode, b);
+        }
+      }
+      if (RF_xMarginalSize > 0) {
+        releaseMarginalMembership(mode, b);
+      }
     }  
   }  
 }

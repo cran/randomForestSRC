@@ -231,32 +231,6 @@ void acquireTreeGeneric(char mode, uint r, uint b) {
     }  
   }
 }
-void finalizeWeight(char mode) {
-  uint    obsSize;
-  switch (mode) {
-  case RF_PRED:
-    obsSize = RF_fobservationSize;
-    break;
-  default:
-    obsSize = RF_observationSize;
-    break;
-  }
-#ifdef _OPENMP
-#pragma omp parallel for num_threads(RF_numThreads)
-#endif
-  for (uint i = 1; i <= obsSize; i++) {
-    if (RF_weightDenom[i] > 0) {    
-      for (uint j = 1; j <= RF_observationSize; j++) {
-        RF_weightPtr[i][j] = RF_weightPtr[i][j] /  RF_weightDenom[i];
-      }
-    }
-    else {        
-      for (uint j = 1; j <= RF_observationSize; j++) {
-        RF_weightPtr[i][j] = RF_nativeNaN;
-      }
-    }
-  }
-}
 void updateWeight(char mode, uint b) {
   uint     **utTermMembership;
   uint      *utTermMembershipCount;
@@ -365,8 +339,8 @@ void updateWeight(char mode, uint b) {
     }
   }
 }
-void finalizeProximity(char mode) {
-  uint  obsSize;
+void finalizeWeight(char mode) {
+  uint    obsSize;
   switch (mode) {
   case RF_PRED:
     obsSize = RF_fobservationSize;
@@ -379,12 +353,14 @@ void finalizeProximity(char mode) {
 #pragma omp parallel for num_threads(RF_numThreads)
 #endif
   for (uint i = 1; i <= obsSize; i++) {
-    for (uint j = 1; j <= i; j++) {
-      if (RF_proximityDenPtr[i][j] > 0) {
-        RF_proximityPtr[i][j] = RF_proximityPtr[i][j] /  RF_proximityDenPtr[i][j];
+    if (RF_weightDenom[i] > 0) {    
+      for (uint j = 1; j <= RF_observationSize; j++) {
+        RF_weightPtr[i][j] = RF_weightPtr[i][j] /  RF_weightDenom[i];
       }
-      else {
-        RF_proximityPtr[i][j] = RF_nativeNaN;
+    }
+    else {        
+      for (uint j = 1; j <= RF_observationSize; j++) {
+        RF_weightPtr[i][j] = RF_nativeNaN;
       }
     }
   }
@@ -396,30 +372,38 @@ void updateProximity(char mode, uint b) {
   uint  *membershipIndex;
   uint   membershipSize;
   uint  mtnmFlag;
+  if ((mode == RF_PRED) && (RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Illegal updateProximity() call.");
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+    RF_nativeExit();
+  }
   membershipSize  = 0;  
   membershipIndex = NULL;  
   if((RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) {
-    switch (mode) {
-    case RF_PRED:
-      membershipSize = RF_fobservationSize;
-      membershipIndex = RF_fidentityMembershipIndex;
-      tTermMembership = RF_ftTermMembership[b];
-      break;
-    default:
-      membershipSize = RF_observationSize;
-      membershipIndex = RF_identityMembershipIndex;
-      tTermMembership = RF_tTermMembership[b];
-      break;
-    }
+    membershipSize = RF_observationSize;
+    membershipIndex = RF_identityMembershipIndex;
+    tTermMembership = RF_tTermMembership[b];
   }
   else {
     if((RF_opt & OPT_PROX_IBG)  && !(RF_opt & OPT_PROX_OOB)) {
       membershipIndex = RF_ibgMembershipIndex[b];
       membershipSize  = RF_ibgSize[b];
+      tTermMembership = RF_tTermMembership[b];
     }
     else if(!(RF_opt & OPT_PROX_IBG)  && (RF_opt & OPT_PROX_OOB)) {
-      membershipIndex = RF_oobMembershipIndex[b];
-      membershipSize  = RF_oobSize[b];
+      switch (mode) {
+      case RF_PRED:
+        membershipSize = RF_fobservationSize;
+        membershipIndex = RF_fidentityMembershipIndex;
+        tTermMembership = RF_ftTermMembership[b];
+        break;
+      default:
+        membershipSize  = RF_oobSize[b];
+        membershipIndex = RF_oobMembershipIndex[b];
+        tTermMembership = RF_tTermMembership[b];
+        break;
+      }
     }
     else {
       RF_nativeError("\nRF-SRC:  *** ERROR *** ");
@@ -427,7 +411,6 @@ void updateProximity(char mode, uint b) {
       RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
       RF_nativeExit();
     }
-    tTermMembership = RF_tTermMembership[b];
   }
   if (RF_xMarginalSize > 0) {
     mtnmFlag = TRUE;
@@ -471,7 +454,35 @@ void updateProximity(char mode, uint b) {
     }
   }
 }
-void finalizeDistance(char mode) {
+void updateProximityHybrid(char mode, uint b) {
+  Terminal **tTermMembership, **ftTermMembership;
+  uint  *trainMembershipIndex, *testMembershipIndex;
+  uint   trainMembershipSize,   testMembershipSize;
+  if ( !((mode == RF_PRED) && (RF_opt & OPT_PROX_IBG) && (RF_opt & OPT_PROX_OOB)) ) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Illegal updateProximityHybrid() call.");
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+    RF_nativeExit();
+  }
+  trainMembershipSize = RF_observationSize;
+  testMembershipSize  = RF_fobservationSize;
+  trainMembershipIndex = RF_identityMembershipIndex;
+  testMembershipIndex  = RF_fidentityMembershipIndex;
+  tTermMembership  = RF_tTermMembership[b];
+  ftTermMembership = RF_ftTermMembership[b];
+  for (uint i = 1; i <= testMembershipSize; i++) {
+    uint ii, jj;
+    ii = testMembershipIndex[i];
+    for (uint j = 1; j <= trainMembershipSize; j++) {
+      jj = trainMembershipIndex[j];
+      rfsrc_omp_atomic_update(&RF_proximityDenPtr[ii][jj], 1.0);
+      if ( ftTermMembership[ii] == tTermMembership[jj] ) {
+        rfsrc_omp_atomic_update(&RF_proximityPtr[ii][jj], 1.0);
+      }
+    }
+  }
+}
+void finalizeProximity(char mode) {
   uint  obsSize;
   switch (mode) {
   case RF_PRED:
@@ -486,11 +497,26 @@ void finalizeDistance(char mode) {
 #endif
   for (uint i = 1; i <= obsSize; i++) {
     for (uint j = 1; j <= i; j++) {
-      if (RF_distanceDenPtr[i][j] > 0) {
-        RF_distancePtr[i][j] = RF_distancePtr[i][j] /  RF_distanceDenPtr[i][j];
+      if (RF_proximityDenPtr[i][j] > 0) {
+        RF_proximityPtr[i][j] = RF_proximityPtr[i][j] /  RF_proximityDenPtr[i][j];
       }
       else {
-        RF_distancePtr[i][j] = RF_nativeNaN;
+        RF_proximityPtr[i][j] = RF_nativeNaN;
+      }
+    }
+  }
+}
+void finalizeProximityHybrid(char mode) {
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+  for (uint i = 1; i <= RF_fobservationSize; i++) {
+    for (uint j = 1; j <= RF_observationSize; j++) {
+      if (RF_proximityDenPtr[i][j] > 0) {
+        RF_proximityPtr[i][j] = RF_proximityPtr[i][j] /  RF_proximityDenPtr[i][j];
+      }
+      else {
+        RF_proximityPtr[i][j] = RF_nativeNaN;
       }
     }
   }
@@ -502,30 +528,38 @@ void updateDistance(char mode, uint b) {
   uint  *membershipIndex;
   uint   membershipSize;
   uint  mtnmFlag;
+  if ((mode == RF_PRED) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Illegal updateDistance() call.");
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+    RF_nativeExit();
+  }
   membershipSize  = 0;  
   membershipIndex = NULL;  
   if((RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) {
-    switch (mode) {
-    case RF_PRED:
-      membershipSize = RF_fobservationSize;
-      membershipIndex = RF_fidentityMembershipIndex;
-      tTermMembership = RF_ftTermMembership[b];
-      break;
-    default:
-      membershipSize = RF_observationSize;
-      membershipIndex = RF_identityMembershipIndex;
-      tTermMembership = RF_tTermMembership[b];
-      break;
-    }
+    membershipSize = RF_observationSize;
+    membershipIndex = RF_identityMembershipIndex;
+    tTermMembership = RF_tTermMembership[b];
   }
   else {
     if((RF_optHigh & OPT_DIST_IBG)  && !(RF_optHigh & OPT_DIST_OOB)) {
       membershipIndex = RF_ibgMembershipIndex[b];
       membershipSize  = RF_ibgSize[b];
+      tTermMembership = RF_tTermMembership[b];
     }
     else if(!(RF_optHigh & OPT_DIST_IBG)  && (RF_optHigh & OPT_DIST_OOB)) {
-      membershipIndex = RF_oobMembershipIndex[b];
-      membershipSize  = RF_oobSize[b];
+      switch (mode) {
+      case RF_PRED:
+        membershipSize = RF_fobservationSize;
+        membershipIndex = RF_fidentityMembershipIndex;
+        tTermMembership = RF_ftTermMembership[b];
+        break;
+      default:
+        membershipSize  = RF_oobSize[b];
+        membershipIndex = RF_oobMembershipIndex[b];
+        tTermMembership = RF_tTermMembership[b];
+        break;
+      }
     }
     else {
       RF_nativeError("\nRF-SRC:  *** ERROR *** ");
@@ -533,7 +567,6 @@ void updateDistance(char mode, uint b) {
       RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
       RF_nativeExit();
     }
-    tTermMembership = RF_tTermMembership[b];
   }
   if (RF_xMarginalSize > 0) {
     mtnmFlag = TRUE;
@@ -648,8 +681,109 @@ void updateDistance(char mode, uint b) {
           }
         }
       distMarginal:
-        continue;
         rfsrc_omp_atomic_update(&RF_distancePtr[ii][jj], minDistance);
+      }
+    }
+  }
+}
+void updateDistanceHybrid(char mode, uint b) {
+  Terminal **tTermMembership, **ftTermMembership;
+  uint  *trainMembershipIndex, *testMembershipIndex;
+  uint   trainMembershipSize,   testMembershipSize;
+  if ( !((mode == RF_PRED) && (RF_optHigh & OPT_DIST_IBG) && (RF_optHigh & OPT_DIST_OOB)) ) {
+    RF_nativeError("\nRF-SRC:  *** ERROR *** ");
+    RF_nativeError("\nRF-SRC:  Illegal updateDistanceHybrid() call.");
+    RF_nativeError("\nRF-SRC:  Please Contact Technical Support.");
+    RF_nativeExit();
+  }
+  trainMembershipSize = RF_observationSize;
+  testMembershipSize  = RF_fobservationSize;
+  trainMembershipIndex = RF_identityMembershipIndex;
+  testMembershipIndex  = RF_fidentityMembershipIndex;
+  tTermMembership  = RF_tTermMembership[b];
+  ftTermMembership = RF_ftTermMembership[b];
+  for (uint i = 1; i <= testMembershipSize; i++) {
+    Node *iNodeMembership, *jNodeMembership;
+    Node *deepNodeMembership, *shallowNodeMembership;
+    uint  iEdgeCount, jEdgeCount;
+    uint  iDepthCount, jDepthCount;
+    uint  *deepEdgeCount;
+    double realDistance;
+    uint ii, jj;
+    ii = testMembershipIndex[i];
+    iNodeMembership = ftTermMembership[ii] -> mate;
+    iDepthCount = iNodeMembership -> depth;
+    for (uint j = 1; j <= trainMembershipSize; j++) {
+      jj = trainMembershipIndex[j];
+      rfsrc_omp_atomic_update(&RF_distanceDenPtr[ii][jj], 1.0);
+      jNodeMembership = tTermMembership[jj] -> mate;
+      jDepthCount = jNodeMembership -> depth;
+      iEdgeCount = jEdgeCount = 0;
+      if ((iNodeMembership -> depth) > (jNodeMembership -> depth)) {
+        deepNodeMembership = iNodeMembership;
+        shallowNodeMembership = jNodeMembership;
+        deepEdgeCount = & iEdgeCount;
+      }
+      else {
+        deepNodeMembership = jNodeMembership;
+        shallowNodeMembership = iNodeMembership;
+        deepEdgeCount = & jEdgeCount;
+      }
+      while ((deepNodeMembership -> depth) > (shallowNodeMembership -> depth)) {
+        deepNodeMembership = deepNodeMembership -> parent;
+        (*deepEdgeCount) ++;
+      }
+      while (deepNodeMembership != shallowNodeMembership) {
+        deepNodeMembership = deepNodeMembership -> parent;
+        shallowNodeMembership = shallowNodeMembership -> parent;
+        iEdgeCount ++;
+        jEdgeCount ++;
+      }
+      if (iDepthCount > 0) { 
+        realDistance = (double) (iEdgeCount + jEdgeCount) / (iDepthCount + jDepthCount);
+      }
+      else {
+        realDistance = 0;
+      }
+      rfsrc_omp_atomic_update(&RF_distancePtr[ii][jj], realDistance);
+    }
+  }
+}
+void finalizeDistance(char mode) {
+  uint  obsSize;
+  switch (mode) {
+  case RF_PRED:
+    obsSize = RF_fobservationSize;
+    break;
+  default:
+    obsSize = RF_observationSize;
+    break;
+  }
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+  for (uint i = 1; i <= obsSize; i++) {
+    for (uint j = 1; j <= i; j++) {
+      if (RF_distanceDenPtr[i][j] > 0) {
+        RF_distancePtr[i][j] = RF_distancePtr[i][j] /  RF_distanceDenPtr[i][j];
+      }
+      else {
+        RF_distancePtr[i][j] = RF_nativeNaN;
+      }
+    }
+  }
+}
+void finalizeDistanceHybrid(char mode) {
+#ifdef _OPENMP
+#pragma omp parallel for num_threads(RF_numThreads)
+#endif
+  for (uint i = 1; i <= RF_fobservationSize; i++) {
+    for (uint j = 1; j <= RF_observationSize; j++) {
+      if (RF_distanceDenPtr[i][j] > 0) {
+        RF_distancePtr[i][j] = RF_distancePtr[i][j] /  RF_distanceDenPtr[i][j];
+      }
+      else {
+        RF_distancePtr[i][j] = RF_nativeNaN;
       }
     }
   }
