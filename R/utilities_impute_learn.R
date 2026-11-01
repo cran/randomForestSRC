@@ -72,7 +72,7 @@
 }
 .impute.path.within <- function(path, parent) {
   ## Conservative comparisons on platforms with commonly case-insensitive
-  ## filesystems; false overlap is safer than deleting an aliased source.
+  ## filesystems; false overlap is safer than deleting an aliased imputer.
   if (.Platform$OS.type == "windows" || identical(Sys.info()[["sysname"]], "Darwin")) {
     path <- tolower(path)
     parent <- tolower(parent)
@@ -95,8 +95,18 @@
   }
   invisible(x)
 }
+.impute.check.learner.root <- function(learner.root) {
+  .impute.path.part(learner.root, "learner.root", nested = TRUE)
+  first <- strsplit(learner.root, "/", fixed = TRUE)[[1L]][1L]
+  if (tolower(first) == "manifest.rds") {
+    stop("'learner.root' cannot use the reserved 'manifest.rds' name.",
+         call. = FALSE)
+  }
+  invisible(learner.root)
+}
 .impute.check.layout <- function(manifest) {
-  .impute.path.part(manifest$learner.root %||% "learners", "learner.root", nested = TRUE)
+  .impute.shared.check.manifest(manifest)
+  .impute.check.learner.root(manifest$learner.root %||% "learners")
   .impute.path.part(manifest$learner.prefix %||% "impute.learner.", "learner.prefix")
   saved.names <- character(0)
   for (target in manifest$targets) {
@@ -114,7 +124,43 @@
   }
   invisible(manifest)
 }
-.impute.save.destination <- function(path, source.path = NULL) {
+## A manifest identifies an imputer directory; unrelated files or a file
+## merely named manifest.rds are not enough to authorize its replacement.
+.impute.check.destination.contents <- function(path) {
+  if (!dir.exists(path)) return(invisible(NULL))
+  if (file.access(path, 4L) != 0L) {
+    stop("Cannot inspect the save destination: ", path, call. = FALSE)
+  }
+  entries <- list.files(path, all.files = TRUE, no.. = TRUE)
+  if (!length(entries)) return(invisible(NULL))
+  previous <- tryCatch({
+    manifest <- suppressWarnings(readRDS(file.path(path, "manifest.rds")))
+    if (!is.list(manifest) ||
+        !is.character(manifest$columns) || !length(manifest$columns) ||
+        anyNA(manifest$columns) || any(!nzchar(manifest$columns)) ||
+        anyDuplicated(manifest$columns) ||
+        !is.list(manifest$schema) ||
+        !identical(names(manifest$schema), manifest$columns) ||
+        !is.character(manifest$targets) || !length(manifest$targets) ||
+        anyNA(manifest$targets) || anyDuplicated(manifest$targets) ||
+        any(!manifest$targets %in% manifest$columns) ||
+        !is.list(manifest$learners) ||
+        any(!manifest$targets %in% names(manifest$learners)) ||
+        !is.list(manifest$predictor.map) ||
+        any(!manifest$targets %in% names(manifest$predictor.map))) {
+      stop("Invalid imputer manifest.", call. = FALSE)
+    }
+    manifest <- .normalize.impute.learn.manifest(manifest)
+    .impute.check.layout(manifest)
+    manifest
+  }, error = function(e) NULL)
+  if (is.null(previous)) {
+    stop("The save destination is nonempty and is not a recognized saved imputer: ",
+         path, ". Choose a new or empty directory.", call. = FALSE)
+  }
+  invisible(previous)
+}
+.impute.save.destination <- function(path, existing.path = NULL) {
   dest <- .impute.canonical.path(path)
   protected <- unique(c(.impute.canonical.path(getwd()),
                         .impute.canonical.path(path.expand("~"))))
@@ -126,31 +172,33 @@
   if (file.exists(dest) && !dir.exists(dest)) {
     stop("Save destination is not a directory: ", dest, call. = FALSE)
   }
-  if (!is.null(source.path)) {
-    source.path <- .impute.canonical.path(source.path)
-    same <- .impute.path.within(dest, source.path) &&
-      .impute.path.within(source.path, dest)
-    if (!same && (.impute.path.within(dest, source.path) ||
-                  .impute.path.within(source.path, dest))) {
-      stop("Source and destination imputer directories must not contain one another.",
+  if (!is.null(existing.path)) {
+    existing.path <- .impute.canonical.path(existing.path)
+    same <- .impute.path.within(dest, existing.path) &&
+      .impute.path.within(existing.path, dest)
+    if (!same && (.impute.path.within(dest, existing.path) ||
+                  .impute.path.within(existing.path, dest))) {
+      stop("The existing imputer directory and the save destination must not ",
+           "contain one another.",
            call. = FALSE)
     }
   }
+  .impute.check.destination.contents(dest)
   dest
 }
-.impute.begin.save <- function(path, wipe = TRUE, source.path = NULL,
+.impute.begin.save <- function(path, wipe = TRUE, existing.path = NULL,
                                 targets = NULL) {
   .impute.flag(wipe, "wipe")
-  dest <- .impute.save.destination(path, source.path)
-  if (!is.null(source.path)) {
-    source.path <- .impute.canonical.path(source.path)
-    same <- .impute.path.within(dest, source.path) &&
-      .impute.path.within(source.path, dest)
+  dest <- .impute.save.destination(path, existing.path)
+  if (!is.null(existing.path)) {
+    existing.path <- .impute.canonical.path(existing.path)
+    same <- .impute.path.within(dest, existing.path) &&
+      .impute.path.within(existing.path, dest)
     previous.manifest <- file.path(dest, "manifest.rds")
     if (same && file.exists(previous.manifest)) {
       previous <- readRDS(previous.manifest)
       if (!setequal(previous$targets, targets)) {
-        stop("A target-subset object cannot replace its source imputer in place. ",
+        stop("A target-subset object cannot replace the existing imputer in place. ",
              "Save the subset to a different directory.", call. = FALSE)
       }
     }
@@ -175,17 +223,32 @@
   ready <- TRUE
   list(path = dest, stage = stage)
 }
-.impute.write.model <- function(model, name, root, label) {
+.impute.write.model <- function(model, name, root, label, compress = 50,
+                                 xvar.ref = NULL, shared.context = NULL) {
+  .fast.save.check.compress(compress)
   .impute.path.part(name, "learner.name")
+  forest <- .resolve.predict.forest(model)
+  if (is.null(forest) || !inherits(forest, "forest") || is.null(forest$nativeArray)) {
+    stop("Cannot save ", label, ": the model does not contain a usable forest.", call. = FALSE)
+  }
+  marker <- NULL
+  if (!is.null(xvar.ref)) {
+    .impute.shared.assert.xvar(shared.context, xvar.ref, forest$xvar, label)
+    marker <- .impute.shared.marker(shared.context, xvar.ref)
+  }
   path <- file.path(root, name)
   .safe.unlink.dir(path)
-  status <- fast.save(model, path, testing = FALSE)
+  status <- .fast.save.forest(forest, path, testing = FALSE, compress = compress,
+                              xvar.reference = marker)
   if (identical(status, FALSE)) stop("Failed to save ", label, ".", call. = FALSE)
-  ## Verify each serialized learner while staging, without retaining the whole
-  ## bank in memory. A failed read leaves the existing destination untouched.
-  restored <- .fast.load.named(name, root, label = label, strict = TRUE)
+  restored <- .fast.load.named(name, root, label = label, strict = TRUE,
+                                xvar.ref = xvar.ref, shared.context = shared.context)
   if (is.null(restored) || !is.list(restored)) {
     stop("Saved ", label, " could not be read back as a model.", call. = FALSE)
+  }
+  if (!is.null(xvar.ref) &&
+      !identical(.impute.shared.table(forest$xvar), restored$xvar)) {
+    .impute.shared.stop("Saved shared predictors failed verification for ", label, ".")
   }
   invisible(NULL)
 }
@@ -196,6 +259,7 @@
     stop("Staged manifest could not be read back.", call. = FALSE)
   }
   dest <- transaction$path
+  .impute.check.destination.contents(dest)
   backup <- NULL
   installed <- FALSE
   on.exit({
@@ -477,11 +541,20 @@
 ## Manifest compatibility and supervised forest support
 ##------------------------------------------------------------------
 ## Supply legacy defaults for supervised, raw-predictor and integer-schema metadata.
-## This normalizes known fields; it is not a full manifest integrity/version validator.
+## Shared versions are checked here; full mapping checks occur at load/save boundaries.
 .normalize.impute.learn.manifest <- function(manifest) {
   if (is.null(manifest$spec.version)) {
     manifest$spec.version <- 1L
   }
+  if (!is.numeric(manifest$spec.version) || length(manifest$spec.version) != 1L ||
+      !manifest$spec.version %in% 1:3) {
+    stop("Unsupported imputer specification version; a compatible package version is required.",
+         call. = FALSE)
+  }
+  if (identical(manifest$spec.version, 3L) && is.null(manifest$shared.xvar)) {
+    .impute.shared.stop("Shared imputer specification is missing its shared predictor descriptor.")
+  }
+  .impute.shared.check.manifest(manifest, check.refs = FALSE)
   if (is.null(manifest$supervised) || !is.list(manifest$supervised)) {
     manifest$supervised <- list(enabled = FALSE)
   }
@@ -822,7 +895,9 @@
   x
 }
 ## Extract family-specific predictions into a numeric auxiliary block.
-## Training requests OOB slots; deployment requests ordinary prediction slots.
+## Training prefers OOB slots and falls back to ordinary predictions if a
+## slot is absent, as get.mv.predicted() does for multivariate responses.
+## This fallback is only for auxiliary predictors, never OOD references.
 .supervised.materialize.aux <- function(x, family, oob = FALSE,
                                         response.schema = NULL,
                                         yvar.names = NULL) {
@@ -842,7 +917,7 @@
       pred <- getter(x, oob = TRUE)
     }
     else {
-      pred <- x$predicted.oob
+      pred <- x$predicted.oob %||% x$predicted
     }
   }
   else {
@@ -920,12 +995,21 @@
 ## Serialized objects and learner-specific predictor conformity
 ##------------------------------------------------------------------
 ## Load a named serialized object; optionally return an error message instead of stopping.
-.fast.load.named <- function(name, root, label = "saved object", strict = TRUE) {
+.fast.load.named <- function(name, root, label = "saved object", strict = TRUE,
+                               xvar.ref = NULL, shared.context = NULL) {
   .check.fst()
+  restore <- if (is.null(xvar.ref)) NULL else function(forest, marker) {
+    .impute.shared.restore(forest, marker, xvar.ref, shared.context)
+  }
   out <- tryCatch(
-    fast.load(name, root),
+    .fast.load.forest(name, root, xvar.restore = restore),
     error = function(e) e
   )
+  ## A broken shared predictor table invalidates the bank, not just one update.
+  if (inherits(out, "impute.shared.error")) stop(out)
+  if (inherits(out, "error") && !is.null(xvar.ref)) {
+    .impute.shared.stop("Failed to load shared ", label, ": ", conditionMessage(out))
+  }
   if (inherits(out, "error")) {
     msg <- paste0("Failed to load ", label, " from ",
                   file.path(root, name), ": ",
@@ -1269,10 +1353,53 @@
   out[ok] <- abs(obs[ok] - checked$values[ok])
   out
 }
-## Use negative log probability of the observed class when probabilities are present.
-## Otherwise use misclassification or scaled ordered-level distance.
+## Choose one discrepancy rule from the training OOB output. The selected
+## rule is stored with its reference and reused for every deployment call.
+.select.ood.metric <- function(pred, target.schema) {
+  if (!isTRUE(target.schema$is.factor)) {
+    return(list(name = "absolute.error"))
+  }
+  if (!is.null(.extract.class.prob(pred, target.schema))) {
+    return(list(name = "negative.log.probability", prob.floor = 1e-12))
+  }
+  list(name = if (isTRUE(target.schema$ordered)) "rank.distance" else "misclassification")
+}
+## A legacy numeric reference has an unambiguous rule. A legacy factor
+## reference could have used probabilities or labels, so it must not be guessed.
+.ood.reference.metric <- function(ref, target.schema, target) {
+  metric <- ref$metric
+  if (is.null(metric)) {
+    if (isTRUE(target.schema$is.factor)) {
+      stop("The saved OOD reference for factor target `", target,
+           "` does not record its discrepancy rule. Refit the imputer with ",
+           "save.ood = TRUE before scoring this target.", call. = FALSE)
+    }
+    return(list(name = "absolute.error"))
+  }
+  choices <- if (isTRUE(target.schema$is.factor)) {
+    c("negative.log.probability", "misclassification", "rank.distance")
+  } else "absolute.error"
+  if (!is.list(metric) || !is.character(metric$name) ||
+      length(metric$name) != 1L || is.na(metric$name) ||
+      !(metric$name %in% choices) ||
+      (identical(metric$name, "rank.distance") && !isTRUE(target.schema$ordered))) {
+    stop("Invalid saved OOD discrepancy rule for target `", target, "`.", call. = FALSE)
+  }
+  if (identical(metric$name, "negative.log.probability") &&
+      (!is.numeric(metric$prob.floor) || length(metric$prob.floor) != 1L ||
+       !is.finite(metric$prob.floor) || metric$prob.floor <= 0 || metric$prob.floor >= 1)) {
+    stop("Invalid saved OOD probability floor for target `", target, "`.", call. = FALSE)
+  }
+  metric
+}
+## Apply the selected classification discrepancy without switching rules when
+## a prediction component is absent. Unavailable predictions remain missing.
 .ood.delta.classification <- function(observed, pred, target.schema,
-                                      prob.floor = 1e-12) {
+                                      prob.floor = 1e-12,
+                                      metric = NULL) {
+  if (is.null(metric)) metric <- .select.ood.metric(pred, target.schema)$name
+  metric <- match.arg(metric, c("negative.log.probability", "misclassification",
+                               "rank.distance"))
   if (!is.numeric(prob.floor) || length(prob.floor) != 1L ||
       !is.finite(prob.floor) || prob.floor <= 0 || prob.floor >= 1) {
     stop("'prob.floor' must satisfy 0 < prob.floor < 1.", call. = FALSE)
@@ -1280,8 +1407,9 @@
   y <- as.character(observed)
   out <- rep(NA_real_, length(y))
   missing.y <- is.na(y)
-  prob <- .extract.class.prob(pred, target.schema)
-  if (!is.null(prob)) {
+  if (identical(metric, "negative.log.probability")) {
+    prob <- .extract.class.prob(pred, target.schema)
+    if (is.null(prob)) return(out)
     if (!is.numeric(prob) || nrow(prob) != length(y) ||
         is.null(colnames(prob)) || anyNA(colnames(prob)) ||
         anyDuplicated(colnames(prob))) {
@@ -1305,7 +1433,7 @@
     return(out)
   }
   cls <- pred$class
-  if (is.null(cls) && !is.null(pred$predicted)) {
+  if (is.null(cls) && is.null(dim(pred$predicted))) {
     cls <- pred$predicted
   }
   if (is.null(cls)) return(out)
@@ -1317,7 +1445,7 @@
   if (!any(ok)) {
     return(out)
   }
-  if (isTRUE(target.schema$ordered)) {
+  if (identical(metric, "rank.distance")) {
     obs.code <- match(y[ok], target.schema$levels)
     cls.code <- match(cls[ok], target.schema$levels)
     denom <- max(1L, length(target.schema$levels) - 1L)
@@ -1329,9 +1457,12 @@
   out
 }
 ## Dispatch target discrepancy calculation using the raw target schema.
-.compute.ood.delta <- function(observed, pred, target.schema) {
+.compute.ood.delta <- function(observed, pred, target.schema, metric = NULL) {
+  if (is.null(metric)) metric <- .select.ood.metric(pred, target.schema)
   if (isTRUE(target.schema$is.factor)) {
-    .ood.delta.classification(observed, pred, target.schema = target.schema)
+    .ood.delta.classification(observed, pred, target.schema = target.schema,
+                              prob.floor = metric$prob.floor %||% 1e-12,
+                              metric = metric$name)
   }
   else {
     .ood.delta.regression(observed, pred, target.schema = target.schema)
@@ -1910,6 +2041,7 @@
   ## Cache lifetime is this preparation/scoring call, not the R session.
   ## OOD scoring receives this environment and can reuse models already loaded.
   cache.env <- if (identical(cache.learners, "none")) NULL else new.env(parent = emptyenv())
+  shared.context <- .impute.shared.object.context(object)
   disk.load.targets <- character(0)
   n.disk.loads <- 0L
   target.issues <- setNames(vector("list", length(use.targets)), use.targets)
@@ -1926,7 +2058,8 @@
     for (target in use.targets) {
       info <- object$manifest$learners[[target]]
       if (!identical(info$status, "ok")) next
-      mdl.info <- .predict.get.model(object, target, cache.env = cache.env)
+      mdl.info <- .predict.get.model(object, target, cache.env = cache.env,
+                                      shared.context = shared.context)
       if (isTRUE(mdl.info$loaded.from.disk)) {
         disk.load.targets <- c(disk.load.targets, target)
         n.disk.loads <- n.disk.loads + 1L
@@ -1960,7 +2093,8 @@
           .msg("    skipping `", target, "` (", msg, ")", verbose = verbose)
           next
         }
-        mdl.info <- .predict.get.model(object, target, cache.env = cache.env)
+        mdl.info <- .predict.get.model(object, target, cache.env = cache.env,
+                                      shared.context = shared.context)
         mdl <- mdl.info$model
         if (isTRUE(mdl.info$loaded.from.disk)) {
           disk.load.targets <- c(disk.load.targets, target)
@@ -2051,6 +2185,7 @@
     harmonized = harmonized,
     cache.learners = cache.learners,
     cache.env = cache.env,
+    shared.context = shared.context,
     info = list(
       n.passes = length(pass.history),
       pass.diff = pass.history,
@@ -2077,29 +2212,16 @@
 ## Lazy learner retrieval
 ##------------------------------------------------------------------
 ## Load one target learner using its manifest entry, with optional nonfatal errors.
-.fast.load.learner <- function(target, info, learner.root, strict = TRUE) {
-  .check.fst()
-  out <- tryCatch(
-    fast.load(info$learner.name, learner.root),
-    error = function(e) e
-  )
-  if (inherits(out, "error")) {
-    msg <- paste0("Failed to load learner for `", target, "` from ",
-                  file.path(learner.root, info$learner.name), ": ",
-                  conditionMessage(out))
-    if (isTRUE(strict)) {
-      stop(msg, call. = FALSE)
-    }
-    return(list(model = NULL, error = msg))
-  }
-  if (isTRUE(strict)) {
-    return(out)
-  }
-  list(model = out, error = NULL)
+.fast.load.learner <- function(target, info, learner.root, strict = TRUE,
+                                 shared.context = NULL) {
+  .fast.load.named(info$learner.name, learner.root,
+                    label = paste0("learner for `", target, "`"), strict = strict,
+                    xvar.ref = info$xvar.ref, shared.context = shared.context)
 }
 ## Resolve a target learner from this call's cache, the object, or its saved path.
 ## A successful disk read is cached only when a cache environment is supplied.
-.predict.get.model <- function(object, target, cache.env = NULL) {
+.predict.get.model <- function(object, target, cache.env = NULL,
+                                 shared.context = NULL) {
   if (!inherits(object, "impute.learn.rfsrc")) {
     stop("'object' must inherit from class 'impute.learn.rfsrc'.", call. = FALSE)
   }
@@ -2133,7 +2255,11 @@
     ))
   }
   learner.root <- file.path(object$path, object$manifest$learner.root)
-  loaded <- .fast.load.learner(target, info, learner.root, strict = FALSE)
+  if (is.null(shared.context) && !is.null(info$xvar.ref)) {
+    shared.context <- .impute.shared.object.context(object)
+  }
+  loaded <- .fast.load.learner(target, info, learner.root, strict = FALSE,
+                               shared.context = shared.context)
   mdl <- loaded$model
   if (!is.null(cache.env) && !is.null(mdl)) {
     assign(target, mdl, envir = cache.env)
@@ -2186,4 +2312,335 @@
     enabled = TRUE,
     error = loaded$error
   )
+}
+##------------------------------------------------------------------
+## Shared training predictors: imputer-only persistence format v1
+##------------------------------------------------------------------
+## Every target still receives a normal, fully reconstructed forest.
+## Only xvar is shared. Tree structures, yvar, terminal data and OOD
+## references keep their existing representations.
+.impute.shared.stop <- function(...) {
+  stop(structure(list(message = paste0(...), call = NULL),
+                 class = c("impute.shared.error", "error", "condition")))
+}
+.impute.shared.table <- function(x) {
+  x <- data.frame(x, check.names = FALSE, stringsAsFactors = FALSE)
+  ## The existing FST learner format does not store data-frame row names.
+  rownames(x) <- NULL
+  x
+}
+.impute.shared.check.root <- function(learner.root) {
+  .impute.path.part(learner.root, "learner.root", nested = TRUE)
+  if (tolower(strsplit(learner.root, "/", fixed = TRUE)[[1L]][1L]) == "_shared_xvar") {
+    .impute.shared.stop("'learner.root' cannot use the reserved '_shared_xvar' directory.")
+  }
+  invisible(NULL)
+}
+.impute.shared.check.spec <- function(spec, saved = FALSE) {
+  if (!is.list(spec) || !identical(spec$version, 1L) ||
+      !identical(spec$file, "_shared_xvar/xvar.fst")) {
+    .impute.shared.stop("Unsupported shared-predictor storage specification.")
+  }
+  if (!is.numeric(spec$nrow) || length(spec$nrow) != 1L ||
+      !is.finite(spec$nrow) || spec$nrow < 1 || spec$nrow != floor(spec$nrow) ||
+      !is.character(spec$columns) || !length(spec$columns) ||
+      anyNA(spec$columns) || any(!nzchar(spec$columns)) || anyDuplicated(spec$columns)) {
+    .impute.shared.stop("Invalid shared-predictor dimensions or column names.")
+  }
+  if (!is.null(spec$md5) || isTRUE(saved)) {
+    if (!is.character(spec$md5) || length(spec$md5) != 1L || is.na(spec$md5) ||
+        !grepl("^[[:xdigit:]]{32}$", spec$md5)) {
+      .impute.shared.stop("Missing or invalid shared-predictor checksum.")
+    }
+  }
+  invisible(NULL)
+}
+.impute.shared.check.ref <- function(ref, spec) {
+  .impute.shared.check.spec(spec)
+  if (!is.list(ref) || !identical(ref$version, 1L) ||
+      !is.character(ref$columns) || !length(ref$columns) || anyNA(ref$columns) ||
+      anyDuplicated(ref$columns) || any(!ref$columns %in% spec$columns) ||
+      !is.list(ref$schema) || !identical(names(ref$schema), ref$columns)) {
+    .impute.shared.stop("Invalid learner shared-predictor mapping.")
+  }
+  rows <- ref$rows
+  if (!is.null(rows) &&
+      (!is.integer(rows) || !length(rows) || anyNA(rows) ||
+       any(rows < 1L | rows > spec$nrow) || anyDuplicated(rows))) {
+    .impute.shared.stop("Invalid learner row indices in shared-predictor mapping.")
+  }
+  for (item in ref$schema) {
+    if (!is.list(item) || !is.character(item$type) || length(item$type) != 1L ||
+        !item$type %in% c("integer", "double") ||
+        !is.logical(item$factor) || length(item$factor) != 1L || is.na(item$factor) ||
+        (!is.null(item$attributes) && !is.list(item$attributes))) {
+      .impute.shared.stop("Invalid column schema in shared-predictor mapping.")
+    }
+    if (isTRUE(item$factor) &&
+        (!identical(item$type, "integer") ||
+         !is.character(item$attributes$levels) ||
+         !("factor" %in% item$attributes$class))) {
+      .impute.shared.stop("Invalid factor encoding in shared-predictor mapping.")
+    }
+  }
+  invisible(NULL)
+}
+.impute.shared.check.manifest <- function(manifest, check.refs = TRUE) {
+  spec <- manifest$shared.xvar
+  if (is.null(spec)) return(invisible(NULL))
+  if (!identical(manifest$spec.version, 3L)) {
+    .impute.shared.stop("Shared predictors require imputer specification version 3.")
+  }
+  .impute.shared.check.spec(spec)
+  .impute.shared.check.root(manifest$learner.root %||% "learners")
+  if (isTRUE(manifest$anonymous)) {
+    .impute.shared.stop("Anonymous imputation learners cannot use shared training predictors.")
+  }
+  if (!isTRUE(check.refs)) return(invisible(NULL))
+  for (target in manifest$targets) {
+    info <- manifest$learners[[target]]
+    if (identical(info$status, "ok")) {
+      .impute.shared.check.ref(info$xvar.ref, spec)
+    }
+  }
+  invisible(NULL)
+}
+.impute.shared.context <- function(spec, data = NULL, path = NULL) {
+  if (is.null(spec)) return(NULL)
+  .impute.shared.check.spec(spec)
+  ctx <- new.env(parent = emptyenv())
+  ctx$spec <- spec
+  ctx$data <- if (is.null(data)) NULL else .impute.shared.table(data)
+  ctx$path <- path
+  ctx$disk.loads <- 0L
+  if (!is.null(ctx$data)) .impute.shared.check.table(ctx$data, spec)
+  ctx
+}
+.impute.shared.object.context <- function(object) {
+  .impute.shared.context(object$manifest$shared.xvar,
+                         data = object$shared.xvar.data, path = object$path)
+}
+.impute.shared.new <- function(data, learner.root) {
+  .impute.shared.check.root(learner.root)
+  data <- .impute.shared.table(data)
+  spec <- list(version = 1L, file = "_shared_xvar/xvar.fst",
+               nrow = nrow(data), columns = names(data), md5 = NULL)
+  .impute.shared.context(spec, data = data)
+}
+.impute.shared.check.table <- function(data, spec) {
+  if (!is.data.frame(data) || nrow(data) != spec$nrow ||
+      !identical(names(data), spec$columns)) {
+    .impute.shared.stop("Shared predictor table does not match its saved specification.")
+  }
+  if (any(!vapply(data, function(v) {
+    is.null(dim(v)) && typeof(v) %in% c("integer", "double")
+  }, logical(1)))) {
+    .impute.shared.stop("Shared predictors must be numeric, integer or factor columns.")
+  }
+  invisible(NULL)
+}
+## Relative to the bank, never to the process working directory.
+.impute.shared.file <- function(spec, path, must.exist = TRUE) {
+  .impute.shared.check.spec(spec, saved = must.exist)
+  if (is.null(path)) .impute.shared.stop("The shared predictor table has no saved path.")
+  bank <- .impute.canonical.path(path)
+  file <- .impute.canonical.path(file.path(bank, spec$file))
+  if (!.impute.path.within(file, bank)) {
+    .impute.shared.stop("Shared predictor path escapes its imputer directory.")
+  }
+  if (isTRUE(must.exist) && (!file.exists(file) || dir.exists(file))) {
+    .impute.shared.stop("Shared predictor file is missing: ", file,
+                        ". Keep the complete imputer directory together.")
+  }
+  file
+}
+## Laziness applies to both model payloads and the shared predictor table.
+## Even with cache.learners='none', one operation reads that table only once.
+.impute.shared.data <- function(ctx) {
+  if (is.null(ctx)) .impute.shared.stop("Shared predictor context is unavailable.")
+  if (!is.null(ctx$data)) return(ctx$data)
+  file <- .impute.shared.file(ctx$spec, ctx$path)
+  actual <- unname(tools::md5sum(file))
+  if (is.na(actual) || !identical(actual, ctx$spec$md5)) {
+    .impute.shared.stop("Shared predictor checksum mismatch: ", file)
+  }
+  data <- tryCatch(fst::read_fst(file), error = function(e) {
+    .impute.shared.stop("Cannot load shared predictors: ", conditionMessage(e))
+  })
+  data <- .impute.shared.table(data)
+  .impute.shared.check.table(data, ctx$spec)
+  ctx$data <- data
+  ctx$disk.loads <- ctx$disk.loads + 1L
+  data
+}
+## Remove only the previous bank's owned shared file from a private stage.
+## Unrelated destination files continue to follow the existing wipe policy.
+.impute.shared.prepare.stage <- function(transaction, learner.root, enabled) {
+  if (isTRUE(enabled)) .impute.shared.check.root(learner.root)
+  old.manifest <- file.path(transaction$path, "manifest.rds")
+  if (file.exists(old.manifest)) {
+    old <- readRDS(old.manifest)
+    if (!is.null(old$shared.xvar)) {
+      .impute.shared.check.spec(old$shared.xvar, saved = TRUE)
+      owned <- file.path(transaction$stage, old$shared.xvar$file)
+      if (file.exists(owned)) .safe.unlink.dir(owned)
+      parent <- dirname(owned)
+      if (dir.exists(parent) && !length(list.files(parent, all.files = TRUE, no.. = TRUE))) {
+        .safe.unlink.dir(parent)
+      }
+    }
+  }
+  file <- file.path(transaction$stage, "_shared_xvar", "xvar.fst")
+  if (isTRUE(enabled) && (file.exists(file) || dir.exists(file))) {
+    .impute.shared.stop("The reserved shared predictor file already exists and is not owned by this bank.")
+  }
+  invisible(NULL)
+}
+.impute.shared.write <- function(ctx, stage, compress) {
+  .fast.save.check.compress(compress)
+  data <- .impute.shared.data(ctx)
+  file <- .impute.shared.file(ctx$spec, stage, must.exist = FALSE)
+  .safe.dir.create(dirname(file))
+  fst::write_fst(data, file, compress = compress)
+  restored <- .impute.shared.table(fst::read_fst(file))
+  if (!identical(data, restored)) {
+    .impute.shared.stop("The shared predictor table failed its FST round-trip check.")
+  }
+  checksum <- unname(tools::md5sum(file))
+  ctx$spec$md5 <- checksum
+  .impute.shared.check.spec(ctx$spec, saved = TRUE)
+  ctx$path <- stage
+  ctx$data <- restored
+  invisible(ctx)
+}
+.impute.shared.reconstruct <- function(data, ref, spec) {
+  .impute.shared.check.ref(ref, spec)
+  rows <- if (is.null(ref$rows)) seq_len(spec$nrow) else ref$rows
+  out <- lapply(seq_along(ref$columns), function(j) {
+    v <- data[[ref$columns[j]]][rows]
+    meta <- ref$schema[[j]]
+    if (isTRUE(meta$factor)) {
+      ## Match labels to THIS forest's levels; do not reuse bank-wide codes.
+      v <- match(as.character(v), meta$attributes$levels)
+    } else if (identical(meta$type, "integer")) {
+      v <- as.integer(v)
+    } else {
+      v <- as.double(v)
+    }
+    attributes(v) <- meta$attributes
+    v
+  })
+  names(out) <- ref$columns
+  out <- as.data.frame(out, optional = TRUE, stringsAsFactors = FALSE)
+  rownames(out) <- NULL
+  out
+}
+## Capture row identities at fitting, and verify against the actual forest,
+## including numeric promotion and learner-specific factor encodings.
+.impute.shared.reference <- function(ctx, forest, rows, label) {
+  if (is.null(forest) || inherits(forest, "anonymous") || is.null(forest$xvar)) {
+    .impute.shared.stop("Cannot share predictors for ", label,
+                        ": a non-anonymous forest with training predictors is required.")
+  }
+  data <- .impute.shared.data(ctx)
+  expected <- .impute.shared.table(forest$xvar)
+  if (nrow(expected) != length(rows) || !identical(names(expected), forest$xvar.names)) {
+    .impute.shared.stop("Cannot share predictors for ", label,
+                        ": forest row or column structure changed during fitting.")
+  }
+  ref <- list(
+    version = 1L,
+    rows = if (identical(as.integer(rows), seq_len(nrow(data)))) NULL else as.integer(rows),
+    columns = names(expected),
+    schema = lapply(expected, function(v) {
+      list(type = typeof(v), factor = is.factor(v), attributes = attributes(v))
+    })
+  )
+  .impute.shared.assert.xvar(ctx, ref, expected, label)
+  ref
+}
+.impute.shared.assert.xvar <- function(ctx, ref, xvar, label) {
+  rebuilt <- .impute.shared.reconstruct(.impute.shared.data(ctx), ref, ctx$spec)
+  if (!identical(.impute.shared.table(xvar), rebuilt)) {
+    .impute.shared.stop("Exact shared-predictor reconstruction failed for ", label,
+                        ". No destination has been replaced. Use share.xvar = FALSE for this fit.")
+  }
+  invisible(rebuilt)
+}
+## A small checksum of row/column/encoding metadata detects a changed mapping
+## or a learner directory accidentally copied from a different bank.
+.impute.shared.ref.hash <- function(ref) {
+  file <- tempfile("impute-xvar-ref-")
+  con <- base::file(file, open = "wb")
+  on.exit({try(close(con), silent = TRUE); unlink(file, force = TRUE)}, add = TRUE)
+  ## Hash values in a fixed byte encoding. R's serialize() header records
+  ## the writer's R version, so hashing that stream is not portable.
+  write.int <- function(x) writeBin(as.integer(x), con, size = 4L, endian = "big")
+  write.string <- function(x) {
+    if (is.na(x)) {
+      write.int(-1L)
+    } else {
+      bytes <- charToRaw(enc2utf8(x))
+      write.int(length(bytes))
+      writeBin(bytes, con)
+    }
+  }
+  encode <- function(x) {
+    type <- typeof(x)
+    write.string(type)
+    write.int(length(x))
+    nm <- names(x)
+    write.int(!is.null(nm))
+    if (!is.null(nm)) for (name in nm) write.string(name)
+    if (type == "NULL") return(invisible(NULL))
+    if (type == "list") {
+      for (item in x) encode(item)
+    } else if (type == "character") {
+      for (item in x) write.string(item)
+    } else if (type %in% c("logical", "integer")) {
+      write.int(x)
+    } else if (type == "double") {
+      for (item in x) {
+        tag <- if (is.nan(item)) 2L else if (is.na(item)) 1L else if (is.infinite(item)) {
+          if (item > 0) 3L else 4L
+        } else 0L
+        write.int(tag)
+        if (tag == 0L) writeBin(item, con, size = 8L, endian = "big")
+      }
+    } else if (type == "raw") {
+      writeBin(x, con)
+    } else {
+      .impute.shared.stop("Unsupported metadata type in shared-predictor mapping: ", type)
+    }
+    invisible(NULL)
+  }
+  encode(ref)
+  close(con)
+  out <- unname(tools::md5sum(file))
+  if (is.na(out)) .impute.shared.stop("Could not checksum shared-predictor mapping.")
+  out
+}
+.impute.shared.marker <- function(ctx, ref) {
+  .impute.shared.check.spec(ctx$spec, saved = TRUE)
+  .impute.shared.check.ref(ref, ctx$spec)
+  list(version = 1L, source.md5 = ctx$spec$md5,
+       reference.md5 = .impute.shared.ref.hash(ref))
+}
+.impute.shared.restore <- function(forest, marker, ref, ctx) {
+  if (is.null(ctx) || is.null(ref) || !is.list(marker) ||
+      !identical(marker$version, 1L)) {
+    .impute.shared.stop("Shared learner is missing its predictor reconstruction specification.")
+  }
+  .impute.shared.check.spec(ctx$spec, saved = TRUE)
+  .impute.shared.check.ref(ref, ctx$spec)
+  if (!identical(marker$source.md5, ctx$spec$md5) ||
+      !identical(marker$reference.md5, .impute.shared.ref.hash(ref))) {
+    .impute.shared.stop("Shared learner does not match its shared predictors or reconstruction mapping.")
+  }
+  data <- .impute.shared.data(ctx)
+  x <- .impute.shared.reconstruct(data, ref, ctx$spec)
+  if (nrow(x) != forest$n || !identical(names(x), forest$xvar.names)) {
+    .impute.shared.stop("Reconstructed predictors do not match the saved forest dimensions.")
+  }
+  x
 }

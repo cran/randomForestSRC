@@ -301,6 +301,10 @@ void rfsrc(char mode, int seedValue) {
   stackTNQuantitativeForestObjectsPtrOnly(mode);
   uint bnpSize;
   bnpSize = getVimpRecoverySeedDimension(mode, RF_opt);
+  char useWideSeed = FALSE;
+  
+  useWideSeed = (RF_rngProtocol == RF_RNG_WIDE);
+  
   ran1A = &randomChainParallel;
   ran1B = &randomUChainParallel;
   ran1D = &randomChainParallelVimp;
@@ -312,32 +316,20 @@ void rfsrc(char mode, int seedValue) {
   randomGetChainVimp = &randomGetChainParallelVimp;
   randomStack(RF_ntree, bnpSize);
   if (mode == RF_GROW) {
-    seedValueLC = abs(seedValue);
-    lcgenerator(&seedValueLC, TRUE);
+    seedValueLC = 0U - (uint) seedValue;
+    randomSeedHead(&seedValueLC, TRUE, useWideSeed);
     for (b = 1; b <= RF_ntree; b++) {
-      lcgenerator(&seedValueLC, FALSE);
-      lcgenerator(&seedValueLC, FALSE);
-      while(seedValueLC == 0) {
-        lcgenerator(&seedValueLC, FALSE);
-      }
-      randomSetChain(b, -seedValueLC);
+      randomSeedHead(&seedValueLC, FALSE, useWideSeed);
+      randomSetChain(b, -(int) seedValueLC);
     }
     for (b = 1; b <= RF_ntree; b++) {
-      lcgenerator(&seedValueLC, FALSE);
-      lcgenerator(&seedValueLC, FALSE);
-      while(seedValueLC == 0) {
-        lcgenerator(&seedValueLC, FALSE);
-      }
-      randomSetUChain(b, -seedValueLC);
+      randomSeedHead(&seedValueLC, FALSE, useWideSeed);
+      randomSetUChain(b, -(int) seedValueLC);
     }
     if (bnpSize > 0) {
       for (p = 1; p <= bnpSize; p++) {
-        lcgenerator(&seedValueLC, FALSE);
-        lcgenerator(&seedValueLC, FALSE);
-        while(seedValueLC == 0) {
-          lcgenerator(&seedValueLC, FALSE);
-        }
-        randomSetChainVimp(p, -seedValueLC);
+        randomSeedHead(&seedValueLC, FALSE, useWideSeed);
+        randomSetChainVimp(p, -(int) seedValueLC);
       }
     }
   }  
@@ -345,15 +337,11 @@ void rfsrc(char mode, int seedValue) {
     for (b = 1; b <= RF_ntree; b++) {
       randomSetChain(b , RF_seed_[b]);
     }
-    seedValueLC = abs(seedValue);
-    lcgenerator(&seedValueLC, TRUE);
+    seedValueLC = 0U - (uint) seedValue;
+    randomSeedHead(&seedValueLC, TRUE, useWideSeed);
     for (b = 1; b <= RF_ntree; b++) {
-      lcgenerator(&seedValueLC, FALSE);
-      lcgenerator(&seedValueLC, FALSE);
-      while(seedValueLC == 0) {
-        lcgenerator(&seedValueLC, FALSE);
-      }
-      randomSetUChain(b, -seedValueLC);
+      randomSeedHead(&seedValueLC, FALSE, useWideSeed);
+      randomSetUChain(b, -(int) seedValueLC);
     }
     if (RF_opt & OPT_VIMP) {
       if ( (RF_opt & (OPT_VIMP | OPT_VIMP_JOIN | OPT_VIMP_TYP1 | OPT_VIMP_TYP2)) ==
@@ -364,12 +352,8 @@ void rfsrc(char mode, int seedValue) {
       }
       else {
         for (p = 1; p <= bnpSize; p++) {
-          lcgenerator(&seedValueLC, FALSE);
-          lcgenerator(&seedValueLC, FALSE);
-          while(seedValueLC == 0) {
-            lcgenerator(&seedValueLC, FALSE);
-          }
-          randomSetChainVimp(p, -seedValueLC);
+          randomSeedHead(&seedValueLC, FALSE, useWideSeed);
+          randomSetChainVimp(p, -(int) seedValueLC);
         }
       }
     }
@@ -392,24 +376,16 @@ void rfsrc(char mode, int seedValue) {
         if (RF_opt & OPT_SEED) {
           for (b = 1; b <= RF_ntree; b++) {
             if (r > 1) {
-              lcgenerator(&seedValueLC, FALSE);
-              lcgenerator(&seedValueLC, FALSE);
-              while(seedValueLC == 0) {
-                lcgenerator(&seedValueLC, FALSE);
-              }
-              randomSetChain(b, -seedValueLC);
+              randomSeedHead(&seedValueLC, FALSE, useWideSeed);
+              randomSetChain(b, -(int) seedValueLC);
             }
             RF_seed_[b] = randomGetChain(b);
           }
           if (bnpSize > 0) {
             for (p = 1; p <= bnpSize; p++) {  
               if (r > 1) {
-                lcgenerator(&seedValueLC, FALSE);
-                lcgenerator(&seedValueLC, FALSE);
-                while(seedValueLC == 0) {
-                  lcgenerator(&seedValueLC, FALSE);
-                }
-                randomSetChainVimp(p, -seedValueLC);
+                randomSeedHead(&seedValueLC, FALSE, useWideSeed);
+                randomSetChainVimp(p, -(int) seedValueLC);
               }
               RF_seedVimp_[p] = randomGetChainVimp(p);
             }

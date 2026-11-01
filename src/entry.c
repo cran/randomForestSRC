@@ -12,7 +12,18 @@
 #include "entryGeneric.h"
 #include "nativeUtil.h"
 #include "rfsrc.h"
+#include "random.h"
 #include "stackOutput.h"
+static int getRNGProtocol(SEXP value) {
+  if (TYPEOF(value) != INTSXP || XLENGTH(value) != 1) {
+    Rf_error("RNG protocol must be a single integer.");
+  }
+  int protocol = INTEGER(value)[0];
+  if (protocol != RF_RNG_LEGACY && protocol != RF_RNG_WIDE) {
+    Rf_error("Unsupported RNG protocol.");
+  }
+  return protocol;
+}
 SEXP rfsrcGrow(SEXP traceFlag,
                SEXP seedPtr,
                SEXP optLow,
@@ -50,7 +61,9 @@ SEXP rfsrcGrow(SEXP traceFlag,
                SEXP quantileInfo,
                SEXP qStarPlus,
                SEXP unoWeight,
+               SEXP rngProtocol,
                SEXP numThreads) {
+  RF_rngProtocol = getRNGProtocol(rngProtocol);
   clock_t cpuTimeStart = clock();
   setUserTraceFlag(INTEGER(traceFlag)[0]);
   setNativeGlobalEnv(&RF_nativeIndex, &RF_stackCount);
@@ -313,8 +326,10 @@ SEXP rfsrcPredict(SEXP traceFlag,
                   SEXP quantile,
                   SEXP getTree,
                   SEXP unoWeight,
+                  SEXP rngProtocol,
                   SEXP numThreads) {
   char mode;
+  RF_rngProtocol = getRNGProtocol(rngProtocol);
   clock_t cpuTimeStart = clock();
   setUserTraceFlag(INTEGER(traceFlag)[0]);
   setNativeGlobalEnv(&RF_nativeIndex, &RF_stackCount);

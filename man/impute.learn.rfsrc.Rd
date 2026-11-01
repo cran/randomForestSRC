@@ -65,9 +65,12 @@ impute.learn.rfsrc(formula, data,
   keep.ximp = FALSE,
   save.on.fit = !is.null(out.dir),
   save.ood = TRUE,
-  weight = NULL)
+  weight = NULL,
+  compress = 50,
+  share.xvar = FALSE)
 
-save.impute.learn.rfsrc(object, path, wipe = TRUE, verbose = TRUE)
+save.impute.learn.rfsrc(object, path, wipe = TRUE, verbose = TRUE,
+  compress = 50, share.xvar = NULL)
 
 load.impute.learn.rfsrc(path, targets = NULL, lazy = TRUE, verbose = TRUE)
 
@@ -145,7 +148,7 @@ impute.ood.rfsrc(object, newdata,
     in \code{manifest$train.imputation}.}
 
   \item{eps}{Finite nonnegative convergence threshold. In \code{impute.learn} this
-    controls the initial training-data imputation. In
+    controls the initial \code{missForest} imputation. In
     \code{predict.impute.learn} and \code{impute.ood} it controls early
     stopping for the prediction-time sweep.}
 
@@ -235,19 +238,19 @@ impute.ood.rfsrc(object, newdata,
     learner root. \code{learner.root} must be a relative directory path
     within the imputer directory. \code{learner.prefix} must be a single
     file-name component. Absolute paths and parent-directory components
-    are not allowed.}
+    are not allowed. The top-level name \file{manifest.rds} is reserved.}
 
   \item{out.dir}{Optional output directory. If supplied and
     \code{save.on.fit = TRUE}, the manifest and the saved full-sweep
     learners are written to this directory during fitting. This requires
-    the \pkg{fst} package because learners are serialized with
-    \code{fast.save}. If \code{supervised.formula} is supplied, the
+    the \pkg{fst} package because learner components are serialized
+    in FST format. If \code{supervised.formula} is supplied, the
     internal supervised forest is also saved there.}
 
-  \item{wipe}{If \code{TRUE}, replaces an existing output directory
+  \item{wipe}{If \code{TRUE}, replaces an existing saved-imputer directory
     after the new imputer has been written and verified. If \code{FALSE},
-    unrelated existing files are retained. Saving uses a temporary
-    bundle and requires additional disk space.}
+    other files already inside that directory are retained. Saving uses
+    a temporary bundle and requires additional disk space.}
 
   \item{keep.models}{If \code{TRUE}, keeps the fitted full-sweep
     learners in memory in the returned object. At least one storage mode
@@ -263,6 +266,15 @@ impute.ood.rfsrc(object, newdata,
   \item{save.on.fit}{If \code{TRUE} and \code{out.dir} is supplied,
     writes the imputer to disk during fitting.}
 
+  \item{compress}{A single number from 0 to 100 controlling lossless
+    FST compression of saved learners. The default, 50, balances file
+    size and saving speed. Use 100 for stronger compression at the cost
+    of slower saving. Applies to the target learners and the optional
+    supervised forest. In \code{impute.learn.rfsrc}, this controls saving
+    during fitting; in \code{save.impute.learn.rfsrc}, it controls the
+    current save call and defaults to 50 independently of any earlier
+    setting. It does not change forest fitting or prediction.}
+
   \item{save.ood}{If \code{TRUE}, computes and stores an OOD reference.
     The reference is built during training from target-wise out-of-bag
     reconstruction discrepancies, their target-wise calibrated training
@@ -273,17 +285,27 @@ impute.ood.rfsrc(object, newdata,
     percentile for arbitrary target subsets, test-time weight overrides,
     and alternate row aggregates besides the weighted mean.}
 
+  \item{share.xvar}{Share the completed training predictor table across
+    non-anonymous target learners instead of writing a separate
+    \file{xvar.rda} for each learner. The fitting default is \code{FALSE}.
+    Set \code{share.xvar = TRUE} and \code{anonymous = FALSE} when fitting
+    to capture the common table and exact learner row/column mappings.
+    The option applies to saving during fitting and to later explicit
+    saving. For \code{save.impute.learn}, \code{NULL} uses the object's
+    shared-storage setting; \code{FALSE} writes self-contained learners.
+    An older bank fitted without shared mappings cannot be converted by
+    setting this argument alone. See Details.}
+
   \item{object}{An object returned by \code{impute.learn} or
     \code{load.impute.learn}.}
 
-  \item{path}{Directory containing a saved imputer. Use a dedicated
-    directory rather than a filesystem root, home directory, working
-    directory, or an ancestor of these. A complete bank can be saved
-    back to its source path. Otherwise, source and destination directories
-    must not contain one another. An object loaded with a target subset
-    must be saved to a different directory. Save and load operations
-    require the \pkg{fst} package because learners are read and written
-    with \code{fast.save} and \code{fast.load}.}
+  \item{path}{For \code{save.impute.learn}, the destination directory.
+    For \code{load.impute.learn}, the directory containing the saved
+    imputer. Relative paths are resolved from the current working
+    directory. Saving restrictions are described in Details; they do
+    not apply to loading. Both operations require the \pkg{fst}
+    package. Use \code{load.impute.learn} to load the complete imputer,
+    including its shared predictors when present.}
 
   \item{targets}{Optional subset of target variables to load, update,
     or score. Unknown names are ignored with a warning. For
@@ -425,9 +447,9 @@ impute.ood.rfsrc(object, newdata,
         targets are updated one at a time. Other positive settings use
         the multivariate \code{missForest} generalization.
 
-        If \code{mf.q} is omitted, on-the-fly imputation is used when
-        \code{formula} is specified; otherwise default unsupervised
-        imputation is used. Complete training data with
+        If \code{mf.q} is omitted, on-the-fly imputation is used. It is
+        supervised when an initial-imputation formula is used, and
+        unsupervised otherwise. Complete training data with
         \code{target.mode = "all"} skip this stage.
 
       \item \strong{Fit the saved learners.} A full forest sweep is
@@ -466,21 +488,90 @@ impute.ood.rfsrc(object, newdata,
     saved target's predictor set. \code{deployment.xvars} restricts
     only the raw predictors; users do not need to supply auxiliary
     columns in new data.
+
+    Ordinary forest predictions fill unavailable auxiliary predictions,
+    including when the supervised forest has no OOB predictions, as
+    with \code{supervised.args = list(bootstrap = "none")}.
+    This fallback applies only to auxiliary predictors. OOD reference
+    discrepancies always use the final target learners' OOB predictions.
   }
 
   \subsection{Saving and loading}{
-    A saved imputer consists of a small manifest and a directory of
-    learners. Each learner is saved with \code{fast.save} and loaded
-    with \code{fast.load}, so save and load operations require the
-    \pkg{fst} package. The supervised forest, when used, is saved
+    A saved imputer consists of a manifest and a directory of learners,
+    with an optional shared predictor table. Learner components use the
+    same serializers as \code{fast.save} and \code{fast.load}, so saving
+    and loading require the \pkg{fst} package. The supervised forest, when used, is saved
     alongside the target learners. The explicit save method can save
-    learners from memory or load them from an attached saved path.
+    learners from memory or from the directory where the imputer is
+    already saved.
+
+    Each imputer has its own directory, which can be inside a project
+    directory; for example, \code{file.path(getwd(), "imputer")}.
+    Saving accepts a new directory, an empty directory, or a directory
+    recognized as a saved imputer by its manifest. Other nonempty
+    directories are rejected with either setting of \code{wipe}.
+
+    Saving cannot replace the current working directory, home directory,
+    filesystem root, or their ancestors. A complete imputer can be saved
+    back to the same directory. A different destination must neither
+    contain nor be inside the existing imputer directory. An object
+    loaded with a target subset must be saved to a different directory.
+    Loading has none of these location restrictions.
+
+    Set \code{compress = 100} for stronger FST compression when saving
+    a deployment bundle. Supply this directly to \code{impute.learn}
+    or \code{save.impute.learn}, rather than in
+    \code{full.sweep.options}. The manifest and remaining RDS metadata
+    use their existing compression settings. Loading requires no
+    compression argument.
 
     Both training-time and explicit saving write and verify the new
     learners before replacing an existing destination. A failed staging
     operation leaves the previous saved imputer unchanged. If replacement
     fails, restoration of the previous directory is attempted; an
     unrecovered backup path is reported.
+  }
+
+  \subsection{Shared training predictors}{
+    With \code{share.xvar = TRUE}, the completed training table used by
+    the final target learners is saved once in
+    \file{_shared_xvar/xvar.fst}. In supervised mode this table also
+    includes the auxiliary training predictors actually used in those
+    fits. Each target stores its exact training-row indices, predictor
+    names and column encodings. These reconstruct the learner's
+    training predictors before prediction. Reconstruction is checked
+    against the fitted forest before its separate \file{xvar.rda} is
+    omitted. Trees, responses, terminal information and OOD references
+    keep their existing representations. The single supervised forest
+    remains self-contained.
+
+    Shared storage requires \code{anonymous = FALSE}. It is independent
+    of \code{compress}, \code{terminal.qualts} and
+    \code{terminal.quants}; their existing settings still apply.
+    \code{keep.ximp} continues to control the returned raw completed
+    table. An in-memory shared-capable fit separately holds the common
+    predictor table needed for deferred saving. Saved shared banks
+    and eagerly loaded shared objects can be saved again without
+    reconstructing row identities from predictor values.
+
+    Load the whole imputer with \code{load.impute.learn}. Shared learner
+    subdirectories are not independently portable, and direct
+    \code{fast.load} calls on them stop with an explanatory message.
+    Keep the manifest, shared table and learners together when moving
+    or archiving the bank. A compatible shared-aware package version
+    is required. The updated loader also accepts the existing
+    independent-learner format. Saving a shared object with
+    \code{share.xvar = FALSE} writes that independent format.
+
+    Lazy loading leaves the common table on disk until first use. Each
+    prediction or OOD operation loads it at most once and reuses it
+    across learner accesses, including when
+    \code{cache.learners = "none"}. Reconstructed learners remain normal
+    forest objects: caching or eagerly loading many learners can still
+    use memory for their individual predictor tables. Shared storage
+    primarily reduces repeated serialization and on-disk duplication.
+    Missing shared files, checksum mismatches and invalid mappings
+    cause errors rather than silently substituting initialization fills.
   }
 
   \subsection{Imputing new data}{
@@ -525,12 +616,24 @@ impute.ood.rfsrc(object, newdata,
     \itemize{
       \item Continuous and integer targets use absolute reconstruction
         error.
-      \item Factor targets use negative log predictive probabilities.
-        Unavailable or invalid probabilities give missing discrepancies;
-        zero probabilities are scored using the probability floor.
+      \item Factor targets use the negative log probability of the
+        observed class when OOB class probabilities are available.
+        If only OOB class labels are available, unordered factors use
+        misclassification error and ordered factors use scaled distance
+        between ordered levels.
     }
-    The references are stored in the manifest. Each learner entry records
-    \code{n.oob.finite} and \code{n.oob.nonfinite}.
+    Each target's discrepancy rule is saved with its reference and used
+    unchanged for new data. For probability-based discrepancies, the
+    saved probability floor is \code{1e-12}; finite zero probabilities
+    use this floor. Unavailable or invalid predictions give missing
+    discrepancies, without switching to another rule. Each learner entry
+    records \code{n.oob.finite} and \code{n.oob.nonfinite}.
+
+    OOB predictions come from the final target forests after training-data
+    imputation and auxiliary predictor construction. Those earlier steps
+    are not repeated for each OOB sample. Missing OOB predictions are
+    never replaced by ordinary training predictions when constructing
+    these references.
 
     The training-time row reference combines calibrated target scores
     using a weighted mean. If \code{weight} is omitted, all saved OOD
@@ -556,6 +659,10 @@ impute.ood.rfsrc(object, newdata,
 
     In supervised mode, the auxiliary variables are predictors for
     reconstruction; the supervised response is not used in new data.
+
+    Older saved imputers that do not record the factor discrepancy rule
+    must be refitted before OOD scoring those targets. They remain usable
+    for imputation and numeric-only OOD scoring.
   }
 
   \subsection{Row-level OOD scores}{
@@ -573,7 +680,8 @@ impute.ood.rfsrc(object, newdata,
         training reference rebuilt from the saved target-wise training
         OOD scores. The reference uses the requested target subset,
         weights, and row aggregate, so percentile calibration remains
-        available when any of these settings change.}
+        available when any of these settings change. It is not
+        conditioned on each new row's pattern of observed targets.}
     }
   }
 
@@ -598,6 +706,13 @@ impute.ood.rfsrc(object, newdata,
   When supervised mode is active, the manifest also records the
   supervised family, response names, and the internally created
   auxiliary \code{predicted.*} variable names.
+
+  Shared-capable fits also contain \code{manifest$shared.xvar},
+  the common-table specification, and per-learner \code{xvar.ref}
+  reconstruction mappings. \code{shared.xvar.data} holds the common
+  table for in-memory fits with \code{keep.models = TRUE} and eagerly
+  loaded shared objects. It is \code{NULL} for disk-backed lazy objects.
+  This component is separate from \code{ximp}.
 
   \code{load.impute.learn} returns an object of the same class.
 
@@ -710,6 +825,33 @@ test.imp <- predict(fit, test, max.predict.iter = 2, verbose = FALSE)
 print(head(test.imp))
 
 \donttest{
+## ------------------------------------------------------------
+## Shared training predictors for a deployment bank
+## ------------------------------------------------------------
+## Keep these objects separate from the airquality examples below.
+local({
+  if (requireNamespace("fst", quietly = TRUE) &&
+      requireNamespace("data.table", quietly = TRUE)) {
+    set.seed(17)
+    train <- data.frame(x1 = rnorm(100), x2 = runif(100),
+                        group = factor(rep(c("a", "b"), 50)))
+    bank.dir <- tempfile("shared-imputer-")
+    fit <- impute.learn(
+      data = train, target.mode = "all", anonymous = FALSE,
+      share.xvar = TRUE, compress = 100, out.dir = bank.dir,
+      full.sweep.options = list(ntree = 50, nsplit = 5,
+                                terminal.qualts = FALSE, terminal.quants = FALSE),
+      verbose = FALSE
+    )
+    imp <- load.impute.learn(bank.dir, verbose = FALSE)
+    test <- train[1:5, ]
+    test$x1[c(1, 3)] <- NA_real_
+    print(predict(imp, test, verbose = FALSE))
+    unlink(bank.dir, recursive = TRUE)
+  }
+})
+
+
 
 ## OOD scoring is most informative when every deployment-time
 ## variable can be reconstructed, so target.mode = "all" is recommended.
@@ -804,7 +946,8 @@ fit <- impute.learn(
   verbose = FALSE
 )
 
-save.impute.learn(fit, bundle.dir, verbose = FALSE)
+## Stronger compression for a deployment bundle.
+save.impute.learn(fit, bundle.dir, compress = 100, verbose = FALSE)
 imp <- load.impute.learn(bundle.dir, lazy = TRUE, verbose = FALSE)
 test.imp <- predict(imp, test, max.predict.iter = 2, verbose = FALSE)
 

@@ -1,3 +1,16 @@
+get.rng.version.code <- function(version) {
+  ## Protocol codes match RF_RNG_LEGACY and RF_RNG_WIDE in random.h.
+  ## Forests without RNG metadata use the legacy protocol.
+  if (is.null(version)) {
+    return(1L)
+  }
+  if (!is.character(version) || length(version) != 1L ||
+      !is.null(dim(version)) || is.na(version) ||
+      !(version %in% c("3.2.3", "3.10.0"))) {
+    stop("rng.version must be '3.2.3' or '3.10.0'", call. = FALSE)
+  }
+  return(match(version, c("3.2.3", "3.10.0")))
+}
 get.block.size.bits <- function (block.size, ntree) {
   ## Check for user silliness.
   if (!is.null(block.size)) {

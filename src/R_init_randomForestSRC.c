@@ -18,20 +18,20 @@ extern SEXP      rfsrcDistance(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, S
 extern SEXP     rfsrcGrow(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
                           SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
                           SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
-                          SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
+                          SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP);
 extern SEXP  rfsrcPredict(SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
                           SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
                           SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
                           SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
                           SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
                           SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP, SEXP,
-                          SEXP, SEXP, SEXP);
+                          SEXP, SEXP, SEXP, SEXP);
 static const R_CallMethodDef CallEntries[] = {
     {"rfsrcCIndex",        (DL_FUNC) &rfsrcCIndex,        8},
     {"rfsrcCIndexFenwick", (DL_FUNC) &rfsrcCIndexFenwick, 8},
     {"rfsrcDistance",      (DL_FUNC) &rfsrcDistance,      9},
-    {"rfsrcGrow",          (DL_FUNC) &rfsrcGrow,     38},
-    {"rfsrcPredict",       (DL_FUNC) &rfsrcPredict,  63},
+    {"rfsrcGrow",          (DL_FUNC) &rfsrcGrow,     39},
+    {"rfsrcPredict",       (DL_FUNC) &rfsrcPredict,  64},
     {NULL, NULL, 0}
 };
 void R_init_randomForestSRC(DllInfo *dll)
